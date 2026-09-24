@@ -18,7 +18,7 @@ first OrcaSlicer build, which GitHub does for you.
 
 ## 1. Printer: Rinkhals and Moonraker
 
-- Install [Rinkhals](https://github.com/jbatonnet/Rinkhals) on the Kobra S1. Moonraker must be
+- Install [Rinkhals](https://github.com/rinkhals-community/Rinkhals) on the Kobra S1. Moonraker must be
   reachable at `http://<printer-ip>:7125` (try `http://<printer-ip>:7125/server/info` in a browser).
 - **Moonraker's own Spoolman integration must stay off** (no `[spoolman]` section in
   `moonraker.conf`), otherwise consumption is booked twice. The bridge warns you if it is on.
@@ -117,6 +117,7 @@ tools/install.sh        # downloads the latest AppImage, adds "OrcaSlicer (Kobra
 
 It uses the normal Orca data folder (`~/.config/OrcaSlicer`), so your existing printers and
 profiles stay. Want your own build? Fork orca-kobra — the workflow builds it for you.
+Updates, fallback and uninstall: [orca-kobra installation guide](https://github.com/xNoVoSx/orca-kobra/blob/main/docs/installation.md).
 
 In Orca:
 

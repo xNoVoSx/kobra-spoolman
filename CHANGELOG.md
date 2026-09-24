@@ -6,6 +6,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Changed
+- Docs: Rinkhals links point to [rinkhals-community/Rinkhals](https://github.com/rinkhals-community/Rinkhals),
+  where development continues. The installation guide links to the new orca-kobra installation
+  guide for launcher details.
+
 ## plugin 0.3.1 – 2026-09-25
 
 Bridge unchanged (2.2.1). Needs orca-kobra build `kobra-20260924-2257-87a5d20` or newer for the

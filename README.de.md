@@ -66,7 +66,7 @@ flowchart LR
 
 ## Voraussetzungen
 
-- Anycubic **Kobra S1** mit **ACE 2 Pro**, mit [Rinkhals](https://github.com/jbatonnet/Rinkhals) (Moonraker auf Port 7125).
+- Anycubic **Kobra S1** mit **ACE 2 Pro**, mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals) (Moonraker auf Port 7125).
 - **Spoolman** ab 0.26.
 - Ein **Docker**-Host im selben Netz (Portainer, Compose, …).
 - **OrcaSlicer** mit Plugin-System (Nightly 2.5.0-dev). Die automatische Profilwahl braucht den
@@ -137,7 +137,7 @@ Die Summe stimmt exakt mit dem Zähler `filament_used` des Druckers überein. Me
 
 [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) ·
 [Spoolman](https://github.com/Donkie/Spoolman) ·
-[Rinkhals](https://github.com/jbatonnet/Rinkhals) ·
+[Rinkhals](https://github.com/rinkhals-community/Rinkhals) ·
 Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis ·
 [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID) ·
 [SimplyPrint zum Anycubic-Tag-Format](https://help.simplyprint.io/en/article/the-anycubic-material-standard-nfcrfid-for-the-anycubic-ace-js3oty/)
