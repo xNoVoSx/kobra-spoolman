@@ -1,9 +1,15 @@
 # Changelog
 
 All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
-**plugin** = Orca plugin "Kobra Spoolman". Format based on [Keep a Changelog](https://keepachangelog.com/).
+**plugin** = Orca plugin "Kobra Spoolman". Plugin-only releases have no repo tag.
+Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com/xNoVoSx/orca-kobra/blob/main/CHANGELOG.md). Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] · plugin 0.3.1
+## [Unreleased]
+
+## plugin 0.3.1 – 2026-09-25
+
+Bridge unchanged (2.2.1). Needs orca-kobra build `kobra-20260924-2257-87a5d20` or newer for the
+exact per-filament loads.
 
 ### Fixed
 - Plugin 0.3.1: the usage preview now shows the **same numbers as Orca's preview legend**
@@ -18,7 +24,9 @@ All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
   per slot, ✓ ⚠ ✗); the breakdown with Orca's column names sits under *Details*. The duplicate
   line in each slot card is gone.
 
-## plugin 0.3.0
+## plugin 0.3.0 – 2026-09-24
+
+Bridge unchanged (2.2.1).
 
 ### Added
 - Plugin 0.3.0: **usage preview after slicing**. Per slot the panel shows what the sliced plate
