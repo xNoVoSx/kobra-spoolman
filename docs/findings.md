@@ -32,7 +32,8 @@ Counting only positive deltas would over-count by ~2.3 % (retract + re-extrude c
   **cm³** (11.61 cm³ = 4.83 m at 1.75 mm). `filament_used_g` holds grams. Both are cleared once the
   print really starts.
 - `gate_spool_id` is **not** a unique chip ID: four different spools reported `[102, 107, 102, 107]`.
-  The tag UID is not exposed.
+  It is the number after the dash in the tag's SKU (e.g. `AHPEBK-102` → 102), i.e. a product
+  number shared by all spools of that product. The tag UID is not exposed.
 - `gate_filament_name` appears to come from an Anycubic lookup table (sometimes only the material).
 - The firmware's own Spoolman support reports `spoolman_support: off` — keep it that way.
 - Preparation before layer 1 (homing, levelling, heating) took ~16 min vs. 2 min estimated by Orca.
@@ -41,9 +42,19 @@ Counting only positive deltas would over-count by ~2.3 % (retract + re-extrude c
 
 - Presets are **read-only** for plugins; new profiles must be written as JSON files and appear
   after a restart (no reload call exposed).
+- A reload patch was evaluated and deferred: `PresetCollection::load_presets` skips every name it
+  already knows ("Preset already present, not loading"), so changed profiles are only picked up by
+  removing and reloading *all* user presets (`remove_user_presets()` + `load_user_presets()` + UI
+  refresh). That path can reset the selected user printer — too invasive for a carried patch.
 - The plugin sandbox denies any path component containing `conf`, which includes Linux's
   `~/.config` data folder — fixed by patch 0002 in [orca-kobra](https://github.com/xNoVoSx/orca-kobra).
-- No API for per-filament usage after slicing (only the G-code / 3MF contain it).
+- No API for per-filament usage after slicing (only the G-code / 3MF contain it) → patch 0003 adds
+  `orca.host.slice_statistics()` (read-only, from `GCodeProcessorResult::print_statistics`).
+- `SlicingJobComplete` is dispatched synchronously on the UI thread **before** the plate's
+  `slice_result_valid` flag is set; a handler of that event must read the result with
+  `require_valid=False` (the flag is set right after the event returns).
+- `total_filament_changes` counts changes only (not the first load): loads = changes + 1.
+- The Kobra's firmware purge does not appear in Orca's flush statistics (0 for this printer).
 - Printer agents get no file access to the temporary print 3MF → printing from a Python agent
   prompts on every print.
 - Dock panels (`orca.host.ui.create_dock_panel`) are HTML with a message bridge and are safe to
@@ -60,6 +71,9 @@ Counting only positive deltas would over-count by ~2.3 % (retract + re-extrude c
   2. Change only the brand to `TEST42` and write it (a write error means the tag is locked).
   3. Load it and query `mmu`: where does `TEST42` show up, do material and colour stay?
   4. Then change the SKU slightly and watch `gate_spool_id` (careful: the ACE validates the SKU).
+     Concretely: write SKU `AHPEBK-4711` to a sticker tag and check whether `gate_spool_id` becomes 4711.
+- Original Anycubic tags are write-protected; the ACE-RFID app can read but not rewrite them.
+- Colour is stored as ARGB on the tag; the ACE reports it as RGBA. Brand code `AC` = Anycubic.
 - Fallback if nothing passes through: scan the tag with the phone (UID) right before loading;
   the bridge assigns the spool to the slot that gets occupied next, with the ACE's material and
   colour as a cross-check.

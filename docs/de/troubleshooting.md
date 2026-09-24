@@ -17,6 +17,8 @@
 | Panel: *Filament N ist „…“ – erwartet „…“* | Orcas Sync-Knopf drücken oder das Profil von Hand wählen. |
 | Verbrauch nicht gebucht | Oben auf der Slot-Seite unter *Nicht gebucht* nachsehen. Spoolman weg → wird alle 30 s neu versucht. |
 | Falsche Menge gebucht | Rohdaten (`/api/telemetry/<datei>`) und den Eintrag aus `/api/jobs` in einem Issue schicken. |
+| Kein *Nach dem Slicen* im Panel | Dem Orca-Build fehlt Patch 0003 (steht in der Fußzeile) – über den orca-kobra-Starter aktualisieren. Sonst neu slicen; die Vorschau verschwindet, wenn das Slice-Ergebnis veraltet ist. |
+| Vorschau sagt *reicht nicht*, die Spule ist aber voll | Restgewicht in Spoolman stimmt nicht (Spulengewicht / Anfangsgewicht). In Spoolman korrigieren. |
 
 ## Nützliche Befehle
 

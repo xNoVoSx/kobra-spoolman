@@ -3,6 +3,22 @@
 All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
 **plugin** = Orca plugin "Kobra Spoolman". Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] · plugin 0.3.0
+
+### Added
+- Plugin 0.3.0: **usage preview after slicing**. Per slot the panel shows what the sliced plate
+  needs — Orca's statistics (model, support, prime tower, flush) plus the firmware purge per load
+  measured by the bridge — next to the spool's remaining weight, marked *reicht* / *knapp* /
+  *reicht nicht*. If a spool is too short, Orca shows a warning notification.
+  Needs `orca.host.slice_statistics` from orca-kobra patch 0003; without it only the preview is missing.
+- Plugin settings: reserve in grams (threshold for *knapp*), warn after slicing on/off.
+- Tests for the preview calculation.
+
+### Decided
+- Reloading profiles without restarting Orca is **deferred**: Orca skips presets it already
+  knows, so a clean reload means removing and reloading all user presets, which can reset the
+  selected printer. See [findings](docs/findings.md#orcaslicer-plugin-api-250-dev-commit-9859d788).
+
 ## [2.2.1] – 2026-09-24
 
 First public release of the repository.

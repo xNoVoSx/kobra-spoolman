@@ -37,6 +37,13 @@ script = types.SimpleNamespace(ScriptPluginCapabilityBase=_Cap)
 
 class LifecycleEvent:
     PresetSaved = "PresetSaved"
+    SlicingJobComplete = "SlicingJobComplete"
+
+
+class LifecycleEvtCode:
+    Ok = "Ok"
+    Error = "Error"
+    Warn = "Warn"
 
 
 host = types.SimpleNamespace(preset_bundle=None, ui=None)

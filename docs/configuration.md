@@ -56,6 +56,8 @@ Plugins dialog → **Kobra Spoolman** → **Configuration**:
 | Sync profiles on start | on | |
 | Open panel on start | on | |
 | Ask before back-sync | on | off = profile edits go to Spoolman without asking |
+| Warn after slicing | on | Orca notification when a spool does not hold enough for the sliced plate |
+| Reserve (g) | `5` | usage preview says *knapp* (tight) when less than this (or 5 % of the need) would be left |
 
 Plugin files: `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/` (the plugin keeps its state in
 `kobra_state.json` and its last written profiles in `written/` there). Log output:

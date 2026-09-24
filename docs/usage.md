@@ -44,9 +44,25 @@ automatically (during a print only after it ends). You can also press **Ins Rega
 1. In Orca press the filament **sync** button. With the orca-kobra build the `SM…` profiles are
    selected for slots 1–4 automatically; the panel shows *Filament N in Orca: passt* per slot and
    warns if a filament box does not match its slot.
-2. Slice and print as usual (printer agent *Moonraker*).
-3. During the print the slot page shows *Dieser Druck: x g* per slot. The bridge books consumption
+2. Slice. The panel now shows **Nach dem Slicen** (after slicing) per slot: the grams this plate
+   needs and whether the spool holds enough (*reicht* / *knapp* / *reicht nicht*). If a spool is
+   too short, Orca also shows a warning. Details below.
+3. Print as usual (printer agent *Moonraker*).
+4. During the print the slot page shows *Dieser Druck: x g* per slot. The bridge books consumption
    into Spoolman at every colour change, every 5 minutes and at the end.
+
+### How the usage preview is calculated
+
+| Column | Source |
+|---|---|
+| *Orca* | Orca's slicing statistics for the filament: model, support, prime tower and flush in the G-code (the numbers from the preview legend) |
+| *Laden* | Firmware purge when the ACE loads the filament. Orca does not know about it; the bridge measures it on every finished print (average per load). Until the first print is measured, an estimate of 0.32 m per load is used. Loads = filament changes + 1, at least one per used filament. |
+| *Bedarf* | *Orca* + *Laden* |
+| *Rest* | remaining weight of the spool assigned to the slot, from Spoolman |
+
+Filament N in Orca is counted against slot N — the same mapping the sync button sets. The
+preview needs the orca-kobra build (patch 0003); it disappears when the slice result is no longer
+valid (model or settings changed).
 
 ## Open items
 

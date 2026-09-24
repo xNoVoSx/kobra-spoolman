@@ -78,6 +78,17 @@ print would trigger a permission prompt (on a worker thread). Instead, the built
 does the printing, and a 70-line patch ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423))
 makes it match presets by `lane_data.filament_id` — which the bridge already writes.
 
+## Usage preview after slicing
+
+On `SlicingJobComplete` (and on every panel refresh) the plugin reads
+`orca.host.slice_statistics()` — per filament the model, support, prime tower, flush and total
+volume plus density, the same numbers as Orca's preview legend. `build_forecast()` converts them
+to grams, adds the firmware purge per load (`usage.purge` from the bridge: the average of
+`(measured − G-code target) / loads` over finished prints) and compares the sum with the spool's
+remaining weight. Filament N is counted against slot N. When the plate's slice result becomes
+invalid the preview is hidden. Without patch 0003 the attribute is missing and the preview is
+simply not shown (feature detection, no version check).
+
 ## Threads in the plugin
 
 Network and file work run in one background thread; Orca preset objects are only touched on the UI

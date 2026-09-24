@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.2.0"
+# version = "0.3.0"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -20,6 +20,9 @@ Aufgaben
   nicht zu Slot 1-4 passt.
 - Ruecksync: Speichert man ein verwaltetes Profil in Orca, fragt das Plugin, ob die
   Aenderungen nach Spoolman sollen.
+- Verbrauchsvorschau: Nach dem Slicen zeigt das Panel pro Slot den Bedarf (Orcas Statistik plus
+  die gemessene Spuelmenge der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht.
+  Braucht orca.host.slice_statistics (orca-kobra, Patch 0003); ohne fehlt nur die Vorschau.
 
 Drucken und die Profilwahl beim Sync-Knopf macht Orcas eingebauter Moonraker-Agent
 (mit Patch 0001 aus orca-kobra waehlt er das Profil ueber lane_data.filament_id).
@@ -43,7 +46,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.2.0"
+PLUGIN_VERSION = "0.3.0"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -52,6 +55,8 @@ DEFAULT_CONFIG = {
     "open_panel_on_start": True,
     "ask_backsync": True,
     "poll_seconds": 5,
+    "reserve_g": 5,                 # Verbrauchsvorschau: "knapp", wenn weniger als das uebrig bleibt
+    "warn_after_slice": True,       # Orca-Hinweis, wenn eine Spule nach dem Slicen nicht reicht
 }
 # Schluessel, die das Plugin selbst setzt und die nie als "Aenderung" nach Spoolman gehen
 META_KEYS = {"name", "inherits", "from", "instantiation", "setting_id", "filament_id", "version", "type",
@@ -59,6 +64,9 @@ META_KEYS = {"name", "inherits", "from", "instantiation", "setting_id", "filamen
              "compatible_prints", "compatible_prints_condition", "filament_notes", "is_custom_defined",
              "base_id", "user_id", "updated_time"}
 FORBIDDEN = ("secret", "cert", "conf")   # Orcas Sandbox sperrt Pfade mit diesen Woertern
+# Mehrverbrauch pro Ladevorgang, solange die Bridge noch keinen fertigen Druck gemessen hat
+# (erster Testdruck: 451 mm beim Start + 195 mm beim Wechsel, 2 Ladevorgaenge)
+DEFAULT_PURGE_PER_LOAD_MM = 320.0
 
 DATA_DIR = Path(__file__).resolve().parents[2]      # <datenordner>/orca_plugins/<plugin>/<datei>.py
 PLUGIN_DIR = Path(__file__).resolve().parent
@@ -70,10 +78,9 @@ def log(*args):
     print("[kobra-spoolman]", *args, flush=True)   # landet in <datenordner>/log/python_*.log
 
 
-def notify(text):
+def notify(text, level="RegularNotificationLevel"):
     try:
-        level = orca.host.ui.NotificationLevel.RegularNotificationLevel
-        orca.host.ui.push_notification(level, text)
+        orca.host.ui.push_notification(getattr(orca.host.ui.NotificationLevel, level), text)
     except Exception as e:  # noqa: BLE001
         log("Hinweis nicht moeglich:", e, text)
 
@@ -250,6 +257,116 @@ def diff_profiles(written, saved):
     return changes
 
 
+def _mm_to_g(mm, diameter, density):
+    r = (diameter or 1.75) / 2
+    return mm * 3.141592653589793 * r * r * (density or 1.24) / 1000
+
+
+def build_forecast(stats, slots, purge=None, reserve_g=5.0):
+    """Bedarf pro Slot fuer den gesliceten Druck.
+
+    stats  - Ergebnis von orca.host.slice_statistics() (Volumen in mm3, Filament-Index ab 0)
+    slots  - Slots aus /api/orca/state (slot, name, spool_id, remaining_weight)
+    purge  - /api/orca/state usage.purge (overhead_per_load_mm aus echten Drucken)
+
+    Filament N in Orca gehoert zu Slot N (so setzt es der Sync-Knopf). Orcas Zahlen enthalten
+    Modell, Stuetzen, Turm und Spuelen im G-Code; die Firmware spuelt beim Laden zusaetzlich
+    selbst. Diese Menge kommt aus der Bridge (gemessen) und wird auf die Ladevorgaenge verteilt:
+    jedes benutzte Filament wird mindestens einmal geladen, weitere Wechsel gleichmaessig.
+    """
+    by_slot = {s["slot"]: s for s in slots or []}
+    used = [f for f in (stats or {}).get("filaments", []) if (f.get("total_mm3") or 0) > 0]
+    purge = purge or {}
+    per_load_mm = purge.get("overhead_per_load_mm") if purge.get("jobs") else None
+    measured = per_load_mm is not None
+    if per_load_mm is None:
+        per_load_mm = DEFAULT_PURGE_PER_LOAD_MM
+    per_load_mm = max(0.0, float(per_load_mm))
+    loads = max(len(used), int((stats or {}).get("total_filament_changes") or 0) + 1) if used else 0
+    extra = (loads - len(used)) / len(used) if used else 0.0
+
+    rows, short, tight = [], [], []
+    for f in sorted(used, key=lambda x: x["index"]):
+        slot_no = int(f["index"]) + 1
+        density, diameter = f.get("density"), f.get("diameter")
+        dens = density or 1.24
+
+        def g(mm3, dens=dens):
+            return (mm3 or 0) * dens / 1000
+
+        slot_loads = 1 + extra
+        row = {
+            "slot": slot_no,
+            "model_g": round(g((f.get("model_mm3") or 0) + (f.get("support_mm3") or 0)), 1),
+            "tower_g": round(g(f.get("tower_mm3")), 1),
+            "flush_g": round(g(f.get("flush_mm3")), 1),
+            "orca_g": round(g(f.get("total_mm3")), 1),
+            "loads": round(slot_loads, 1),
+            "purge_g": round(_mm_to_g(per_load_mm * slot_loads, diameter, density), 1),
+        }
+        row["need_g"] = round(row["orca_g"] + row["purge_g"], 1)
+        s = by_slot.get(slot_no)
+        if s is None:
+            row["status"] = "noslot"
+        elif not s.get("spool_id"):
+            row["status"] = "nospool"
+        else:
+            row["name"] = s.get("name")
+            rest = s.get("remaining_weight")
+            row["remaining_g"] = None if rest is None else round(float(rest), 1)
+            if rest is None:
+                row["status"] = "unknown"
+            elif rest < row["need_g"]:
+                row["status"] = "short"
+                short.append(slot_no)
+            elif rest - row["need_g"] < max(float(reserve_g or 0), 0.05 * row["need_g"]):
+                row["status"] = "tight"
+                tight.append(slot_no)
+            else:
+                row["status"] = "ok"
+        rows.append(row)
+    return {
+        "plate": (stats or {}).get("plate_index"),
+        "rows": rows,
+        "short": short,
+        "tight": tight,
+        "loads": loads,
+        "per_load_mm": round(per_load_mm, 1),
+        "purge_measured": measured,
+        "purge_jobs": purge.get("jobs", 0),
+        "total_g": round(sum(r["need_g"] for r in rows), 1),
+    }
+
+
+def forecast_warnings(fc):
+    """Kurze Texte fuer Hinweise und das Panel."""
+    out = []
+    for r in fc.get("rows", []):
+        if r["status"] == "short":
+            out.append(f"Slot {r['slot']}: braucht ca. {r['need_g']:.0f} g, auf der Spule sind noch "
+                       f"{r['remaining_g']:.0f} g")
+        elif r["status"] == "tight":
+            out.append(f"Slot {r['slot']}: knapp – braucht ca. {r['need_g']:.0f} g, "
+                       f"noch {r['remaining_g']:.0f} g")
+        elif r["status"] == "nospool":
+            out.append(f"Slot {r['slot']} wird benutzt, hat aber keine Spule zugeordnet")
+        elif r["status"] == "noslot":
+            out.append(f"Filament {r['slot']} hat keinen ACE-Slot")
+    return out
+
+
+def read_slice_statistics(require_valid=True):
+    """orca.host.slice_statistics (orca-kobra Patch 0003) - None, wenn nicht vorhanden/nicht gesliced."""
+    fn = getattr(orca.host, "slice_statistics", None)
+    if fn is None:
+        return None
+    try:
+        return fn(-1, require_valid)
+    except Exception as e:  # noqa: BLE001
+        log("Slice-Statistik nicht lesbar:", e)
+        return None
+
+
 # ====================================================================== Kern
 class Core:
     """Ein Exemplar pro Orca-Sitzung: Bridge-Abfragen, Profil-Sync, Zustand."""
@@ -269,6 +386,8 @@ class Core:
         self.system = SystemProfiles(DATA_DIR / "system")
         self.thread = None
         self.missing_bases = set()     # Basisprofile, die im letzten Sync nicht gefunden wurden
+        self.slice = None              # {"stats", "at", "from_event"} - letztes Slice-Ergebnis
+        self.slice_warned = None       # Warnungen, fuer die schon ein Hinweis kam
 
     # ---------------------------------------------------------------- Zustand
     def _load_state(self):
@@ -466,6 +585,32 @@ class Core:
             orca.host.ui.message(f"Übernehmen nach Spoolman fehlgeschlagen:\n{e}", "Kobra Spoolman",
                                  buttons="ok", icon="error")
 
+    # ---------------------------------------------------------------- Verbrauchsvorschau (UI-Thread)
+    def on_slice_complete(self):
+        """Direkt nach SlicingJobComplete: Orca setzt das Gueltig-Flag erst danach."""
+        stats = read_slice_statistics(require_valid=False)
+        if stats is None:
+            return None
+        self.slice = {"stats": stats, "at": time.time(), "from_event": True, "stale": False}
+        return self.forecast()
+
+    def refresh_slice(self):
+        """Bei jeder Panel-Aktualisierung: gueltiges Slice-Ergebnis der aktuellen Platte lesen."""
+        stats = read_slice_statistics(require_valid=True)
+        now = time.time()
+        if stats is not None:
+            self.slice = {"stats": stats, "at": now, "from_event": False, "stale": False}
+        elif self.slice and not self.slice["stale"]:
+            if not (self.slice["from_event"] and now - self.slice["at"] < 8):
+                self.slice["stale"] = True   # Modell/Einstellung geaendert oder andere Platte
+
+    def forecast(self):
+        st = self.bridge_state
+        if not st or not self.slice or self.slice["stale"]:
+            return None
+        return build_forecast(self.slice["stats"], st.get("slots"), (st.get("usage") or {}).get("purge"),
+                              self.cfg("reserve_g"))
+
     def accept_saved(self, oid, entry):
         """Die von Orca gespeicherte Datei ist jetzt unser Stand (nach Ruecksync)."""
         try:
@@ -496,10 +641,14 @@ CONFIG_UI = r"""
 <div class="row"><input type="checkbox" id="sync_on_start"><label for="sync_on_start">Profile beim Orca-Start synchronisieren</label></div>
 <div class="row"><input type="checkbox" id="open_panel_on_start"><label for="open_panel_on_start">Panel beim Start öffnen</label></div>
 <div class="row"><input type="checkbox" id="ask_backsync"><label for="ask_backsync">Vor dem Rücksync nach Spoolman fragen</label></div>
+<div class="row"><input type="checkbox" id="warn_after_slice"><label for="warn_after_slice">Nach dem Slicen warnen, wenn eine Spule nicht reicht</label></div>
+<label for="reserve_g">Reserve (g)</label>
+<input type="number" id="reserve_g" min="0" max="200">
+<div class="hint">Bleibt nach dem Druck weniger als das auf der Spule, zeigt die Vorschau „knapp“.</div>
 <button type="button" id="save">Speichern</button> <button type="button" id="defaults">Standardwerte</button>
 <script>
 (function () {
-  var fields = ["bridge_url", "user_folder", "poll_seconds"], checks = ["sync_on_start", "open_panel_on_start", "ask_backsync"];
+  var fields = ["bridge_url", "user_folder", "poll_seconds", "reserve_g"], checks = ["sync_on_start", "open_panel_on_start", "ask_backsync", "warn_after_slice"];
   var defaults = __DEFAULTS__;
   function fill(cfg) {
     cfg = Object.assign({}, defaults, cfg || {});
@@ -511,6 +660,8 @@ CONFIG_UI = r"""
     var cfg = {};
     fields.forEach(function (k) { cfg[k] = document.getElementById(k).value.trim(); });
     cfg.poll_seconds = parseInt(cfg.poll_seconds, 10) || defaults.poll_seconds;
+    cfg.reserve_g = parseFloat(cfg.reserve_g);
+    if (isNaN(cfg.reserve_g)) cfg.reserve_g = defaults.reserve_g;
     checks.forEach(function (k) { cfg[k] = document.getElementById(k).checked; });
     window.orca.saveConfig(cfg);
   };
@@ -535,7 +686,10 @@ PAGE = r"""
   .err { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.5); }
   .actions { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
   button.quiet { background:transparent; color:var(--orca-fg); border-color:var(--orca-border); }
-  table { width:100%; border-collapse:collapse; } td { padding:2px 0; } td.r { text-align:right; }
+  table { width:100%; border-collapse:collapse; } td { padding:2px 0; }
+  td.r { text-align:right; }
+  .fc { border:1px solid var(--orca-border); border-radius:8px; padding:8px; margin-bottom:8px; }
+  .fc td { font-size:12px; } .fc tr.h td { font-weight:600; }
 </style>
 <h3>Kobra Spoolman</h3>
 <div id="status" class="muted">lade …</div>
@@ -545,6 +699,7 @@ PAGE = r"""
   <button type="button" id="sync">Profile synchronisieren</button>
   <button type="button" id="refresh" class="quiet">Aktualisieren</button>
 </div>
+<div id="forecast"></div>
 <div id="usage"></div>
 <div id="foot" class="muted"></div>
 <script>
@@ -563,7 +718,9 @@ PAGE = r"""
         '<div class="muted">' + (s.spool_id ? '#' + s.spool_id + ' · ' + esc(s.material) + ' · ' + g(s.remaining_weight) : esc(s.ace || "")) + '</div>' +
         (s.check ? '<div class="' + s.check_cls + '">' + esc(s.check) + '</div>' : '') +
         (s.use ? '<div class="muted">' + esc(s.use) + '</div>' : '') +
+        (s.need ? '<div class="' + (s.need_cls || 'muted') + '">' + esc(s.need) + '</div>' : '') +
         '</div></div>'; }).join("");
+    document.getElementById("forecast").innerHTML = m.forecast || "";
     document.getElementById("usage").innerHTML = m.usage || "";
     document.getElementById("foot").innerHTML = m.foot || "";
   }
@@ -575,6 +732,14 @@ PAGE = r"""
 })();
 </script>
 """
+
+
+def _mm175_to_g(mm):
+    return _mm_to_g(mm, 1.75, 1.24)
+
+
+def _de(v, nd=1):
+    return "–" if v is None else f"{v:.{nd}f}".replace(".", ",")
 
 
 def _esc(s):
@@ -622,6 +787,15 @@ def build_panel_message(core: Core):
     except Exception as e:  # noqa: BLE001
         log("Presets nicht lesbar:", e)
 
+    # Verbrauchsvorschau nach dem Slicen
+    core.refresh_slice()
+    fc = core.forecast()
+    need_by_slot = {r["slot"]: r for r in (fc or {}).get("rows", [])}
+    if fc:
+        for r in fc["rows"]:
+            if r["status"] in ("short", "nospool", "noslot"):
+                boxes.append({"error": True, "html": "<b>Reicht nicht:</b> " + _esc(forecast_warnings({"rows": [r]})[0])})
+
     live = ((st.get("usage") or {}).get("live") or {})
     live_by_slot = {x["slot"]: x for x in live.get("slots", [])}
     last_by_slot = (st.get("usage") or {}).get("last") or {}
@@ -645,26 +819,52 @@ def build_panel_message(core: Core):
         lv = live_by_slot.get(s["slot"])
         la = last_by_slot.get(str(s["slot"])) or last_by_slot.get(s["slot"])
         if lv:
-            item["use"] = f"Dieser Druck: {lv['g']:.1f} g"
+            item["use"] = f"Dieser Druck: {_de(lv['g'])} g"
         elif la:
-            item["use"] = f"Letzter Druck: {la['g']:.1f} g"
+            item["use"] = f"Letzter Druck: {_de(la['g'])} g"
+        nd = need_by_slot.get(s["slot"])
+        if nd:
+            label = {"ok": "reicht", "tight": "knapp", "short": "reicht nicht", "unknown": "Rest unbekannt",
+                     "nospool": "keine Spule"}.get(nd["status"], "")
+            item["need"] = f"Nach dem Slicen: ca. {_de(nd['need_g'])} g – {label}"
+            item["need_cls"] = {"ok": "ok", "tight": "warn", "short": "bad", "nospool": "bad"}.get(nd["status"], "muted")
         slots.append(item)
 
     purge = (st.get("usage") or {}).get("purge") or {}
     usage = ""
-    if purge.get("jobs"):
+    if purge.get("jobs") and not (fc and fc["rows"]):
         usage = (f"<div class='muted'>Mehrverbrauch (Spülen/Anfahren) bisher im Schnitt "
-                 f"{purge['overhead_per_load_mm'] / 1000 * 2.405 * 1.24:.1f} g pro Laden "
+                 f"{_de(_mm175_to_g(purge['overhead_per_load_mm']))} g pro Laden "
                  f"({purge['jobs']} Druck{'e' if purge['jobs'] != 1 else ''}).</div>")
+    forecast = ""
+    if fc and fc["rows"]:
+        cell = _de
+        rows = "".join(
+            f"<tr><td>{r['slot']}</td><td class='r'>{cell(r['orca_g'])}</td><td class='r'>{cell(r['purge_g'])}</td>"
+            f"<td class='r'><b>{cell(r['need_g'])}</b></td><td class='r'>{cell(r.get('remaining_g'))}</td></tr>"
+            for r in fc["rows"])
+        basis = (f"gemessen aus {fc['purge_jobs']} Druck{'en' if fc['purge_jobs'] != 1 else ''}"
+                 if fc["purge_measured"] else "Schätzwert, wird nach dem ersten fertigen Druck gemessen")
+        plate = f" · Platte {fc['plate'] + 1}" if isinstance(fc.get("plate"), int) else ""
+        forecast = (f"<div class='fc'><b>Nach dem Slicen</b><span class='muted'>{plate}</span>"
+                    "<table><tr class='h'><td>Slot</td><td class='r'>Orca</td><td class='r'>Laden</td>"
+                    f"<td class='r'>Bedarf</td><td class='r'>Rest</td></tr>{rows}</table>"
+                    f"<div class='muted'>Gramm. Orca = Modell, Stützen, Turm, Spülen im G-Code. "
+                    f"Laden = Spülen der Firmware, {fc['loads']} Ladevorgang{'e' if fc['loads'] != 1 else ''} "
+                    f"à ca. {_de(fc['per_load_mm'] / 1000, 2)} m ({basis}).</div></div>")
+    elif core.slice and core.slice["stale"]:
+        forecast = "<div class='muted'>Vorschau: Slice-Ergebnis nicht mehr aktuell – neu slicen.</div>"
     status = []
     status.append("Bridge " + ("<span class='ok'>verbunden</span>" if st and not core.bridge_error else "<span class='bad'>getrennt</span>"))
     if st:
         status.append(f"Drucker {_esc(st.get('print_state') or '–')}")
     foot = f"Plugin {PLUGIN_VERSION} · Bridge {_esc(st.get('version', '–'))} · {len(core.managed())} Profile"
+    if not hasattr(orca.host, "slice_statistics"):
+        foot += " · Verbrauchsvorschau braucht orca-kobra (Patch 0003)"
     if ls.get("at"):
         foot += f" · Sync {ls['at']}: {len(ls.get('written', []))} neu/geändert, {len(ls.get('deleted', []))} entfernt"
     return {"command": "state", "status": " · ".join(status), "boxes": boxes, "slots": slots,
-            "usage": usage, "foot": foot}
+            "forecast": forecast, "usage": usage, "foot": foot}
 
 
 # ====================================================================== Capabilities
@@ -748,13 +948,26 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
         self.panel = None
 
     def on_lifecycle_event(self, event, ctx):
-        if event != orca.LifecycleEvent.PresetSaved:
-            return
-        core = core_for(self)
-        if core.managed_by_name(ctx.name)[0]:
-            core.start()
-            core.saved_queue.put(ctx.name)
-            core.wake.set()
+        if event == orca.LifecycleEvent.PresetSaved:
+            core = core_for(self)
+            if core.managed_by_name(ctx.name)[0]:
+                core.start()
+                core.saved_queue.put(ctx.name)
+                core.wake.set()
+        elif event == orca.LifecycleEvent.SlicingJobComplete:
+            if ctx.code != orca.LifecycleEvtCode.Ok:
+                return
+            self._after_slice(core_for(self))
+
+    def _after_slice(self, core):
+        fc = core.on_slice_complete()
+        if fc and core.cfg("warn_after_slice"):
+            bad = forecast_warnings({"rows": [r for r in fc["rows"] if r["status"] in ("short", "nospool", "noslot")]})
+            if bad and bad != core.slice_warned:
+                notify("Kobra Spoolman: " + " · ".join(bad), "WarningNotificationLevel")
+            core.slice_warned = bad
+        if self.panel is not None and self.panel.is_open():
+            self.panel.post(build_panel_message(core))
 
 
 class KobraSync(orca.script.ScriptPluginCapabilityBase):

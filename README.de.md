@@ -24,6 +24,7 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 - Jeder Druck **bucht den Verbrauch pro Spule** in Spoolman – am Drucker gemessen, inklusive Spülen,
   auf den Millimeter genau.
 - Änderst du ein Profil in Orca, landet die Änderung nach Rückfrage **in Spoolman**.
+- Nach dem Slicen zeigt das Panel, **wie viel jede Spule braucht**, und warnt, wenn eine nicht reicht.
 
 <table>
   <tr>
@@ -59,9 +60,9 @@ flowchart LR
 | Baustein | Aufgabe |
 |---|---|
 | **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman: Slot-Zuordnung (Handy-Seite), `lane_data` für Orca, Verbrauch messen und pro Spule buchen, Journal, offene Posten, Druckhistorie, Profil-Schnittstelle für Orca. |
-| **[Kobra Spoolman](orca-plugin/)** (Orca-Plugin) | Legt pro Spoolman-Filament ein Orca-Profil an (`SM000010` …), Seitenpanel mit Slots und Profilprüfung, Rücksync von Profiländerungen nach Spoolman. |
+| **[Kobra Spoolman](orca-plugin/)** (Orca-Plugin) | Legt pro Spoolman-Filament ein Orca-Profil an (`SM000010` …), Seitenpanel mit Slots und Profilprüfung, Verbrauchsvorschau nach dem Slicen, Rücksync von Profiländerungen nach Spoolman. |
 | **[spoolman_setup.py](spoolman/)** | Richtet einmalig die Spoolman-Zusatzfelder (alle Orca-Filamenteinstellungen) und Materialvorlagen ein. |
-| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit zwei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)) und ein Linux-Fix für die Plugin-Sandbox. Aktualisiert sich selbst. |
+| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit drei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), ein Linux-Fix für die Plugin-Sandbox und lesender Zugriff auf die Slice-Statistik. Aktualisiert sich selbst. |
 
 ## Voraussetzungen
 
@@ -128,7 +129,7 @@ Die Summe stimmt exakt mit dem Zähler `filament_used` des Druckers überein. Me
 |---|---|---|
 | 1 | Moonraker- und Spoolman-Anbindung, Slot-Seite, `lane_data`, Telemetrie | ✅ fertig |
 | 2 | Verbrauch pro Spule, Journal, offene Posten, Sollwert-Abgleich, Historie | ✅ fertig |
-| 3 | Orca-Profile aus Spoolman, Seitenpanel, Rücksync, gepatchter Orca-Build | ✅ fertig – als Nächstes: Profile ohne Neustart, Verbrauchsvorschau nach dem Slicen |
+| 3 | Orca-Profile aus Spoolman, Seitenpanel, Rücksync, gepatchter Orca-Build, Verbrauchsvorschau nach dem Slicen | ✅ fertig (Profile ohne Neustart zurückgestellt, siehe [Erkenntnisse](docs/findings.md)) |
 | 4 | NFC-Tags: Spulen beim Einlegen erkennen | 🔜 geplant |
 | 5 | Home Assistant über MQTT (Slots, Restgewicht, Meldungen) | 🔜 geplant |
 

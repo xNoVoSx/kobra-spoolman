@@ -24,6 +24,7 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 - Every print **books the consumption per spool** into Spoolman — measured on the printer,
   including purge, accurate to the millimetre.
 - Changes you make to a profile in Orca are **written back to Spoolman** after you confirm.
+- After slicing, the panel shows **what each spool needs** for the plate and warns if one is too short.
 
 <table>
   <tr>
@@ -59,9 +60,9 @@ flowchart LR
 | Component | What it does |
 |---|---|
 | **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Slot ↔ spool assignment (mobile page), writes `lane_data` for Orca, measures and books consumption per spool, journal, open items, print history, Orca profile API. |
-| **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | Creates one Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, back-sync of profile edits to Spoolman. |
+| **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | Creates one Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, usage preview after slicing, back-sync of profile edits to Spoolman. |
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
-| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with two small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)) and a Linux plugin-sandbox fix. Updates itself. |
+| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with three small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), a Linux plugin-sandbox fix and read-only slice statistics for plugins. Updates itself. |
 
 ## Requirements
 
@@ -131,7 +132,7 @@ The sum matches the printer's `filament_used` counter exactly. More in [docs/fin
 |---|---|---|
 | 1 | Moonraker + Spoolman connection, slot page, `lane_data`, telemetry | ✅ done |
 | 2 | Consumption per spool, journal, open items, target comparison, history | ✅ done |
-| 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build | ✅ done — next: reload profiles without restart, usage preview after slicing |
+| 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build, usage preview after slicing | ✅ done (reloading profiles without a restart is deferred, see [findings](docs/findings.md)) |
 | 4 | NFC tags: recognise spools when they are loaded | 🔜 planned |
 | 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
 
