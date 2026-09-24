@@ -9,8 +9,8 @@ Makes Spoolman the source for OrcaSlicer filament profiles.
 - **Side panel**: slots with spool, remaining weight, consumption, and a check that filament 1–4 in
   Orca match slots 1–4.
 - **Back-sync**: saving an `SM…` profile in Orca asks whether the changes should go to Spoolman.
-- **Usage preview**: after slicing, the grams each slot needs (Orca's statistics plus the measured
-  firmware purge) next to the spool's remaining weight, with a warning if a spool is too short.
+- **Usage preview**: after slicing, one line per slot with need / remaining grams and a warning if a
+  spool is too short; the details show Orca's legend values plus the measured firmware purge per load.
   Needs the orca-kobra build with patch 0003 (`orca.host.slice_statistics`).
 - Removes profiles of filaments without an active spool (only its own, marked in `filament_notes`).
 

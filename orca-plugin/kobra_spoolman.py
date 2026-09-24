@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.3.0"
+# version = "0.3.1"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -20,8 +20,8 @@ Aufgaben
   nicht zu Slot 1-4 passt.
 - Ruecksync: Speichert man ein verwaltetes Profil in Orca, fragt das Plugin, ob die
   Aenderungen nach Spoolman sollen.
-- Verbrauchsvorschau: Nach dem Slicen zeigt das Panel pro Slot den Bedarf (Orcas Statistik plus
-  die gemessene Spuelmenge der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht.
+- Verbrauchsvorschau: Nach dem Slicen zeigt das Panel pro Slot Bedarf / Rest (Orcas Zahlen wie in
+  der Legende plus das Spuelen der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht.
   Braucht orca.host.slice_statistics (orca-kobra, Patch 0003); ohne fehlt nur die Vorschau.
 
 Drucken und die Profilwahl beim Sync-Knopf macht Orcas eingebauter Moonraker-Agent
@@ -46,7 +46,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.3.0"
+PLUGIN_VERSION = "0.3.1"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -269,21 +269,32 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
     slots  - Slots aus /api/orca/state (slot, name, spool_id, remaining_weight)
     purge  - /api/orca/state usage.purge (overhead_per_load_mm aus echten Drucken)
 
-    Filament N in Orca gehoert zu Slot N (so setzt es der Sync-Knopf). Orcas Zahlen enthalten
-    Modell, Stuetzen, Turm und Spuelen im G-Code; die Firmware spuelt beim Laden zusaetzlich
-    selbst. Diese Menge kommt aus der Bridge (gemessen) und wird auf die Ladevorgaenge verteilt:
-    jedes benutzte Filament wird mindestens einmal geladen, weitere Wechsel gleichmaessig.
+    Filament N in Orca gehoert zu Slot N (so setzt es der Sync-Knopf). Die Orca-Werte sind
+    dieselben wie in Orcas Legende: Modell, Stuetzen, Gereinigt, Turm, Gesamt = Summe davon
+    (nicht total_volumes_per_extruder - das verteilt den Turm beim Wechsel anders). Dazu kommt
+    das Spuelen der Firmware beim Laden, das Orca nicht kennt: gemessene Menge pro Ladevorgang
+    (Bridge) mal Ladevorgaenge. Die zaehlt Orca pro Filament ("loads", neuerer Patch 0003);
+    fehlen sie, werden die Wechsel gleichmaessig auf die benutzten Filamente verteilt.
     """
     by_slot = {s["slot"]: s for s in slots or []}
-    used = [f for f in (stats or {}).get("filaments", []) if (f.get("total_mm3") or 0) > 0]
+
+    def orca_mm3(f):
+        return sum(f.get(k) or 0 for k in ("model_mm3", "support_mm3", "flush_mm3", "tower_mm3"))
+
+    used = [f for f in (stats or {}).get("filaments", []) if orca_mm3(f) > 0]
     purge = purge or {}
     per_load_mm = purge.get("overhead_per_load_mm") if purge.get("jobs") else None
     measured = per_load_mm is not None
     if per_load_mm is None:
         per_load_mm = DEFAULT_PURGE_PER_LOAD_MM
     per_load_mm = max(0.0, float(per_load_mm))
-    loads = max(len(used), int((stats or {}).get("total_filament_changes") or 0) + 1) if used else 0
-    extra = (loads - len(used)) / len(used) if used else 0.0
+    loads_exact = bool(used) and all("loads" in f for f in used)
+    if loads_exact:
+        load_counts = {f["index"]: max(1, int(f["loads"] or 0)) for f in used}
+    else:
+        changes = int((stats or {}).get("total_filament_changes") or 0)
+        extra = (max(len(used), changes + 1) - len(used)) / len(used) if used else 0.0
+        load_counts = {f["index"]: 1 + extra for f in used}
 
     rows, short, tight = [], [], []
     for f in sorted(used, key=lambda x: x["index"]):
@@ -294,13 +305,14 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
         def g(mm3, dens=dens):
             return (mm3 or 0) * dens / 1000
 
-        slot_loads = 1 + extra
+        slot_loads = load_counts[f["index"]]
         row = {
             "slot": slot_no,
-            "model_g": round(g((f.get("model_mm3") or 0) + (f.get("support_mm3") or 0)), 1),
-            "tower_g": round(g(f.get("tower_mm3")), 1),
-            "flush_g": round(g(f.get("flush_mm3")), 1),
-            "orca_g": round(g(f.get("total_mm3")), 1),
+            "model_g": round(g(f.get("model_mm3")), 2),
+            "support_g": round(g(f.get("support_mm3")), 2),
+            "flush_g": round(g(f.get("flush_mm3")), 2),
+            "tower_g": round(g(f.get("tower_mm3")), 2),
+            "orca_g": round(g(orca_mm3(f)), 2),
             "loads": round(slot_loads, 1),
             "purge_g": round(_mm_to_g(per_load_mm * slot_loads, diameter, density), 1),
         }
@@ -330,10 +342,13 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
         "rows": rows,
         "short": short,
         "tight": tight,
-        "loads": loads,
+        "loads": round(sum(load_counts.values())),
+        "loads_exact": loads_exact,
         "per_load_mm": round(per_load_mm, 1),
+        "per_load_g": round(_mm_to_g(per_load_mm, 1.75, 1.24), 2),
         "purge_measured": measured,
         "purge_jobs": purge.get("jobs", 0),
+        "orca_g": round(sum(r["orca_g"] for r in rows), 2),
         "total_g": round(sum(r["need_g"] for r in rows), 1),
     }
 
@@ -689,17 +704,24 @@ PAGE = r"""
   table { width:100%; border-collapse:collapse; } td { padding:2px 0; }
   td.r { text-align:right; }
   .fc { border:1px solid var(--orca-border); border-radius:8px; padding:8px; margin-bottom:8px; }
-  .fc td { font-size:12px; } .fc tr.h td { font-weight:600; }
+  .fc td { font-size:12px; } .fc tr.h td { font-weight:600; } .fc tr.s td { border-top:1px solid var(--orca-border); }
+  .fch { display:flex; justify-content:space-between; gap:6px; margin-bottom:4px; }
+  .fcl { display:flex; justify-content:space-between; gap:8px; padding:2px 0; }
+  .fcn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .fca { flex:none; font-variant-numeric:tabular-nums; }
+  .fcw { font-size:12px; margin:0 0 2px 8px; }
+  .fc details { margin-top:6px; } .fc summary { cursor:pointer; color:var(--orca-muted); font-size:12px; }
+  .fct { margin:6px 0 2px; }
 </style>
 <h3>Kobra Spoolman</h3>
 <div id="status" class="muted">lade …</div>
 <div id="boxes"></div>
+<div id="forecast"></div>
 <div id="slots"></div>
 <div class="actions">
   <button type="button" id="sync">Profile synchronisieren</button>
   <button type="button" id="refresh" class="quiet">Aktualisieren</button>
 </div>
-<div id="forecast"></div>
 <div id="usage"></div>
 <div id="foot" class="muted"></div>
 <script>
@@ -718,9 +740,12 @@ PAGE = r"""
         '<div class="muted">' + (s.spool_id ? '#' + s.spool_id + ' · ' + esc(s.material) + ' · ' + g(s.remaining_weight) : esc(s.ace || "")) + '</div>' +
         (s.check ? '<div class="' + s.check_cls + '">' + esc(s.check) + '</div>' : '') +
         (s.use ? '<div class="muted">' + esc(s.use) + '</div>' : '') +
-        (s.need ? '<div class="' + (s.need_cls || 'muted') + '">' + esc(s.need) + '</div>' : '') +
         '</div></div>'; }).join("");
+    // aufgeklappte Details ueber die regelmaessige Aktualisierung hinweg offen halten
+    var d = document.getElementById("fcd"), open = d ? d.open : false;
     document.getElementById("forecast").innerHTML = m.forecast || "";
+    d = document.getElementById("fcd");
+    if (d) d.open = open;
     document.getElementById("usage").innerHTML = m.usage || "";
     document.getElementById("foot").innerHTML = m.foot || "";
   }
@@ -744,6 +769,63 @@ def _de(v, nd=1):
 
 def _esc(s):
     return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+FC_STATUS = {"ok": ("✓", "ok", "reicht"), "tight": ("⚠", "warn", "knapp"), "short": ("✗", "bad", "reicht nicht"),
+             "unknown": ("?", "muted", "Rest unbekannt"), "nospool": ("✗", "bad", "keine Spule zugeordnet"),
+             "noslot": ("✗", "bad", "kein ACE-Slot")}
+
+
+def forecast_html(fc):
+    """Verbrauchsvorschau: pro Slot eine Zeile (Bedarf / Rest), Aufschluesselung zum Aufklappen.
+    Die Orca-Spalten heissen und rechnen wie Orcas Legende (Filament, Modell, Stuetzen,
+    Gereinigt, Turm, Gesamt); "Laden" ist das Spuelen der Firmware, das Orca nicht kennt."""
+    def g(v, nd=1):
+        return _de(v, nd)
+
+    lines = []
+    for r in fc["rows"]:
+        sym, cls, label = FC_STATUS.get(r["status"], ("", "muted", ""))
+        name = _esc(r.get("name") or f"Filament {r['slot']}")
+        if r.get("remaining_g") is not None:
+            amount = f"{g(r['need_g'])} / {g(r['remaining_g'])} g"
+        else:
+            amount = f"{g(r['need_g'])} g"
+        lines.append(f"<div class='fcl' title='{_esc(label)}'><span class='fcn'><b>Slot {r['slot']}</b> · {name}</span>"
+                     f"<span class='fca'>{amount} <span class='{cls}'>{sym}</span></span></div>")
+        if r["status"] not in ("ok", "unknown"):
+            lines.append(f"<div class='{cls} fcw'>{_esc(label)}</div>")
+
+    cols = [("Modell", "model_g"), ("Stützen", "support_g"), ("Gereinigt", "flush_g"), ("Turm", "tower_g")]
+    cols = [c for c in cols if c[1] == "model_g" or any(r[c[1]] for r in fc["rows"])]
+    head = "".join(f"<td class='r'>{t}</td>" for t, _ in cols)
+    body = "".join(
+        f"<tr><td>{r['slot']}</td>" + "".join(f"<td class='r'>{g(r[k], 2)}</td>" for _, k in cols)
+        + f"<td class='r'>{g(r['orca_g'], 2)}</td></tr>" for r in fc["rows"])
+    orca_tab = (f"<table><tr class='h'><td>Filament</td>{head}<td class='r'>Gesamt</td></tr>{body}"
+                f"<tr class='s'><td>Summe</td>{'<td></td>' * len(cols)}<td class='r'>{g(fc['orca_g'], 2)}</td></tr></table>")
+
+    loads = lambda n: _de(n, 0) if float(n).is_integer() else _de(n, 1)  # noqa: E731
+    load_rows = "".join(
+        f"<tr><td>{r['slot']}</td><td class='r'>{loads(r['loads'])}×</td><td class='r'>{g(r['purge_g'])}</td>"
+        f"<td class='r'><b>{g(r['need_g'])}</b></td><td class='r'>{g(r.get('remaining_g'))}</td></tr>"
+        for r in fc["rows"])
+    load_tab = ("<table><tr class='h'><td>Filament</td><td class='r'>Laden</td><td class='r'>g</td>"
+                f"<td class='r'>Bedarf</td><td class='r'>Rest</td></tr>{load_rows}</table>")
+
+    basis = (f"gemessen aus {fc['purge_jobs']} Druck{'en' if fc['purge_jobs'] != 1 else ''}"
+             if fc["purge_measured"] else "Schätzwert, bis die Bridge einen fertigen Druck gemessen hat")
+    how = ("von Orca gezählt" if fc.get("loads_exact")
+           else "gleichmäßig verteilt – genaue Zahl braucht einen neueren orca-kobra-Build")
+    plate = f"Platte {fc['plate'] + 1} · " if isinstance(fc.get("plate"), int) else ""
+    return (f"<div class='fc'><div class='fch'><b>Geplanter Verbrauch</b><span class='muted'>{plate}Gramm</span></div>"
+            + "".join(lines)
+            + "<details id='fcd'><summary>Details (Orca-Legende + Laden)</summary>"
+            f"<div class='muted fct'>Wie Orcas Legende (Vorschau → Filament):</div>{orca_tab}"
+            f"<div class='muted fct'>Dazu Laden: Die Firmware spült bei jedem Einlegen, das kennt Orca nicht. "
+            f"{fc['loads']} Ladevorgänge ({how}), je ca. {g(fc['per_load_g'], 2)} g ({basis}).</div>{load_tab}"
+            f"<div class='muted fct'>Bedarf = Orca Gesamt + Laden. Rest = was laut Spoolman auf der Spule ist.</div>"
+            "</details></div>")
 
 
 def build_panel_message(core: Core):
@@ -790,7 +872,6 @@ def build_panel_message(core: Core):
     # Verbrauchsvorschau nach dem Slicen
     core.refresh_slice()
     fc = core.forecast()
-    need_by_slot = {r["slot"]: r for r in (fc or {}).get("rows", [])}
     if fc:
         for r in fc["rows"]:
             if r["status"] in ("short", "nospool", "noslot"):
@@ -822,12 +903,6 @@ def build_panel_message(core: Core):
             item["use"] = f"Dieser Druck: {_de(lv['g'])} g"
         elif la:
             item["use"] = f"Letzter Druck: {_de(la['g'])} g"
-        nd = need_by_slot.get(s["slot"])
-        if nd:
-            label = {"ok": "reicht", "tight": "knapp", "short": "reicht nicht", "unknown": "Rest unbekannt",
-                     "nospool": "keine Spule"}.get(nd["status"], "")
-            item["need"] = f"Nach dem Slicen: ca. {_de(nd['need_g'])} g – {label}"
-            item["need_cls"] = {"ok": "ok", "tight": "warn", "short": "bad", "nospool": "bad"}.get(nd["status"], "muted")
         slots.append(item)
 
     purge = (st.get("usage") or {}).get("purge") or {}
@@ -838,20 +913,7 @@ def build_panel_message(core: Core):
                  f"({purge['jobs']} Druck{'e' if purge['jobs'] != 1 else ''}).</div>")
     forecast = ""
     if fc and fc["rows"]:
-        cell = _de
-        rows = "".join(
-            f"<tr><td>{r['slot']}</td><td class='r'>{cell(r['orca_g'])}</td><td class='r'>{cell(r['purge_g'])}</td>"
-            f"<td class='r'><b>{cell(r['need_g'])}</b></td><td class='r'>{cell(r.get('remaining_g'))}</td></tr>"
-            for r in fc["rows"])
-        basis = (f"gemessen aus {fc['purge_jobs']} Druck{'en' if fc['purge_jobs'] != 1 else ''}"
-                 if fc["purge_measured"] else "Schätzwert, wird nach dem ersten fertigen Druck gemessen")
-        plate = f" · Platte {fc['plate'] + 1}" if isinstance(fc.get("plate"), int) else ""
-        forecast = (f"<div class='fc'><b>Nach dem Slicen</b><span class='muted'>{plate}</span>"
-                    "<table><tr class='h'><td>Slot</td><td class='r'>Orca</td><td class='r'>Laden</td>"
-                    f"<td class='r'>Bedarf</td><td class='r'>Rest</td></tr>{rows}</table>"
-                    f"<div class='muted'>Gramm. Orca = Modell, Stützen, Turm, Spülen im G-Code. "
-                    f"Laden = Spülen der Firmware, {fc['loads']} Ladevorgang{'e' if fc['loads'] != 1 else ''} "
-                    f"à ca. {_de(fc['per_load_mm'] / 1000, 2)} m ({basis}).</div></div>")
+        forecast = forecast_html(fc)
     elif core.slice and core.slice["stale"]:
         forecast = "<div class='muted'>Vorschau: Slice-Ergebnis nicht mehr aktuell – neu slicen.</div>"
     status = []

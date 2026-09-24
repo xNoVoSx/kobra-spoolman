@@ -3,7 +3,22 @@
 All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
 **plugin** = Orca plugin "Kobra Spoolman". Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] · plugin 0.3.0
+## [Unreleased] · plugin 0.3.1
+
+### Fixed
+- Plugin 0.3.1: the usage preview now shows the **same numbers as Orca's preview legend**
+  (model, support, flush, tower, total). 0.3.0 used Orca's `total_volumes_per_extruder`, which
+  attributes the prime tower differently at tool changes, so single filaments were off by up to ~1 g.
+- Firmware purge ("Laden") uses the **real number of loads per filament** counted by Orca
+  (orca-kobra patch 0003, updated) instead of spreading all filament changes evenly over the slots.
+  Older builds keep the even split and the panel says so.
+
+### Changed
+- Usage preview is a compact block at the top of the panel (*Geplanter Verbrauch*: need / remaining
+  per slot, ✓ ⚠ ✗); the breakdown with Orca's column names sits under *Details*. The duplicate
+  line in each slot card is gone.
+
+## plugin 0.3.0
 
 ### Added
 - Plugin 0.3.0: **usage preview after slicing**. Per slot the panel shows what the sliced plate

@@ -44,20 +44,22 @@ Spule rausnehmen: Meldet die ACE einen Slot eine Weile leer, wandert die Spule a
 1. In Orca den **Sync-Knopf** bei den Filamenten drücken. Mit dem orca-kobra-Build werden die
    `SM…`-Profile für Slot 1–4 automatisch gewählt; das Panel zeigt pro Slot *Filament N in Orca: passt*
    und warnt, wenn ein Filament-Feld nicht zu seinem Slot passt.
-2. Slicen. Das Panel zeigt jetzt pro Slot **Nach dem Slicen**: wie viel Gramm diese Platte braucht
-   und ob die Spule reicht (*reicht* / *knapp* / *reicht nicht*). Reicht eine Spule nicht, warnt
-   Orca zusätzlich mit einem Hinweis. Details unten.
+2. Slicen. Oben im Panel steht jetzt **Geplanter Verbrauch** mit einer Zeile pro Slot:
+   *Bedarf / Rest in g* und ✓ (reicht), ⚠ (knapp) oder ✗ (reicht nicht). Reicht eine Spule nicht,
+   warnt Orca zusätzlich mit einem Hinweis. *Details* klappt die Aufschlüsselung auf (siehe unten).
 3. Drucken wie gewohnt (Printer Agent *Moonraker*).
 4. Während des Drucks zeigt die Slot-Seite *Dieser Druck: x g* pro Slot. Die Bridge bucht in Spoolman
    bei jedem Farbwechsel, alle 5 Minuten und am Ende.
 
 ### So rechnet die Verbrauchsvorschau
 
+Unter *Details* stehen zwei Tabellen, alle Werte in Gramm.
+
 | Spalte | Herkunft |
 |---|---|
-| *Orca* | Orcas Slice-Statistik für das Filament: Modell, Stützen, Turm und Spülen im G-Code (die Zahlen aus der Vorschau-Legende) |
-| *Laden* | Spülen der Firmware, wenn die ACE das Filament lädt. Das kennt Orca nicht; die Bridge misst es bei jedem fertigen Druck (Mittel pro Ladevorgang). Bis zum ersten gemessenen Druck gilt ein Schätzwert von 0,32 m pro Ladevorgang. Ladevorgänge = Filamentwechsel + 1, mindestens einer pro benutztem Filament. |
-| *Bedarf* | *Orca* + *Laden* |
+| *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Genau Orcas Vorschau-Legende (Vorschau → Filament): Modell, Stützen, Spülen und Reinigungsturm pro Filament, *Gesamt* ist die Summe. Leere Spalten fehlen wie in Orca. |
+| *Laden* | Spülen der Firmware, wenn die ACE das Filament lädt. Das kennt Orca nicht; die Bridge misst es bei jedem fertigen Druck (Mittel pro Ladevorgang). Bis zum ersten gemessenen Druck gilt ein Schätzwert von 0,32 m pro Ladevorgang. Wie oft jedes Filament geladen wird, zählt Orca (erste Benutzung plus jeder Wechsel zurück); mit einem älteren orca-kobra-Build werden die Filamentwechsel gleichmäßig auf die benutzten Filamente verteilt. |
+| *Bedarf* | *Gesamt* + *Laden* |
 | *Rest* | Restgewicht der Spule im Slot, aus Spoolman |
 
 Filament N in Orca zählt gegen Slot N – dieselbe Zuordnung, die der Sync-Knopf setzt. Die

@@ -17,7 +17,7 @@
 | Panel: *Filament N ist „…“ – erwartet „…“* | Press Orca's sync button, or select the profile manually. |
 | Consumption not booked | See *Nicht gebucht* on the slot page (open items). Spoolman down → retried automatically every 30 s. |
 | Wrong amount booked | Send the raw recording (`/api/telemetry/<file>`) and the `/api/jobs` entry in an issue. |
-| No *Nach dem Slicen* in the panel | The Orca build lacks patch 0003 (footer says so) — update via the orca-kobra launcher. Otherwise slice again; the preview hides when the slice result is outdated. |
+| No *Geplanter Verbrauch* in the panel | The Orca build lacks patch 0003 (footer says so) — update via the orca-kobra launcher. Otherwise slice again; the preview hides when the slice result is outdated. |
 | Preview says *reicht nicht* but the spool is full | Remaining weight in Spoolman is wrong (spool weight / initial weight). Fix it in Spoolman. |
 
 ## Useful commands

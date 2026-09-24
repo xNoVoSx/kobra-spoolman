@@ -82,10 +82,14 @@ makes it match presets by `lane_data.filament_id` — which the bridge already w
 
 On `SlicingJobComplete` (and on every panel refresh) the plugin reads
 `orca.host.slice_statistics()` — per filament the model, support, prime tower, flush and total
-volume plus density, the same numbers as Orca's preview legend. `build_forecast()` converts them
-to grams, adds the firmware purge per load (`usage.purge` from the bridge: the average of
-`(measured − G-code target) / loads` over finished prints) and compares the sum with the spool's
-remaining weight. Filament N is counted against slot N. When the plate's slice result becomes
+volume plus density and the number of loads. `build_forecast()` converts them to grams exactly like
+Orca's preview legend (*Gesamt* = model + support + flush + tower; Orca's own
+`total_volumes_per_extruder` attributes the tower differently at tool changes and is not used),
+adds the firmware purge per load (`usage.purge` from the bridge: the average of
+`(measured − G-code target) / loads` over finished prints) times the filament's loads and compares
+the sum with the spool's remaining weight. Loads come from Orca's processed moves (every time a
+filament becomes the extruding one); builds without that field fall back to spreading the filament
+changes evenly. Filament N is counted against slot N. When the plate's slice result becomes
 invalid the preview is hidden. Without patch 0003 the attribute is missing and the preview is
 simply not shown (feature detection, no version check).
 

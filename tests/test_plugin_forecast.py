@@ -22,11 +22,14 @@ def ks():
     return mod
 
 
-def fil(index, model_mm, flush_mm=0.0, tower_mm=0.0, density=1.24):
+def fil(index, model_mm, flush_mm=0.0, tower_mm=0.0, density=1.24, loads=None, total_mm=None):
     """Ein Eintrag wie von orca.host.slice_statistics(), Laengen in mm Filament."""
-    total = model_mm + flush_mm + tower_mm
-    return {"index": index, "model_mm3": model_mm * AREA, "support_mm3": 0.0, "tower_mm3": tower_mm * AREA,
-            "flush_mm3": flush_mm * AREA, "total_mm3": total * AREA, "diameter": 1.75, "density": density}
+    total = model_mm + flush_mm + tower_mm if total_mm is None else total_mm
+    f = {"index": index, "model_mm3": model_mm * AREA, "support_mm3": 0.0, "tower_mm3": tower_mm * AREA,
+         "flush_mm3": flush_mm * AREA, "total_mm3": total * AREA, "diameter": 1.75, "density": density}
+    if loads is not None:
+        f["loads"] = loads
+    return f
 
 
 def slots(*remaining):
@@ -99,6 +102,51 @@ def test_density_from_orca_profile(ks):
     stats = {"total_filament_changes": 0, "filaments": [fil(0, 1000, density=1.04)]}
     fc = ks.build_forecast(stats, slots(900), {"jobs": 1, "overhead_per_load_mm": 100})
     assert fc["rows"][0]["need_g"] == pytest.approx(grams(1100, 1.04), abs=0.05)
+
+
+def test_orca_values_match_the_legend(ks):
+    # Echter Fall (Eidechse, 24.09.): Orcas total_volumes_per_extruder verteilt den Turm anders als
+    # die Legende. Angezeigt wird wie in der Legende: Gesamt = Modell + Stuetzen + Gereinigt + Turm.
+    stats = {"total_filament_changes": 35, "filaments": [
+        fil(0, 1400, total_mm=1480), fil(1, 130, tower_mm=520, total_mm=330), fil(3, 8660, tower_mm=310, total_mm=9180)]}
+    fc = ks.build_forecast(stats, slots(580, 890, 600, 796), {"jobs": 1, "overhead_per_load_mm": 0})
+    by = {r["slot"]: r for r in fc["rows"]}
+    assert by[1]["orca_g"] == pytest.approx(grams(1400), abs=0.01)
+    assert by[2]["orca_g"] == pytest.approx(grams(650), abs=0.01)
+    assert by[2]["tower_g"] == pytest.approx(grams(520), abs=0.01)
+    assert by[4]["orca_g"] == pytest.approx(grams(8970), abs=0.01)
+    assert fc["orca_g"] == pytest.approx(grams(1400 + 650 + 8970), abs=0.02)
+
+
+def test_exact_loads_from_orca(ks):
+    # neuerer Patch 0003: Orca zaehlt die Ladevorgaenge pro Filament
+    stats = {"total_filament_changes": 35, "filaments": [
+        fil(0, 1400, loads=18), fil(1, 130, loads=1), fil(3, 8660, loads=17)]}
+    fc = ks.build_forecast(stats, slots(580, 890, 600, 796), {"jobs": 2, "overhead_per_load_mm": 200})
+    assert fc["loads_exact"] and fc["loads"] == 36
+    by = {r["slot"]: r for r in fc["rows"]}
+    assert [by[n]["loads"] for n in (1, 2, 4)] == [18, 1, 17]
+    assert by[2]["purge_g"] == pytest.approx(grams(200), abs=0.05)
+    assert by[1]["need_g"] == pytest.approx(grams(1400 + 18 * 200), abs=0.1)
+
+
+def test_used_filament_counts_as_loaded_once(ks):
+    stats = {"total_filament_changes": 0, "filaments": [fil(0, 500, loads=0)]}
+    fc = ks.build_forecast(stats, slots(900), {"jobs": 1, "overhead_per_load_mm": 100})
+    assert fc["rows"][0]["loads"] == 1
+
+
+def test_panel_html_uses_orca_terms(ks):
+    stats = {"plate_index": 0, "total_filament_changes": 1,
+             "filaments": [fil(0, 1400, tower_mm=10, loads=1), fil(1, 30000, loads=1)]}
+    fc = ks.build_forecast(stats, slots(580, 50), {"jobs": 0})
+    html = ks.forecast_html(fc)
+    assert "Platte 1" in html and "Details" in html
+    for word in ("Filament", "Modell", "Turm", "Gesamt", "Laden", "Bedarf", "Rest"):
+        assert word in html
+    assert "Stützen" not in html and "Gereinigt" not in html      # leere Spalten wie in Orca weglassen
+    assert "reicht nicht" in html                                   # Slot 2 reicht nicht
+    assert "von Orca gezählt" in html
 
 
 def test_without_patch_there_is_no_preview(ks):
