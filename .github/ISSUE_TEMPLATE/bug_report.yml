@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in what you can - logs help the most.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: [ace-lane-bridge, Orca plugin (Kobra Spoolman), spoolman_setup.py, Documentation, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Bridge version (slot page footer), plugin version (panel footer), OrcaSlicer build, Spoolman version, Rinkhals version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`docker logs ace-lane-bridge`, `<orca data dir>/log/python_*.log`, output of `/api/health`"
+      render: text

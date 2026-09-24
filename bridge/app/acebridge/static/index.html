@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16181c">
+<title>ACE Slots</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --fg:#16181c; --muted:#6b7280; --line:#e3e5e8; --accent:#d9672a; --warn:#b45309; --warn-bg:#fef3c7; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111317; --card:#1a1d22; --fg:#e8eaed; --muted:#9aa0a6; --line:#2a2e35; --accent:#e27a3f; --warn:#fbbf24; --warn-bg:#3a2e12; --ok:#4ade80; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; padding:16px; padding-bottom:40px; }
+  header { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; }
+  h1 { font-size:20px; margin:0; }
+  .state { font-size:13px; color:var(--muted); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; background:var(--muted); vertical-align:middle; }
+  .dot.ok { background:var(--ok); } .dot.bad { background:#dc2626; }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); max-width:1100px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .top { display:flex; align-items:center; gap:12px; }
+  .swatch { width:44px; height:44px; border-radius:50%; border:2px solid var(--line); flex:none; background:repeating-linear-gradient(45deg,var(--line) 0 4px,transparent 4px 8px); }
+  .slotno { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .name { font-weight:600; font-size:16px; }
+  .sub { color:var(--muted); font-size:13px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background:var(--accent); }
+  .ace { font-size:13px; color:var(--muted); border-top:1px solid var(--line); padding-top:8px; }
+  .hint { font-size:13px; color:var(--warn); background:var(--warn-bg); border-radius:8px; padding:6px 8px; }
+  .row { display:flex; gap:8px; }
+  button { font:inherit; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--fg); padding:10px 12px; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; flex:1; }
+  button:disabled { opacity:.5; }
+  .active-badge { font-size:11px; background:var(--accent); color:#fff; border-radius:6px; padding:1px 6px; margin-left:6px; }
+  .banner { max-width:1100px; margin-bottom:12px; }
+  dialog { border:none; border-radius:16px; padding:0; width:min(560px,100%); max-height:85vh; background:var(--card); color:var(--fg); }
+  dialog::backdrop { background:rgba(0,0,0,.5); }
+  .dlg-head { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+  .dlg-head input { flex:1; font:inherit; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  .list { overflow:auto; max-height:65vh; }
+  .item { display:flex; gap:12px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .item:hover { background:var(--bg); }
+  .item .swatch { width:30px; height:30px; }
+  .item .grow { flex:1; min-width:0; }
+  .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 6px; white-space:nowrap; }
+  .tag.match { color:var(--ok); border-color:var(--ok); }
+  .tag.half { color:var(--warn); border-color:var(--warn); }
+  .err { color:#dc2626; font-size:13px; padding:8px 16px; }
+  .use { font-size:13px; color:var(--muted); }
+  .use b { color:var(--fg); font-weight:600; }
+  .section { max-width:1100px; margin-top:22px; }
+  .section h2 { font-size:15px; margin:0 0 8px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  .open { background:var(--warn-bg); border:1px solid var(--warn); border-radius:12px; padding:10px 12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; max-width:1100px; }
+  .open .grow { flex:1; min-width:200px; font-size:14px; }
+  .open button { padding:8px 10px; }
+  .printing { max-width:1100px; margin-bottom:12px; font-size:14px; color:var(--muted); }
+  .printing b { color:var(--fg); }
+  .jobs { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .job { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; font-size:14px; }
+  .job:last-child { border-bottom:none; }
+  .job .file { font-weight:600; flex:1 1 220px; min-width:0; overflow-wrap:anywhere; }
+  .job .meta { color:var(--muted); font-size:13px; }
+  .job .w { flex-basis:100%; color:var(--warn); font-size:13px; }
+  .chip { display:inline-flex; align-items:center; gap:5px; font-size:13px; }
+  footer { max-width:1100px; margin-top:26px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
+  footer a, .linkbtn { color:var(--accent); text-decoration:none; background:none; border:none; padding:0; font:inherit; cursor:pointer; }
+  footer a:hover, .linkbtn:hover { text-decoration:underline; }
+  .info { padding:16px; overflow:auto; max-height:75vh; font-size:14px; }
+  .info h3 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:16px 0 6px; }
+  .info h3:first-child { margin-top:0; }
+  .info table { width:100%; border-collapse:collapse; }
+  .info td { padding:4px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  .info td:first-child { color:var(--muted); width:45%; padding-right:10px; }
+  .info ul { margin:4px 0 8px; padding-left:18px; }
+  .info .ver { font-weight:600; }
+  .chip i { width:10px; height:10px; border-radius:50%; display:inline-block; border:1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ACE Slots</h1>
+  <div class="state" id="state">lade …</div>
+</header>
+<div id="banners"></div>
+<div id="openitems"></div>
+<div class="printing" id="printing" hidden></div>
+<div class="grid" id="grid"></div>
+<div class="section">
+  <h2>Letzte Drucke</h2>
+  <div class="jobs" id="jobs"><div class="job meta">noch keine</div></div>
+</div>
+
+<footer id="footer">lade …</footer>
+
+<dialog id="infodlg">
+  <div class="dlg-head"><b style="flex:1">Info</b><button id="infoclose">Schließen</button></div>
+  <div class="info" id="info"></div>
+</dialog>
+
+<dialog id="dlg">
+  <div class="dlg-head">
+    <input id="search" placeholder="Spule suchen …" autocomplete="off">
+    <button id="close">Schließen</button>
+  </div>
+  <div class="err" id="dlgerr" hidden></div>
+  <div class="list" id="list"></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let current = null, health = null, spools = [], pick = null, busy = false, lastJobKey = null;
+
+function swatch(hex) { return hex ? `style="background:#${esc(hex)}"` : ""; }
+function grams(v) { return v == null ? "?" : `${Math.round(v)} g`; }
+function g1(v) { return v == null ? "?" : `${(Math.round(v * 10) / 10).toLocaleString("de-DE")} g`; }
+function when(iso) { return iso ? new Date(iso).toLocaleString("de-DE", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : ""; }
+function dur(sec) {
+  if (sec == null) return "?";
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  return d ? `${d} T ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
+}
+function onoff(v) { return v ? "an" : "aus"; }
+function spoolmanLink(h) { return (h.links && h.links.spoolman) || `${location.protocol}//${location.hostname}:7912`; }
+
+function renderFooter(h) {
+  const booking = h.dry_run ? "DRY_RUN (bucht nicht)" : h.booking ? "Buchung an" : "Buchung aus";
+  $("#footer").innerHTML = `
+    <span><b>${esc(h.app)}</b> ${esc(h.version)}</span>
+    <span>läuft seit ${dur(h.uptime_s)}</span>
+    <span>Spoolman ${esc(h.spoolman.version || "–")}</span>
+    <span>${booking}</span>
+    <span style="flex:1"></span>
+    <a href="${esc(spoolmanLink(h))}" target="_blank" rel="noopener">Spoolman</a>
+    ${h.links && h.links.printer_ui ? `<a href="${esc(h.links.printer_ui)}" target="_blank" rel="noopener">Mainsail</a>` : ""}
+    <a href="/api/health" target="_blank">API</a>
+    <a href="https://github.com/xNoVoSx/kobra-spoolman" target="_blank" rel="noopener">GitHub</a>
+    <button class="linkbtn" id="infobtn">Info</button>`;
+}
+
+function renderInfo(h) {
+  const st = h.settings || {}, row = (k, v) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`;
+  const safe = (h.warnings || []).some(w => w.includes("doppelt")) ? "<b style='color:var(--warn)'>Warnung – siehe oben</b>" : "ok";
+  $("#info").innerHTML = `
+    <h3>Programm</h3><table>
+      ${row("Name", `${esc(h.app)} – ${esc(h.description)}`)}
+      ${row("Version", esc(h.version))}
+      ${row("Gestartet", `${when(h.started)} (vor ${dur(h.uptime_s)})`)}
+      ${row("Python", esc(h.python))}
+      ${row("Daten", esc(st.data_dir))}
+      ${row("Log-Level", esc(st.log_level))}
+    </table>
+    <h3>Verbindungen</h3><table>
+      ${row("Moonraker", `${esc(h.moonraker.url)} · ${h.moonraker.connected ? "verbunden" : "<b>getrennt</b>"}${h.moonraker.klippy_ready ? "" : " · Klipper nicht bereit"}`)}
+      ${row("Drucker", esc(h.print_state || "–") + (h.printing_job ? ` · ${esc(h.printing_job)}` : ""))}
+      ${row("Spoolman", `${esc(h.spoolman.url)} · ${h.spoolman.connected ? "verbunden" : "<b>getrennt</b>"} · Version ${esc(h.spoolman.version || "–")}`)}
+      ${row("Spoolman-Daten", `${h.spoolman.spools} Spulen, ${h.spoolman.filaments} Filamente · gelesen vor ${h.spoolman.last_refresh_s ?? "?"} s`)}
+      ${row("Schutz vor Doppelbuchung", `${safe} · Firmware spoolman_support: ${esc(h.firmware_spoolman_support ?? "–")}`)}
+    </table>
+    <h3>Verbrauch</h3><table>
+      ${row("Buchung in Spoolman", h.dry_run ? "DRY_RUN" : onoff(st.booking))}
+      ${row("Zwischenbuchung", `alle ${Math.round(st.book_interval_s)} s, ab ${st.book_min_mm} mm`)}
+      ${row("Slotwechsel zählt nach", `${st.gate_debounce_s} s`)}
+      ${row("Abgleich-Toleranz", `${Math.round(st.usage_tolerance * 100)} %`)}
+      ${row("Offene Posten", h.open_items)}
+      ${row("Druckhistorie", `${st.job_history} Drucke`)}
+    </table>
+    <h3>Slots</h3><table>
+      ${row("Ort in Spoolman", `„${esc(st.slot_location_prefix)}1“ … / „${esc(st.shelf_location)}“`)}
+      ${row("Auto-Regal bei leerem Slot", `${onoff(st.auto_unassign_on_empty)} (nach ${st.empty_debounce_s} s)`)}
+      ${row("lane_data für Orca", onoff(st.write_lane_data))}
+      ${row("Vorlagen-Hersteller", esc(st.template_vendor))}
+      ${row("Telemetrie", `${onoff(st.telemetry)} · letzte ${st.telemetry_keep} Drucke`)}
+    </table>
+    <h3>Neu</h3>
+    ${(h.changelog || []).map(c => `<div><span class="ver">${esc(c.version)}</span> <span class="sub">${esc(c.date)}</span>
+      <ul>${c.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>`).join("")}`;
+}
+
+const STATE_DE = { complete:"fertig", cancelled:"abgebrochen", error:"Fehler", standby:"beendet" };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+async function refresh() {
+  try {
+    const [h, s] = await Promise.all([api("/api/health"), api("/api/slots")]);
+    current = s; health = h;
+    renderFooter(h);
+    if ($("#infodlg").open) renderInfo(h);
+    $("#state").innerHTML =
+      `<span class="dot ${h.moonraker.klippy_ready ? "ok" : "bad"}"></span>Drucker ${esc(s.print_state || "–")} &nbsp; ` +
+      `<span class="dot ${h.spoolman.connected ? "ok" : "bad"}"></span>Spoolman` + (h.dry_run ? " &nbsp; (DRY_RUN)" : "");
+    $("#banners").innerHTML = (s.warnings || []).map(w => `<div class="hint banner">${esc(w)}</div>`).join("");
+    renderUsage(s);
+    render(s.slots);
+    const key = (s.usage.live ? s.usage.live.job : "") + "|" + Object.keys(s.usage.last || {}).length + "|" + JSON.stringify(s.usage.last);
+    if (key !== lastJobKey) { lastJobKey = key; loadJobs(); }
+  } catch (e) {
+    $("#state").innerHTML = `<span class="dot bad"></span>Bridge nicht erreichbar`;
+  }
+}
+
+function renderUsage(s) {
+  const u = s.usage || {}, live = u.live;
+  const pr = $("#printing");
+  if (live) {
+    pr.hidden = false;
+    pr.innerHTML = `Druckt <b>${esc(live.file)}</b>` + (live.active_slot ? ` · Slot ${live.active_slot} aktiv` : "") +
+      (live.changes ? ` · ${live.changes} Wechsel` : "");
+  } else pr.hidden = true;
+  $("#openitems").innerHTML = (u.open || []).map(o => {
+    const why = o.reason === "retry" ? `Spoolman war nicht erreichbar – wird automatisch nachgeholt (Spule #${o.spool_id})`
+      : o.reason === "spool_missing" ? "Die Spule gibt es in Spoolman nicht mehr" : "Slot hatte keine Spule zugeordnet";
+    return `<div class="open">
+      <div class="grow"><b>Nicht gebucht:</b> ${o.slot > 0 ? "Slot " + o.slot : "ohne Slot"} · ≈ ${g1(o.g_est)} (${Math.round(o.mm)} mm)
+        ${o.ace && o.ace.material ? ` · ACE: ${esc(o.ace.material)}${o.ace.color ? " #" + esc(o.ace.color) : ""}` : ""}
+        <div class="sub">${esc(o.file)} · ${when(o.created)} · ${why}</div></div>
+      ${o.reason === "retry" ? "" : `<button class="primary" style="flex:none" data-openpick="${o.id}" data-slot="${o.slot}">Spule wählen</button>`}
+      <button data-opendrop="${o.id}">Verwerfen</button>
+    </div>`;
+  }).join("");
+}
+
+function useLine(slot, u) {
+  const live = u.live;
+  if (live) {
+    const x = live.slots.find(v => v.slot === slot);
+    return x ? `<div class="use">Dieser Druck: <b>${g1(x.g)}</b> (${Math.round(x.mm)} mm)</div>` : "";
+  }
+  const l = (u.last || {})[slot];
+  return l ? `<div class="use">Letzter Druck: <b>${g1(l.g)}</b> · ${when(l.ended)}</div>` : "";
+}
+
+async function loadJobs() {
+  try {
+    const j = (await api("/api/jobs?limit=10")).jobs;
+    $("#jobs").innerHTML = j.length ? j.map(job => `<div class="job">
+      <span class="file">${esc(job.file)}</span>
+      <span class="meta">${when(job.ended)} · ${esc(STATE_DE[job.state] || job.state)}${job.changes ? ` · ${job.changes} Wechsel` : ""}</span>
+      <span>${job.slots.filter(x => x.slot > 0).map(x => `<span class="chip">Slot ${x.slot}: <b>${g1(x.g)}</b></span>`).join(" &nbsp; ")}</span>
+      ${(job.warnings || []).map(w => `<span class="w">${esc(w)}</span>`).join("")}
+    </div>`).join("") : `<div class="job meta">noch keine</div>`;
+  } catch (e) { /* naechster Versuch beim naechsten Refresh */ }
+}
+
+function render(slots) {
+  const u = (current && current.usage) || {};
+  $("#grid").innerHTML = slots.map(sl => {
+    const sp = sl.spool, a = sl.ace;
+    const pct = sp && sp.initial_weight ? Math.max(0, Math.min(100, 100 * sp.remaining_weight / sp.initial_weight)) : 0;
+    const aceTxt = !a.present ? "ACE: leer" :
+      `ACE: ${esc(a.material || "ohne Tag")}${a.color ? ` · #${esc(a.color)}` : ""}`;
+    return `<div class="card">
+      <div class="top">
+        <div class="swatch" ${swatch(sp ? sp.color : a.color)}></div>
+        <div style="min-width:0">
+          <div class="slotno">Slot ${sl.slot}${a.active ? '<span class="active-badge">aktiv</span>' : ""}</div>
+          <div class="name">${sp ? esc(sp.display_name) : "nicht zugeordnet"}</div>
+          <div class="sub">${sp ? `#${sp.spool_id} · ${esc(sp.material)} · ${grams(sp.remaining_weight)} · ${esc(sp.orca_filament_id)}` : "–"}</div>
+        </div>
+      </div>
+      ${sp ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
+      ${useLine(sl.slot, u)}
+      ${sl.hints.map(h => `<div class="hint">${esc(h)}</div>`).join("")}
+      <div class="ace">${aceTxt}</div>
+      <div class="row">
+        <button class="primary" data-pick="${sl.slot}">${sp ? "Andere Spule" : "Spule wählen"}</button>
+        ${sp ? `<button data-clear="${sl.slot}">Ins Regal</button>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Die Passt-Regel kommt vom Server (gleiche Regel wie die Hinweise auf den Karten).
+function score(sp) {
+  const m = sp.match || {}; let s = 0;
+  if (m.full) s += 20;
+  else if (m.material) s += 10;
+  if (m.color) s += 5;
+  if (!sp.slot) s += 1;
+  return s;
+}
+
+function matchTag(sp) {
+  const m = sp.match || {};
+  if (m.full) return '<span class="tag match">passt zur ACE</span>';
+  if (m.material && m.color === false) return '<span class="tag half">Material passt, Farbe nicht</span>';
+  return "";
+}
+
+function renderList() {
+  const q = $("#search").value.trim().toLowerCase();
+  const rows = spools
+    .filter(sp => !q || `${sp.display_name} ${sp.material} ${sp.spool_id}`.toLowerCase().includes(q))
+    .map(sp => ({ sp, sc: score(sp) }))
+    .sort((x, y) => y.sc - x.sc || x.sp.display_name.localeCompare(y.sp.display_name));
+  $("#list").innerHTML = rows.length ? rows.map(({ sp, sc }) => `
+    <div class="item" data-spool="${sp.spool_id}">
+      <div class="swatch" ${swatch(sp.color)}></div>
+      <div class="grow">
+        <div class="name" style="font-size:15px">${esc(sp.display_name)}</div>
+        <div class="sub">#${sp.spool_id} · ${esc(sp.material)} · ${grams(sp.remaining_weight)}</div>
+      </div>
+      ${matchTag(sp)}
+      <span class="tag">${sp.slot ? "Slot " + sp.slot : esc(sp.location || "ohne Ort")}</span>
+    </div>`).join("") : `<div class="err">Keine Spulen gefunden. In Spoolman anlegen.</div>`;
+}
+
+async function openPicker(slot, openId) {
+  pick = { slot, openId: openId || null }; $("#search").value = ""; $("#dlgerr").hidden = true;
+  $("#list").innerHTML = `<div class="err" style="color:var(--muted)">lade …</div>`;
+  $("#dlg").showModal();
+  try { spools = (await api(slot > 0 ? `/api/spools?slot=${slot}` : "/api/spools")).spools; renderList(); }
+  catch (e) { $("#dlgerr").textContent = e.message; $("#dlgerr").hidden = false; }
+}
+
+async function bookOpen(id, spoolId) {
+  if (busy) return; busy = true;
+  try {
+    await api(`/api/open/${id}`, { method: "POST", headers: { "Content-Type": "application/json" },
+                                   body: JSON.stringify({ spool_id: spoolId }) });
+    $("#dlg").close(); await refresh();
+  } catch (e) { $("#dlgerr").textContent = e.message; $("#dlgerr").hidden = false; }
+  finally { busy = false; }
+}
+
+async function dropOpen(id) {
+  try { await api(`/api/open/${id}`, { method: "DELETE" }); await refresh(); }
+  catch (e) { alert(e.message); }
+}
+
+async function assign(slot, spoolId) {
+  if (busy) return; busy = true;
+  try {
+    await api(`/api/slots/${slot}`, { method: "POST", headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ spool_id: spoolId }) });
+    $("#dlg").close(); await refresh();
+  } catch (e) {
+    if ($("#dlg").open) { $("#dlgerr").textContent = e.message; $("#dlgerr").hidden = false; } else alert(e.message);
+  } finally { busy = false; }
+}
+
+document.addEventListener("click", e => {
+  if (e.target.id === "infobtn" && health) { renderInfo(health); $("#infodlg").showModal(); return; }
+  const t = e.target.closest("[data-pick],[data-clear],[data-spool],[data-openpick],[data-opendrop]");
+  if (!t) return;
+  if (t.dataset.openpick) openPicker(+t.dataset.slot, t.dataset.openpick);
+  else if (t.dataset.opendrop) { if (confirm("Diesen Verbrauch nicht buchen und verwerfen?")) dropOpen(t.dataset.opendrop); }
+  else if (t.dataset.pick) openPicker(+t.dataset.pick);
+  else if (t.dataset.clear) { if (confirm(`Spule aus Slot ${t.dataset.clear} ins Regal buchen?`)) assign(+t.dataset.clear, null); }
+  else if (t.dataset.spool) { if (pick.openId) bookOpen(pick.openId, +t.dataset.spool); else assign(pick.slot, +t.dataset.spool); }
+});
+$("#close").onclick = () => $("#dlg").close();
+$("#infoclose").onclick = () => $("#infodlg").close();
+$("#search").oninput = renderList;
+
+refresh();
+setInterval(() => { if (!$("#dlg").open) refresh(); }, 3000);
+</script>
+</body>
+</html>

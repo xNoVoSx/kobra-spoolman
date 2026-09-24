@@ -1,0 +1,59 @@
+# Changelog
+
+All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
+**plugin** = Orca plugin "Kobra Spoolman". Format based on [Keep a Changelog](https://keepachangelog.com/).
+
+## [2.2.1] – 2026-09-24
+
+First public release of the repository.
+
+### Added
+- Repository with bridge, Orca plugin, Spoolman setup script, English and German documentation.
+- Docker image `ghcr.io/xnovosx/ace-lane-bridge` (amd64/arm64), CI, release workflow.
+- Test suite: replay of a real two-colour print through the consumption tracker, restart and
+  outage scenarios, Orca profile mapping, back-sync, plugin profile builder.
+- Plugin 0.2.0: settings page (bridge address, user folder, options) in Orca's Plugins dialog;
+  hint in the panel when the bridge is unreachable.
+
+### Changed
+- Bridge: `MOONRAKER_URL` is required (no hard-coded address anymore).
+- Plugin: default bridge address `http://localhost:7913` — set yours in the plugin settings.
+- `spoolman_setup.py`: default URL from `SPOOLMAN_URL` or `http://localhost:7912`.
+
+## [2.2.0] – 2026-09-24 · plugin 0.1.0–0.1.2
+
+### Added
+- Orca profile API: values per filament (`/api/orca/profiles`), panel state (`/api/orca/state`),
+  back-sync (`/api/orca/backsync`), reset to template (`/api/orca/reset`).
+- Orca plugin "Kobra Spoolman": profiles from Spoolman, side panel, slot check, back-sync with confirmation.
+- Plugin 0.1.1: panel reliably opens at Orca start. 0.1.2: base profiles are also found inside the AppImage.
+
+## [2.1.1] – 2026-09-24
+
+### Added
+- Slot page footer (version, uptime, links) and info dialog with all settings and connections.
+
+## [2.1.0] – 2026-09-24
+
+### Added
+- Consumption per slot measured from `filament_used` and booked into Spoolman (at colour changes,
+  every 5 min, at the end), restart-safe state and journal, open items, target comparison with the
+  G-code header, print history, purge statistics.
+- Warning if Moonraker or the firmware would book into Spoolman as well.
+
+### Changed
+- Moonraker updates are reduced to fields that actually changed (the ACE sends the full `mmu` object
+  twice per second); telemetry shrinks from ~25 MB to ~1 MB per print.
+
+## [2.0.1] – 2026-09-24
+
+### Fixed
+- "passt zur ACE" checks material **and** colour, with the same rule as the slot hints.
+
+### Changed
+- A filament's own Orca base profile replaces the template completely.
+
+## [2.0.0] – 2026-09-24
+
+### Added
+- Rewrite: Moonraker WebSocket, Spoolman connection, slot assignment via mobile page, `lane_data`, telemetry.

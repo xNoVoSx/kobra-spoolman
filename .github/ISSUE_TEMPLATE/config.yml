@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Orca patches / AppImage build
+    url: https://github.com/xNoVoSx/orca-kobra
+    about: Problems with the patched OrcaSlicer build belong to orca-kobra.

@@ -1,0 +1,30 @@
+# Beim Tag vX.Y.Z: Release mit Plugin, Setup-Skript und Bridge-Paket anlegen.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pakete bauen
+        run: |
+          mkdir dist
+          cp orca-plugin/kobra_spoolman.py spoolman/spoolman_setup.py dist/
+          tar czf "dist/ace-lane-bridge-${GITHUB_REF_NAME}.tar.gz" -C bridge app
+          (cd dist && sha256sum ./* > SHA256SUMS)
+      - name: Release-Notizen aus CHANGELOG.md
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v v="$ver" '$0 ~ "^## \\[?"v"\\]?" {f=1; next} f && /^## / {exit} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Siehe CHANGELOG.md" > notes.md
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "kobra-spoolman $GITHUB_REF_NAME" --notes-file notes.md
