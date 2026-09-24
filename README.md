@@ -1,150 +1,75 @@
-<div align="center">
+# orca-kobra
 
-# kobra-spoolman
+Nächtlicher Build von **[OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) (main)** für Linux,
+mit einer kleinen Zahl von Patches für den **Anycubic Kobra S1 mit ACE 2 Pro** (Rinkhals/Moonraker)
+und die Spoolman-Anbindung über die `ace-lane-bridge`.
 
-**Spoolman as the single source of truth for an Anycubic Kobra S1 with ACE 2 Pro — in OrcaSlicer and on the printer.**
+Der Build holt jede Nacht den aktuellen Orca-Quellcode, wendet die Patches aus `patches/` an und
+veröffentlicht ein AppImage unter **Releases**. Gebaut wird nur, wenn sich Orca oder die Patches
+geändert haben.
 
-[![CI](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/ci.yml/badge.svg)](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/ci.yml)
-[![Docker image](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/docker.yml/badge.svg)](https://github.com/xNoVoSx/kobra-spoolman/pkgs/container/ace-lane-bridge)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![OrcaSlicer build](https://img.shields.io/badge/OrcaSlicer-orca--kobra-2ea44f)](https://github.com/xNoVoSx/orca-kobra)
+## Patches
 
-[Deutsch](README.de.md) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [API](docs/api.md) · [Architecture](docs/architecture.md)
+| Datei | Wirkung | Entfällt, wenn … |
+|---|---|---|
+| `0001-moonraker-lane-data-filament-id.patch` | Der eingebaute Moonraker-Agent wählt beim Filament-Sync das Profil über `filament_id` / `setting_id` aus Moonrakers `lane_data` statt nur über den Materialtyp. Damit landen die Spoolman-Profile (`SM000010`, …) automatisch im richtigen Slot. Übernommen aus Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (Autor: Broncosis). | #14423 in Orca übernommen ist |
+| `0002-plugin-audit-linux-config-dir.patch` | Plugin-Sandbox: Unter Linux liegt Orcas Datenordner in `~/.config/OrcaSlicer`. Der Teil `.config` passte auf das Sperrwort „conf“, sodass Plugins im gesamten Datenordner nichts lesen oder schreiben durften. Geprüft wird jetzt nur noch der Teil des Pfads unterhalb des erlaubten Ordners; Pfade außerhalb und sensible Ordner darin (`cert`, `secret`, `conf`) bleiben gesperrt. Mit Unit-Test. | Orca den Fehler behebt |
+| `0003-plugin-host-slice-statistics.patch` | Neue Plugin-Funktion `orca.host.slice_statistics()`: Materialverbrauch des letzten Slicens pro Filament (Modell, Stützen, Turm, Spülen, gesamt in mm³, dazu Durchmesser und Dichte), dieselben Zahlen wie in Orcas Vorschau-Legende. Nur lesend. Das Kobra-Spoolman-Plugin zeigt damit nach dem Slicen den Verbrauch pro Slot und warnt, wenn eine Spule nicht reicht. | Orcas Plugin-API die Slice-Statistik selbst anbietet |
 
-</div>
+Ist ein Patch inzwischen in Orca enthalten, wird er beim Build automatisch übersprungen
+(steht dann so in den Release-Notizen) und kann hier gelöscht werden.
 
----
+## Installieren und aktualisieren
 
-You enter a filament **once** in [Spoolman](https://github.com/Donkie/Spoolman) — temperatures, fans,
-aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
+Am bequemsten mit dem Starter aus `tools/`:
 
-- **OrcaSlicer** has a matching filament profile, created and kept up to date automatically.
-- The **ACE slots** know which spool is loaded; one click on Orca's sync button puts the right
-  profiles into the right slots.
-- Every print **books the consumption per spool** into Spoolman — measured on the printer,
-  including purge, accurate to the millimetre.
-- Changes you make to a profile in Orca are **written back to Spoolman** after you confirm.
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/images/orca-panel.png" width="260" alt="Orca side panel"><br><sub>Orca side panel: slots, spools, profile check</sub></td>
-    <td align="center"><img src="docs/images/slot-page-printing.png" width="520" alt="Slot page"><br><sub>Slot page: assign spools, live consumption per slot</sub></td>
-  </tr>
-</table>
-
-## How it works
-
-```mermaid
-flowchart LR
-    subgraph Printer["Kobra S1 + ACE 2 Pro (Rinkhals)"]
-        MR[Moonraker<br/>mmu · print_stats · lane_data]
-    end
-    SM[(Spoolman)]
-    BR[ace-lane-bridge<br/>Docker]
-    subgraph PC["OrcaSlicer (orca-kobra build)"]
-        AG[Moonraker agent<br/>+ patch 0001]
-        PL[Kobra Spoolman<br/>plugin]
-    end
-    Phone[Phone / browser<br/>slot page]
-
-    MR -- "live status (WebSocket)" --> BR
-    BR -- "lane_data: material, colour, filament_id" --> MR
-    BR <-->|"spools, filaments, consumption"| SM
-    Phone --> BR
-    PL <-->|"profiles, slots, back-sync"| BR
-    AG -- "sync button: lane_data.filament_id → profile" --> MR
-    AG -- "upload & print" --> MR
+```bash
+tools/install.sh
 ```
 
-| Component | What it does |
-|---|---|
-| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Slot ↔ spool assignment (mobile page), writes `lane_data` for Orca, measures and books consumption per spool, journal, open items, print history, Orca profile API. |
-| **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | Creates one Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, back-sync of profile edits to Spoolman. |
-| **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
-| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with two small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)) and a Linux plugin-sandbox fix. Updates itself. |
+Danach steht im Anwendungsmenü **„OrcaSlicer (Kobra)“**. Der Starter
 
-## Requirements
+- lädt beim ersten Mal die neueste Version nach `~/Applications`,
+- startet sonst sofort die installierte Version und lädt eine neuere im Hintergrund
+  (Prüfsumme wird kontrolliert); sie ist ab dem nächsten Start aktiv,
+- behält die vorherige Version als Rückfall und löscht ältere,
+- startet ohne Internet einfach die vorhandene Version.
 
-- Anycubic **Kobra S1** with **ACE 2 Pro**, rooted with [Rinkhals](https://github.com/jbatonnet/Rinkhals) (Moonraker reachable on port 7125).
-- **Spoolman** 0.26 or newer.
-- A **Docker** host in the same network (Portainer, Compose, …).
-- **OrcaSlicer** with the plugin system (2.5.0-dev nightly). Automatic profile selection needs the
-  `orca-kobra` build (Linux AppImage) until PR #14423 is merged upstream.
+Weitere Befehle: `orca-kobra --status`, `orca-kobra --update` (auch per Rechtsklick im Menü),
+Protokoll unter `~/.local/state/orca-kobra.log`. Entfernen: `tools/install.sh --remove`.
 
-> [!NOTE]
-> The user interfaces (slot page, Orca panel) are currently German. The code and API are language-neutral; translations are welcome.
+Von Hand geht es auch: unter **Releases** das neueste `OrcaSlicer-Kobra_…_x86_64.AppImage`
+laden, `chmod +x` und starten.
 
-## Quick start
+Das AppImage nutzt denselben Datenordner wie jedes andere Orca (`~/.config/OrcaSlicer`):
+Profile, Drucker, Plugins und Einstellungen bleiben erhalten.
 
-1. **Spoolman fields and templates** — once:
-   `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
-2. **Bridge** — add it to your Spoolman stack ([compose example](bridge/compose.yaml)) and set
-   `MOONRAKER_URL=http://<printer-ip>:7125`. Open `http://<docker-host>:7913`.
-3. **OrcaSlicer** — install the self-updating build from [orca-kobra](https://github.com/xNoVoSx/orca-kobra) (`tools/install.sh`).
-4. **Plugin** — copy [`kobra_spoolman.py`](orca-plugin/kobra_spoolman.py) to
-   `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/`, enable it in the Plugins dialog and set the bridge address.
-5. Restart Orca once — your Spoolman filaments are now Orca profiles.
+## Was passiert, wenn ein Patch nicht mehr passt?
 
-Full guide: **[docs/installation.md](docs/installation.md)**.
+Dann schlägt nur der nächtliche Build fehl und GitHub schickt eine E-Mail. Das zuletzt
+veröffentlichte AppImage bleibt in den Releases und funktioniert weiter. Der Patch muss dann an
+den neuen Orca-Stand angepasst werden.
 
-## Daily use
+## Build von Hand starten
 
-1. New filament → enter it in Spoolman (template or an Orca base profile, plus whatever you want to override).
-2. Load the spool → assign it to its slot on the slot page (the page suggests spools that match what the ACE reports).
-3. In Orca press the filament **sync** button → the `SM…` profiles land in slots 1–4; the panel confirms each slot.
-4. Print → consumption is booked per spool, visible on the slot page and in Spoolman.
-5. Tweak a profile in Orca and save → confirm → the change is stored in Spoolman.
+**Actions → Orca Kobra Nightly → Run workflow** (Häkchen „force“, um auch ohne Änderungen zu bauen).
+Der erste Lauf baut Orcas Abhängigkeiten und dauert entsprechend lange (mehrere Stunden);
+danach kommen sie aus dem Cache.
 
-Details: **[docs/usage.md](docs/usage.md)**.
+## Aufbau
 
-## Measured accuracy
+```
+patches/                    Patches (git format-patch), werden in Namensreihenfolge angewendet
+scripts/apply-patches.sh    wendet sie an, überspringt bereits enthaltene
+tools/orca-kobra            Starter mit automatischem Update
+tools/install.sh            installiert Starter, Menüeintrag und Icon
+.github/workflows/nightly.yml
+```
 
-A real two-colour print (4 blades white, handle green, one colour change) replayed through the
-consumption tracker — this recording is part of the [test suite](tests/test_usage_replay.py):
+Die Build-Schritte entsprechen Orcas eigenem Linux-Build (`build_linux.sh -ur`, `-drlL`,
+`-isrlL` auf Ubuntu 24.04 mit Clang und lld).
 
-| | Slot 2 (white) | Slot 1 (green) |
-|---|---|---|
-| Orca model length | 2660 mm | 4830 mm |
-| Measured model part | **2659 mm** | **4829 mm** |
-| Purge (firmware) | 451 mm at start | 195 mm at the change |
-| **Booked in Spoolman** | **3055 mm ≈ 9.1 g** | **4970 mm ≈ 14.8 g** |
+## Lizenz
 
-The sum matches the printer's `filament_used` counter exactly. More in [docs/findings.md](docs/findings.md).
-
-## Documentation
-
-| | |
-|---|---|
-| [Installation](docs/installation.md) | Spoolman, bridge (Docker/Portainer), Orca build, plugin |
-| [Daily use](docs/usage.md) | Entering filaments, assigning slots, printing, open items, back-sync |
-| [Spoolman fields](docs/spoolman-fields.md) | Which Spoolman field becomes which Orca setting |
-| [Configuration](docs/configuration.md) | All bridge environment variables and plugin settings |
-| [API](docs/api.md) | HTTP API of the bridge |
-| [Architecture](docs/architecture.md) | Data flow, consumption algorithm, profile resolution, design decisions |
-| [Findings](docs/findings.md) | What we measured and learned about Rinkhals, the ACE and Orca's plugin API |
-| [Troubleshooting](docs/troubleshooting.md) | Common problems and how to solve them |
-| [Changelog](CHANGELOG.md) | Version history |
-
-## Roadmap
-
-| Stage | Content | Status |
-|---|---|---|
-| 1 | Moonraker + Spoolman connection, slot page, `lane_data`, telemetry | ✅ done |
-| 2 | Consumption per spool, journal, open items, target comparison, history | ✅ done |
-| 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build | ✅ done — next: reload profiles without restart, usage preview after slicing |
-| 4 | NFC tags: recognise spools when they are loaded | 🔜 planned |
-| 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
-
-## Credits
-
-[OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) ·
-[Spoolman](https://github.com/Donkie/Spoolman) ·
-[Rinkhals](https://github.com/jbatonnet/Rinkhals) ·
-Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) by Broncosis ·
-[ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID) ·
-[SimplyPrint's notes on the Anycubic tag format](https://help.simplyprint.io/en/article/the-anycubic-material-standard-nfcrfid-for-the-anycubic-ace-js3oty/)
-
-## License
-
-[MIT](LICENSE). The OrcaSlicer patches live in [orca-kobra](https://github.com/xNoVoSx/orca-kobra) under AGPL-3.0, like OrcaSlicer itself.
-Not affiliated with Anycubic, OrcaSlicer or Spoolman.
+OrcaSlicer steht unter der AGPL-3.0; die Patches hier ebenso. Der Quellcode jedes Builds ist
+der in den Release-Notizen genannte Orca-Commit plus die Patches in diesem Repository.

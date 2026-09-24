@@ -1,0 +1,116 @@
+From 60eefd22d0ff0a345312876e9775c2207df32148 Mon Sep 17 00:00:00 2001
+From: orca-kobra <orca-kobra@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 20:59:00 +0200
+Subject: [PATCH] plugin host: expose per-filament slice statistics
+
+Add orca.host.slice_statistics(plate_index=-1, require_valid=True). It returns
+the per-filament volumes of a plate's last slice (model, support, prime tower,
+flush, total in mm^3) together with filament diameter and density, taken from
+the same GCodeProcessor statistics the preview legend uses.
+
+Plugins can use it to compare a slice with what is left on the loaded spools.
+The plate's valid flag is only set after SlicingJobComplete has been
+dispatched, so a handler of that event passes require_valid=False.
+---
+ src/slic3r/plugin/host/PluginHostApp.cpp | 69 ++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)
+
+diff --git a/src/slic3r/plugin/host/PluginHostApp.cpp b/src/slic3r/plugin/host/PluginHostApp.cpp
+index 75acd4cc7..6a196b523 100644
+--- a/src/slic3r/plugin/host/PluginHostApp.cpp
++++ b/src/slic3r/plugin/host/PluginHostApp.cpp
+@@ -5,8 +5,12 @@
+ #include <slic3r/GUI/GUI.hpp>
+ #include <slic3r/GUI/GUI_App.hpp>
+ #include <slic3r/GUI/Plater.hpp>
++#include <slic3r/GUI/PartPlate.hpp>
++#include <libslic3r/GCode/GCodeProcessor.hpp>
+ 
++#include <map>
+ #include <memory>
++#include <set>
+ #include <stdexcept>
+ 
+ namespace py = pybind11;
+@@ -38,6 +42,65 @@ PresetBundle* current_preset_bundle()
+     return preset_bundle;
+ }
+ 
++// Per-filament material usage of a plate's last slice, straight from the
++// GCodeProcessor statistics the preview legend is built from. Volumes are mm^3,
++// keyed by the 0-based filament index. Returns None when the plate has no
++// slice result.
++py::object slice_statistics(int plate_index, bool require_valid)
++{
++    GUI::PartPlateList& plates = current_plater()->get_partplate_list();
++    GUI::PartPlate* plate = nullptr;
++    if (plate_index < 0)
++        plate = plates.get_curr_plate();
++    else if (plate_index < plates.get_plate_count())
++        plate = plates.get_plate(plate_index);
++    if (plate == nullptr)
++        return py::none();
++
++    const bool valid = plate->is_slice_result_valid();
++    if (require_valid && !valid)
++        return py::none();
++
++    const GCodeProcessorResult* result = plate->get_slice_result();
++    if (result == nullptr)
++        return py::none();
++
++    const PrintEstimatedStatistics& ps = result->print_statistics;
++    std::set<size_t> ids;
++    for (const auto* volumes : {&ps.model_volumes_per_extruder, &ps.support_volumes_per_extruder,
++                                &ps.wipe_tower_volumes_per_extruder, &ps.flush_per_filament,
++                                &ps.total_volumes_per_extruder})
++        for (const auto& item : *volumes)
++            ids.insert(item.first);
++
++    const auto volume_of = [](const std::map<size_t, double>& volumes, size_t id) {
++        const auto it = volumes.find(id);
++        return it == volumes.end() ? 0.0 : it->second;
++    };
++
++    py::list filaments;
++    for (size_t id : ids) {
++        py::dict f;
++        f["index"]       = id;
++        f["model_mm3"]   = volume_of(ps.model_volumes_per_extruder, id);
++        f["support_mm3"] = volume_of(ps.support_volumes_per_extruder, id);
++        f["tower_mm3"]   = volume_of(ps.wipe_tower_volumes_per_extruder, id);
++        f["flush_mm3"]   = volume_of(ps.flush_per_filament, id);
++        f["total_mm3"]   = volume_of(ps.total_volumes_per_extruder, id);
++        f["diameter"]    = id < result->filament_diameters.size() ? py::object(py::float_(result->filament_diameters[id])) : py::object(py::none());
++        f["density"]     = id < result->filament_densities.size() ? py::object(py::float_(result->filament_densities[id])) : py::object(py::none());
++        filaments.append(std::move(f));
++    }
++
++    py::dict out;
++    out["plate_index"]                  = plate->get_index();
++    out["valid"]                        = valid;
++    out["filaments"]                    = std::move(filaments);
++    out["total_filament_changes"]       = ps.total_filament_changes;
++    out["total_flush_filament_changes"] = ps.total_flush_filament_changes;
++    return out;
++}
++
+ } // namespace
+ 
+ // Access to the live GUI application: the Plater and the module-level
+@@ -65,6 +128,12 @@ void host_bindings::register_app(py::module_& host)
+             throw std::runtime_error("OrcaSlicer application is not initialized");
+         return GUI::into_u8(GUI::wxGetApp().current_language_code_safe());
+     });
++    // Material usage of the last slice per filament (model, support, prime
++    // tower, flush, total in mm^3 plus diameter and density), so plugins can
++    // compare it with what is left on the loaded spools. plate_index -1 is the
++    // current plate. The valid flag is only set after SlicingJobComplete has been
++    // dispatched, so a handler of that event passes require_valid=False.
++    host.def("slice_statistics", &slice_statistics, py::arg("plate_index") = -1, py::arg("require_valid") = true);
+ }
+ 
+ } // namespace Slic3r
+-- 
+2.43.0
+
