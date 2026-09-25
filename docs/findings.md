@@ -38,6 +38,60 @@ Counting only positive deltas would over-count by ~2.3 % (retract + re-extrude c
 - The firmware's own Spoolman support reports `spoolman_support: off` — keep it that way.
 - Preparation before layer 1 (homing, levelling, heating) took ~16 min vs. 2 min estimated by Orca.
 
+## Firmware purge per filament change (2026-09-25)
+
+### Measured (Orca G-code, no purge data in the header)
+
+Two-colour print `color_PLA_0.2_2h55m` (white PLA slot 2, black PLA slot 4), 36 loads, measured by
+the bridge per load (1.75 mm filament, 2.405 mm²/mm):
+
+| Change | Loads | Purge per load | Orca's matrix (× 0.3 multiplier) |
+|---|---|---|---|
+| black → white | 17 | **364 mm** ≈ 875 mm³ | 165 mm³ |
+| white → black | 18 | **106 mm** ≈ 255 mm³ | 41 mm³ |
+
+- The purge depends strongly on the colour pair; one average per load (227 mm) spreads it wrongly
+  over the slots (the plugin's usage preview does exactly that).
+- The firmware purged roughly 5× Orca's matrix, i.e. it did not use Orca's values.
+- Both values fit "≈ 50 mm³ fixed + 1.5 × Anycubic's default matrix" (551 / 137 mm³, see below) —
+  only two points, not proven.
+- The bridge's booking is not affected: the counter includes the purge and it is attributed to the
+  slot that is active while purging.
+
+### How AnycubicSlicer hands over the purge (G-code analysis)
+
+Same plate sliced three times in AnycubicSlicerNext 1.3.9.4 (203 changes): default matrix,
+re-calculated matrix (every value +36 mm³), and with *all* flushing auto-calculation disabled in
+the preferences.
+
+- At every change the only active command is `T<n>`. The whole block between `; FLUSH_START` and
+  `; FLUSH_END` is commented out (`;;; …`), including `;;; M400 P54918 ; =183.06*300`, which only
+  feeds the time estimate (its values do not match the matrix). Orca's G-code has the same block.
+- AnycubicSlicer writes these lines into the G-code **header** (`HEADER_BLOCK`); Orca writes none
+  of them (its matrix only appears in the config comments at the end of the file):
+  ```
+  ; paint_info = [{"material_type":"PLA","paint_color":[239,240,241],"paint_index":1},{"material_type":"PLA","paint_color":[33,39,33],"paint_index":3}]
+  ; project_info = {"flush_multiplier":1.0,"flush_volumes_chan_multipliers":[1.0,1.0,1.0,1.0],"flush_volumes_matrix":[0.0,372.0,183.0,183.0,197.0,0.0,137.0,137.0,492.0,551.0,0.0,131.0,492.0,551.0,131.0,0.0],"flush_volumes_vector":[140.0,140.0,140.0,140.0,140.0,140.0,140.0,140.0]}
+  ; flush_multiplier_calculate_by_acnext: 1
+  ```
+  `flush_volumes_matrix` is row-major, `from * 4 + to` (mm³); `paint_index` is 0-based.
+- Changing the matrix changes only `project_info` (plus prime tower travel and time estimates).
+  Disabling auto-calculation only sets `flush_multiplier_calculate_by_acnext: 0`; `project_info`
+  and `paint_info` are still written. The header is therefore the only place a purge volume can
+  reach the printer.
+- AnycubicSlicer includes the purge in its statistics ("Flushed", "Flush time"); Orca does not.
+
+**Hypothesis:** the firmware reads `project_info` from the header and falls back to its own
+calculation (from the colours the ACE reports) when it is missing — as with Orca.
+
+**Open test** (short two-colour part, ~10–15 changes, bridge measures mm per load):
+
+| Test | G-code | Expected if the hypothesis holds |
+|---|---|---|
+| A | AnycubicSlicer, matrix set to 100 everywhere, flag 0 | ≈ 100 mm³ + fixed part per load |
+| B | same, matrix 600 everywhere | clearly more per load |
+| C | Orca G-code with the three header lines added, matrix 100 | same as A → an Orca patch writing the header would work |
+
 ## OrcaSlicer plugin API (2.5.0-dev, commit 9859d788)
 
 - Presets are **read-only** for plugins; new profiles must be written as JSON files and appear
@@ -54,7 +108,8 @@ Counting only positive deltas would over-count by ~2.3 % (retract + re-extrude c
   `slice_result_valid` flag is set; a handler of that event must read the result with
   `require_valid=False` (the flag is set right after the event returns).
 - `total_filament_changes` counts changes only (not the first load): loads = changes + 1.
-- The Kobra's firmware purge does not appear in Orca's flush statistics (0 for this printer).
+- The Kobra's firmware purge does not appear in Orca's flush statistics (0 for this printer),
+  see [Firmware purge per filament change](#firmware-purge-per-filament-change-2026-09-25).
 - Printer agents get no file access to the temporary print 3MF → printing from a Python agent
   prompts on every print.
 - Dock panels (`orca.host.ui.create_dock_panel`) are HTML with a message bridge and are safe to

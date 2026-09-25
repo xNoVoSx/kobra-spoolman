@@ -10,6 +10,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 - Docs: Rinkhals links point to [rinkhals-community/Rinkhals](https://github.com/rinkhals-community/Rinkhals),
   where development continues. The installation guide links to the new orca-kobra installation
   guide for launcher details.
+- Docs: [findings](docs/findings.md) on the firmware purge — measured purge per colour change and
+  how AnycubicSlicer passes its flush matrix in the G-code header (`project_info`).
 
 ## plugin 0.3.1 – 2026-09-25
 
