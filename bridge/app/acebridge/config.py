@@ -55,6 +55,10 @@ class Config:
     lane_namespace: str = field(default_factory=lambda: os.environ.get("LANE_NAMESPACE", "lane_data"))
     empty_gate_mode: str = field(default_factory=lambda: os.environ.get("EMPTY_GATE_MODE", "delete").lower())
 
+    # Material/Farbe der zugeordneten Spule an die ACE geben (Rinkhals MMU_GATE_MAP), nur Slots ohne RFID-Tag.
+    # Standard aus, bis am Drucker bestaetigt ist, dass GoKlipper die Werte uebernimmt (docs/findings.md).
+    set_ace_slot_info: bool = field(default_factory=lambda: _bool("SET_ACE_SLOT_INFO", False))
+
     # Telemetrie-Logger: Rohdaten jedes Drucks (nur echte Aenderungen)
     telemetry: bool = field(default_factory=lambda: _bool("TELEMETRY", True))
     telemetry_keep: int = field(default_factory=lambda: _int("TELEMETRY_KEEP", 30))

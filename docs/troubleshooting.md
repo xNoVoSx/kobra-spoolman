@@ -18,6 +18,7 @@
 | Consumption not booked | See *Nicht gebucht* on the slot page (open items). Spoolman down → retried automatically every 30 s. |
 | Wrong amount booked | Send the raw recording (`/api/telemetry/<file>`) and the `/api/jobs` entry in an issue. |
 | No *Geplanter Verbrauch* in the panel | The Orca build lacks patch 0003 (footer says so) — update via the orca-kobra launcher. Otherwise slice again; the preview hides when the slice result is outdated. |
+| Print fails ~5 min after start, Mainsail: `runtime error: index out of range [0] with length 0` | A slot used by the print has no material at the printer (spool without tag, nothing entered at the display). Enter material and colour at the display. Details: [findings](findings.md#print-start-and-ace-slot-info-2026-09-30). |
 | Preview says *reicht nicht* but the spool is full | Remaining weight in Spoolman is wrong (spool weight / initial weight). Fix it in Spoolman. |
 
 ## Useful commands

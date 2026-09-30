@@ -37,6 +37,10 @@ Open the slot page (`http://<docker-host>:7913`) on your phone, tap **Spule wäh
 and pick the spool. Spools that match what the ACE reads from the tag are marked
 *passt zur ACE* (material **and** colour) or *Material passt, Farbe nicht*.
 
+**Spools without an Anycubic tag:** the printer does not know their material. Enter it at the
+printer's display (slot → edit) before printing — otherwise the print fails at the start
+(`index out of range`). The slot page and the Orca panel warn about such slots.
+
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Ins Regal**.
 

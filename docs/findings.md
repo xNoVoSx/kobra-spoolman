@@ -122,6 +122,54 @@ calculation (from the colours the ACE reports) when it is missing — as with Or
   (`PresetComboBoxes.cpp`). The bridge therefore sends `default_filament_colour`, the plugin
   (0.3.2+) never writes `filament_colour`, and back-sync accepts both keys.
 
+## Print start and ACE slot info (2026-09-30)
+
+### Print fails with `runtime error: index out of range [0] with length 0`
+
+Mainsail shows the error, the printer only *Druck fehlgeschlagen*, about 5 minutes after the start
+(right after auto-levelling). Two attempts of the same two-colour PETG print failed like this; the
+Moonraker log (`/server/files/logs/moonraker.log`, timestamps in UTC) shows why:
+
+- Rinkhals does not start prints by G-code. `kobra.py` sends Anycubic's own print order over the
+  printer's **internal MQTT broker** (`127.0.0.1:2883`, credentials from
+  `/userdata/app/gk/config/device_account.json`, not reachable from outside).
+- `mmu_ace.py:patch_print_data()` adds an `ams_box_mapping` built from the ACE gates. Slots 1 and 2
+  (T0/T1, spools without RFID tag, nothing entered at the display) were sent as
+  `"material_type": ""`, colour `[0, 0, 0, 255]`.
+- GoKlipper (Go) looks up the material of the mapped slots and panics on the empty entry.
+  After entering PETG at the display the same file printed fine — the slot temperatures stayed at
+  0, so **material (and colour) is what counts**.
+
+The bridge therefore flags a loaded slot without material (slot page, Orca panel card, usage
+preview after slicing: *Druck bricht ab*).
+
+### Setting slot material/colour without the display: `MMU_GATE_MAP`
+
+GoKlipper's own G-code list has no command for it, but Rinkhals' Moonraker component (`mmu_ace.py`)
+intercepts Happy Hare's `MMU_GATE_MAP` and forwards material and colour to GoKlipper as
+`filament_hub/set_filament_info` (`{"id": ace, "index": slot, "type": "PETG", "color": {"R", "G", "B"}}`):
+
+```
+MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'color': '685BC7FF', 'temp': 245, 'spool_id': 8, 'speed_override': 100}}"
+```
+
+- Parsed with `shlex.split` and `ast.literal_eval`; colour is 8-digit hex RGBA without `#`.
+- Refused by Rinkhals for slots with an RFID tag (`rfid == 2`); allowed for untagged slots (`rfid == 1`).
+- Rinkhals rebuilds its gate list from GoKlipper's ACE status about every 20 s. A value only sticks
+  if GoKlipper accepts it — Rinkhals' own comment in `update_gate` ("only works if gate has RFID
+  tag") contradicts the `rfid` check, so this needs a test on the printer (**open**):
+  1. Printer idle, untagged spool in slot 1, nothing entered at the display.
+  2. Send the command above for slot 1 (via Mainsail console or the bridge).
+  3. Check the display and `mmu.gate_material` / `gate_color` — and again after 30 s.
+  4. Start a short print that uses slot 1; the Moonraker log must show `material_type` set.
+- The bridge can send it when a spool is assigned (`SET_ACE_SLOT_INFO=true`, default off until the
+  test passes): only for loaded slots whose ACE data differs from Spoolman, once per slot and
+  value, never while printing.
+- Alternative not needed: Anycubic's LAN mode exposes the same function over TLS MQTT (port 9883,
+  signed handshake, `multiColorBox` / `setInfo`, documented by
+  [anycubic-lan](https://github.com/Nino6689/anycubic-lan)). It would be a second client with its
+  own credentials; `MMU_GATE_MAP` goes over the bridge's existing Moonraker connection.
+
 ## Anycubic RFID tags
 
 - Tag fields per [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID): SKU (pages 5–8), brand (10–13),

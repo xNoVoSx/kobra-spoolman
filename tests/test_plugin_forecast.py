@@ -152,3 +152,14 @@ def test_panel_html_uses_orca_terms(ks):
 def test_without_patch_there_is_no_preview(ks):
     assert not hasattr(ks.orca.host, "slice_statistics")
     assert ks.read_slice_statistics() is None
+
+
+def test_used_slot_without_material_on_printer_blocks_the_print(ks):
+    stats = {"total_filament_changes": 1, "filaments": [fil(0, 100), fil(1, 100)]}
+    sl = slots(900, 900)
+    sl[0].update(present=True, ace_material="")
+    sl[1].update(present=True, ace_material="PETG")
+    fc = ks.build_forecast(stats, sl, None)
+    by = {r["slot"]: r for r in fc["rows"]}
+    assert by[1]["status"] == "nomaterial" and by[2]["status"] == "ok"
+    assert "kein Material" in ks.forecast_warnings(fc)[0]

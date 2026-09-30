@@ -6,6 +6,16 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Bridge: loaded slots without material at the printer get a hint on the slot page and in
+  `/api/orca/state` — a print using such a slot fails at the start
+  (`index out of range [0] with length 0`, see [findings](docs/findings.md#print-start-and-ace-slot-info-2026-09-30)).
+- Bridge (experimental, off by default): `SET_ACE_SLOT_INFO=true` gives material and colour of the
+  assigned Spoolman spool to the ACE via Rinkhals' `MMU_GATE_MAP` — only for slots without RFID tag,
+  once per value, never while printing. Pending a test on the printer.
+- Plugin 0.3.3: the slot card and the usage preview warn when a slot has no material at the printer
+  (*Druck bricht ab*); the warning after slicing includes it.
+
 ## [2.2.2] – 2026-09-30
 
 Ships plugin 0.3.2 (see below).

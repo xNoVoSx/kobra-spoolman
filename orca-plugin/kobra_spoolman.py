@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.3.2"
+# version = "0.3.3"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -21,7 +21,8 @@ Aufgaben
 - Ruecksync: Speichert man ein verwaltetes Profil in Orca, fragt das Plugin, ob die
   Aenderungen nach Spoolman sollen.
 - Verbrauchsvorschau: Nach dem Slicen zeigt das Panel pro Slot Bedarf / Rest (Orcas Zahlen wie in
-  der Legende plus das Spuelen der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht.
+  der Legende plus das Spuelen der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht
+  oder ein benutzter Slot am Drucker kein Material hat (dann bricht die Firmware den Druck ab).
   Braucht orca.host.slice_statistics (orca-kobra, Patch 0003); ohne fehlt nur die Vorschau.
 
 Drucken und die Profilwahl beim Sync-Knopf macht Orcas eingebauter Moonraker-Agent
@@ -46,7 +47,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.3.2"
+PLUGIN_VERSION = "0.3.3"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -331,6 +332,9 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
         s = by_slot.get(slot_no)
         if s is None:
             row["status"] = "noslot"
+        elif s.get("present") and not s.get("ace_material"):
+            # Rinkhals meldet beim Start material_type "" - GoKlipper bricht den Druck ab
+            row["status"] = "nomaterial"
         elif not s.get("spool_id"):
             row["status"] = "nospool"
         else:
@@ -378,6 +382,8 @@ def forecast_warnings(fc):
             out.append(f"Slot {r['slot']} wird benutzt, hat aber keine Spule zugeordnet")
         elif r["status"] == "noslot":
             out.append(f"Filament {r['slot']} hat keinen ACE-Slot")
+        elif r["status"] == "nomaterial":
+            out.append(f"Slot {r['slot']}: am Drucker ist kein Material eingetragen – der Druck bricht beim Start ab")
     return out
 
 
@@ -786,7 +792,8 @@ def _esc(s):
 
 FC_STATUS = {"ok": ("✓", "ok", "reicht"), "tight": ("⚠", "warn", "knapp"), "short": ("✗", "bad", "reicht nicht"),
              "unknown": ("?", "muted", "Rest unbekannt"), "nospool": ("✗", "bad", "keine Spule zugeordnet"),
-             "noslot": ("✗", "bad", "kein ACE-Slot")}
+             "noslot": ("✗", "bad", "kein ACE-Slot"),
+             "nomaterial": ("✗", "bad", "am Drucker kein Material eingetragen")}
 
 
 def forecast_html(fc):
@@ -887,8 +894,9 @@ def build_panel_message(core: Core):
     fc = core.forecast()
     if fc:
         for r in fc["rows"]:
-            if r["status"] in ("short", "nospool", "noslot"):
-                boxes.append({"error": True, "html": "<b>Reicht nicht:</b> " + _esc(forecast_warnings({"rows": [r]})[0])})
+            if r["status"] in ("short", "nospool", "noslot", "nomaterial"):
+                title = "Druck bricht ab:" if r["status"] == "nomaterial" else "Reicht nicht:"
+                boxes.append({"error": True, "html": f"<b>{title}</b> " + _esc(forecast_warnings({"rows": [r]})[0])})
 
     live = ((st.get("usage") or {}).get("live") or {})
     live_by_slot = {x["slot"]: x for x in live.get("slots", [])}
@@ -910,6 +918,9 @@ def build_panel_message(core: Core):
             elif idx < len(selected):
                 item["check"] = f"Filament {s['slot']} in Orca ist „{selected[idx]}“ – erwartet „{entry['name']}“ (Sync-Knopf in Orca)"
                 item["check_cls"] = "bad"
+        if s.get("present") and not s.get("ace_material"):
+            item["check"] = "Am Drucker ist kein Material eingetragen – ein Druck mit diesem Slot bricht ab"
+            item["check_cls"] = "bad"
         lv = live_by_slot.get(s["slot"])
         la = last_by_slot.get(str(s["slot"])) or last_by_slot.get(s["slot"])
         if lv:
@@ -1037,7 +1048,8 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
     def _after_slice(self, core):
         fc = core.on_slice_complete()
         if fc and core.cfg("warn_after_slice"):
-            bad = forecast_warnings({"rows": [r for r in fc["rows"] if r["status"] in ("short", "nospool", "noslot")]})
+            bad = forecast_warnings({"rows": [r for r in fc["rows"]
+                                              if r["status"] in ("short", "nospool", "noslot", "nomaterial")]})
             if bad and bad != core.slice_warned:
                 notify("Kobra Spoolman: " + " · ".join(bad), "WarningNotificationLevel")
             core.slice_warned = bad

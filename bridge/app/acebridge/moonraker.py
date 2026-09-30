@@ -65,6 +65,15 @@ class Moonraker:
             if r.status not in (200, 404):
                 r.raise_for_status()
 
+    async def gcode(self, script: str, timeout: float = 15) -> None:
+        """G-Code ueber die bestehende WebSocket-Verbindung (Moonraker/Rinkhals faengt MMU_* ab)."""
+        if self.cfg.dry_run:
+            log.info("[dry-run] gcode %s", script)
+            return
+        if self._ws is None or not self.klippy_ready:
+            raise ConnectionError("Moonraker nicht bereit")
+        await self._call("printer.gcode.script", {"script": script}, timeout=timeout)
+
     # ------------------------------------------------------------------ WebSocket
     def _ws_url(self) -> str:
         base = self.cfg.moonraker_url

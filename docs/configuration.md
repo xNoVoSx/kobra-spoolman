@@ -19,6 +19,7 @@
 | `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd |
 | `LANE_NAMESPACE` | `lane_data` | Moonraker database namespace |
 | `EMPTY_GATE_MODE` | `delete` | `delete` empty gates from `lane_data`, or `keep` |
+| `SET_ACE_SLOT_INFO` | `false` | give material/colour of the assigned spool to the ACE (Rinkhals `MMU_GATE_MAP`), only for slots without RFID tag and never while printing — experimental, see [findings](findings.md#print-start-and-ace-slot-info-2026-09-30) |
 | `BOOK_USAGE` | `true` | book consumption into Spoolman |
 | `BOOK_INTERVAL_S` | `300` | intermediate booking during a print |
 | `BOOK_MIN_MM` | `10` | smallest intermediate booking |

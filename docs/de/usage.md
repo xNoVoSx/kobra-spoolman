@@ -37,6 +37,10 @@ Die Slot-Seite (`http://<docker-host>:7913`) auf dem Handy öffnen, beim Slot **
 die Spule auswählen. Spulen, die zum ACE-Tag passen, sind markiert: *passt zur ACE* (Material **und**
 Farbe) oder *Material passt, Farbe nicht*.
 
+**Spulen ohne Anycubic-Tag:** Der Drucker kennt ihr Material nicht. Vor dem Druck am Display des
+Druckers eintragen (Slot → bearbeiten) – sonst bricht der Druck beim Start ab (`index out of range`).
+Slot-Seite und Orca-Panel warnen bei solchen Slots.
+
 Spule rausnehmen: Meldet die ACE einen Slot eine Weile leer, wandert die Spule automatisch ins Regal
 (während eines Drucks erst danach). Oder **Ins Regal** drücken.
 
