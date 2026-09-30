@@ -51,6 +51,7 @@ Each stage is usable on its own.
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/api/app/state` | printer state, file, progress, remaining time, active slot, filament change in progress; slots (live, WebSocket or short polling) |
 | GET | `/api/app/catalog` | vendors, filaments, templates, extra-field definitions (with units), known Orca base profiles |
 | POST | `/api/app/vendor` | create a vendor |
 | POST | `/api/app/filament` | create a filament (native + extra fields; only the fields set) |
@@ -73,8 +74,13 @@ Each stage is usable on its own.
 
 ### Stage 2 — app basics
 
-1. **Slots** — the four ACE slots as large colour cards (spool, material, remaining weight, hints
-   such as *kein Material am Drucker*), tap for actions. Refreshes live.
+1. **Slots and printer status** — a status card on top: *Bereit* (standby), *Druckt* (file,
+   progress, remaining time), *Wechselt Filament* (slot N → M), *Pausiert*, *Fehler* (firmware
+   message), *Offline* (printer not reachable; bridge shows its last data). Below, the four ACE
+   slots as large colour cards (spool, material, remaining weight, hints such as *kein Material am
+   Drucker*); the **active slot** is highlighted. Tap a card for actions. Refreshes live. All of it
+   comes from the bridge's existing Moonraker subscription (`print_stats`, `virtual_sdcard`, `mmu`)
+   — the app adds no load on the printer.
 2. **Scan** — hold a spool to the phone: spool card with remaining weight, material, temperatures,
    last prints; actions *In Slot N*, *Ins Regal*, *Leer / archivieren*, *Tag neu schreiben*.
 3. **New spool from an existing filament** — search filament (vendor, name, colour swatch) →
