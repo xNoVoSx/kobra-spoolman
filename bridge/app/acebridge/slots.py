@@ -116,7 +116,7 @@ class SlotManager:
         self._empty_since: Dict[int, float] = {}      # Gate beobachtet leer geworden seit
         self._pending_unassign: Dict[int, int] = {}   # Gate -> Spulen-ID, wartet auf Druckende
         self._lanes_written: Dict[str, Any] = {}
-        self._gate_info_sent: Dict[int, str] = {}    # Gate -> zuletzt gesendetes MMU_GATE_MAP
+        self._gate_info_pending: Dict[int, Dict[str, int]] = {}   # Gate -> {spool_id, tries}, aus assign()
         self.warnings: List[str] = []
 
     # ------------------------------------------------------------ Zustand lesen
@@ -205,10 +205,15 @@ class SlotManager:
                     hints.append(f"ACE meldet {ace['material']}, zugeordnet ist {info['material']}")
                 if m["color"] is False:
                     hints.append(f"Farbe weicht ab (ACE #{ace['color']}, Spoolman #{info['color']})")
-            if self.moon.klippy_ready and gate_needs_info(ace):
-                hints.append("Am Drucker ist kein Material eingetragen – ein Druck mit diesem Slot bricht ab"
-                             + (" (Bridge setzt es gleich)" if info and self.cfg.set_ace_slot_info
-                                else " (am Display beim Slot eintragen)"))
+            pending = gate in self._gate_info_pending
+            if pending:
+                hints.append("Material/Farbe gehen an die ACE, sobald die Spule eingelegt ist"
+                             if not ace["present"] else "Material/Farbe gehen nach dem Druck an die ACE"
+                             if self.printing else "Material/Farbe werden an die ACE gegeben")
+            elif self.moon.klippy_ready and gate_needs_info(ace):
+                hints.append("Am Drucker ist kein Material eingetragen – ein Druck mit diesem Slot bricht ab ("
+                             + ("Spule hier neu zuordnen oder am Display eintragen)"
+                                if info and self.cfg.set_ace_slot_info else "am Display beim Slot eintragen)"))
             if info and self.moon.klippy_ready and not ace["present"]:
                 hints.append("ACE meldet den Slot als leer")
             if gate in self._pending_unassign:
@@ -251,6 +256,11 @@ class SlotManager:
                 await self.sm.patch_spool(spool_id, {"location": target_loc})
                 log.info("Slot %d: Spule #%s zugeordnet", slot, spool_id)
             self._pending_unassign.pop(slot - 1, None)
+            # Nur das Zuordnen hier schreibt Material/Farbe an die ACE - nie ein Neustart, eine
+            # Eingabe am Display oder eine Aenderung in Spoolman.
+            self._gate_info_pending.pop(slot - 1, None)
+            if spool_id is not None and self.cfg.set_ace_slot_info:
+                self._gate_info_pending[slot - 1] = {"spool_id": spool_id, "tries": 0}
             await self.sm.refresh()
         await self.evaluate()
 
@@ -266,7 +276,7 @@ class SlotManager:
                     await self._track_empty(gate, slot, ace["present"], assigned.get(slot), now)
             if self.cfg.write_lane_data and self.moon.connected:
                 await self._write_lanes(assigned)
-            if self.cfg.set_ace_slot_info and self.moon.klippy_ready and not self.printing:
+            if self._gate_info_pending and self.moon.klippy_ready and not self.printing:
                 await self._push_gate_info(assigned)
 
     async def _track_empty(self, gate: int, slot: int, present: bool, spool: Optional[Dict[str, Any]],
@@ -361,31 +371,39 @@ class SlotManager:
                 log.warning("lane_data %s schreiben fehlgeschlagen: %s", key, e)
 
     async def _push_gate_info(self, assigned: Dict[int, Dict[str, Any]]) -> None:
-        """Material/Farbe der zugeordneten Spule an die ACE geben, wenn die ACE etwas anderes (oder
-        nichts) meldet. Pro Gate und Sollwert nur einmal - lehnt Rinkhals ab (RFID-Tag), bleibt der
-        Hinweis auf der Karte stehen statt endloser Wiederholungen. Nie waehrend eines Drucks."""
-        for gate in range(self.num_gates()):
+        """Material/Farbe einer auf der Slot-Seite zugeordneten Spule an die ACE geben (MMU_GATE_MAP).
+        Wartet, bis die Spule eingelegt ist und kein Druck laeuft; einmal pro Zuordnung. Meldet die
+        ACE schon genau diese Werte (z.B. Anycubic-Tag), wird nichts gesendet. Slots mit RFID-Tag
+        lehnt Rinkhals selbst ab."""
+        for gate, job in list(self._gate_info_pending.items()):
             spool = assigned.get(gate + 1)
+            if not spool or spool.get("id") != job["spool_id"] or not (spool.get("filament") or {}).get("id"):
+                self._gate_info_pending.pop(gate, None)      # inzwischen anders zugeordnet
+                continue
             ace = self.ace_gate(gate)
-            if not spool or not ace["present"] or not (spool.get("filament") or {}).get("id"):
-                continue
+            if not ace["present"]:
+                continue                                     # Spule noch nicht eingelegt
             info = basic_info(spool["filament"], self.sm.templates())
-            if ace_match(ace, info)["full"]:
-                continue
             cmd = gate_map_command(gate, spool["id"], info)
-            if not cmd or self._gate_info_sent.get(gate) == cmd:
+            same = (base_type(ace["material"]).upper() == base_type(info.get("material") or "").upper()
+                    and ace["color"] == _hex6(info.get("color")))
+            if not cmd or same:
+                self._gate_info_pending.pop(gate, None)
                 continue
-            self._gate_info_sent[gate] = cmd
             try:
                 await self.moon.gcode(cmd)
+                self._gate_info_pending.pop(gate, None)
                 log.info("Slot %d: Material/Farbe an die ACE gegeben (%s)", gate + 1, cmd)
             except Exception as e:  # noqa: BLE001
-                self._gate_info_sent.pop(gate, None)   # beim naechsten Durchlauf erneut
-                log.warning("Slot %d: MMU_GATE_MAP fehlgeschlagen: %s", gate + 1, e)
+                job["tries"] += 1
+                if job["tries"] >= 3:
+                    self._gate_info_pending.pop(gate, None)
+                    log.warning("Slot %d: MMU_GATE_MAP aufgegeben: %s", gate + 1, e)
+                else:
+                    log.warning("Slot %d: MMU_GATE_MAP fehlgeschlagen (%s), neuer Versuch", gate + 1, e)
 
     def reset_lane_cache(self) -> None:
         self._lanes_written.clear()
-        self._gate_info_sent.clear()
 
     async def on_print_state_change(self, old: str, new: str) -> None:
         if old in PRINTING_STATES and new not in PRINTING_STATES and self._pending_unassign:

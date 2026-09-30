@@ -39,7 +39,8 @@ and pick the spool. Spools that match what the ACE reads from the tag are marked
 
 **Spools without an Anycubic tag:** the printer does not know their material. When you assign
 the spool on the slot page, the bridge passes material and colour from Spoolman to the ACE — the
-display shows them right away. Without that (bridge off, `SET_ACE_SLOT_INFO=false`) enter them at
+display shows them right away (assigned before loading: as soon as the spool is in; during a print:
+afterwards). Only the assignment does this — to push the values again, assign the spool again. Without that (bridge off, `SET_ACE_SLOT_INFO=false`) enter them at
 the display, otherwise the print fails at the start (`index out of range`). The slot page and the
 Orca panel warn about such slots.
 

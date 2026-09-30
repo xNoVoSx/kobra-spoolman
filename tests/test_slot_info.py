@@ -37,9 +37,21 @@ class SlotSpoolman:
     def templates(self):
         return []
 
+    async def refresh(self):
+        return True
 
-def petg_spool(spool_id=8, slot=1):
-    return {"id": spool_id, "location": f"ACE Slot {slot}",
+    def spool(self, spool_id):
+        return next((s for s in self.spools if s["id"] == spool_id), None)
+
+    def is_template(self, fil):
+        return False
+
+    async def patch_spool(self, spool_id, patch):
+        self.spool(spool_id).update(patch)
+
+
+def petg_spool(spool_id=8, slot=None):
+    return {"id": spool_id, "location": f"ACE Slot {slot}" if slot else "Regal",
             "filament": {"id": 20, "name": "PETG \"Lavendel\" {neu}", "material": "PETG", "color_hex": "685bc7",
                          "vendor": {"name": "Sunlu"}, "settings_extruder_temp": 245}}
 
@@ -85,30 +97,67 @@ def test_needs_info_only_for_loaded_slots_without_material():
     assert not gate_needs_info({"present": False, "material": ""})
 
 
-def test_pushes_once_and_only_when_ace_differs(make):
-    mgr, moon = make(mmu(["", "PETG"], ["000000FF", "685BC7FF"]), [petg_spool(8, 1), petg_spool(9, 2)])
-    asyncio.run(mgr.evaluate())
-    assert len(moon.sent) == 1 and parse_map(moon.sent[0])[0]["material"] == "PETG"   # Slot 2 passt schon
-    asyncio.run(mgr.evaluate())
-    assert len(moon.sent) == 1                                                        # nicht wiederholen
-    hints = mgr.slots_view()[0]["hints"]
-    assert any("kein Material" in h and "setzt es gleich" in h for h in hints)
+def run(coro):
+    return asyncio.run(coro)
 
 
-def test_no_push_while_printing_or_when_disabled(make):
-    mgr, moon = make(mmu([""], state="printing"), [petg_spool()])
-    asyncio.run(mgr.evaluate())
+def test_only_the_assignment_writes_to_the_ace(make):
+    # Spule liegt schon in Slot 1, ACE kennt kein Material: Auswerten allein schreibt nichts
+    mgr, moon = make(mmu([""]), [petg_spool(8, 1)])
+    run(mgr.evaluate())
     assert moon.sent == []
-    mgr, moon = make(mmu([""]), [petg_spool()], enabled=False)
-    asyncio.run(mgr.evaluate())
+    assert any("neu zuordnen" in h for h in mgr.slots_view()[0]["hints"])
+    run(mgr.assign(1, 8))                     # erneut zuordnen -> einmal schreiben
+    assert len(moon.sent) == 1 and parse_map(moon.sent[0])[0]["color"] == "685BC7FF"
+    run(mgr.evaluate())
+    assert len(moon.sent) == 1
+
+
+def test_assignment_before_loading_waits_for_the_spool(make):
+    mgr, moon = make(mmu([""], status=[0]), [petg_spool(8)])
+    run(mgr.assign(1, 8))
+    assert moon.sent == []
+    assert any("sobald die Spule eingelegt" in h for h in mgr.slots_view()[0]["hints"])
+    moon.merge({"mmu": {"gate_status": [1]}})
+    run(mgr.evaluate())
+    assert len(moon.sent) == 1
+
+
+def test_waits_for_the_end_of_a_print(make):
+    mgr, moon = make(mmu([""], state="printing"), [petg_spool(8)])
+    run(mgr.assign(1, 8))
+    assert moon.sent == []
+    moon.merge({"print_stats": {"state": "complete"}})
+    run(mgr.evaluate())
+    assert len(moon.sent) == 1
+
+
+def test_nothing_sent_when_ace_already_has_these_values_or_disabled(make):
+    mgr, moon = make(mmu(["PETG"], ["685BC7FF"]), [petg_spool(8)])
+    run(mgr.assign(1, 8))
+    assert moon.sent == []
+    mgr, moon = make(mmu([""]), [petg_spool(8)], enabled=False)
+    run(mgr.assign(1, 8))
     assert moon.sent == []
     assert any("am Display" in h for h in mgr.slots_view()[0]["hints"])
 
 
-def test_failed_push_is_retried(make):
-    mgr, moon = make(mmu([""]), [petg_spool()])
+def test_reassigning_the_slot_cancels_a_waiting_write(make):
+    mgr, moon = make(mmu([""], status=[0]), [petg_spool(8), petg_spool(9)])
+    run(mgr.assign(1, 8))
+    run(mgr.assign(1, None))
+    moon.merge({"mmu": {"gate_status": [1]}})
+    run(mgr.evaluate())
+    assert moon.sent == []
+
+
+def test_failed_write_is_retried_three_times(make):
+    mgr, moon = make(mmu([""]), [petg_spool(8)])
     moon.fail = True
-    asyncio.run(mgr.evaluate())
+    run(mgr.assign(1, 8))
+    run(mgr.evaluate())
+    run(mgr.evaluate())
+    run(mgr.evaluate())
     moon.fail = False
-    asyncio.run(mgr.evaluate())
-    assert len(moon.sent) == 1
+    run(mgr.evaluate())
+    assert moon.sent == []                    # nach drei Fehlversuchen aufgegeben

@@ -7,7 +7,7 @@ __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 # Neueste Version zuerst. Wird auf der Slot-Seite unter "Info" angezeigt.
 CHANGELOG = [
     ("2.3.0", "2026-09-30", [
-        "Spulen ohne Tag: Material und Farbe aus Spoolman gehen beim Zuordnen an die ACE (MMU_GATE_MAP)",
+        "Spulen ohne Tag: Material und Farbe aus Spoolman gehen beim Zuordnen auf dieser Seite an die ACE",
         "Hinweis bei Slots ohne Material am Drucker – ein Druck damit würde beim Start abbrechen",
     ]),
     ("2.2.2", "2026-09-30", [

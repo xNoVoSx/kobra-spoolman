@@ -14,10 +14,11 @@ Ships plugin 0.3.3.
 - Bridge: loaded slots without material at the printer get a hint on the slot page and in
   `/api/orca/state` — a print using such a slot fails at the start
   (`index out of range [0] with length 0`, see [findings](docs/findings.md#print-start-and-ace-slot-info-2026-09-30)).
-- Bridge: material and colour of the assigned Spoolman spool go to the ACE via Rinkhals'
-  `MMU_GATE_MAP` — spools without an Anycubic tag no longer need to be entered at the printer's
-  display. Only for slots without RFID tag, only when the ACE reports something else, once per
-  value, never while printing. Tested on the printer; `SET_ACE_SLOT_INFO=false` turns it off.
+- Bridge: assigning a spool on the slot page gives its material and colour from Spoolman to the ACE
+  via Rinkhals' `MMU_GATE_MAP` — spools without an Anycubic tag no longer need to be entered at the
+  printer's display. Only the assignment triggers it (once, after the spool is loaded, never while
+  printing); restarts, display entries and Spoolman changes never overwrite a slot. Slots with RFID
+  tag are refused by Rinkhals. Tested on the printer; `SET_ACE_SLOT_INFO=false` turns it off.
 - Plugin 0.3.3: the slot card and the usage preview warn when a slot has no material at the printer
   (*Druck bricht ab*); the warning after slicing includes it.
 

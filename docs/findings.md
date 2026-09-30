@@ -162,9 +162,10 @@ MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'c
   `00FF00FF` via the Mainsail console → the display showed the slot green at once, and
   `mmu.gate_color` still read `00FF00FF` 35 s later. GoKlipper keeps material and colour; the
   `name` is not stored (`gate_filament_name` stays the material).
-- The bridge sends it when a spool is assigned (`SET_ACE_SLOT_INFO`, default on): only for loaded
-  slots whose ACE data differs from Spoolman (material, or colour beyond the usual tolerance),
-  once per slot and value, never while printing.
+- The bridge sends it **only when a spool is assigned on the slot page** (`SET_ACE_SLOT_INFO`,
+  default on) — once per assignment, after the spool is loaded and never while printing; skipped
+  when the ACE already reports exactly these values. A bridge restart, an entry at the display or a
+  change in Spoolman never overwrites the slot; to push again, assign the spool again.
 - Alternative not needed: Anycubic's LAN mode exposes the same function over TLS MQTT (port 9883,
   signed handshake, `multiColorBox` / `setInfo`, documented by
   [anycubic-lan](https://github.com/Nino6689/anycubic-lan)). It would be a second client with its
