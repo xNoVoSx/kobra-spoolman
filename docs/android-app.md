@@ -76,6 +76,8 @@ Each stage is usable on its own.
 
 ### Stage 2 — app basics
 
+**Built** (app, unreleased) — except writing tags.
+
 1. **Slots and printer status** — a status card on top: *Bereit* (standby), *Druckt* (file,
    progress, remaining time), *Wechselt Filament* (slot N → M), *Pausiert*, *Fehler* (firmware
    message), *Offline* (printer not reachable; bridge shows its last data). Below, the four ACE
@@ -90,6 +92,8 @@ Each stage is usable on its own.
 4. **Write tag** in ACE format for any spool.
 
 ### Stage 3 — new filament on the phone
+
+**Built** (app, unreleased).
 
 A step-by-step form; every step shows what the template would give:
 

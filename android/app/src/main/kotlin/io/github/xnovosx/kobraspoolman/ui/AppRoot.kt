@@ -136,14 +136,22 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             }
             composable("new?uid={uid}", arguments = listOf(navArgument("uid") { nullable = true; defaultValue = null })) { entry ->
                 val uid = entry.arguments?.getString("uid")
-                NewSpoolScreen(catalog, slotCount, uid, canWrite, busy, padding,
+                val created by vm.createdFilament.collectAsState()
+                NewSpoolScreen(catalog, slotCount, uid, canWrite, busy, padding, preselect = created,
                     onLoad = { vm.loadCatalog() },
+                    onNewFilament = { nav.navigate("filament/new") },
                     onCancel = { nav.popBackStack() },
                     onCreate = { req ->
                         vm.createSpool(req, uid) { sp ->
                             nav.navigate("spool/${sp.spoolId}") { popUpTo("slots") }
                         }
                     })
+            }
+            composable("filament/new") {
+                FilamentScreen(catalog, canWrite, busy, padding,
+                    onLoad = { vm.loadCatalog() },
+                    onCancel = { nav.popBackStack() },
+                    onCreate = { draft, specs -> vm.createFilament(draft, specs) { nav.popBackStack() } })
             }
             composable("settings") {
                 SettingsScreen(c, busy, padding, lanMissing = !lanGranted, onGrantLan = askLan, canGoBack = c.configured, onBack = { nav.popBackStack() },

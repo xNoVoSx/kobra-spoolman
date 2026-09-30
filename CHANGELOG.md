@@ -10,6 +10,9 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 - Android app (in development, `android/`): slots with printer status and active slot, spool card
   with actions, NFC scan → spool, new spool from an existing filament with the scanned tag,
   settings. Debug builds have virtual tags for the emulator. See [android/README.md](android/README.md).
+- Android app: create filaments on the phone (wizard with all Orca fields, template values as
+  placeholders only, copy a product line for a new colour, new vendors).
+- CI: builds and tests the Android app; the debug APK is attached to every run.
 
 ### Added
 - Bridge: API for the Android app (`/api/app/…`, [reference](docs/api.md#android-app)): printer status

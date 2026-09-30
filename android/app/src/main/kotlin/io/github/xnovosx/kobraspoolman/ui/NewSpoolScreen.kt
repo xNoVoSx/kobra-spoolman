@@ -52,7 +52,9 @@ fun NewSpoolScreen(
     canWrite: Boolean,
     busy: Boolean,
     contentPadding: PaddingValues,
+    preselect: Int?,
     onLoad: () -> Unit,
+    onNewFilament: () -> Unit,
     onCancel: () -> Unit,
     onCreate: (NewSpool) -> Unit,
 ) {
@@ -62,6 +64,7 @@ fun NewSpoolScreen(
     var weight by rememberSaveable { mutableStateOf("") }
     var spoolWeight by rememberSaveable { mutableStateOf("") }
     var slot by rememberSaveable { mutableStateOf<Int?>(null) }
+    LaunchedEffect(preselect) { if (preselect != null) selectedId = preselect }
     val selected = catalog?.filaments?.firstOrNull { it.filamentId == selectedId }
     // Gewichte aus dem Filament vorschlagen, sobald eins gewaehlt ist
     LaunchedEffect(selectedId) {
@@ -96,8 +99,14 @@ fun NewSpoolScreen(
                 FilamentRow(f, selected = f.filamentId == selectedId) { selectedId = f.filamentId }
             }
             if (catalog != null && list.isEmpty()) item {
-                Text("Nichts gefunden. Neue Filamente anlegen kommt in Stufe 3 – bis dahin in Spoolman.",
-                    style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                Text("Nichts gefunden.", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            }
+            item {
+                OutlinedButton(onClick = onNewFilament, enabled = canWrite, modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, K.Faint)) {
+                    Icon(KIcons.Plus, contentDescription = null, tint = K.Accent, modifier = Modifier.size(18.dp))
+                    Text("  Nicht dabei? Neues Filament", color = K.Accent, style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
         Column(

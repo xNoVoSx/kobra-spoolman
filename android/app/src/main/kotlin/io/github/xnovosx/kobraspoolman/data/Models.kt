@@ -2,6 +2,7 @@ package io.github.xnovosx.kobraspoolman.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 // Datenmodelle der Bridge-API (/api/app/..., docs/api.md). Unbekannte Felder werden ignoriert,
 // damit eine neuere Bridge die App nicht bricht.
@@ -100,13 +101,52 @@ data class FilamentInfo(
     val weight: Double? = null,
     @SerialName("spool_weight") val spoolWeight: Double? = null,
     val spools: Int = 0,
+    @SerialName("vendor_id") val vendorId: Int? = null,
+    /** Nur am Filament selbst gesetzte Werte (fuer "Werte uebernehmen von ...") */
+    val native: Map<String, JsonElement> = emptyMap(),
+    val extra: Map<String, JsonElement> = emptyMap(),
 )
 
 @Serializable
 data class Catalog(
+    val vendors: List<Vendor> = emptyList(),
+    val templates: List<Template> = emptyList(),
     val filaments: List<FilamentInfo> = emptyList(),
+    val fields: List<ExtraField> = emptyList(),
+    @SerialName("orca_bases") val orcaBases: List<String> = emptyList(),
     @SerialName("shelf_location") val shelfLocation: String = "Regal",
 )
+
+@Serializable
+data class Vendor(val id: Int, val name: String, @SerialName("empty_spool_weight") val emptySpoolWeight: Double? = null)
+
+/** Vorlage (Hersteller "Vorlage") mit ihren Werten - in der App nur Platzhalter, nie kopiert. */
+@Serializable
+data class Template(
+    val id: Int,
+    val name: String = "",
+    val material: String = "",
+    val native: Map<String, JsonElement> = emptyMap(),
+    val extra: Map<String, JsonElement> = emptyMap(),
+)
+
+/** Spoolman-Zusatzfeld am Filament (aus spoolman_setup.py). */
+@Serializable
+data class ExtraField(
+    val key: String,
+    val name: String? = null,
+    val type: String? = null,
+    val unit: String? = null,
+    val order: Int? = null,
+    val choices: List<String>? = null,
+    @SerialName("orca_key") val orcaKey: String? = null,
+)
+
+@Serializable
+data class VendorResponse(val vendor: Vendor)
+
+@Serializable
+data class FilamentResponse(val filament: FilamentInfo)
 
 @Serializable
 data class SpoolResponse(val spool: SpoolInfo)

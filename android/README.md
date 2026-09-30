@@ -1,6 +1,6 @@
 # Kobra Spoolman — Android app
 
-Status: **in development** (stage 2 of the [concept](../docs/android-app.md)). Not released yet.
+Status: **in development** (stages 2–3 of the [concept](../docs/android-app.md)). Not released yet.
 
 The app talks only to the [ace-lane-bridge](../bridge) (`/api/app/…`, [API](../docs/api.md#android-app)).
 UI texts are German, like the plugin and the slot page.
@@ -12,8 +12,12 @@ UI texts are German, like the plugin and the slot page.
 - Scan: NFC tag → spool card; unknown tag → new spool or link to an existing one
 - New spool from an existing filament (weights, straight into a slot, link the scanned tag)
 - Settings: bridge address and app key (`APP_TOKEN`)
+- New filament (stage 3): 7-step wizard — vendor (or a new one), name, material, template, own Orca
+  base profile (list reported by the Orca plugin), colour, weights, temperatures, cooling,
+  extrusion/retraction, Orca overrides. Template values are shown as placeholders and never stored;
+  *Werte übernehmen von …* copies a product line's own values for a new colour.
 
-Next: writing ACE tags, creating filaments on the phone (stage 3).
+Next: writing ACE tags.
 
 ## Build
 

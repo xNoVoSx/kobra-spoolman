@@ -8,6 +8,8 @@ import io.github.xnovosx.kobraspoolman.data.BridgeClient
 import io.github.xnovosx.kobraspoolman.data.BridgeException
 import io.github.xnovosx.kobraspoolman.data.Catalog
 import io.github.xnovosx.kobraspoolman.data.Connection
+import io.github.xnovosx.kobraspoolman.data.FieldSpec
+import io.github.xnovosx.kobraspoolman.data.FilamentDraft
 import io.github.xnovosx.kobraspoolman.data.NewSpool
 import io.github.xnovosx.kobraspoolman.data.Settings
 import io.github.xnovosx.kobraspoolman.data.SpoolDetail
@@ -44,6 +46,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val catalog: StateFlow<Catalog?> = _catalog
     private val _detail = MutableStateFlow<SpoolDetail?>(null)
     val detail: StateFlow<SpoolDetail?> = _detail
+    private val _createdFilament = MutableStateFlow<Int?>(null)
+    /** Zuletzt in der App angelegtes Filament - "Neue Spule" waehlt es vor. */
+    val createdFilament: StateFlow<Int?> = _createdFilament
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy
 
@@ -113,6 +118,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _messages.send("Spule #${spool.spoolId} angelegt" + if (tagUid != null) " und mit dem Tag verknüpft" else "")
         refresh()
         done(spool)
+    }
+
+    fun createFilament(draft: FilamentDraft, specs: List<FieldSpec>, done: () -> Unit) = launchSafe {
+        val vendorId = draft.vendorId ?: it.createVendor(draft.newVendor.trim()).id
+        val fil = it.createFilament(draft.toJson(specs, vendorId))
+        _createdFilament.value = fil.filamentId
+        _catalog.value = it.catalog()
+        _messages.send("Filament „${fil.displayName}“ angelegt")
+        done()
     }
 
     fun linkTag(spoolId: Int, uid: String, done: () -> Unit) = launchSafe {

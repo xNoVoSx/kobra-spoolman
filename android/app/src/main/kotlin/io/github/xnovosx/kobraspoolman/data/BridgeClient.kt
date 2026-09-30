@@ -4,6 +4,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -74,6 +76,14 @@ class BridgeClient(
     suspend fun archiveSpool(id: Int) {
         call("POST", "/api/app/spool/$id/archive", null, ApiError.serializer())
     }
+
+    suspend fun createVendor(name: String): Vendor =
+        call("POST", "/api/app/vendor", json.encodeToString(JsonObject.serializer(),
+            JsonObject(mapOf("name" to JsonPrimitive(name)))), VendorResponse.serializer()).vendor
+
+    /** Filament anlegen; body = nur die gesetzten Felder (siehe FilamentDraft.toJson). */
+    suspend fun createFilament(body: JsonObject): FilamentInfo =
+        call("POST", "/api/app/filament", json.encodeToString(JsonObject.serializer(), body), FilamentResponse.serializer()).filament
 
     suspend fun linkTag(spoolId: Int, uid: String, force: Boolean = false): SpoolInfo =
         call("POST", "/api/app/tag/link", json.encodeToString(TagLink.serializer(), TagLink(spoolId, uid, force)),
