@@ -32,6 +32,19 @@ class AceTagTest {
         }
     }
 
+    /** Farbige Spule: bestaetigt die Reihenfolge A B G R (Silk Gruen #52D2BC). */
+    @Test fun coloured_original_tag_confirms_abgr() {
+        val raw = javaClass.getResourceAsStream("/anycubic_pla_silk_green_ntag213.bin")!!.readBytes()
+        val t = AceTag.decode(raw)!!
+        assertEquals("AHSCGR-102", t.sku)
+        assertEquals("PLA Silk", t.material)
+        assertEquals("52D2BC", t.color)
+        assertEquals(210 to 240, t.nozzleMin to t.nozzleMax)
+        assertEquals(50 to 150, t.speedMin to t.speedMax)
+        val pages = t.encode()
+        for (p in AceTag.FIRST..AceTag.LAST) assertArrayEquals("Seite $p", raw.copyOfRange(p * 4, p * 4 + 4), pages.getValue(p))
+    }
+
     @Test fun colour_order_and_black() {
         assertArrayEquals(byteArrayOf(0xFF.toByte(), 0xBC.toByte(), 0xD2.toByte(), 0x52), AceTag.colorBytes("52D2BC"))
         assertArrayEquals(byteArrayOf(0xFF.toByte(), 1, 1, 1), AceTag.colorBytes("000000"))
