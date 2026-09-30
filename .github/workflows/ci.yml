@@ -23,6 +23,29 @@ jobs:
       - name: Tests
         run: pytest -q
 
+  android:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      # SDK mit angenommenen Lizenzen; fehlende Plattformen laedt das Android-Gradle-Plugin selbst
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Tests und Debug-APK
+        run: ./gradlew testDebugUnitTest assembleDebug
+      - name: Debug-APK hochladen
+        uses: actions/upload-artifact@v7
+        with:
+          name: kobra-spoolman-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
   lint:
     runs-on: ubuntu-24.04
     steps:
