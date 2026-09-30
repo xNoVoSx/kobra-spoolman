@@ -96,9 +96,19 @@ magenta slot 2), sliced in AnycubicSlicer with the flush matrix set to 100 (A) a
 | A (100 mm³) | 4062 mm | 1391 mm | 2671 mm | ≈ 205 mm |
 | B (600 mm³) | 3842 mm | 1391 mm | 2451 mm | ≈ 189 mm |
 
-With the header in use, B would have purged ≈ 208 mm (500 mm³) more per load. It did not →
-**the firmware computes the purge itself** (test C and an Orca header patch are pointless).
-Per direction (both tests): magenta → lavender ≈ 220 mm, lavender → magenta ≈ 165–185 mm per load.
+With the header in use, B would have purged ≈ 208 mm (500 mm³) more per load. It did not.
+
+Both A and B had `flush_multiplier_calculate_by_acnext: 0` (auto-calculation switched off in the
+preferences). **Test B2** repeated B with the option *Calculate flushing volume through Anycubic
+Slicer Next* enabled (flag `1`, matrix still 600 by hand, identical real extrusion):
+**≈ 215 mm per load** (slot 1: 231, slot 2: 200) — within the spread of A and B.
+
+→ **The firmware computes the purge itself; the header is ignored, flag or not** (test C and an Orca
+header patch are pointless). The Anycubic wiki's flushing settings apply to what AnycubicSlicer
+computes and shows; for a print started via Moonraker/Rinkhals they do not reach the firmware.
+Untested: printing directly from AnycubicSlicer (its print order might carry the values) — not
+applicable to Orca, which always prints via Moonraker.
+Per direction (A, B, B2): magenta → lavender 219–231 mm, lavender → magenta 163–200 mm per load.
 
 Side effect: the header `filament_used` of AnycubicSlicer files contains the slicer's flush volume,
 although no G-code extrudes it. The bridge's "overhead = measured − header target" is therefore
