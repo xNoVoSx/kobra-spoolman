@@ -84,13 +84,26 @@ the preferences.
 **Hypothesis:** the firmware reads `project_info` from the header and falls back to its own
 calculation (from the colours the ACE reports) when it is missing — as with Orca.
 
-**Open test** (short two-colour part, ~10–15 changes, bridge measures mm per load):
+### Test A/B (2026-09-30): the firmware ignores the header — hypothesis rejected
 
-| Test | G-code | Expected if the hypothesis holds |
-|---|---|---|
-| A | AnycubicSlicer, matrix set to 100 everywhere, flag 0 | ≈ 100 mm³ + fixed part per load |
-| B | same, matrix 600 everywhere | clearly more per load |
-| C | Orca G-code with the three header lines added, matrix 100 | same as A → an Orca patch writing the header would work |
+Same two-colour cube (15 × 15 × 13 mm, 13 slabs, 12 changes, 13 loads; PETG lavender slot 1 /
+magenta slot 2), sliced in AnycubicSlicer with the flush matrix set to 100 (A) and 600 mm³ (B),
+`project_info` present, auto-calculation off. Both files extrude **exactly the same real amount**
+(1391 mm: model + tower); the matrix only changes the header (`filament_used`, `project_info`).
+
+| Test | measured by the bridge | real G-code extrusion | firmware purge | per load |
+|---|---|---|---|---|
+| A (100 mm³) | 4062 mm | 1391 mm | 2671 mm | ≈ 205 mm |
+| B (600 mm³) | 3842 mm | 1391 mm | 2451 mm | ≈ 189 mm |
+
+With the header in use, B would have purged ≈ 208 mm (500 mm³) more per load. It did not →
+**the firmware computes the purge itself** (test C and an Orca header patch are pointless).
+Per direction (both tests): magenta → lavender ≈ 220 mm, lavender → magenta ≈ 165–185 mm per load.
+
+Side effect: the header `filament_used` of AnycubicSlicer files contains the slicer's flush volume,
+although no G-code extrudes it. The bridge's "overhead = measured − header target" is therefore
+wrong for such files (test B: −345 mm) and pulls the average used by the plugin's usage preview down
+(227 → 109 mm per load). Single-load prints (≈ 95 mm, first load only) lower it further.
 
 ## OrcaSlicer plugin API (2.5.0-dev, commit 9859d788)
 
