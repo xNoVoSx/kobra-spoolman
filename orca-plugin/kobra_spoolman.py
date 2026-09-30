@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.3.3"
+# version = "0.3.4"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -34,6 +34,7 @@ Plugin nur im UI-Thread (Panel-Nachrichten, Ereignisse).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import queue
@@ -47,7 +48,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.3.3"
+PLUGIN_VERSION = "0.3.4"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -163,6 +164,16 @@ class SystemProfiles:
             if key not in self.by_vendor:
                 self.by_vendor[key] = index
         self.loaded_at = time.time()
+
+    def names(self):
+        """Namen der waehlbaren Filament-Basisprofile (fuer die Auswahl in der Android-App).
+        Abstrakte Elternprofile (fdm_..., ... @base) bleiben weg."""
+        if not self.by_vendor:
+            self.scan()
+        out = set()
+        for index in self.by_vendor.values():
+            out.update(n for n in index if not n.startswith("fdm_") and not n.endswith("@base"))
+        return sorted(out)
 
     def _lookup(self, index, name):
         p = index.get(name)
@@ -558,6 +569,7 @@ class Core:
                 (WRITTEN_DIR / f"{oid}.json").unlink(missing_ok=True)
             self.state["profiles_hash"] = data.get("hash")
             self.missing_bases = missing
+            self._report_bases()
             self._save_state()
             if written or deleted:
                 self.restart_needed = True
@@ -565,6 +577,19 @@ class Core:
                               "errors": errors}
             log(f"Sync: {len(written)} geschrieben, {len(deleted)} entfernt, {len(errors)} Fehler")
             return self.last_sync
+
+    def _report_bases(self):
+        """Basisprofil-Namen an die Bridge melden, nur wenn sie sich geaendert haben."""
+        names = self.system.names()
+        digest = hashlib.sha1("\n".join(names).encode("utf-8")).hexdigest()[:12]
+        if not names or self.state.get("bases_reported") == digest:
+            return
+        try:
+            self.http("POST", "/api/orca/bases", {"names": names}, timeout=10)
+            self.state["bases_reported"] = digest
+            log(f"{len(names)} Orca-Basisprofile an die Bridge gemeldet")
+        except Exception as e:  # noqa: BLE001
+            log("Basisprofile melden fehlgeschlagen:", e)
 
     def _remove_files(self, path: Path):
         try:

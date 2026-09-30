@@ -64,7 +64,8 @@ FILAMENT_FIELDS = [
 ]
 
 SPOOL_FIELDS = [
-    ("nfc_uid",                     "NFC-Kennung",                    "text",    None,       10),  # setzt die Bridge beim Pairing
+    ("nfc_uid",                     "NFC-Kennung",                    "text",    None,       10),  # UID des Tags (setzt die Bridge/App)
+    ("tag_nr",                      "Tag-Nummer",                     "integer", None,       11),  # Nummer in der SKU selbst beschriebener Tags
 ]
 
 VENDOR_NAME = "Vorlage"

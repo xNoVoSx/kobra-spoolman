@@ -106,6 +106,60 @@ by the plugin inside Orca, so the values always match the installed Orca version
 {"orca_id": "SM000009", "keys": ["fan_max_speed", "slow_down_layer_time"]}
 ```
 
+## Android app
+
+For the [Android app](android-app.md). Reading is open like the rest of the API; every writing call
+needs `Authorization: Bearer <APP_TOKEN>` (401 wrong token, 403 no `APP_TOKEN` configured). Errors:
+`{"error": "…"}` with 400 (invalid input), 404, 409 (conflict), 502 (Spoolman).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/app/state` | printer status, slots (with `tag_nr`/`nfc_uid`), shelf spools, `can_write` |
+| GET | `/api/app/catalog` | vendors, templates (with their values), filaments, extra-field definitions with Orca keys, Orca base profiles |
+| GET | `/api/app/spools?q=` | all active spools, optional text filter |
+| GET | `/api/app/spool/{id}` | one spool, its filament, the last prints that used it |
+| POST | `/api/app/vendor` | `{"name", "empty_spool_weight"?}` |
+| POST | `/api/app/filament` | create a filament: native fields + `extra`; only the fields sent are stored |
+| POST | `/api/app/filament/{id}/copy` | new colour of a product line: `{"name", "color_hex", …}` override the copy |
+| PATCH | `/api/app/filament/{id}` | change fields; `null` clears one (back to template / Orca base profile) |
+| POST | `/api/app/spool` | `{"filament_id", "initial_weight"?, "spool_weight"?, "price"?, "lot_nr"?, "comment"?, "slot"?}` |
+| POST | `/api/app/spool/{id}/location` | `{"slot": 1–4}` or `{"slot": null}` (shelf) |
+| POST | `/api/app/spool/{id}/archive` | empty spool: out of its slot, archived |
+| POST | `/api/app/tag/issue` | `{"spool_id"}` → tag number (reserved at the spool) and the tag content to write |
+| POST | `/api/app/tag/link` | `{"spool_id", "uid", "force"?}` → links a tag's UID (also original Anycubic tags) |
+| GET | `/api/app/tag/{uid}` | spool for a scanned tag |
+| POST | `/api/orca/bases` | the Orca plugin reports its filament base profile names |
+
+`GET /api/app/state` → `printer`:
+
+```json
+{"state": "printing", "file": "test-A-100.gcode", "progress": 0.42, "print_duration_s": 1260, "eta_s": 1740,
+ "message": null, "active_slot": 1, "mmu_action": "Idle", "changing_filament": false}
+```
+
+`state` is Moonraker's `print_stats.state` (`standby`, `printing`, `paused`, `complete`, `cancelled`,
+`error`) or `offline` when the printer is not reachable. `changing_filament` is derived from
+`mmu.action` (anything but idle while printing) — the exact Rinkhals values are still to be verified.
+
+`POST /api/app/filament` (only what the user set; density/diameter default to the template):
+
+```json
+{"name": "PETG 2.0 Mintgrün", "vendor_id": 2, "material": "PETG", "color_hex": "3FA46A",
+ "settings_extruder_temp": 250, "weight": 1000, "spool_weight": 160,
+ "extra": {"flow_ratio": 0.95, "vorlage": "Vorlage PETG"}}
+```
+
+`POST /api/app/tag/issue` → `tag` (the app encodes it in the ACE page layout):
+
+```json
+{"tag_nr": 48213, "sku": "AHPEBK-48213", "brand": "Sunlu", "material": "PETG", "color": "685BC7",
+ "nozzle_min": 250, "nozzle_max": 255, "bed_min": 75, "bed_max": 80,
+ "diameter_mm": 1.75, "weight_g": 1000.0, "length_m": 327.5}
+```
+
+Temperatures span the print and first-layer values (filament, else template). The SKU format is
+provisional until the tag test shows what the ACE accepts (`TAG_SKU_PREFIX`, `TAG_NR_MIN`/`MAX`).
+
 ## Telemetry
 
 | Method | Path | Purpose |

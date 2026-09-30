@@ -1,0 +1,300 @@
+"""App-API (Stufe 1): Pruefung/Umwandlung, Tags, Druckerstatus und die HTTP-Routen gegen einen
+Spoolman im Speicher."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import random
+
+import pytest
+from aiohttp.test_utils import TestClient, TestServer
+from conftest import FakeMoonraker
+
+from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, convert_extra, copy_filament_body,
+                              normalize_uid, printer_state, tag_content)
+from acebridge.slots import SlotManager
+from acebridge.web import build_app
+
+FIELDS = [
+    {"key": "vorlage", "field_type": "choice", "choices": ["Vorlage PETG", "Vorlage PLA"]},
+    {"key": "orca_basis", "field_type": "text"},
+    {"key": "nozzle_temp_first_layer", "field_type": "integer"},
+    {"key": "flow_ratio", "field_type": "float"},
+    {"key": "air_filtration", "field_type": "boolean"},
+]
+VENDORS = [{"id": 1, "name": "Vorlage"}, {"id": 2, "name": "Sunlu"}]
+TPL_PETG = {"id": 10, "name": "Vorlage PETG", "material": "PETG", "density": 1.27, "diameter": 1.75,
+            "settings_extruder_temp": 255, "settings_bed_temp": 80, "vendor": {"id": 1, "name": "Vorlage"},
+            "extra": {"nozzle_temp_first_layer": "255", "bed_temp_first_layer": "80"}}
+LAVENDEL = {"id": 20, "name": "PETG 2.0 Lavendelviolett", "material": "PETG", "density": 1.27, "diameter": 1.75,
+            "weight": 1000, "spool_weight": 160, "color_hex": "685BC7", "settings_extruder_temp": 250,
+            "settings_bed_temp": 75, "vendor": {"id": 2, "name": "Sunlu"},
+            "extra": {"flow_ratio": "0.95", "vorlage": "\"Vorlage PETG\""}}
+
+
+# ====================================================================== reine Funktionen
+def test_filament_body_only_contains_what_was_set():
+    body = build_filament_body({"name": "PETG 2.0 Mint", "material": "PETG", "vendor_id": 2, "color_hex": "#3fa46a",
+                                "settings_extruder_temp": "250", "extra": {"flow_ratio": "0.96"}},
+                               FIELDS, VENDORS, [TPL_PETG], creating=True)
+    assert body == {"name": "PETG 2.0 Mint", "material": "PETG", "vendor_id": 2, "color_hex": "3FA46A",
+                    "settings_extruder_temp": 250, "extra": {"flow_ratio": "0.96"},
+                    "density": 1.27, "diameter": 1.75}   # Dichte/Durchmesser aus der Vorlage (Pflicht in Spoolman)
+    assert "settings_bed_temp" not in body and "nozzle_temp_first_layer" not in body["extra"]
+
+
+def test_filament_body_validation():
+    for bad, msg in (({"material": "PETG"}, "name"), ({"name": "x"}, "material"),
+                     ({"name": "x", "material": "PETG", "color_hex": "lila"}, "Farbe"),
+                     ({"name": "x", "material": "PETG", "extra": {"gibtsnicht": 1}}, "Zusatzfeld"),
+                     ({"name": "x", "material": "PETG", "extra": {"vorlage": "Vorlage ABS"}}, "erlaubt"),
+                     ({"name": "x", "material": "PETG", "vendor_id": 99}, "Hersteller"),
+                     ({"name": "x", "material": "PETG", "remaining_weight": 5}, "nicht setzen"),
+                     ({"name": "x", "material": "EXOTISCH"}, "density")):
+        with pytest.raises(AppError, match=msg):
+            build_filament_body(bad, FIELDS, VENDORS, [TPL_PETG], creating=True)
+    # Aendern: null leert ein Feld (zurueck zur Vorlage)
+    assert build_filament_body({"extra": {"flow_ratio": None}, "settings_bed_temp": None}, FIELDS, VENDORS,
+                               [TPL_PETG], creating=False) == {"extra": {"flow_ratio": None}, "settings_bed_temp": None}
+
+
+def test_extra_values_are_spoolman_json():
+    assert convert_extra({"key": "a", "field_type": "integer"}, "249.6") == "250"
+    assert convert_extra({"key": "a", "field_type": "boolean"}, "ja") == "true"
+    assert convert_extra({"key": "a", "field_type": "text"}, "Generic PETG @System") == '"Generic PETG @System"'
+
+
+def test_copy_keeps_product_line_values_but_not_name_and_colour():
+    body = copy_filament_body(LAVENDEL, {"name": "PETG 2.0 Mintgrün", "color_hex": "3FA46A"}, FIELDS, VENDORS,
+                              [TPL_PETG])
+    assert body["name"] == "PETG 2.0 Mintgrün" and body["color_hex"] == "3FA46A" and body["vendor_id"] == 2
+    assert body["settings_extruder_temp"] == 250 and body["weight"] == 1000
+    assert body["extra"] == {"flow_ratio": "0.95", "vorlage": "\"Vorlage PETG\""}
+
+
+def test_tag_numbers_and_uids():
+    rng = random.Random(1)
+    n = choose_tag_nr([1000, 1001], 1000, 1003, rng)
+    assert n in (1002, 1003)
+    with pytest.raises(AppError):
+        choose_tag_nr([5, 6], 5, 6, rng)
+    assert normalize_uid("04:a1:b2:c3:d4:e5:f6") == "04A1B2C3D4E5F6"
+    assert normalize_uid("hallo") == ""
+
+
+def test_tag_content_uses_filament_then_template():
+    spool = {"id": 1, "initial_weight": 1000, "filament": LAVENDEL}
+    t = tag_content(spool, [TPL_PETG], 4711, "AHPEBK")
+    assert t["sku"] == "AHPEBK-4711" and t["brand"] == "Sunlu" and t["material"] == "PETG"
+    assert t["color"] == "685BC7"
+    assert (t["nozzle_min"], t["nozzle_max"]) == (250, 255)   # 250 vom Filament, 255 erste Schicht aus Vorlage
+    assert (t["bed_min"], t["bed_max"]) == (75, 80)
+    assert 310 < t["length_m"] < 340                          # 1 kg PETG 1,75 mm
+
+
+def test_printer_state():
+    st = {"print_stats": {"state": "printing", "filename": "a.gcode", "print_duration": 600},
+          "virtual_sdcard": {"progress": 0.25}, "mmu": {"action": "Idle"}}
+    p = printer_state(st, True, True, 1)
+    assert p["state"] == "printing" and p["file"] == "a.gcode" and p["eta_s"] == 1800 and p["active_slot"] == 1
+    assert p["changing_filament"] is False
+    assert printer_state(st, False, False, None)["state"] == "offline"
+    idle = printer_state({"print_stats": {"state": "standby", "filename": "a.gcode"}}, True, True, None)
+    assert idle["state"] == "standby" and idle["file"] is None and idle["progress"] is None
+
+
+# ====================================================================== HTTP-Routen
+class MemSpoolman:
+    """Spoolman im Speicher mit den Methoden, die Bridge und App-API nutzen."""
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.connected = True
+        self.vendors = [dict(v) for v in VENDORS]
+        self.filaments = [json.loads(json.dumps(TPL_PETG)), json.loads(json.dumps(LAVENDEL))]
+        self.spools = [{"id": 1, "location": "ACE Slot 1", "initial_weight": 1000, "remaining_weight": 978,
+                        "filament": self.filaments[1], "extra": {}}]
+        self.field_defs = {"filament": [dict(f) for f in FIELDS], "spool": [{"key": "nfc_uid", "field_type": "text"}]}
+        self.calls = []
+        self._next = 100
+
+    async def refresh(self):
+        return True
+
+    def spool(self, sid):
+        return next((s for s in self.spools if s["id"] == sid and not s.get("archived")), None)
+
+    def filament(self, fid):
+        return next((f for f in self.filaments if f["id"] == fid), None)
+
+    def templates(self):
+        return [f for f in self.filaments if (f.get("vendor") or {}).get("name") == "Vorlage"]
+
+    def is_template(self, fil):
+        return (fil.get("vendor") or {}).get("name") == "Vorlage"
+
+    async def fields(self, entity, refresh=False):
+        return self.field_defs[entity]
+
+    async def ensure_field(self, entity, key, body):
+        if not any(f["key"] == key for f in self.field_defs[entity]):
+            self.field_defs[entity].append({"key": key, **body})
+            self.calls.append(("field", entity, key))
+
+    async def create(self, entity, data):
+        self._next += 1
+        self.calls.append(("create", entity, data))
+        obj = {"id": self._next, **{k: v for k, v in data.items() if k != "vendor_id"}}
+        if entity == "vendor":
+            self.vendors.append(obj)
+        elif entity == "filament":
+            obj["vendor"] = next((v for v in self.vendors if v["id"] == data.get("vendor_id")), None)
+            self.filaments.append(obj)
+        else:
+            obj["filament"] = self.filament(data["filament_id"])
+            obj.setdefault("extra", {})
+            self.spools.append(obj)
+        return obj
+
+    async def patch_spool(self, sid, data):
+        self.calls.append(("patch_spool", sid, data))
+        s = next(s for s in self.spools if s["id"] == sid)
+        extra = data.get("extra") or {}
+        s.update({k: v for k, v in data.items() if k != "extra"})
+        for k, v in extra.items():
+            if v is None:
+                s["extra"].pop(k, None)
+            else:
+                s["extra"][k] = v
+        return s
+
+    async def patch_filament(self, fid, data):
+        self.calls.append(("patch_filament", fid, data))
+        return self.filament(fid)
+
+
+class GMoon(FakeMoonraker):
+    async def gcode(self, script):
+        pass
+
+    async def db_post(self, *a):
+        pass
+
+    async def db_delete(self, *a):
+        pass
+
+
+class FakeUsage:
+    history = [{"file": "wuerfel.gcode", "ended": "2026-09-30T20:00:00", "state": "complete",
+                "slots": [{"slot": 1, "spools": [{"id": 1, "mm": 3300.0}]}]}]
+    open: list = []
+
+    def grams(self, mm, sid):
+        return mm * 0.003
+
+    def live(self):
+        return None
+
+    def last_by_slot(self):
+        return {}
+
+
+class FakeBridge:
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.moon = GMoon()
+        self.moon.merge({"mmu": {"num_gates": 4, "gate_status": [-1, 1, 0, 0], "gate_material": ["PETG", "", "", ""],
+                                 "gate_color": ["685BC7FF", "", "", ""], "gate_spool_id": [0, 0, 0, 0]},
+                         "print_stats": {"state": "standby"}})
+        self.sm = MemSpoolman(cfg)
+        self.slots = SlotManager(cfg, self.moon, self.sm)
+        self.usage = FakeUsage()
+
+    def safety_warnings(self):
+        return []
+
+
+@pytest.fixture
+def api(cfg, tmp_path):
+    cfg.app_token = "geheim"
+    cfg.write_lane_data = False
+    cfg.set_ace_slot_info = False
+    bridge = FakeBridge(cfg)
+
+    def call(method, path, body=None, token="geheim"):
+        async def go():
+            async with TestClient(TestServer(build_app(bridge))) as client:
+                headers = {"Authorization": f"Bearer {token}"} if token else {}
+                resp = await client.request(method, path, json=body, headers=headers)
+                return resp.status, await resp.json()
+        return asyncio.run(go())
+    return bridge, call
+
+
+def test_state_catalog_and_spool_detail(api):
+    bridge, call = api
+    status, st = call("GET", "/api/app/state", token=None)
+    assert status == 200 and st["printer"]["state"] == "standby" and st["printer"]["active_slot"] == 1
+    assert st["slots"][0]["spool"]["spool_id"] == 1 and st["can_write"] is True
+    status, cat = call("GET", "/api/app/catalog", token=None)
+    assert [v["name"] for v in cat["vendors"]] == ["Sunlu"]            # Vorlagen-Hersteller ausgeblendet
+    assert cat["templates"][0]["name"] == "Vorlage PETG"
+    assert {f["key"]: f["orca_key"] for f in cat["fields"]}["flow_ratio"] == "filament_flow_ratio"
+    assert cat["filaments"][0]["display_name"] == "Sunlu PETG 2.0 Lavendelviolett"
+    status, det = call("GET", "/api/app/spool/1", token=None)
+    assert det["jobs"][0]["file"] == "wuerfel.gcode" and det["jobs"][0]["g"] == 9.9
+
+
+def test_writes_need_the_token(api):
+    bridge, call = api
+    assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token=None)[0] == 401
+    assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token="falsch")[0] == 401
+    bridge.cfg.app_token = ""
+    assert call("POST", "/api/app/vendor", {"name": "Elegoo"})[0] == 403
+
+
+def test_create_vendor_filament_spool_into_slot(api):
+    bridge, call = api
+    status, v = call("POST", "/api/app/vendor", {"name": "Elegoo", "empty_spool_weight": "150"})
+    assert status == 201
+    assert call("POST", "/api/app/vendor", {"name": "elegoo"})[0] == 409
+    status, f = call("POST", "/api/app/filament", {"name": "PETG Pro Weiß", "material": "PETG",
+                                                  "vendor_id": v["vendor"]["id"], "color_hex": "FFFFFF",
+                                                  "weight": 1000})
+    assert status == 201 and f["filament"]["orca_id"].startswith("SM")
+    status, sp = call("POST", "/api/app/spool", {"filament_id": f["filament"]["filament_id"], "slot": 2})
+    assert status == 201 and sp["spool"]["slot"] == 2 and sp["spool"]["initial_weight"] == 1000
+
+
+def test_copy_and_archive(api):
+    bridge, call = api
+    status, f = call("POST", "/api/app/filament/20/copy", {"name": "PETG 2.0 Mintgrün", "color_hex": "3FA46A"})
+    assert status == 201 and f["filament"]["color"] == "3FA46A"
+    assert call("POST", "/api/app/filament/10/copy", {"name": "x"})[0] == 404       # Vorlage ist kein Filament
+    status, _ = call("POST", "/api/app/spool/1/archive")
+    assert status == 200 and bridge.sm.spools[0]["archived"] is True
+    assert bridge.sm.spools[0]["location"] == "Regal"
+
+
+def test_tag_issue_link_lookup(api):
+    bridge, call = api
+    status, t = call("POST", "/api/app/tag/issue", {"spool_id": 1})
+    assert status == 200 and t["tag"]["sku"] == f"AHPEBK-{t['tag']['tag_nr']}"
+    assert ("field", "spool", "tag_nr") in bridge.sm.calls                # Feld wird bei Bedarf angelegt
+    status, t2 = call("POST", "/api/app/tag/issue", {"spool_id": 1})
+    assert t2["tag"]["tag_nr"] == t["tag"]["tag_nr"]                       # bleibt stabil
+    status, _ = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04:A1:B2:C3:D4:E5:F6"})
+    assert status == 200
+    status, hit = call("GET", "/api/app/tag/04a1b2c3d4e5f6", token=None)
+    assert status == 200 and hit["spool"]["spool_id"] == 1 and hit["spool"]["nfc_uid"] == "04A1B2C3D4E5F6"
+    assert call("GET", "/api/app/tag/0000000000", token=None)[0] == 404
+
+
+def test_orca_bases_are_stored(api, cfg):
+    bridge, call = api
+    status, res = call("POST", "/api/orca/bases", {"names": ["Generic PETG @System", "Generic PLA @System"]},
+                       token=None)
+    assert status == 200 and res["count"] == 2
+    assert call("GET", "/api/app/catalog", token=None)[1]["orca_bases"] == ["Generic PETG @System",
+                                                                             "Generic PLA @System"]

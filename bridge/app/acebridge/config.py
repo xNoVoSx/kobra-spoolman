@@ -59,6 +59,14 @@ class Config:
     # Am Drucker bestaetigt (30.09.): GoKlipper uebernimmt und behaelt die Werte (docs/findings.md).
     set_ace_slot_info: bool = field(default_factory=lambda: _bool("SET_ACE_SLOT_INFO", True))
 
+    # Android-App: Schluessel fuer alle schreibenden /api/app-Aufrufe (leer = App darf nur lesen)
+    app_token: str = field(default_factory=lambda: os.environ.get("APP_TOKEN", ""))
+    # Tag-Nummern fuer selbst beschriebene NFC-Tags (SKU "<Praefix>-<Nummer>"); vorlaeufig, bis der
+    # Test zeigt, welche SKU die ACE akzeptiert (docs/findings.md)
+    tag_nr_min: int = field(default_factory=lambda: _int("TAG_NR_MIN", 1000))
+    tag_nr_max: int = field(default_factory=lambda: _int("TAG_NR_MAX", 99999))
+    tag_sku_prefix: str = field(default_factory=lambda: os.environ.get("TAG_SKU_PREFIX", "AHPEBK"))
+
     # Telemetrie-Logger: Rohdaten jedes Drucks (nur echte Aenderungen)
     telemetry: bool = field(default_factory=lambda: _bool("TELEMETRY", True))
     telemetry_keep: int = field(default_factory=lambda: _int("TELEMETRY_KEEP", 30))

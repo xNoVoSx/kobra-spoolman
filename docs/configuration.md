@@ -26,6 +26,8 @@
 | `GATE_DEBOUNCE_S` | `3` | a new active slot counts only after this long (ACE flicker) |
 | `USAGE_TOLERANCE` | `0.03` | hint if a slot used less than the G-code model minus 3 % |
 | `JOB_HISTORY` | `50` | prints kept in the history |
+| `APP_TOKEN` | *(empty)* | key for all writing calls of the Android app; empty = the app can only read. Use a long random string |
+| `TAG_SKU_PREFIX` / `TAG_NR_MIN` / `TAG_NR_MAX` | `AHPEBK` / `1000` / `99999` | tag numbers for self-written NFC tags (SKU `<prefix>-<number>`); provisional until the tag test |
 | `TELEMETRY` / `TELEMETRY_KEEP` | `true` / `30` | raw recordings of the last prints |
 | `DEFAULT_DIAMETER` / `DEFAULT_DENSITY` | `1.75` / `1.24` | only for estimates without a spool |
 | `SPOOLMAN_PUBLIC_URL` | – | Spoolman link on the slot page; empty = same host, port 7912 |

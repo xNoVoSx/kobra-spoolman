@@ -46,7 +46,8 @@ Mapping in code: `FIELD_MAP` in [`bridge/app/acebridge/orca_profiles.py`](../bri
 | Retraction Geschwindigkeit | `filament_retraction_speed` | mm/s |
 | Z-Hop | `filament_z_hop` | mm |
 | Orca-Overrides | *any Orca key* | one `key = value` per line |
-| NFC-Kennung *(spool)* | — | stage 4 |
+| NFC-Kennung *(spool)* | — | UID of the spool's NFC tag (set by the app) |
+| Tag-Nummer *(spool)* | — | number in the SKU of a self-written tag (set by the bridge) |
 
 ## Back-sync / Rücksync
 

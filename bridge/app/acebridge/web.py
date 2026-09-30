@@ -13,6 +13,7 @@ import re
 import time
 
 from . import CHANGELOG, __app_name__, __description__, __version__
+from .appapi import AppApi
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -32,8 +33,8 @@ async def cors(request: web.Request, handler):
         except web.HTTPException as e:
             resp = e
     resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return resp
 
 
@@ -284,4 +285,5 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.FileResponse(path, headers={"Content-Type": "application/x-ndjson"})
 
     app.add_routes(r)
+    app.add_routes(AppApi(bridge).routes())   # Android-App (docs/android-app.md)
     return app

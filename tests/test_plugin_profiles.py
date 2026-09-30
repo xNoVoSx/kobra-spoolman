@@ -96,3 +96,10 @@ def test_diff_ignores_meta_and_formatting(ks):
 def test_safe_name_avoids_sandbox_keywords(ks):
     assert ks.safe_name("Confetti PLA", "SM000001", "PLA") == "Spoolman PLA (SM000001)"
     assert ks.safe_name("A/B:C", "SM000002", "PLA") == "A B C (SM000002)"
+
+
+def test_base_profile_names_skip_abstract_parents(ks, system, monkeypatch):
+    monkeypatch.setenv("APPDIR", str(system / "appdir"))
+    names = ks.SystemProfiles(system / "system").names()
+    assert "Test PLA @Printer" in names and "Generic PETG @System" in names
+    assert not any(n.startswith("fdm_") for n in names)

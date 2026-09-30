@@ -6,6 +6,17 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Bridge: API for the Android app (`/api/app/…`, [reference](docs/api.md#android-app)): printer status
+  with active slot, catalog (vendors, templates, filaments, extra fields with Orca keys, Orca base
+  profiles), create vendors/filaments/spools, copy a product line in a new colour, move/archive
+  spools, reserve tag numbers and link NFC tags. Writing needs `APP_TOKEN`. Only fields the user sets
+  are stored — template values are never copied into a filament.
+- Bridge: creates the spool extra fields `nfc_uid` and `tag_nr` in Spoolman when first needed
+  (also in `spoolman_setup.py`).
+- Plugin 0.3.4: reports the names of Orca's filament base profiles to the bridge, so the app can
+  offer them as a list.
+
 ## [2.3.0] – 2026-09-30
 
 Ships plugin 0.3.3.

@@ -49,6 +49,8 @@ Each stage is usable on its own.
 
 ### Stage 1 — bridge API for the app
 
+**Built** (bridge, unreleased): [API reference](api.md#android-app).
+
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/app/state` | printer state, file, progress, remaining time, active slot, filament change in progress; slots (live, WebSocket or short polling) |

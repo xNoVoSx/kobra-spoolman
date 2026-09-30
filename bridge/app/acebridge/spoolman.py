@@ -32,6 +32,8 @@ class Spoolman:
         self.base = cfg.spoolman_url + "/api/v1"
         self.spools: List[Dict[str, Any]] = []
         self.filaments: List[Dict[str, Any]] = []
+        self.vendors: List[Dict[str, Any]] = []
+        self._fields: Dict[str, List[Dict[str, Any]]] = {}   # Zusatzfeld-Definitionen je Entitaet
         self.connected = False
         self.version: Optional[str] = None
         self.last_refresh = 0.0
@@ -49,6 +51,7 @@ class Spoolman:
                 log.info("Spoolman %s unter %s", self.version, self.cfg.spoolman_url)
             self.spools = await self._get("/spool", allow_archived="false")
             self.filaments = await self._get("/filament")
+            self.vendors = await self._get("/vendor")
             if not self.connected:
                 log.info("Spoolman erreichbar: %d Spulen, %d Filamente", len(self.spools), len(self.filaments))
             self.connected = True
@@ -87,6 +90,38 @@ class Spoolman:
                 self.filaments[i] = data
                 break
         return data
+
+    # ------------------------------------------------------------ Anlegen (Android-App)
+    async def _write(self, method: str, path: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.cfg.dry_run:
+            log.info("[dry-run] %s %s %s", method, path, data)
+            return {"id": 0, **data}
+        async with self.session.request(method, self.base + path, json=data,
+                                        timeout=aiohttp.ClientTimeout(total=15)) as r:
+            if r.status == 404:
+                raise LookupError(f"{path} nicht gefunden")
+            if r.status >= 400:
+                raise RuntimeError(f"Spoolman {method} {path}: HTTP {r.status} {await r.text()}")
+            return await r.json()
+
+    async def create(self, entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Hersteller, Filament oder Spule anlegen (entity: vendor|filament|spool)."""
+        return await self._write("POST", f"/{entity}", data)
+
+    async def fields(self, entity: str, refresh: bool = False) -> List[Dict[str, Any]]:
+        """Zusatzfeld-Definitionen (key, name, field_type, unit, choices), gecacht."""
+        if refresh or entity not in self._fields:
+            self._fields[entity] = await self._get(f"/field/{entity}")
+        return self._fields[entity]
+
+    async def ensure_field(self, entity: str, key: str, body: Dict[str, Any]) -> bool:
+        """Zusatzfeld anlegen, falls es fehlt. True = neu angelegt. Aendert nie ein vorhandenes Feld."""
+        if any(f.get("key") == key for f in await self.fields(entity, refresh=True)):
+            return False
+        await self._write("POST", f"/field/{entity}/{key}", body)
+        await self.fields(entity, refresh=True)
+        log.info("Spoolman-Zusatzfeld %s.%s angelegt", entity, key)
+        return True
 
     async def use_length(self, spool_id: int, mm: float) -> Dict[str, Any]:
         """Verbrauch buchen. Spoolman rechnet ueber Durchmesser und Dichte des Filaments
