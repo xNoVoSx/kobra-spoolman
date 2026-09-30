@@ -91,6 +91,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.json_response({"print_state": bridge.slots.print_state,
                                   "warnings": bridge.safety_warnings() + bridge.slots.warnings,
                                   "slots": bridge.slots.slots_view(),
+                                  "dryer": bridge.dryer.state(),
                                   "usage": {"live": bridge.usage.live(),
                                             "last": bridge.usage.last_by_slot(),
                                             "open": bridge.usage.open}})
@@ -124,6 +125,51 @@ def build_app(bridge: "Bridge") -> web.Application:
         except ValueError:
             return _err(400, "slot muss eine Zahl sein")
         return web.json_response({"spools": bridge.slots.assignable_spools(slot)})
+
+    # ---------------------------------------------------------------- Trockner (ACE)
+    # Wie die Slot-Zuordnung ohne Schluessel (Handy-Seite); aendert nichts in Spoolman.
+    async def _dryer_call(coro):
+        try:
+            res = await coro
+        except ValueError as e:
+            return _err(400, str(e))
+        except ConnectionError as e:
+            return _err(503, f"Drucker nicht bereit: {e}")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Trockner: %s", e)
+            return _err(502, str(e))
+        return web.json_response({"ok": True, "result": res, "dryer": bridge.dryer.state()})
+
+    @r.get("/api/dryer")
+    async def dryer_state(_):
+        return web.json_response(bridge.dryer.state())
+
+    @r.post("/api/dryer/start")
+    async def dryer_start(request: web.Request):
+        try:
+            body = await request.json() if request.can_read_body else {}
+            temp = float(body["temp"]) if body.get("temp") not in (None, "") else None
+            hours = float(body["hours"]) if body.get("hours") not in (None, "") else None
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"temp\": <degC oder null>, \"hours\": <h oder null>}")
+        return await _dryer_call(bridge.dryer.start(temp, hours, source="hand"))
+
+    @r.post("/api/dryer/stop")
+    async def dryer_stop(_):
+        return await _dryer_call(bridge.dryer.stop(source="hand"))
+
+    @r.post("/api/dryer/config")
+    async def dryer_config(request: web.Request):
+        try:
+            body = await request.json()
+            if not isinstance(body, dict):
+                raise TypeError
+        except Exception:  # noqa: BLE001
+            return _err(400, "JSON-Objekt erwartet")
+
+        async def apply():
+            return bridge.dryer.set_config(body).__dict__
+        return await _dryer_call(apply())
 
     # ---------------------------------------------------------------- Verbrauch (Etappe 2)
     @r.get("/api/usage")

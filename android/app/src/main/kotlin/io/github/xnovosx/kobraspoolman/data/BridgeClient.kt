@@ -85,6 +85,18 @@ class BridgeClient(
     suspend fun createFilament(body: JsonObject): FilamentInfo =
         call("POST", "/api/app/filament", json.encodeToString(JsonObject.serializer(), body), FilamentResponse.serializer()).filament
 
+    suspend fun dryerStart(temp: Int?, hours: Double?) {
+        call("POST", "/api/dryer/start", json.encodeToString(DryerStart.serializer(), DryerStart(temp, hours)), ApiError.serializer())
+    }
+
+    suspend fun dryerStop() {
+        call("POST", "/api/dryer/stop", "{}", ApiError.serializer())
+    }
+
+    suspend fun dryerConfig(c: DryerConfig) {
+        call("POST", "/api/dryer/config", json.encodeToString(DryerConfig.serializer(), c), ApiError.serializer())
+    }
+
     suspend fun issueTag(spoolId: Int): TagIssue =
         call("POST", "/api/app/tag/issue", json.encodeToString(SpoolIdBody.serializer(), SpoolIdBody(spoolId)),
             TagIssue.serializer())

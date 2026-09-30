@@ -6,6 +6,14 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Bridge: **ACE dryer** — humidity, temperature and dryer state (from GoKlipper's `filament_hub`,
+  in the existing subscription), start/stop by hand and an automation (start above / stop below a
+  humidity, max. time, pause, optionally while printing). The temperature never exceeds what the most
+  sensitive loaded filament allows (new Spoolman field *Trocknen max.*, else template, else a
+  cautious default per material) or what the ACE can do; loading a more sensitive spool while drying
+  lowers it at once. On the slot page and in the Android app.
+
 ## [2.4.0] – 2026-09-30
 
 Ships plugin 0.3.4. The Android app is a preview (debug APK from CI), not part of this release.

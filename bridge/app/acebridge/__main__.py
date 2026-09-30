@@ -17,6 +17,7 @@ from .moonraker import Moonraker
 from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
+from .dryer import Dryer
 from .usage import UsageTracker
 from .web import build_app
 
@@ -32,6 +33,7 @@ class Bridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.recorder = Recorder(cfg)
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
+        self.dryer = Dryer(cfg, self.moon, self.slots)
         self._print_state = ""
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:
@@ -51,6 +53,8 @@ class Bridge:
         old_state, self._print_state = self._print_state, new_state
         if new_state != old_state:
             log.info("Druckerstatus: %s -> %s", old_state or "?", new_state or "?")
+        if full or "filament_hub" in delta:
+            await self.dryer.evaluate()
         if full or "mmu" in delta or new_state != old_state:
             await self.slots.evaluate()
             if new_state != old_state:
@@ -85,6 +89,7 @@ class Bridge:
                 self.recorder.tick(self.moon.status)
                 await self.usage.tick()
                 await self.slots.evaluate()  # Entprellung der Auto-Freigabe
+                await self.dryer.evaluate()  # Automatik und Temperatur-Sicherheit
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")
 

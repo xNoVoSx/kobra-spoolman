@@ -8,6 +8,7 @@ import io.github.xnovosx.kobraspoolman.data.BridgeClient
 import io.github.xnovosx.kobraspoolman.data.BridgeException
 import io.github.xnovosx.kobraspoolman.data.Catalog
 import io.github.xnovosx.kobraspoolman.data.Connection
+import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.data.FieldSpec
 import io.github.xnovosx.kobraspoolman.data.FilamentDraft
 import io.github.xnovosx.kobraspoolman.data.NewSpool
@@ -169,6 +170,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 done(job.spoolId)
             }
         }
+    }
+
+    fun dryerStart(temp: Int?, hours: Double?) = launchSafe {
+        it.dryerStart(temp, hours)
+        _messages.send("Trocknen gestartet")
+        refresh()
+    }
+
+    fun dryerStop() = launchSafe {
+        it.dryerStop()
+        _messages.send("Trocknen gestoppt")
+        refresh()
+    }
+
+    fun dryerConfig(c: DryerConfig) = launchSafe {
+        it.dryerConfig(c)
+        _messages.send(if (c.enabled) "Automatik gespeichert: ab ${c.startAbove.toInt()} %, bis ${c.stopBelow.toInt()} %" else "Automatik aus")
+        refresh()
     }
 
     fun linkTag(spoolId: Int, uid: String, done: () -> Unit) = launchSafe {

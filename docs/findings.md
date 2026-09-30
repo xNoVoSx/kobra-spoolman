@@ -225,6 +225,24 @@ MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'c
   [anycubic-lan](https://github.com/Nino6689/anycubic-lan)). It would be a second client with its
   own credentials; `MMU_GATE_MAP` goes over the bridge's existing Moonraker connection.
 
+## ACE status and dryer (`filament_hub`)
+
+GoKlipper's object `filament_hub` (queryable/subscribable via Moonraker, not listed in
+`printer/objects/list`) carries the raw ACE state, updated about every 20 s:
+
+```json
+{"filament_hubs": [{"id": 0, "status": "ready", "temp": 33, "humidity": 24,
+  "filament_model": "Anycubic Color Engine Pro 2.0", "enable_rfid": 1,
+  "dryer_status": {"status": "stop", "target_temp": 0, "duration": 0, "remain_time": 0},
+  "slots": [{"index": 0, "status": "ready", "type": "PETG", "rfid": 1}, …]}]}
+```
+
+- `rfid` per slot: 1 = no tag, 2 = tag (more reliable than `gate_spool_id > 0`).
+- Rinkhals' `mmu` view reports `dryer_humidity`/`dryer_remaining` as 0: it reads `humidity` inside
+  `dryer_status` and `remaining_time` instead of the hub's `humidity` and `remain_time`.
+- Dryer commands (Rinkhals): `MMU_DRYER_START UNIT=0 DURATION=<min> TEMP=<°C> [FAN_SPEED=…]`,
+  `MMU_DRYER_STOP UNIT=0`. ACE 2 Pro dries up to 65 °C (Anycubic), the first ACE Pro up to 55 °C.
+
 ## Android 17: local network protection (2026-09-30)
 
 Apps targeting Android 17 (API 37) cannot reach the local network (10.0.0.0/8, 192.168.0.0/16, …,

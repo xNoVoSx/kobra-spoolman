@@ -21,6 +21,8 @@ UI texts are German, like the plugin and the slot page.
   original Anycubic tag), read back, UID linked to the spool. After creating a spool the app goes
   straight to writing its tag.
 
+- ACE dryer: humidity/temperature card on the start screen; start/stop and the automation settings.
+
 Next: first test with real NTAG215 stickers on the phone; does the ACE report our tag number?
 
 ## Build

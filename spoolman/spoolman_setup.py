@@ -46,6 +46,7 @@ FILAMENT_FIELDS = [
     ("bed_temp_smooth",             "Bett glatte PEI",                "integer", "°C",       12),  # hot_plate_temp
     ("bed_temp_smooth_first_layer", "Bett glatte PEI erste Schicht",  "integer", "°C",       13),  # hot_plate_temp_initial_layer
     ("chamber_temp",                "Kammertemperatur",               "integer", "°C",       14),  # chamber_temperature
+    ("dry_temp",                    "Trocknen max.",                  "integer", "°C",       15),  # ACE-Trockner, kein Orca-Wert
     ("fan_min",                     "Bauteillüfter min",              "integer", "%",        20),  # fan_min_speed
     ("fan_max",                     "Bauteillüfter max",              "integer", "%",        21),  # fan_max_speed
     ("fan_off_first_layers",        "Lüfter aus erste Schichten",     "integer", "Schichten",22),  # close_fan_the_first_x_layers
@@ -79,6 +80,7 @@ TEMPLATES = [
         "settings_extruder_temp": 220,
         "settings_bed_temp": 55,
         "extra": {
+            "dry_temp": 45,
             "orca_basis": "Generic PLA @System",
             "nozzle_temp_first_layer": 220,
             "bed_temp_first_layer": 55,
@@ -104,6 +106,7 @@ TEMPLATES = [
         "settings_extruder_temp": 220,
         "settings_bed_temp": 55,
         "extra": {
+            "dry_temp": 45,
             "orca_basis": "Generic PLA Silk @System",
             "nozzle_temp_first_layer": 220,
             "bed_temp_first_layer": 55,
@@ -130,6 +133,7 @@ TEMPLATES = [
         "settings_extruder_temp": 255,
         "settings_bed_temp": 80,
         "extra": {
+            "dry_temp": 60,
             "orca_basis": "Generic PETG @System",
             "nozzle_temp_first_layer": 255,
             "bed_temp_first_layer": 80,
@@ -154,6 +158,7 @@ TEMPLATES = [
         "settings_extruder_temp": 260,
         "settings_bed_temp": 100,
         "extra": {
+            "dry_temp": 65,
             "orca_basis": "Generic ASA @System",
             "nozzle_temp_first_layer": 260,
             "bed_temp_first_layer": 105,
@@ -178,6 +183,7 @@ TEMPLATES = [
         "settings_extruder_temp": 240,
         "settings_bed_temp": 35,
         "extra": {
+            "dry_temp": 50,
             "orca_basis": "Generic TPU @System",
             "nozzle_temp_first_layer": 240,
             "bed_temp_first_layer": 35,
@@ -204,6 +210,7 @@ TEMPLATES = [
         "settings_extruder_temp": 220,
         "settings_bed_temp": 55,
         "extra": {
+            "dry_temp": 50,
             "orca_basis": "Generic PLA-CF @System",
             "nozzle_temp_first_layer": 220,
             "bed_temp_first_layer": 55,
@@ -229,6 +236,7 @@ TEMPLATES = [
         "settings_extruder_temp": 255,
         "settings_bed_temp": 80,
         "extra": {
+            "dry_temp": 65,
             "orca_basis": "Generic PETG-CF @System",
             "nozzle_temp_first_layer": 255,
             "bed_temp_first_layer": 80,

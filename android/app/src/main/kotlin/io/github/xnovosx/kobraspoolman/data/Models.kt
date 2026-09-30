@@ -15,8 +15,51 @@ data class AppState(
     @SerialName("can_write") val canWrite: Boolean = false,
     val slots: List<Slot> = emptyList(),
     val shelf: List<SpoolInfo> = emptyList(),
+    val dryer: Dryer? = null,
     val warnings: List<String> = emptyList(),
 )
+
+/** ACE-Trockner (GET /api/dryer, auch in /api/app/state). */
+@Serializable
+data class Dryer(
+    val present: Boolean = false,
+    val model: String? = null,
+    val humidity: Double? = null,
+    val temp: Double? = null,
+    val drying: Boolean = false,
+    @SerialName("target_temp") val targetTemp: Double? = null,
+    @SerialName("remaining_min") val remainingMin: Long? = null,
+    val required: DryerRequired = DryerRequired(),
+    val config: DryerConfig = DryerConfig(),
+    @SerialName("last_event") val lastEvent: DryerEvent? = null,
+)
+
+@Serializable
+data class DryerRequired(
+    val temp: Int? = null,
+    @SerialName("ace_max") val aceMax: Int = 65,
+    val slots: List<DryerSlot> = emptyList(),
+    @SerialName("limited_by") val limitedBy: List<Int> = emptyList(),
+)
+
+@Serializable
+data class DryerSlot(val slot: Int, val name: String = "", val temp: Int = 0, val source: String = "")
+
+@Serializable
+data class DryerConfig(
+    val enabled: Boolean = false,
+    @SerialName("start_above") val startAbove: Double = 20.0,
+    @SerialName("stop_below") val stopBelow: Double = 10.0,
+    @SerialName("max_hours") val maxHours: Double = 6.0,
+    @SerialName("pause_minutes") val pauseMinutes: Double = 60.0,
+    @SerialName("while_printing") val whilePrinting: Boolean = true,
+)
+
+@Serializable
+data class DryerEvent(val at: String = "", val text: String = "")
+
+@Serializable
+data class DryerStart(val temp: Int? = null, val hours: Double? = null)
 
 @Serializable
 data class Printer(

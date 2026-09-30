@@ -47,6 +47,17 @@ Orca panel warn about such slots.
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Ins Regal**.
 
+## Drying (ACE dryer)
+
+The slot page and the app show the ACE's humidity and temperature and the dryer state. **Trocknen …**
+starts or stops drying by hand; the automation starts drying when the humidity rises above a
+threshold (default 20 %) and stops below a second one (default 10 %) or after a maximum time.
+
+The temperature is **never higher than the most sensitive loaded filament allows** — the field
+*Trocknen max.* on the filament in Spoolman, else on its template, else a cautious default per
+material (PLA 45 °C, PETG 60 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro
+55 °C). If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once.
+
 ## Slicing and printing
 
 1. In Orca press the filament **sync** button. With the orca-kobra build the `SM…` profiles are

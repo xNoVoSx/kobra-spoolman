@@ -129,7 +129,7 @@ object FilamentForm {
     )
     val PHYSICAL = listOf("diameter", "density", "weight", "spool_weight", "price")
     val TEMPS = listOf("settings_extruder_temp", "nozzle_temp_first_layer", "settings_bed_temp", "bed_temp_first_layer",
-        "bed_temp_smooth", "bed_temp_smooth_first_layer", "chamber_temp")
+        "bed_temp_smooth", "bed_temp_smooth_first_layer", "chamber_temp", "dry_temp")
     val COOLING = listOf("fan_min", "fan_max", "fan_off_first_layers", "overhang_fan", "aux_fan", "air_filtration",
         "exhaust_fan_print", "exhaust_fan_done")
     val EXTRUSION = listOf("flow_ratio", "pressure_advance", "max_volumetric_speed", "retraction_length",

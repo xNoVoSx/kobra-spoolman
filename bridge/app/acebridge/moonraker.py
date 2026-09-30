@@ -16,6 +16,8 @@ from .config import Config
 log = logging.getLogger("moonraker")
 
 SUBSCRIBE_OBJECTS = {"mmu": None, "print_stats": None, "virtual_sdcard": None}
+# GoKlippers ACE-Rohdaten (Trockner, Feuchte); fehlt ohne ACE -> dann ohne abonnieren
+OPTIONAL_OBJECTS = {"filament_hub": None}
 
 StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
 
@@ -111,7 +113,11 @@ class Moonraker:
         return changed
 
     async def _subscribe(self) -> None:
-        res = await self._call("printer.objects.subscribe", {"objects": SUBSCRIBE_OBJECTS})
+        try:
+            res = await self._call("printer.objects.subscribe", {"objects": {**SUBSCRIBE_OBJECTS, **OPTIONAL_OBJECTS}})
+        except RuntimeError as e:
+            log.info("Abo ohne %s (%s)", ", ".join(OPTIONAL_OBJECTS), e)
+            res = await self._call("printer.objects.subscribe", {"objects": SUBSCRIBE_OBJECTS})
         snapshot = res.get("status", {}) if isinstance(res, dict) else {}
         self.status = {}
         self._merge(snapshot)

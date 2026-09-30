@@ -13,6 +13,7 @@ from conftest import FakeMoonraker
 
 from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, convert_extra, copy_filament_body,
                               normalize_uid, printer_state, tag_content)
+from acebridge.dryer import Dryer
 from acebridge.slots import SlotManager
 from acebridge.web import build_app
 
@@ -210,6 +211,7 @@ class FakeBridge:
         self.sm = MemSpoolman(cfg)
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.usage = FakeUsage()
+        self.dryer = Dryer(cfg, self.moon, self.slots)
 
     def safety_warnings(self):
         return []

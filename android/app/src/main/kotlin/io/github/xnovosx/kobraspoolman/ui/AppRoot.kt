@@ -72,6 +72,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     var unknownTag by remember { mutableStateOf<String?>(null) }
     var linkTagUid by remember { mutableStateOf<String?>(null) }
     var fillSlot by remember { mutableStateOf<Int?>(null) }
+    var dryerOpen by remember { mutableStateOf(false) }
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val slotCount = state?.slots?.size?.takeIf { it > 0 } ?: 4
     val canWrite = state?.canWrite == true && connection?.token?.isNotBlank() == true
@@ -130,7 +131,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onRefresh = { vm.refreshNow() },
                     onSettings = { nav.navigate("settings") },
                     onSpool = { nav.navigate("spool/$it") },
-                    onEmptySlot = { fillSlot = it })
+                    onEmptySlot = { fillSlot = it },
+                    onDryer = { dryerOpen = true })
             }
             composable("spool/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable
@@ -181,6 +183,15 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
         }
     }
 
+    val dryer = state?.dryer
+    if (dryerOpen && dryer != null) {
+        ModalBottomSheet(onDismissRequest = { dryerOpen = false }, containerColor = K.Surface) {
+            DryerSheet(dryer,
+                onStart = { t, h -> dryerOpen = false; vm.dryerStart(t, h) },
+                onStop = { dryerOpen = false; vm.dryerStop() },
+                onSaveConfig = { c -> dryerOpen = false; vm.dryerConfig(c) })
+        }
+    }
     if (scanOpen) {
         ModalBottomSheet(onDismissRequest = { scanOpen = false }, containerColor = K.Surface) {
             ScanSheet(scanner, state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty())

@@ -106,6 +106,21 @@ by the plugin inside Orca, so the values always match the installed Orca version
 {"orca_id": "SM000009", "keys": ["fan_max_speed", "slow_down_layer_time"]}
 ```
 
+## Dryer (ACE)
+
+Like the slot assignment, without the app key (slot page); nothing is written to Spoolman.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/dryer` | humidity, ACE temperature, dryer state, highest allowed temperature with reasons, automation settings, last event |
+| POST | `/api/dryer/start` | `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
+| POST | `/api/dryer/stop` | stop drying |
+| POST | `/api/dryer/config` | automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing` |
+
+The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: GoKlipper's
+`filament_hub` object in the bridge's Moonraker subscription (the ACE reports about every 20 s);
+commands: Rinkhals' `MMU_DRYER_START` / `MMU_DRYER_STOP`.
+
 ## Android app
 
 For the [Android app](android-app.md). Reading is open like the rest of the API; every writing call

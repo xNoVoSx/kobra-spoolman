@@ -46,6 +46,17 @@ beim Start ab (`index out of range`). Slot-Seite und Orca-Panel warnen bei solch
 Spule rausnehmen: Meldet die ACE einen Slot eine Weile leer, wandert die Spule automatisch ins Regal
 (während eines Drucks erst danach). Oder **Ins Regal** drücken.
 
+## Trocknen (ACE-Trockner)
+
+Slot-Seite und App zeigen Feuchte und Temperatur der ACE und den Trockner. **Trocknen …** startet oder
+stoppt von Hand; die Automatik startet, wenn die Feuchte über einen Wert steigt (Standard 20 %), und
+stoppt unter einem zweiten (Standard 10 %) oder nach einer Höchstdauer.
+
+Die Temperatur ist **nie höher, als das empfindlichste eingelegte Filament verträgt** – Feld *Trocknen
+max.* am Filament in Spoolman, sonst an seiner Vorlage, sonst ein vorsichtiger Startwert je Material
+(PLA 45 °C, PETG 60 °C, …) – und nie höher, als die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C). Wird
+während des Trocknens eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort.
+
 ## Slicen und drucken
 
 1. In Orca den **Sync-Knopf** bei den Filamenten drücken. Mit dem orca-kobra-Build werden die

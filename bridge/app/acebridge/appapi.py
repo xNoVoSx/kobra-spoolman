@@ -421,6 +421,7 @@ class AppApi:
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"],
                            "spool": self._with_tag(s["spool"])} for s in slots],
                 "shelf": shelf,
+                "dryer": b.dryer.state(),
                 "warnings": b.safety_warnings() + b.slots.warnings,
             })
 
