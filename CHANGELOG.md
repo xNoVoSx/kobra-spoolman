@@ -12,6 +12,9 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   settings. Debug builds have virtual tags for the emulator. See [android/README.md](android/README.md).
 - Android app: create filaments on the phone (wizard with all Orca fields, template values as
   placeholders only, copy a product line for a new colour, new vendors).
+- Android app: write ACE-compatible NFC tags (own encoder, verified byte for byte against an
+  original Anycubic tag), link them to the spool; original Anycubic tags are recognised as
+  write-protected.
 - CI: builds and tests the Android app; the debug APK is attached to every run.
 
 ### Added

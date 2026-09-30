@@ -17,7 +17,11 @@ UI texts are German, like the plugin and the slot page.
   extrusion/retraction, Orca overrides. Template values are shown as placeholders and never stored;
   *Werte übernehmen von …* copies a product line's own values for a new colour.
 
-Next: writing ACE tags.
+- Write ACE tags: tag number from the bridge, pages 4–31 in the ACE layout (verified against an
+  original Anycubic tag), read back, UID linked to the spool. After creating a spool the app goes
+  straight to writing its tag.
+
+Next: first test with real NTAG215 stickers on the phone; does the ACE report our tag number?
 
 ## Build
 

@@ -151,6 +151,29 @@ data class FilamentResponse(val filament: FilamentInfo)
 @Serializable
 data class SpoolResponse(val spool: SpoolInfo)
 
+/** Antwort von POST /api/app/tag/issue: reservierte Tag-Nummer und Inhalt fuer den ACE-Tag. */
+@Serializable
+data class TagIssue(@SerialName("spool_id") val spoolId: Int, val tag: TagContent)
+
+@Serializable
+data class TagContent(
+    @SerialName("tag_nr") val tagNr: Long,
+    val sku: String,
+    val brand: String = "",
+    val material: String = "",
+    val color: String = "",
+    @SerialName("nozzle_min") val nozzleMin: Int? = null,
+    @SerialName("nozzle_max") val nozzleMax: Int? = null,
+    @SerialName("bed_min") val bedMin: Int? = null,
+    @SerialName("bed_max") val bedMax: Int? = null,
+    @SerialName("diameter_mm") val diameterMm: Double = 1.75,
+    @SerialName("weight_g") val weightG: Double? = null,
+    @SerialName("length_m") val lengthM: Double? = null,
+)
+
+@Serializable
+data class SpoolIdBody(@SerialName("spool_id") val spoolId: Int)
+
 @Serializable
 data class Health(val app: String = "", val version: String = "")
 

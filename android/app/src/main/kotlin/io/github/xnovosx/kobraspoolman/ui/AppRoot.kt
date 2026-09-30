@@ -95,6 +95,12 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
     LaunchedEffect(Unit) { scanner.tags.collect { vm.onTag(it) } }
     LaunchedEffect(Unit) {
+        scanner.writes.collect { r ->
+            vm.onTagWritten(r) { id -> nav.navigate("spool/$id") { popUpTo("slots") } }
+        }
+    }
+    val tagJob by vm.tagJob.collectAsState()
+    LaunchedEffect(Unit) {
         vm.scans.collect { r ->
             scanOpen = false
             when (r) {
@@ -132,7 +138,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 SpoolScreen(detail?.takeIf { it.spool.spoolId == id }, slotCount, canWrite, busy, padding,
                     onBack = { nav.popBackStack() },
                     onMove = { vm.moveSpool(id, it) },
-                    onArchive = { vm.archiveSpool(id) { nav.popBackStack() } })
+                    onArchive = { vm.archiveSpool(id) { nav.popBackStack() } },
+                    onWriteTag = { nav.navigate("tag/$id") })
             }
             composable("new?uid={uid}", arguments = listOf(navArgument("uid") { nullable = true; defaultValue = null })) { entry ->
                 val uid = entry.arguments?.getString("uid")
@@ -142,9 +149,19 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onNewFilament = { nav.navigate("filament/new") },
                     onCancel = { nav.popBackStack() },
                     onCreate = { req ->
+                        // Nach dem Anlegen gleich den Tag beschreiben ("Spaeter" fuehrt zur Spulenkarte)
                         vm.createSpool(req, uid) { sp ->
-                            nav.navigate("spool/${sp.spoolId}") { popUpTo("slots") }
+                            nav.navigate("tag/${sp.spoolId}") { popUpTo("slots") }
                         }
+                    })
+            }
+            composable("tag/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
+                val id = entry.arguments?.getInt("id") ?: return@composable
+                TagWriteScreen(id, tagJob?.takeIf { it.spoolId == id }, scanner, padding,
+                    onPrepare = { vm.prepareTag(id, scanner) },
+                    onCancel = {
+                        vm.cancelTag(scanner)
+                        nav.navigate("spool/$id") { popUpTo("slots") }
                     })
             }
             composable("filament/new") {

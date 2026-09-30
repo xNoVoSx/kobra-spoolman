@@ -14,7 +14,12 @@ import io.github.xnovosx.kobraspoolman.data.NewSpool
 import io.github.xnovosx.kobraspoolman.data.Settings
 import io.github.xnovosx.kobraspoolman.data.SpoolDetail
 import io.github.xnovosx.kobraspoolman.data.SpoolInfo
+import io.github.xnovosx.kobraspoolman.data.TagContent
+import io.github.xnovosx.kobraspoolman.nfc.AceTag
 import io.github.xnovosx.kobraspoolman.nfc.ScannedTag
+import io.github.xnovosx.kobraspoolman.nfc.TagScanner
+import io.github.xnovosx.kobraspoolman.nfc.WriteResult
+import io.github.xnovosx.kobraspoolman.nfc.toAceTag
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -49,6 +54,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _createdFilament = MutableStateFlow<Int?>(null)
     /** Zuletzt in der App angelegtes Filament - "Neue Spule" waehlt es vor. */
     val createdFilament: StateFlow<Int?> = _createdFilament
+    /** Tag, der gerade geschrieben werden soll (Spule + Inhalt), null = kein Schreibauftrag. */
+    data class TagJob(val spoolId: Int, val content: TagContent, val ace: AceTag)
+    private val _tagJob = MutableStateFlow<TagJob?>(null)
+    val tagJob: StateFlow<TagJob?> = _tagJob
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy
 
@@ -127,6 +136,39 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _catalog.value = it.catalog()
         _messages.send("Filament „${fil.displayName}“ angelegt")
         done()
+    }
+
+    /** Tag-Nummer holen und den naechsten aufgelegten Tag damit beschreiben lassen. */
+    fun prepareTag(spoolId: Int, scanner: TagScanner) = launchSafe {
+        _tagJob.value = null
+        val issue = it.issueTag(spoolId)
+        val ace = try { issue.tag.toAceTag() } catch (e: IllegalStateException) {
+            _messages.send(e.message ?: "Tag-Inhalt unvollständig"); return@launchSafe
+        } catch (e: IllegalArgumentException) {
+            _messages.send(e.message ?: "Tag-Inhalt unvollständig"); return@launchSafe
+        }
+        scanner.armWrite(ace.encode())
+        _tagJob.value = TagJob(spoolId, issue.tag, ace)
+    }
+
+    fun cancelTag(scanner: TagScanner) {
+        scanner.disarm()
+        _tagJob.value = null
+    }
+
+    /** Tag ist beschrieben: Seriennummer mit der Spule verknuepfen. */
+    fun onTagWritten(r: WriteResult, done: (Int) -> Unit) = launchSafe {
+        val job = _tagJob.value ?: return@launchSafe
+        when (r) {
+            is WriteResult.Failed -> _messages.send(r.message)
+            is WriteResult.Written -> {
+                it.linkTag(job.spoolId, r.uid, force = true)
+                _tagJob.value = null
+                _messages.send("Tag ${job.content.sku} geschrieben und mit Spule #${job.spoolId} verknüpft")
+                refresh()
+                done(job.spoolId)
+            }
+        }
     }
 
     fun linkTag(spoolId: Int, uid: String, done: () -> Unit) = launchSafe {

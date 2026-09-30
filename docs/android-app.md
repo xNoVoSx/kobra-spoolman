@@ -76,7 +76,7 @@ Each stage is usable on its own.
 
 ### Stage 2 — app basics
 
-**Built** (app, unreleased) — except writing tags.
+**Built** (app, unreleased), including writing ACE tags — real-tag test on the phone pending.
 
 1. **Slots and printer status** — a status card on top: *Bereit* (standby), *Druckt* (file,
    progress, remaining time), *Wechselt Filament* (slot N → M), *Pausiert*, *Fehler* (firmware

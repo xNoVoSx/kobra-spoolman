@@ -47,6 +47,7 @@ fun SpoolScreen(
     onBack: () -> Unit,
     onMove: (Int?) -> Unit,
     onArchive: () -> Unit,
+    onWriteTag: () -> Unit,
 ) {
     var confirmArchive by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(K.Ground).verticalScroll(rememberScrollState())) {
@@ -107,7 +108,11 @@ fun SpoolScreen(
                     ) { Text("$n", style = MaterialTheme.typography.titleLarge) }
                 }
             }
-            SecondaryButton("Ins Regal", { onMove(null) }, Modifier.fillMaxWidth(), enabled = canWrite && !busy && sp.slot != null)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton("Ins Regal", { onMove(null) }, Modifier.weight(1f), enabled = canWrite && !busy && sp.slot != null)
+                SecondaryButton(if (sp.nfcUid != null) "Tag neu schreiben" else "Tag schreiben", onWriteTag, Modifier.weight(1f),
+                    enabled = canWrite && !busy)
+            }
             SecondaryButton("Leer · archivieren", { confirmArchive = true }, Modifier.fillMaxWidth(),
                 enabled = canWrite && !busy, danger = true)
             if (!canWrite) Hint("Ändern braucht den App-Schlüssel (Einstellungen).")

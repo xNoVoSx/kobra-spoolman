@@ -85,6 +85,10 @@ class BridgeClient(
     suspend fun createFilament(body: JsonObject): FilamentInfo =
         call("POST", "/api/app/filament", json.encodeToString(JsonObject.serializer(), body), FilamentResponse.serializer()).filament
 
+    suspend fun issueTag(spoolId: Int): TagIssue =
+        call("POST", "/api/app/tag/issue", json.encodeToString(SpoolIdBody.serializer(), SpoolIdBody(spoolId)),
+            TagIssue.serializer())
+
     suspend fun linkTag(spoolId: Int, uid: String, force: Boolean = false): SpoolInfo =
         call("POST", "/api/app/tag/link", json.encodeToString(TagLink.serializer(), TagLink(spoolId, uid, force)),
             SpoolResponse.serializer()).spool

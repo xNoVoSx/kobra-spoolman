@@ -184,8 +184,28 @@ The app declares the permission, requests it on first start and shows a hint whi
 
 ## Anycubic RFID tags
 
-- Tag fields per [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID): SKU (pages 5–8), brand (10–13),
-  material (15–18), colour ABGR (20), temperatures, diameter/length.
+Page layout (4 bytes per page), verified against a memory dump of an original tag (Anycubic PETG
+black, NTAG213, read with NFC Tools; `android/app/src/test/resources/`) and cross-checked with
+[ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID). The app's own encoder reproduces pages 4–31 of
+that tag byte for byte (`AceTagTest`).
+
+| Page | Content | Original tag |
+|---|---|---|
+| 4 | header | `7B 00 65 00` |
+| 5–9 | SKU, ASCII | `AHPEBK-102` → ACE reports `gate_spool_id` 102 |
+| 10–14 | brand, ASCII | `AC` (Anycubic) |
+| 15–19 | material, ASCII | `PETG` |
+| 20 | colour, alpha + B G R | `FF 21 27 21` = #212721 (palindromic — R/B order still to confirm with a coloured tag) |
+| 23 | speed min/max, uint16 LE | 50 / 200 (not written by ACE-RFID) |
+| 24 | nozzle min/max °C | 230 / 250 (= what the ACE reports for the slot) |
+| 29 | bed min/max °C | 60 / 70 |
+| 30 | diameter ×100, length m | 175 / 320 |
+| 31 | weight g | 1000 |
+| 41–42 | NTAG213 CFG | `AUTH0 = 04`, `ACCESS = 47`: password-protected **writes** from page 4 → original tags can be read, not rewritten |
+
+- Pure black is written as `010101` (as ACE-RFID does); `000000` probably reads as "no colour".
+- The app writes pages 4–31 (all others zero), reads them back to verify, then links the tag's UID
+  to the spool. The tag number comes from the bridge (`POST /api/app/tag/issue`).
 - Open question for stage 4: which field (if any) the ACE passes through unchanged, so a custom ID
   written into a tag can be recognised. Planned test with an empty Anycubic spool:
   1. Read the tag with the ACE-RFID app and save the values.
