@@ -123,6 +123,7 @@ The sum matches the printer's `filament_used` counter exactly. More in [docs/fin
 | [API](docs/api.md) | HTTP API of the bridge |
 | [Architecture](docs/architecture.md) | Data flow, consumption algorithm, profile resolution, design decisions |
 | [Findings](docs/findings.md) | What we measured and learned about Rinkhals, the ACE and Orca's plugin API |
+| [Android app (concept)](docs/android-app.md) | Planned phone app: create spools and filaments, write ACE tags, slots |
 | [Troubleshooting](docs/troubleshooting.md) | Common problems and how to solve them |
 | [Changelog](CHANGELOG.md) | Version history |
 
@@ -133,7 +134,7 @@ The sum matches the printer's `filament_used` counter exactly. More in [docs/fin
 | 1 | Moonraker + Spoolman connection, slot page, `lane_data`, telemetry | ✅ done |
 | 2 | Consumption per spool, journal, open items, target comparison, history | ✅ done |
 | 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build, usage preview after slicing | ✅ done (reloading profiles without a restart is deferred, see [findings](docs/findings.md)) |
-| 4 | NFC tags: recognise spools when they are loaded | 🔜 planned |
+| 4 | NFC tags and Android app: create spools on the phone, write ACE tags, recognise spools when loaded ([concept](docs/android-app.md)) | 🔜 planned |
 | 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
 
 ## Credits

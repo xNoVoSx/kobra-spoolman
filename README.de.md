@@ -120,6 +120,7 @@ Die Summe stimmt exakt mit dem Zähler `filament_used` des Druckers überein. Me
 | [API](docs/api.md) | HTTP-Schnittstelle der Bridge (englisch) |
 | [Architektur](docs/architecture.md) | Datenfluss, Verbrauchsrechnung, Profilaufbau, Entscheidungen (englisch) |
 | [Erkenntnisse](docs/findings.md) | Messungen und Eigenheiten von Rinkhals, ACE und Orcas Plugin-API (englisch) |
+| [Android-App (Konzept)](docs/android-app.md) | Geplante Handy-App: Spulen und Filamente anlegen, ACE-Tags schreiben, Slots (englisch) |
 | [Fehlersuche](docs/de/troubleshooting.md) | Häufige Probleme und Lösungen |
 | [Änderungen](CHANGELOG.md) | Versionsverlauf |
 
@@ -130,7 +131,7 @@ Die Summe stimmt exakt mit dem Zähler `filament_used` des Druckers überein. Me
 | 1 | Moonraker- und Spoolman-Anbindung, Slot-Seite, `lane_data`, Telemetrie | ✅ fertig |
 | 2 | Verbrauch pro Spule, Journal, offene Posten, Sollwert-Abgleich, Historie | ✅ fertig |
 | 3 | Orca-Profile aus Spoolman, Seitenpanel, Rücksync, gepatchter Orca-Build, Verbrauchsvorschau nach dem Slicen | ✅ fertig (Profile ohne Neustart zurückgestellt, siehe [Erkenntnisse](docs/findings.md)) |
-| 4 | NFC-Tags: Spulen beim Einlegen erkennen | 🔜 geplant |
+| 4 | NFC-Tags und Android-App: Spulen am Handy anlegen, ACE-Tags schreiben, Spulen beim Einlegen erkennen ([Konzept](docs/android-app.md)) | 🔜 geplant |
 | 5 | Home Assistant über MQTT (Slots, Restgewicht, Meldungen) | 🔜 geplant |
 
 ## Danke
