@@ -18,7 +18,7 @@
 | Verbrauch nicht gebucht | Oben auf der Slot-Seite unter *Nicht gebucht* nachsehen. Spoolman weg → wird alle 30 s neu versucht. |
 | Falsche Menge gebucht | Rohdaten (`/api/telemetry/<datei>`) und den Eintrag aus `/api/jobs` in einem Issue schicken. |
 | Kein *Geplanter Verbrauch* im Panel | Dem Orca-Build fehlt Patch 0003 (steht in der Fußzeile) – über den orca-kobra-Starter aktualisieren. Sonst neu slicen; die Vorschau verschwindet, wenn das Slice-Ergebnis veraltet ist. |
-| Druck bricht ~5 min nach dem Start ab, Mainsail: `runtime error: index out of range [0] with length 0` | Ein Slot, den der Druck benutzt, hat am Drucker kein Material (Spule ohne Tag, am Display nichts eingetragen). Material und Farbe am Display eintragen. Details: [findings](../findings.md#print-start-and-ace-slot-info-2026-09-30). |
+| Druck bricht ~5 min nach dem Start ab, Mainsail: `runtime error: index out of range [0] with length 0` | Ein Slot, den der Druck benutzt, hat am Drucker kein Material (Spule ohne Tag, am Display nichts eingetragen). Spule auf der Slot-Seite zuordnen (ab Bridge 2.3.0 gibt sie Material und Farbe an die ACE) oder am Display eintragen. Details: [findings](../findings.md#print-start-and-ace-slot-info-2026-09-30). |
 | Vorschau sagt *reicht nicht*, die Spule ist aber voll | Restgewicht in Spoolman stimmt nicht (Spulengewicht / Anfangsgewicht). In Spoolman korrigieren. |
 
 ## Nützliche Befehle

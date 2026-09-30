@@ -155,16 +155,16 @@ MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'c
 
 - Parsed with `shlex.split` and `ast.literal_eval`; colour is 8-digit hex RGBA without `#`.
 - Refused by Rinkhals for slots with an RFID tag (`rfid == 2`); allowed for untagged slots (`rfid == 1`).
-- Rinkhals rebuilds its gate list from GoKlipper's ACE status about every 20 s. A value only sticks
-  if GoKlipper accepts it — Rinkhals' own comment in `update_gate` ("only works if gate has RFID
-  tag") contradicts the `rfid` check, so this needs a test on the printer (**open**):
-  1. Printer idle, untagged spool in slot 1, nothing entered at the display.
-  2. Send the command above for slot 1 (via Mainsail console or the bridge).
-  3. Check the display and `mmu.gate_material` / `gate_color` — and again after 30 s.
-  4. Start a short print that uses slot 1; the Moonraker log must show `material_type` set.
-- The bridge can send it when a spool is assigned (`SET_ACE_SLOT_INFO=true`, default off until the
-  test passes): only for loaded slots whose ACE data differs from Spoolman, once per slot and
-  value, never while printing.
+- Rinkhals rebuilds its gate list from GoKlipper's ACE status about every 20 s, so a value only
+  sticks if GoKlipper accepts it. Rinkhals' own comment in `update_gate` ("only works if gate has
+  RFID tag") suggested otherwise. **Tested on the printer (2026-09-30, Rinkhals 20260901_01,
+  firmware 2.7.2.7):** slot 1 (untagged spool, PETG entered at the display) set to colour
+  `00FF00FF` via the Mainsail console → the display showed the slot green at once, and
+  `mmu.gate_color` still read `00FF00FF` 35 s later. GoKlipper keeps material and colour; the
+  `name` is not stored (`gate_filament_name` stays the material).
+- The bridge sends it when a spool is assigned (`SET_ACE_SLOT_INFO`, default on): only for loaded
+  slots whose ACE data differs from Spoolman (material, or colour beyond the usual tolerance),
+  once per slot and value, never while printing.
 - Alternative not needed: Anycubic's LAN mode exposes the same function over TLS MQTT (port 9883,
   signed handshake, `multiColorBox` / `setInfo`, documented by
   [anycubic-lan](https://github.com/Nino6689/anycubic-lan)). It would be a second client with its

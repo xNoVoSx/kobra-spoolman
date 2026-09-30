@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.2.2"
+__version__ = "2.3.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird auf der Slot-Seite unter "Info" angezeigt.
 CHANGELOG = [
+    ("2.3.0", "2026-09-30", [
+        "Spulen ohne Tag: Material und Farbe aus Spoolman gehen beim Zuordnen an die ACE (MMU_GATE_MAP)",
+        "Hinweis bei Slots ohne Material am Drucker – ein Druck damit würde beim Start abbrechen",
+    ]),
     ("2.2.2", "2026-09-30", [
         "Orca-Profile: Farbe als default_filament_colour (filament_colour verwirft Orca in Filament-Presets)",
         "Rücksync nimmt beide Farbschlüssel an",
