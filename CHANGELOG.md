@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.4.0] – 2026-09-30
+
+Ships plugin 0.3.4. The Android app is a preview (debug APK from CI), not part of this release.
+
 ### Added
 - Android app (in development, `android/`): slots with printer status and active slot, spool card
   with actions, NFC scan → spool, new spool from an existing filament with the scanned tag,

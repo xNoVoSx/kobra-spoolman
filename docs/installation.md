@@ -66,6 +66,7 @@ Add the service to your stack (Portainer → Stacks, or `docker compose`):
     environment:
       MOONRAKER_URL: "http://<printer-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"   # service name inside the same stack
+      APP_TOKEN: "<random-string>"   # key for the Android app (optional, long random string)
       TZ: Europe/Berlin
     depends_on:
       - spoolman

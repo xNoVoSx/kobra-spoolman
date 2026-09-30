@@ -66,6 +66,7 @@ Den Dienst in deinen Stack aufnehmen (Portainer → Stacks, oder `docker compose
     environment:
       MOONRAKER_URL: "http://<drucker-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"   # Servicename im selben Stack
+      APP_TOKEN: "<zufallswert>"   # Schlüssel für die Android-App (optional, langer Zufallswert)
       TZ: Europe/Berlin
     depends_on:
       - spoolman

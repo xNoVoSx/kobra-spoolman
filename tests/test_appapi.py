@@ -298,3 +298,27 @@ def test_orca_bases_are_stored(api, cfg):
     assert status == 200 and res["count"] == 2
     assert call("GET", "/api/app/catalog", token=None)[1]["orca_bases"] == ["Generic PETG @System",
                                                                              "Generic PLA @System"]
+
+
+def test_bad_requests_and_spoolman_failures_never_break_the_bridge(api):
+    """Die App ist nur ein Client: kaputte Anfragen oder ein ausgefallener Spoolman ergeben eine
+    Fehlerantwort, die Bridge laeuft weiter (Status bleibt abrufbar)."""
+    bridge, call = api
+
+    async def raw(method, path, data, headers):
+        async with TestClient(TestServer(build_app(bridge))) as client:
+            resp = await client.request(method, path, data=data, headers=headers)
+            return resp.status
+
+    auth = {"Authorization": "Bearer geheim"}
+    assert asyncio.run(raw("POST", "/api/app/filament", "kein json", auth)) == 400
+    assert asyncio.run(raw("POST", "/api/app/spool", "[1, 2]", {**auth, "Content-Type": "application/json"})) == 400
+    assert call("POST", "/api/app/spool", {"filament_id": "abc"})[0] == 400
+    assert call("GET", "/api/app/spool/99999", token=None)[0] == 404
+
+    async def boom(*a, **k):
+        raise ConnectionError("Spoolman weg")
+    bridge.sm.create = boom
+    status, body = call("POST", "/api/app/vendor", {"name": "Elegoo"})
+    assert status == 502 and "Spoolman weg" in body["error"]
+    assert call("GET", "/api/app/state", token=None)[0] == 200

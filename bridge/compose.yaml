@@ -22,6 +22,7 @@ services:
     environment:
       MOONRAKER_URL: "http://192.168.1.50:7125"   # <- IP deines Druckers (Rinkhals/Moonraker)
       SPOOLMAN_URL: "http://spoolman:8000"       # im selben Stack ueber den Servicenamen
+      # APP_TOKEN: "<zufallswert>"               # Schluessel fuer die Android-App (ohne: App nur lesen)
       TZ: Europe/Berlin
     depends_on:
       - spoolman

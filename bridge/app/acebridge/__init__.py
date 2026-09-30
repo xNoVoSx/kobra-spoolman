@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird auf der Slot-Seite unter "Info" angezeigt.
 CHANGELOG = [
+    ("2.4.0", "2026-09-30", [
+        "Schnittstelle für die Android-App: Status, Spulen und Filamente anlegen, NFC-Tags (APP_TOKEN)",
+        "Orca-Plugin 0.3.4 meldet seine Basisprofile für die Auswahl in der App",
+    ]),
     ("2.3.0", "2026-09-30", [
         "Spulen ohne Tag: Material und Farbe aus Spoolman gehen beim Zuordnen auf dieser Seite an die ACE",
         "Hinweis bei Slots ohne Material am Drucker – ein Druck damit würde beim Start abbrechen",
