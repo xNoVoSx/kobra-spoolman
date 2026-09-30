@@ -108,6 +108,34 @@ header patch are pointless). The Anycubic wiki's flushing settings apply to what
 computes and shows; for a print started via Moonraker/Rinkhals they do not reach the firmware.
 Untested: printing directly from AnycubicSlicer (its print order might carry the values) — not
 applicable to Orca, which always prints via Moonraker.
+
+### The firmware's own flush setting
+
+GoKlipper keeps its own ACE flush configuration, readable at `GET /printer/filament_hub/get_config`
+(Moonraker port; writable via `set_config`, used by Rinkhals' `SET_ACE_FLUSH_MULTIPLIER` /
+`ACE_FLUSH_MINIMAL|NORMAL|MAXIMUM`):
+
+```json
+{"auto_refill": 1, "flush_multiplier": 1.5, "flush_multiplier_editable": 1,
+ "flush_volume_max": 800, "flush_volume_min": 107, "runout_detect": 1}
+```
+
+The multiplier is the value shown/editable on the printer's display. Model: the firmware computes
+the flush per colour pair itself (AnycubicSlicer's colour algorithm), multiplies by
+`flush_multiplier` and clamps to `flush_volume_min..max` (mm³). It fits all measurements within
+≈ 10–30 mm (a fixed part per load):
+
+| change | AnycubicSlicer auto | × 1.5 (clamped) | ≈ mm filament | measured |
+|---|---|---|---|---|
+| lavender → magenta | 312 mm³ | 468 mm³ | 195 | 163–200 |
+| magenta → lavender | 381 mm³ | 572 mm³ | 238 | 219–231 |
+| black → white | 551 mm³ | 800 mm³ (826) | 333 | 364 |
+| white → black | 137 mm³ | 205 mm³ | 85 | 106 |
+
+Confirmation pending: the same test print with the multiplier set to 1.0 should purge ≈ 2/3.
+[Kobra-S1/ACEPRO](https://github.com/Kobra-S1/ACEPRO) (vanilla Klipper replacing the stock
+firmware — not compatible with Rinkhals) converts Orca's flush matrix into a purge length per change,
+the same per-transition idea.
 Per direction (A, B, B2): magenta → lavender 219–231 mm, lavender → magenta 163–200 mm per load.
 
 Side effect: the header `filament_used` of AnycubicSlicer files contains the slicer's flush volume,
