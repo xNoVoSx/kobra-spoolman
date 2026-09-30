@@ -14,7 +14,7 @@ Base URL: `http://<docker-host>:7913`. All responses are JSON; errors are `{"err
 
 ```json
 {
-  "app": "ace-lane-bridge", "version": "2.2.1", "uptime_s": 5231,
+  "app": "ace-lane-bridge", "version": "2.2.2", "uptime_s": 5231,
   "moonraker": {"url": "http://192.168.1.50:7125", "connected": true, "klippy_ready": true},
   "spoolman": {"url": "http://spoolman:8000", "connected": true, "version": "0.26.1", "spools": 6},
   "print_state": "standby", "booking": true, "open_items": 0, "warnings": []

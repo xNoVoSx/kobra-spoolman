@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.2.1"
+__version__ = "2.2.2"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird auf der Slot-Seite unter "Info" angezeigt.
 CHANGELOG = [
+    ("2.2.2", "2026-09-30", [
+        "Orca-Profile: Farbe als default_filament_colour (filament_colour verwirft Orca in Filament-Presets)",
+        "Rücksync nimmt beide Farbschlüssel an",
+    ]),
     ("2.2.1", "2026-09-24", [
         "Eigenes Repo kobra-spoolman mit Docker-Image (ghcr.io), Tests und Doku",
         "MOONRAKER_URL ist Pflicht (keine feste IP mehr als Standard)",

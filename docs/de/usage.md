@@ -29,6 +29,7 @@ Feldübersicht: [spoolman-fields.md](../spoolman-fields.md).
 
 Beim nächsten Orca-Start legt das Plugin das Profil `Hersteller Name (SM0000xx)` an. Läuft Orca schon?
 Im Panel **Profile aktualisieren** drücken und Orca neu starten.
+Das legt nur die Profile an – in die Filament-Felder kommen sie über Orcas **Sync**-Knopf (siehe unten).
 
 ## Spule in die ACE legen
 

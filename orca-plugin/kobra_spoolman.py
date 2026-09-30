@@ -732,9 +732,9 @@ PAGE = r"""
 <div id="slots"></div>
 <div class="actions">
   <button type="button" id="sync">Profile aktualisieren</button>
-  <button type="button" id="refresh" class="quiet">Aktualisieren</button>
+  <button type="button" id="refresh" class="quiet">Neu laden</button>
 </div>
-<div class="muted hint">Legt die Orca-Profile aus Spoolman neu an. Die Slots setzt Orcas Sync-Symbol im Filament-Bereich.</div>
+<div class="muted hint">„Profile aktualisieren“ legt die Orca-Profile aus Spoolman an. In die Filament-Felder kommen sie danach über Orcas Sync-Symbol im Filament-Bereich (bei neuen Profilen erst Orca neu starten).</div>
 <div id="usage"></div>
 <div id="foot" class="muted"></div>
 <script>
@@ -852,7 +852,7 @@ def build_panel_message(core: Core):
     for w in st.get("warnings") or []:
         boxes.append({"error": True, "html": _esc(w)})
     if core.restart_needed:
-        boxes.append({"html": "<b>Profile aktualisiert.</b> Orca neu starten, damit sie erscheinen."})
+        boxes.append({"html": "<b>Profile aktualisiert.</b> Orca neu starten, dann Orcas Sync-Symbol im Filament-Bereich drücken."})
     elif st.get("profiles_outdated"):
         boxes.append({"html": "In Spoolman hat sich etwas geändert. <b>Profile aktualisieren</b> und Orca neu starten."})
     ls = core.last_sync or {}

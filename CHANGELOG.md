@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.2.2] – 2026-09-30
+
+Ships plugin 0.3.2 (see below).
+
 ### Fixed
 - Bridge: the filament colour is sent as `default_filament_colour` instead of `filament_colour`.
   Orca drops `filament_colour` from filament presets (log: *"incorrect keys: filament_colour, which
@@ -31,7 +35,8 @@ Works with bridge 2.2.1 and newer.
 
 ### Changed
 - Panel button *Profile synchronisieren* is now **Profile aktualisieren** (menu action and
-  settings accordingly); a hint below it says that the slots are set with Orca's sync icon.
+  settings accordingly); a hint below it says that the profiles only get into Orca's filament
+  slots via Orca's sync icon. The panel's refresh button is now *Neu laden* (reload) to tell the two apart.
 
 ## plugin 0.3.1 – 2026-09-25
 

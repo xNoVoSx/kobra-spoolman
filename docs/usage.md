@@ -29,6 +29,7 @@ Field reference: [spoolman-fields.md](spoolman-fields.md).
 
 The next time Orca starts, the plugin creates the profile `Vendor Name (SM0000xx)`.
 Already running? Press **Profile aktualisieren** (update profiles) in the panel, then restart Orca.
+This only creates the profiles — Orca's filament **sync** button puts them into the filament slots (see below).
 
 ## Loading a spool into the ACE
 
