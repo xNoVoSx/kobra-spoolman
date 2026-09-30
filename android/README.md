@@ -1,0 +1,37 @@
+# Kobra Spoolman — Android app
+
+Status: **in development** (stage 2 of the [concept](../docs/android-app.md)). Not released yet.
+
+The app talks only to the [ace-lane-bridge](../bridge) (`/api/app/…`, [API](../docs/api.md#android-app)).
+UI texts are German, like the plugin and the slot page.
+
+## What works
+
+- Slots with printer status (state, file, progress, remaining time, active slot) and the shelf
+- Spool card: remaining weight, temperatures, last prints; move to slot 1–4, shelf, archive
+- Scan: NFC tag → spool card; unknown tag → new spool or link to an existing one
+- New spool from an existing filament (weights, straight into a slot, link the scanned tag)
+- Settings: bridge address and app key (`APP_TOKEN`)
+
+Next: writing ACE tags, creating filaments on the phone (stage 3).
+
+## Build
+
+Needs JDK 17+ and the Android SDK (platform 37). With `ANDROID_HOME` set or `local.properties`
+(`sdk.dir=…`):
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug     # APK: app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+The debug build has **virtual tags** in the scan sheet, for testing on the emulator (no NFC).
+
+## Notes
+
+- Android 17 (API 37) blocks the local network unless the app holds `ACCESS_LOCAL_NETWORK`
+  ("Nearby devices"). The app asks for it on first start; without it every connection to the
+  bridge hangs until it times out.
+- The bridge runs without TLS in the home network, so cleartext HTTP is allowed.
+- Fonts: Space Grotesk and IBM Plex (SIL Open Font License, see [`licenses/`](licenses)).

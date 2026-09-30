@@ -174,6 +174,14 @@ MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'c
   [anycubic-lan](https://github.com/Nino6689/anycubic-lan)). It would be a second client with its
   own credentials; `MMU_GATE_MAP` goes over the bridge's existing Moonraker connection.
 
+## Android 17: local network protection (2026-09-30)
+
+Apps targeting Android 17 (API 37) cannot reach the local network (10.0.0.0/8, 192.168.0.0/16, …,
+including the emulator's `10.0.2.2`) unless they hold the runtime permission
+`ACCESS_LOCAL_NETWORK` (group *Nearby devices*). Blocked TCP connections do not fail — they hang
+until the timeout ([docs](https://developer.android.com/privacy-and-security/local-network-permission)).
+The app declares the permission, requests it on first start and shows a hint while it is missing.
+
 ## Anycubic RFID tags
 
 - Tag fields per [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID): SKU (pages 5–8), brand (10–13),

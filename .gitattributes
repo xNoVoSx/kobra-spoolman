@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.gz binary
+*.bat text eol=crlf
+*.jar binary
+*.ttf binary
