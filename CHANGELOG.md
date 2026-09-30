@@ -6,6 +6,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.5.0] – 2026-10-01
+
 ### Added
 - Bridge: **ACE dryer** — humidity, temperature and dryer state (from GoKlipper's `filament_hub`,
   in the existing subscription), start/stop by hand and an automation (start above / stop below a
