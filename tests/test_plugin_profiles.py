@@ -61,7 +61,7 @@ def test_build_profile_json(ks, system):
     base = ks.SystemProfiles(system / "system").resolve("Test PLA @Printer")
     prof = {"orca_id": "SM000010", "filament_id": 10, "values": {
         "nozzle_temperature": 230, "activate_air_filtration": True, "filament_flow_ratio": 0.96,
-        "filament_colour": "#52D2BC", "filament_id": "SM000010", "slow_down_layer_time": "8"}}
+        "default_filament_colour": "#52D2BC", "filament_id": "SM000010", "slow_down_layer_time": "8"}}
     name = ks.safe_name("Anycubic PLA Silk Grün", "SM000010", "PLA")
     out = ks.build_profile_json(base, prof, name)
     assert name == "Anycubic PLA Silk Grün (SM000010)"
@@ -72,6 +72,18 @@ def test_build_profile_json(ks, system):
     assert out["additional_cooling_fan_speed"] == ["60"]          # aus dem Basisprofil
     assert out["compatible_printers"] == [] and "setting_id" not in out
     assert ks.MARKER in out["filament_notes"][0]
+    assert out["default_filament_colour"] == ["#52D2BC"] and "filament_colour" not in out
+
+
+def test_colour_from_older_bridge_becomes_default_filament_colour(ks, system):
+    base = ks.SystemProfiles(system / "system").resolve("Test PLA @Printer")
+    base = dict(base, filament_colour=["#000000"], default_filament_colour=[""])
+    prof = {"orca_id": "SM000010", "filament_id": 10, "values": {"filament_colour": "#52D2BC"}}
+    out = ks.build_profile_json(base, prof, "X (SM000010)")
+    assert out["default_filament_colour"] == ["#52D2BC"] and "filament_colour" not in out
+    # neue Bridge gewinnt, falls beide Schluessel kommen
+    prof["values"]["default_filament_colour"] = "#112233"
+    assert ks.build_profile_json(base, prof, "X (SM000010)")["default_filament_colour"] == ["#112233"]
 
 
 def test_diff_ignores_meta_and_formatting(ks):

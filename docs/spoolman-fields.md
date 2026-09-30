@@ -11,7 +11,7 @@ Mapping in code: `FIELD_MAP` in [`bridge/app/acebridge/orca_profiles.py`](../bri
 | Spoolman | Orca key | Note |
 |---|---|---|
 | Material | `filament_type` | base type (`PLA Silk` → `PLA`) |
-| Farbe / Color | `filament_colour` | |
+| Farbe / Color | `default_filament_colour` | Orca drops `filament_colour` from filament presets |
 | Dichte / Density | `filament_density` | |
 | Durchmesser / Diameter | `filament_diameter` | |
 | Preis / Price (+ Gewicht / Weight) | `filament_cost` | converted to price per kg |

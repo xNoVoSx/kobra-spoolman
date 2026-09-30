@@ -115,6 +115,12 @@ calculation (from the colours the ACE reports) when it is missing — as with Or
 - Dock panels (`orca.host.ui.create_dock_panel`) are HTML with a message bridge and are safe to
   create from any thread — but are dropped silently if created before the main window exists.
 - `PresetSaved` lifecycle event carries the preset name; the saved JSON is complete for base profiles.
+- Filament colour: `filament_colour` is **not** a filament preset option (commented out in
+  `s_Preset_filament_options`, `Preset.cpp`). Orca drops it on load with *"contains the following
+  incorrect keys: filament_colour, which were removed"*. The preset's colour is
+  `default_filament_colour`; selecting a filament preset manually takes the colour from there
+  (`PresetComboBoxes.cpp`). The bridge therefore sends `default_filament_colour`, the plugin
+  (0.3.2+) never writes `filament_colour`, and back-sync accepts both keys.
 
 ## Anycubic RFID tags
 

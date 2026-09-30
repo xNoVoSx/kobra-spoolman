@@ -6,12 +6,32 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Bridge: the filament colour is sent as `default_filament_colour` instead of `filament_colour`.
+  Orca drops `filament_colour` from filament presets (log: *"incorrect keys: filament_colour, which
+  were removed"*) and takes the colour of a manually selected preset from `default_filament_colour`.
+  Back-sync (`POST /api/orca/backsync`) accepts both keys and writes them to `color_hex`.
+
 ### Changed
 - Docs: Rinkhals links point to [rinkhals-community/Rinkhals](https://github.com/rinkhals-community/Rinkhals),
   where development continues. The installation guide links to the new orca-kobra installation
   guide for launcher details.
 - Docs: [findings](docs/findings.md) on the firmware purge — measured purge per colour change and
   how AnycubicSlicer passes its flush matrix in the G-code header (`project_info`).
+
+## plugin 0.3.2 – 2026-09-30
+
+Works with bridge 2.2.1 and newer.
+
+### Fixed
+- Plugin 0.3.2: profiles carry the Spoolman colour as `default_filament_colour`, so a manually
+  selected `SM…` profile shows the right colour. A `filament_colour` from an older bridge is
+  written as `default_filament_colour`; `filament_colour` never ends up in a profile.
+  Existing profiles are rewritten on the next profile update.
+
+### Changed
+- Panel button *Profile synchronisieren* is now **Profile aktualisieren** (menu action and
+  settings accordingly); a hint below it says that the slots are set with Orca's sync icon.
 
 ## plugin 0.3.1 – 2026-09-25
 

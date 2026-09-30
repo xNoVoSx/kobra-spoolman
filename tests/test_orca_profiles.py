@@ -35,7 +35,8 @@ def test_values_come_from_filament_then_template():
     assert v["fan_min_speed"] == 20 and src["fan_min_speed"] == "vorlage"
     assert v["activate_air_filtration"] is False
     assert v["pressure_advance"] == 0.05 and v["enable_pressure_advance"] is True
-    assert v["filament_colour"] == "#685BC7" and v["filament_cost"] == 11.99
+    assert v["default_filament_colour"] == "#685BC7" and v["filament_cost"] == 11.99
+    assert "filament_colour" not in v   # verwirft Orca in Filament-Presets
     assert v["slow_down_layer_time"] == "8" and src["slow_down_layer_time"] == "override-vorlage"
     assert p["spools"] == [{"id": 1, "remaining_weight": None, "slot": 2}]
 
@@ -50,7 +51,7 @@ def test_own_base_profile_replaces_template():
 def test_backsync_maps_known_fields_and_keeps_the_rest_as_overrides():
     patch, applied, ignored = backsync_patch(FILAMENT, {
         "nozzle_temperature": "245", "fan_max_speed": "90", "activate_air_filtration": "1",
-        "filament_colour": "#112233", "filament_cost": "24", "slow_down_layer_time": "6",
+        "default_filament_colour": "#112233", "filament_cost": "24", "slow_down_layer_time": "6",
         "filament_id": "XYZ", "enable_pressure_advance": "0"})
     assert patch["settings_extruder_temp"] == 245
     assert patch["color_hex"] == "112233" and patch["price"] == 24.0
@@ -58,6 +59,14 @@ def test_backsync_maps_known_fields_and_keeps_the_rest_as_overrides():
     assert patch["extra"]["pressure_advance"] is None
     assert parse_overrides(json.loads(patch["extra"]["orca_overrides"])) == {"slow_down_layer_time": "6"}
     assert "filament_id" in ignored and applied["nozzle_temperature"] == 245
+
+
+def test_backsync_accepts_both_colour_keys():
+    for key in ("default_filament_colour", "filament_colour"):
+        patch, applied, ignored = backsync_patch(FILAMENT, {key: "#a1b2c3"})
+        assert patch == {"color_hex": "A1B2C3"} and applied == {key: "#A1B2C3"} and not ignored
+    patch, applied, ignored = backsync_patch(FILAMENT, {"default_filament_colour": ""})
+    assert patch == {} and ignored == ["default_filament_colour"]
 
 
 def test_reset_clears_fields_so_template_applies_again():

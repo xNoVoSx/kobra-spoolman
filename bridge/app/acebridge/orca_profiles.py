@@ -47,9 +47,13 @@ FIELD_MAP: List[Tuple[str, str, Callable[[Any], Any]]] = [
 ]
 ORCA_TO_SOURCE = {orca: (src, typ) for src, orca, typ in FIELD_MAP}
 
-# Kennwerte, die immer vom Filament selbst kommen (nie aus der Vorlage)
-IDENTITY_KEYS = ("filament_type", "filament_colour", "filament_density", "filament_diameter",
+# Kennwerte, die immer vom Filament selbst kommen (nie aus der Vorlage).
+# Farbe: Orca verwirft filament_colour in Filament-Presets ("incorrect keys ... removed") und nimmt
+# beim Auswaehlen default_filament_colour (PresetComboBoxes.cpp).
+IDENTITY_KEYS = ("filament_type", "default_filament_colour", "filament_density", "filament_diameter",
                  "filament_cost", "filament_vendor", "filament_id")
+# Ruecksync nimmt beide Farbschluessel an (filament_colour aus aelteren Plugin-Staenden)
+COLOUR_KEYS = ("default_filament_colour", "filament_colour")
 
 # Werte, die das Plugin nie zurueck nach Spoolman schreiben soll
 BACKSYNC_IGNORE = {"filament_id", "filament_settings_id", "inherits", "name", "from", "instantiation",
@@ -133,7 +137,7 @@ def build_profile(fil: Dict[str, Any], templates: List[Dict[str, Any]], base_typ
     material = fil.get("material") or (tpl or {}).get("material") or ""
     ident = {
         "filament_type": base_type(material) or material,
-        "filament_colour": f"#{color_hex(fil)}" if color_hex(fil) else None,
+        "default_filament_colour": f"#{color_hex(fil)}" if color_hex(fil) else None,
         "filament_density": fil.get("density"),
         "filament_diameter": fil.get("diameter"),
         "filament_cost": filament_price_per_kg(fil),
@@ -210,7 +214,7 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
             else:
                 ignored.append(key)  # "an" ergibt sich aus einem gesetzten PA-Wert
             continue
-        if key == "filament_colour":
+        if key in COLOUR_KEYS:
             hexv = str(raw or "").strip().lstrip("#").upper()[:6]
             if re.fullmatch(r"[0-9A-F]{6}", hexv):
                 patch["color_hex"] = hexv

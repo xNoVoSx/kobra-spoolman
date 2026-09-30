@@ -28,7 +28,7 @@ Rangfolge (später gewinnt): *Orca-Basisprofil* ← *Vorlage* ← *Felder am Fil
 Feldübersicht: [spoolman-fields.md](../spoolman-fields.md).
 
 Beim nächsten Orca-Start legt das Plugin das Profil `Hersteller Name (SM0000xx)` an. Läuft Orca schon?
-Im Panel **Profile synchronisieren** drücken und Orca neu starten.
+Im Panel **Profile aktualisieren** drücken und Orca neu starten.
 
 ## Spule in die ACE legen
 

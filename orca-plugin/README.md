@@ -26,7 +26,7 @@ cp kobra_spoolman.py ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/
 
 Enable it in Orca's **Plugins** dialog, set the bridge address in its **Configuration** tab,
 restart Orca once. Menu actions: *Kobra Spoolman* (open panel) and
-*Kobra Spoolman: Profile synchronisieren*.
+*Kobra Spoolman: Profile aktualisieren*.
 
 Notes:
 

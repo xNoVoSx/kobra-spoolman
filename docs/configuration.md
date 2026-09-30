@@ -53,7 +53,7 @@ Plugins dialog → **Kobra Spoolman** → **Configuration**:
 | Bridge address | `http://localhost:7913` | where the ace-lane-bridge runs |
 | Orca user folder | `default` | profiles go to `user/<folder>/filament/base` (`default` without an Orca login) |
 | Refresh (seconds) | `5` | how often the panel asks the bridge |
-| Sync profiles on start | on | |
+| Update profiles on start | on | |
 | Open panel on start | on | |
 | Ask before back-sync | on | off = profile edits go to Spoolman without asking |
 | Warn after slicing | on | Orca notification when a spool does not hold enough for the sliced plate |

@@ -82,8 +82,8 @@ A history entry:
 {
   "orca_id": "SM000008", "filament_id": 8, "display_name": "Sunlu PETG 2.0 Lavendelviolett",
   "base": "Generic PETG @System", "template": "Vorlage PETG",
-  "values": {"nozzle_temperature": 250, "fan_min_speed": 20, "filament_colour": "#685BC7", "filament_id": "SM000008"},
-  "sources": {"nozzle_temperature": "filament", "fan_min_speed": "vorlage", "filament_colour": "filament"},
+  "values": {"nozzle_temperature": 250, "fan_min_speed": 20, "default_filament_colour": "#685BC7", "filament_id": "SM000008"},
+  "sources": {"nozzle_temperature": "filament", "fan_min_speed": "vorlage", "default_filament_colour": "filament"},
   "spools": [{"id": 1, "remaining_weight": 1000.0, "slot": null}],
   "hash": "fc4c4e7cb9f3"
 }

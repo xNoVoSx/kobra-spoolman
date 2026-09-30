@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.3.1"
+# version = "0.3.2"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -46,7 +46,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.3.1"
+PLUGIN_VERSION = "0.3.2"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -216,10 +216,21 @@ class SystemProfiles:
         return merged
 
 
+def profile_values(values):
+    """Werte der Bridge fuer das Profil. Orca verwirft filament_colour in Filament-Presets und nimmt
+    beim Auswaehlen default_filament_colour - eine aeltere Bridge (bis 2.2.1) liefert noch filament_colour."""
+    values = dict(values)
+    legacy = values.pop("filament_colour", None)
+    if legacy not in (None, "") and values.get("default_filament_colour") in (None, ""):
+        values["default_filament_colour"] = legacy
+    return values
+
+
 def build_profile_json(base, prof, name):
     """Orca-Basisprofil + Spoolman-Werte -> vollstaendiges eigenes Basisprofil."""
-    out = {k: v for k, v in base.items() if k not in ("setting_id", "base_id", "user_id", "updated_time")}
-    for key, val in prof["values"].items():
+    out = {k: v for k, v in base.items()
+           if k not in ("setting_id", "base_id", "user_id", "updated_time", "filament_colour")}
+    for key, val in profile_values(prof["values"]).items():
         if key == "filament_id":
             continue
         s = fmt_value(val)
@@ -653,7 +664,7 @@ CONFIG_UI = r"""
 <div class="hint">Ohne Orca-Anmeldung „default“. Profile landen in user/&lt;ordner&gt;/filament/base.</div>
 <label for="poll_seconds">Aktualisierung (Sekunden)</label>
 <input type="number" id="poll_seconds" min="2" max="60">
-<div class="row"><input type="checkbox" id="sync_on_start"><label for="sync_on_start">Profile beim Orca-Start synchronisieren</label></div>
+<div class="row"><input type="checkbox" id="sync_on_start"><label for="sync_on_start">Profile beim Orca-Start aktualisieren</label></div>
 <div class="row"><input type="checkbox" id="open_panel_on_start"><label for="open_panel_on_start">Panel beim Start öffnen</label></div>
 <div class="row"><input type="checkbox" id="ask_backsync"><label for="ask_backsync">Vor dem Rücksync nach Spoolman fragen</label></div>
 <div class="row"><input type="checkbox" id="warn_after_slice"><label for="warn_after_slice">Nach dem Slicen warnen, wenn eine Spule nicht reicht</label></div>
@@ -699,7 +710,8 @@ PAGE = r"""
   .ok { color:#16a34a; } .bad { color:#dc2626; } .warn { color:#d97706; }
   .box { border-radius:8px; padding:8px; margin-bottom:8px; background: rgba(217,119,6,.12); border:1px solid rgba(217,119,6,.5); }
   .err { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.5); }
-  .actions { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+  .actions { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 2px; }
+  .hint { margin-bottom:8px; }
   button.quiet { background:transparent; color:var(--orca-fg); border-color:var(--orca-border); }
   table { width:100%; border-collapse:collapse; } td { padding:2px 0; }
   td.r { text-align:right; }
@@ -719,9 +731,10 @@ PAGE = r"""
 <div id="forecast"></div>
 <div id="slots"></div>
 <div class="actions">
-  <button type="button" id="sync">Profile synchronisieren</button>
+  <button type="button" id="sync">Profile aktualisieren</button>
   <button type="button" id="refresh" class="quiet">Aktualisieren</button>
 </div>
+<div class="muted hint">Legt die Orca-Profile aus Spoolman neu an. Die Slots setzt Orcas Sync-Symbol im Filament-Bereich.</div>
 <div id="usage"></div>
 <div id="foot" class="muted"></div>
 <script>
@@ -841,7 +854,7 @@ def build_panel_message(core: Core):
     if core.restart_needed:
         boxes.append({"html": "<b>Profile aktualisiert.</b> Orca neu starten, damit sie erscheinen."})
     elif st.get("profiles_outdated"):
-        boxes.append({"html": "In Spoolman hat sich etwas geändert. <b>Profile synchronisieren</b> und Orca neu starten."})
+        boxes.append({"html": "In Spoolman hat sich etwas geändert. <b>Profile aktualisieren</b> und Orca neu starten."})
     ls = core.last_sync or {}
     for e in ls.get("errors") or []:
         boxes.append({"error": True, "html": _esc(e)})
@@ -889,7 +902,7 @@ def build_panel_message(core: Core):
         if oid:
             entry = core.managed().get(oid)
             if not entry:
-                item["check"], item["check_cls"] = "Kein Orca-Profil – Profile synchronisieren", "warn"
+                item["check"], item["check_cls"] = "Kein Orca-Profil – Profile aktualisieren", "warn"
             elif oid not in loaded:
                 item["check"], item["check_cls"] = "Profil angelegt – Orca neu starten", "warn"
             elif idx < len(selected) and selected[idx] == entry["name"]:
@@ -1034,7 +1047,7 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
 
 class KobraSync(orca.script.ScriptPluginCapabilityBase):
     def get_name(self):
-        return "Kobra Spoolman: Profile synchronisieren"
+        return "Kobra Spoolman: Profile aktualisieren"
 
     def execute(self):
         # Netzwerk und Dateien laufen im Hintergrund-Thread; das Ergebnis zeigt das Panel.

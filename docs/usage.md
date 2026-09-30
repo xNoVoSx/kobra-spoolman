@@ -28,7 +28,7 @@ Order of precedence (later wins): *Orca base profile* ← *template* ← *filame
 Field reference: [spoolman-fields.md](spoolman-fields.md).
 
 The next time Orca starts, the plugin creates the profile `Vendor Name (SM0000xx)`.
-Already running? Press **Profile synchronisieren** in the panel, then restart Orca.
+Already running? Press **Profile aktualisieren** (update profiles) in the panel, then restart Orca.
 
 ## Loading a spool into the ACE
 
