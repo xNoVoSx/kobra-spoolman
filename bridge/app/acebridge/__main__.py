@@ -17,6 +17,7 @@ from .moonraker import Moonraker
 from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
+from .auth import Devices
 from .dryer import Dryer
 from .usage import UsageTracker
 from .web import build_app
@@ -34,6 +35,7 @@ class Bridge:
         self.recorder = Recorder(cfg)
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
         self.dryer = Dryer(cfg, self.moon, self.slots)
+        self.devices = Devices(cfg.data_dir, cfg.app_token)
         self._print_state = ""
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:
@@ -115,6 +117,7 @@ async def amain() -> None:
 
     async with aiohttp.ClientSession() as session:
         bridge = Bridge(cfg, session)
+        bridge.devices.announce()
         await bridge.sm.refresh()
 
         runner = web.AppRunner(build_app(bridge), access_log=None)

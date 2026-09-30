@@ -13,6 +13,7 @@ from conftest import FakeMoonraker
 
 from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, convert_extra, copy_filament_body,
                               normalize_uid, printer_state, tag_content)
+from acebridge.auth import Devices
 from acebridge.dryer import Dryer
 from acebridge.slots import SlotManager
 from acebridge.web import build_app
@@ -212,6 +213,7 @@ class FakeBridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.usage = FakeUsage()
         self.dryer = Dryer(cfg, self.moon, self.slots)
+        self.devices = Devices(cfg.data_dir, cfg.app_token)
 
     def safety_warnings(self):
         return []
@@ -238,7 +240,8 @@ def test_state_catalog_and_spool_detail(api):
     bridge, call = api
     status, st = call("GET", "/api/app/state", token=None)
     assert status == 200 and st["printer"]["state"] == "standby" and st["printer"]["active_slot"] == 1
-    assert st["slots"][0]["spool"]["spool_id"] == 1 and st["can_write"] is True
+    assert st["slots"][0]["spool"]["spool_id"] == 1 and st["can_write"] is False   # ohne Schluessel
+    assert call("GET", "/api/app/state")[1]["can_write"] is True                     # mit Schluessel
     status, cat = call("GET", "/api/app/catalog", token=None)
     assert [v["name"] for v in cat["vendors"]] == ["Sunlu"]            # Vorlagen-Hersteller ausgeblendet
     assert cat["templates"][0]["name"] == "Vorlage PETG"
@@ -252,7 +255,7 @@ def test_writes_need_the_token(api):
     bridge, call = api
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token=None)[0] == 401
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token="falsch")[0] == 401
-    bridge.cfg.app_token = ""
+    bridge.devices.legacy = ""          # kein APP_TOKEN, nichts gekoppelt -> Einrichtung noetig
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"})[0] == 403
 
 

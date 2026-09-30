@@ -66,6 +66,10 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     val busy by vm.busy.collectAsState()
     val catalog by vm.catalog.collectAsState()
     val detail by vm.detail.collectAsState()
+    val me by vm.me.collectAsState()
+    val meChecked by vm.meChecked.collectAsState()
+    val devices by vm.devices.collectAsState()
+    val pairingCode by vm.pairingCode.collectAsState()
     val nav = rememberNavController()
     val snackbar = remember { SnackbarHostState() }
     var scanOpen by remember { mutableStateOf(false) }
@@ -173,12 +177,22 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onCreate = { draft, specs -> vm.createFilament(draft, specs) { nav.popBackStack() } })
             }
             composable("settings") {
-                SettingsScreen(c, busy, padding, lanMissing = !lanGranted, onGrantLan = askLan, canGoBack = c.configured, onBack = { nav.popBackStack() },
-                    onSave = { newC ->
-                        vm.saveConnection(newC) {
-                            nav.navigate("slots") { popUpTo(0); launchSingleTop = true }
-                        }
-                    })
+                SettingsScreen(c, me, meChecked, busy, padding, lanMissing = !lanGranted, onGrantLan = askLan,
+                    canGoBack = c.configured, onBack = { nav.popBackStack() },
+                    onLoadMe = { vm.loadMe() },
+                    onPair = { url, code, name ->
+                        vm.pair(url, code, name) { nav.navigate("slots") { popUpTo(0); launchSingleTop = true } }
+                    },
+                    onForget = { vm.forgetPairing() },
+                    onDevices = { nav.navigate("devices") })
+            }
+            composable("devices") {
+                DevicesScreen(c.url, devices, pairingCode, busy, padding,
+                    onLoad = { vm.loadDevices() },
+                    onBack = { vm.clearPairingCode(); nav.popBackStack() },
+                    onNewCode = { vm.newPairingCode() },
+                    onCloseCode = { vm.clearPairingCode(); vm.loadDevices() },
+                    onRemove = { vm.removeDevice(it.id) })
             }
         }
     }

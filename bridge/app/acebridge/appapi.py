@@ -10,7 +10,6 @@ ins Filament (Ausnahme: Dichte/Durchmesser, die Spoolman zwingend verlangt).
 
 from __future__ import annotations
 
-import hmac
 import json
 import logging
 import math
@@ -25,6 +24,7 @@ from . import __version__
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
 from .slots import base_type
+from .auth import AuthError
 from .spoolman import extra_value
 
 if TYPE_CHECKING:
@@ -305,13 +305,15 @@ class AppApi:
         self.bases_file = os.path.join(bridge.cfg.data_dir, "orca_bases.json")
 
     # ------------------------------------------------------------ Hilfen
+    def _device(self, request: web.Request) -> Optional[Dict[str, Any]]:
+        return self.bridge.devices.identify(request.headers.get("Authorization"))
+
     def _check_token(self, request: web.Request) -> None:
-        token = self.bridge.cfg.app_token
-        if not token:
-            raise AppError(403, "APP_TOKEN ist in der Bridge nicht gesetzt - die App darf nur lesen")
-        got = request.headers.get("Authorization", "")
-        if not hmac.compare_digest(got, f"Bearer {token}"):
-            raise AppError(401, "Falscher oder fehlender App-Schluessel")
+        if self._device(request) is not None:
+            return
+        if self.bridge.devices.setup_required:
+            raise AppError(403, "Noch kein Gerät gekoppelt – Einrichtungscode aus dem Bridge-Log eingeben")
+        raise AppError(401, "Dieses Gerät ist nicht (mehr) gekoppelt")
 
     async def _json(self, request: web.Request) -> Dict[str, Any]:
         try:
@@ -394,7 +396,7 @@ class AppApi:
                         if write:
                             self._check_token(request)
                         return await fn(request)
-                    except AppError as e:
+                    except (AppError, AuthError) as e:
                         return web.json_response({"error": str(e)}, status=e.status)
                     except LookupError as e:
                         return web.json_response({"error": str(e)}, status=404)
@@ -404,9 +406,42 @@ class AppApi:
                 return wrapped
             return deco
 
+        # ------------------------------------------------ Geraete koppeln
+        @r.get("/api/auth/status")
+        @handler(write=False)
+        async def auth_status(request):
+            me = self._device(request)
+            return web.json_response({"setup_required": b.devices.setup_required, "devices": len(b.devices.devices),
+                                      "device": b.devices.public(me) if me else None})
+
+        @r.post("/api/auth/pair")
+        @handler(write=False)
+        async def auth_pair(request):
+            body = await self._json(request)
+            res = b.devices.pair(str(body.get("code") or ""), str(body.get("name") or ""), str(body.get("kind") or ""))
+            return web.json_response(res, status=201)
+
+        @r.post("/api/auth/code")
+        @handler(write=True)
+        async def auth_code(_):
+            return web.json_response(b.devices.new_code())
+
+        @r.get("/api/auth/devices")
+        @handler(write=True)
+        async def auth_devices(request):
+            me = self._device(request) or {}
+            return web.json_response({"devices": [{**b.devices.public(d), "me": d["id"] == me.get("id")}
+                                                  for d in b.devices.devices]})
+
+        @r.delete("/api/auth/devices/{did}")
+        @handler(write=True)
+        async def auth_remove(request):
+            b.devices.remove(request.match_info["did"])
+            return web.json_response({"ok": True})
+
         @r.get("/api/app/state")
         @handler(write=False)
-        async def state(_):
+        async def state(request):
             slots = b.slots.slots_view()
             active = next((s["slot"] for s in slots if s["ace"]["active"]), None)
             in_slot = {s["spool"]["spool_id"] for s in slots if s["spool"]}
@@ -417,7 +452,7 @@ class AppApi:
                 "version": __version__,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active),
                 "spoolman": b.sm.connected,
-                "can_write": bool(b.cfg.app_token),
+                "can_write": self._device(request) is not None,
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"],
                            "spool": self._with_tag(s["spool"])} for s in slots],
                 "shelf": shelf,

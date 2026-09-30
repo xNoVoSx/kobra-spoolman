@@ -8,7 +8,6 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
@@ -33,7 +32,7 @@ class BridgeClientTest {
         assertEquals(1, st.slots.single().spool!!.spoolId)
         val req = server.takeRequest()
         assertEquals("/api/app/state", req.url.encodedPath)
-        assertNull(req.headers["Authorization"])          // Lesen ohne Schluessel
+        assertEquals("Bearer geheim", req.headers["Authorization"])   // Geraet auch beim Lesen erkennbar
     }
 
     @Test fun writes_send_token_and_json() = runTest {

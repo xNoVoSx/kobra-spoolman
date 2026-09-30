@@ -59,6 +59,32 @@ data class DryerConfig(
 data class DryerEvent(val at: String = "", val text: String = "")
 
 @Serializable
+data class Device(
+    val id: String,
+    val name: String = "",
+    val kind: String = "",
+    val created: Double? = null,
+    @SerialName("last_seen") val lastSeen: Double? = null,
+    val me: Boolean = false,
+)
+
+@Serializable
+data class DeviceList(val devices: List<Device> = emptyList())
+
+@Serializable
+data class AuthStatus(@SerialName("setup_required") val setupRequired: Boolean = false, val devices: Int = 0,
+                      val device: Device? = null)
+
+@Serializable
+data class PairRequest(val code: String, val name: String, val kind: String)
+
+@Serializable
+data class PairResult(val token: String, val device: Device)
+
+@Serializable
+data class PairingCode(val code: String, @SerialName("expires_in") val expiresIn: Int = 300)
+
+@Serializable
 data class DryerStart(val temp: Int? = null, val hours: Double? = null)
 
 @Serializable

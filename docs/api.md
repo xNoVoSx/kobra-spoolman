@@ -121,11 +121,31 @@ The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: 
 `filament_hub` object in the bridge's Moonraker subscription (the ACE reports about every 20 s);
 commands: Rinkhals' `MMU_DRYER_START` / `MMU_DRYER_STOP`.
 
+## Pairing devices
+
+The bridge issues the keys itself. Each device (app, browser, later the Orca plugin) gets its own
+key; the bridge stores only its SHA-256 (`devices.json` in the data folder).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/auth/status` | `setup_required`, number of devices, the calling device (by its key) |
+| POST | `/api/auth/pair` | `{"code", "name", "kind": "app"\|"web"\|"plugin"}` → `{"token", "device"}` |
+| POST | `/api/auth/code` | *(paired)* new 6-digit pairing code, valid 5 minutes, single use |
+| GET | `/api/auth/devices` | *(paired)* paired devices (`me` marks the caller) |
+| DELETE | `/api/auth/devices/{id}` | *(paired)* remove a device |
+
+- **First device:** while nothing is paired, the bridge logs a setup code at start
+  (`Noch kein Gerät gekoppelt. Einrichtungscode: …`) — Portainer → container → Logs.
+- A set `APP_TOKEN` keeps working as a key and as a pairing code (transition).
+- Wrong codes are throttled (5 attempts, then 60 s).
+- QR code content for the app: `kobraspoolman://pair?b=<bridge-url>&c=<code>`.
+
 ## Android app
 
 For the [Android app](android-app.md). Reading is open like the rest of the API; every writing call
-needs `Authorization: Bearer <APP_TOKEN>` (401 wrong token, 403 no `APP_TOKEN` configured). Errors:
-`{"error": "…"}` with 400 (invalid input), 404, 409 (conflict), 502 (Spoolman).
+needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401 unknown key,
+403 nothing paired yet). Errors: `{"error": "…"}` with 400 (invalid input), 404, 409 (conflict),
+429 (too many wrong codes), 502 (Spoolman).
 
 | Method | Path | Purpose |
 |---|---|---|

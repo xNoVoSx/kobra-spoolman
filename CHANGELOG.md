@@ -6,6 +6,14 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Bridge: **pairing devices** — the bridge issues a key per device (app, browser, later the Orca
+  plugin), stores only its hash, and lists/removes devices. Pairing with a 6-digit code (5 min,
+  single use) or a QR code; the first device uses a setup code from the bridge log. `APP_TOKEN`
+  keeps working during the transition.
+- Android app: pair by QR scan (CameraX + ZXing) or code, device list with *Gerät hinzufügen*
+  (QR + code) and *Entfernen*; detects a key the bridge no longer knows.
+
 ## [2.5.0] – 2026-10-01
 
 ### Added

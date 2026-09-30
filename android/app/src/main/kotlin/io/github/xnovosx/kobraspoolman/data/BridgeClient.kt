@@ -43,7 +43,8 @@ class BridgeClient(
     private suspend fun <T> call(method: String, path: String, bodyJson: String?, out: KSerializer<T>): T =
         withContext(Dispatchers.IO) {
             val builder = Request.Builder().url(base + path)
-            if (method != "GET" && token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+            // Immer mitschicken: die Bridge erkennt daran das gekoppelte Geraet (auch beim Lesen, fuer can_write)
+            if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
             builder.method(method, bodyJson?.toRequestBody(JSON_TYPE) ?: if (method == "GET") null else "{}".toRequestBody(JSON_TYPE))
             try {
                 http.newCall(builder.build()).execute().use { resp ->
@@ -84,6 +85,18 @@ class BridgeClient(
     /** Filament anlegen; body = nur die gesetzten Felder (siehe FilamentDraft.toJson). */
     suspend fun createFilament(body: JsonObject): FilamentInfo =
         call("POST", "/api/app/filament", json.encodeToString(JsonObject.serializer(), body), FilamentResponse.serializer()).filament
+
+    suspend fun authStatus(): AuthStatus = call("GET", "/api/auth/status", null, AuthStatus.serializer())
+
+    suspend fun pair(code: String, name: String): PairResult =
+        call("POST", "/api/auth/pair", json.encodeToString(PairRequest.serializer(), PairRequest(code, name, "app")),
+            PairResult.serializer())
+
+    suspend fun newPairingCode(): PairingCode = call("POST", "/api/auth/code", "{}", PairingCode.serializer())
+    suspend fun devices(): List<Device> = call("GET", "/api/auth/devices", null, DeviceList.serializer()).devices
+    suspend fun removeDevice(id: String) {
+        call("DELETE", "/api/auth/devices/$id", null, ApiError.serializer())
+    }
 
     suspend fun dryerStart(temp: Int?, hours: Double?) {
         call("POST", "/api/dryer/start", json.encodeToString(DryerStart.serializer(), DryerStart(temp, hours)), ApiError.serializer())

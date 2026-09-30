@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.NFC" />
     <!-- Ab Android 17 (API 37) ist das Heimnetz ohne diese Berechtigung gesperrt - die Bridge liegt dort -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- Kamera nur zum Scannen des Kopplungs-QR-Codes; ohne Kamera Code eintippen -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <!-- Die App funktioniert auch ohne NFC (dann ohne Scannen/Tag schreiben) -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 

@@ -8,6 +8,8 @@ import io.github.xnovosx.kobraspoolman.data.BridgeClient
 import io.github.xnovosx.kobraspoolman.data.BridgeException
 import io.github.xnovosx.kobraspoolman.data.Catalog
 import io.github.xnovosx.kobraspoolman.data.Connection
+import io.github.xnovosx.kobraspoolman.data.Device
+import io.github.xnovosx.kobraspoolman.data.PairingCode
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.data.FieldSpec
 import io.github.xnovosx.kobraspoolman.data.FilamentDraft
@@ -59,6 +61,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     data class TagJob(val spoolId: Int, val content: TagContent, val ace: AceTag)
     private val _tagJob = MutableStateFlow<TagJob?>(null)
     val tagJob: StateFlow<TagJob?> = _tagJob
+    private val _me = MutableStateFlow<Device?>(null)
+    /** Dieses Geraet laut Bridge (null = nicht gekoppelt oder Bridge nicht erreichbar). */
+    val me: StateFlow<Device?> = _me
+    private val _meChecked = MutableStateFlow(false)
+    /** true, sobald die Bridge geantwortet hat - dann heisst me == null: Schluessel ungueltig. */
+    val meChecked: StateFlow<Boolean> = _meChecked
+    private val _devices = MutableStateFlow<List<Device>>(emptyList())
+    val devices: StateFlow<List<Device>> = _devices
+    private val _pairingCode = MutableStateFlow<PairingCode?>(null)
+    val pairingCode: StateFlow<PairingCode?> = _pairingCode
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy
 
@@ -197,18 +209,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         done()
     }
 
-    fun saveConnection(c: Connection, done: () -> Unit) = viewModelScope.launch {
+    /** Mit der Bridge koppeln: Code (6 Ziffern, Einrichtungscode oder uebergangsweise APP_TOKEN) gegen Schluessel. */
+    fun pair(url: String, code: String, name: String, done: () -> Unit) = viewModelScope.launch {
         _busy.value = true
         try {
-            val health = BridgeClient(c.url, c.token).health()
-            settings.save(c)
-            _messages.send("Verbunden mit ${health.app} ${health.version}")
+            val res = BridgeClient(url, "").pair(code.trim(), name.trim())
+            settings.save(Connection(url, res.token))
+            _me.value = res.device
+            _meChecked.value = true
+            _messages.send("Gekoppelt als „${res.device.name}“")
             done()
         } catch (e: BridgeException) {
-            _messages.send(e.message ?: "Bridge nicht erreichbar")
+            _messages.send(e.message ?: "Koppeln fehlgeschlagen")
         } finally {
             _busy.value = false
         }
+    }
+
+    /** Nur hier vergessen; in der Bridge bleibt das Geraet gelistet, bis es dort entfernt wird. */
+    fun forgetPairing() = viewModelScope.launch {
+        settings.save(Connection(connection.value?.url.orEmpty(), ""))
+        _me.value = null
+        _meChecked.value = false
+    }
+
+    fun loadMe() = launchSafe(showBusy = false) {
+        _me.value = it.authStatus().device
+        _meChecked.value = true
+    }
+    fun loadDevices() = launchSafe(showBusy = false) { _devices.value = it.devices() }
+
+    fun newPairingCode() = launchSafe { _pairingCode.value = it.newPairingCode() }
+    fun clearPairingCode() { _pairingCode.value = null }
+
+    fun removeDevice(id: String) = launchSafe {
+        it.removeDevice(id)
+        _messages.send("Gerät entfernt")
+        _devices.value = it.devices()
     }
 
     /** Gescannter Tag -> Spule nachschlagen. */
