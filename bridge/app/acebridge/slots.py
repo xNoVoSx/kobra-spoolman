@@ -79,6 +79,15 @@ def ace_match(ace: Dict[str, Any], info: Dict[str, Any]) -> Dict[str, Any]:
             "full": material is True and color is not False}
 
 
+def gate_has_tag(ace: Dict[str, Any]) -> bool:
+    """Spule mit RFID-Tag: die ACE fuellt Material/Farbe selbst aus dem Tag. Rinkhals zeigt das interne
+    rfid-Feld nicht, aber gate_spool_id ist nur mit Tag gesetzt (Zahl hinter dem Bindestrich der SKU)."""
+    try:
+        return int(ace.get("tag_id") or 0) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def gate_needs_info(ace: Dict[str, Any]) -> bool:
     """Slot hat Filament, aber die ACE kennt kein Material (kein Tag, am Display nichts eingetragen).
     Rinkhals schickt beim Druckstart dann material_type "" - GoKlipper bricht mit
@@ -372,9 +381,8 @@ class SlotManager:
 
     async def _push_gate_info(self, assigned: Dict[int, Dict[str, Any]]) -> None:
         """Material/Farbe einer auf der Slot-Seite zugeordneten Spule an die ACE geben (MMU_GATE_MAP).
-        Wartet, bis die Spule eingelegt ist und kein Druck laeuft; einmal pro Zuordnung. Meldet die
-        ACE schon genau diese Werte (z.B. Anycubic-Tag), wird nichts gesendet. Slots mit RFID-Tag
-        lehnt Rinkhals selbst ab."""
+        Wartet, bis die Spule eingelegt ist und kein Druck laeuft; einmal pro Zuordnung. Slots mit
+        RFID-Tag und Slots, fuer die die ACE schon genau diese Werte meldet, bleiben unberuehrt."""
         for gate, job in list(self._gate_info_pending.items()):
             spool = assigned.get(gate + 1)
             if not spool or spool.get("id") != job["spool_id"] or not (spool.get("filament") or {}).get("id"):
@@ -383,6 +391,11 @@ class SlotManager:
             ace = self.ace_gate(gate)
             if not ace["present"]:
                 continue                                     # Spule noch nicht eingelegt
+            if gate_has_tag(ace):
+                # Der Tag bestimmt den Slot - nie ueberschreiben (Rinkhals wuerde es auch ablehnen)
+                self._gate_info_pending.pop(gate, None)
+                log.info("Slot %d: Spule mit RFID-Tag (%s) - Material/Farbe kommen vom Tag", gate + 1, ace["tag_id"])
+                continue
             info = basic_info(spool["filament"], self.sm.templates())
             cmd = gate_map_command(gate, spool["id"], info)
             same = (base_type(ace["material"]).upper() == base_type(info.get("material") or "").upper()

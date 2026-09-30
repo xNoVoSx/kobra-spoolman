@@ -9,7 +9,7 @@ import shlex
 import pytest
 from conftest import FakeMoonraker
 
-from acebridge.slots import SlotManager, gate_map_command, gate_needs_info
+from acebridge.slots import SlotManager, gate_has_tag, gate_map_command, gate_needs_info
 
 
 class GcodeMoonraker(FakeMoonraker):
@@ -95,6 +95,7 @@ def test_needs_info_only_for_loaded_slots_without_material():
     assert gate_needs_info({"present": True, "material": ""})
     assert not gate_needs_info({"present": True, "material": "PETG"})
     assert not gate_needs_info({"present": False, "material": ""})
+    assert gate_has_tag({"tag_id": 102}) and not gate_has_tag({"tag_id": 0}) and not gate_has_tag({})
 
 
 def run(coro):
@@ -161,3 +162,12 @@ def test_failed_write_is_retried_three_times(make):
     moon.fail = False
     run(mgr.evaluate())
     assert moon.sent == []                    # nach drei Fehlversuchen aufgegeben
+
+
+def test_slots_with_rfid_tag_are_never_written(make):
+    status = mmu(["PLA"], ["212721FF"])
+    status["mmu"]["gate_spool_id"] = [4711]
+    mgr, moon = make(status, [petg_spool(8)])
+    run(mgr.assign(1, 8))                     # Spoolman sagt PETG Lavendel, der Tag PLA Schwarz
+    assert moon.sent == [] and not mgr._gate_info_pending
+    assert any("ACE meldet PLA" in h for h in mgr.slots_view()[0]["hints"])

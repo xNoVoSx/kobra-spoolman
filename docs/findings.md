@@ -162,6 +162,9 @@ MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'c
   `00FF00FF` via the Mainsail console → the display showed the slot green at once, and
   `mmu.gate_color` still read `00FF00FF` 35 s later. GoKlipper keeps material and colour; the
   `name` is not stored (`gate_filament_name` stays the material).
+- Tagged slots: Rinkhals does not expose the internal `rfid` flag, but `mmu.gate_spool_id` is only
+  set with a tag (Anycubic tags `102`/`107`, untagged `0`) — the bridge uses it to leave tagged
+  slots alone.
 - The bridge sends it **only when a spool is assigned on the slot page** (`SET_ACE_SLOT_INFO`,
   default on) — once per assignment, after the spool is loaded and never while printing; skipped
   when the ACE already reports exactly these values. A bridge restart, an entry at the display or a
