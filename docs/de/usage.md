@@ -126,7 +126,7 @@ Unter *Details* stehen zwei Tabellen, alle Werte in Gramm.
 | Spalte | Quelle |
 |---|---|
 | *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Genau Orcas Vorschau-Legende (Vorschau → Filament): Modell, Stützen, Spülen und Reinigungsturm pro Filament, *Gesamt* ist die Summe. Leere Spalten fehlen wie in Orca. |
-| *Laden* | Spülen der Firmware beim Laden durch die ACE. Orca kennt es nicht; die Bridge misst es bei jedem fertigen Druck (Mittel pro Ladevorgang). Bis zum ersten gemessenen Druck gilt eine Schätzung von 0,32 m pro Laden. Die Zahl der Ladevorgänge pro Filament zählt Orca (erste Nutzung plus jeder Wechsel zurück); mit älterem orca-kobra-Build werden die Wechsel gleichmäßig auf die benutzten Filamente verteilt. |
+| *Laden* | Spülen der Firmware beim Laden durch die ACE – Orca kennt es nicht. Gerechnet wird **pro Farbwechsel** genau wie die Firmware: Orcas Farbformel für die beiden Slot-Farben (so wie die ACE sie meldet) + 107 mm³, mal dem Multiplikator am Druckerdisplay; der erste Ladevorgang eines Drucks ist fest ≈ 95 mm. Den Multiplikator liest die Bridge vom Drucker, die kleinen Konstanten misst sie an jedem fertigen Orca-Druck nach. Die Wechsel (von → nach) zählt Orca; mit älterem orca-kobra-Build werden die Farben gemittelt, ohne Spül-Modell der Bridge gilt ein gemessener Mittelwert pro Ladevorgang. |
 | *Bedarf* | *Gesamt* + *Laden* |
 | *Rest* | Restgewicht der dem Slot zugeordneten Spule, aus Spoolman |
 

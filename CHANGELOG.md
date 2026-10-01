@@ -6,6 +6,20 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Bridge: **purge model of the ACE** — the firmware's purge per colour change is computed like the
+  firmware does it (Orca's colour formula on the ACE colours + `flush_volume_min`, limits, times
+  `flush_multiplier`). The bridge reads the flush settings from GoKlipper every 10 minutes, records
+  every load of a print with its colours and refines the offset per change and the first load from
+  finished Orca prints. Provided as `usage.purge.model` in `/api/orca/state` and `/api/usage`.
+- Plugin 0.5.0: the usage preview computes the purge **per colour change** from the slot colours
+  (needs the orca-kobra build with the extended patch 0003 for the order of the changes; older
+  builds average the colours, older bridges keep the measured average per load).
+
+### Fixed
+- Bridge: the measured average purge per load ignores AnycubicSlicer files (their G-code header
+  contains the slicer's flush volume, which made the average far too low).
+
 ## [2.6.0] – 2026-10-01
 
 Ships plugin 0.4.0 — **update the plugin together with the bridge and pair it once**, otherwise

@@ -124,7 +124,7 @@ The *Details* section has two tables, all values in grams.
 | Column | Source |
 |---|---|
 | *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Exactly Orca's preview legend (Preview → Filament): model, support, flush and prime tower per filament, *Gesamt* is their sum. Empty columns are left out, as in Orca. |
-| *Laden* | Firmware purge when the ACE loads the filament. Orca does not know about it; the bridge measures it on every finished print (average per load). Until the first print is measured, an estimate of 0.32 m per load is used. The number of loads per filament is counted by Orca (first use plus every switch back to it); with an older orca-kobra build the filament changes are spread evenly over the used filaments. |
+| *Laden* | Firmware purge when the ACE loads the filament — Orca does not know about it. Computed **per colour change** exactly like the firmware does it: Orca's colour formula for the two slot colours (as the ACE reports them) + 107 mm³, times the multiplier set at the printer display; the first load of a print is a fixed ≈ 95 mm. The bridge reads the multiplier from the printer and refines the small constants on every finished Orca print. Orca counts the changes (from → to); with an older orca-kobra build the colours are averaged, without the bridge's purge model a measured average per load is used. |
 | *Bedarf* | *Gesamt* + *Laden* |
 | *Rest* | remaining weight of the spool assigned to the slot, from Spoolman |
 

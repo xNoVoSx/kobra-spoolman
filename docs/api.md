@@ -94,6 +94,15 @@ A history entry:
 }
 ```
 
+`usage.purge` in `GET /api/orca/state` and `/api/usage` carries the purge model the plugin uses for
+its preview ([architecture](architecture.md#usage-preview-after-slicing)):
+
+```json
+{"jobs": 3, "overhead_per_load_mm": 118.4,
+ "model": {"model": "colour", "flush_multiplier": 1.0, "flush_volume_min": 107.0, "flush_volume_max": 800.0,
+           "flush_source": "printer", "offset_mm": -3.4, "first_load_mm": 94.6, "learned_from": 1}}
+```
+
 `sources` tells where each value comes from: `filament`, `vorlage` (template),
 `override-filament` / `override-vorlage` (free Orca overrides). The base profile itself is resolved
 by the plugin inside Orca, so the values always match the installed Orca version.

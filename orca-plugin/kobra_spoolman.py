@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.4.0"
+# version = "0.5.0"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import queue
 import re
@@ -52,7 +53,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.4.0"
+PLUGIN_VERSION = "0.5.0"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -285,6 +286,108 @@ def diff_profiles(written, saved):
     return changes
 
 
+# ====================================================================== Spuelen der ACE
+# Gleiche Rechnung wie die Bridge (bridge/app/acebridge/purge.py, docs/findings.md): Die Firmware
+# nimmt Orcas Farbformel + flush_volume_min, begrenzt auf min..max, mal flush_multiplier.
+# Beide Stellen gleich halten (tests/test_plugin_purge.py vergleicht sie).
+_AREA_175 = math.pi * (1.75 / 2) ** 2
+DEFAULT_FLUSH = {"flush_multiplier": 1.0, "flush_volume_min": 107.0, "flush_volume_max": 800.0}
+
+
+def _hex_rgb(color):
+    h = str(color or "").strip().lstrip("#")[:6]
+    if len(h) != 6:
+        return None
+    try:
+        return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return None
+
+
+def _hsv(r, g, b):
+    cmax, cmin = max(r, g, b), min(r, g, b)
+    d = cmax - cmin
+    if abs(d) < 0.001:
+        h = 0.0
+    elif cmax == r:
+        h = 60.0 * math.fmod((g - b) / d, 6.0)
+    elif cmax == g:
+        h = 60.0 * ((b - r) / d + 2)
+    else:
+        h = 60.0 * ((r - g) / d + 4)
+    return h, (0.0 if abs(cmax) < 0.001 else d / cmax), cmax
+
+
+def orca_colour_volume(src, dst):
+    """Orcas FlushVolCalculator::calc_flush_vol (mm3) ohne Orcas Mindestwert; None bei unbekannter Farbe."""
+    a, b = _hex_rgb(src), _hex_rgb(dst)
+    if a is None or b is None:
+        return None
+    h1, s1, v1 = _hsv(*a)
+    h2, s2, v2 = _hsv(*b)
+    dx = math.cos(math.radians(h1)) * s1 * v1 - math.cos(math.radians(h2)) * s2 * v2
+    dy = math.sin(math.radians(h1)) * s1 * v1 - math.sin(math.radians(h2)) * s2 * v2
+    hs_dist = min(1.2, math.hypot(dx, dy))
+    from_lumi = a[0] * 0.3 + a[1] * 0.59 + a[2] * 0.11
+    to_lumi = b[0] * 0.3 + b[1] * 0.59 + b[2] * 0.11
+    if to_lumi >= from_lumi:
+        lumi_flush = (to_lumi - from_lumi) ** 0.7 * 560.0
+    else:
+        lumi_flush = (from_lumi - to_lumi) * 80.0
+        hs_dist = min(0.67 * v2 + 0.33 * v1, hs_dist)
+    hs_flush = 230.0 * hs_dist
+    return max(math.sqrt(hs_flush ** 2 + lumi_flush ** 2 + hs_flush * lumi_flush), 60.0)
+
+
+def purge_change_mm(src, dst, flush, offset_mm):
+    """Spuelen der ACE in mm (1,75 mm) fuer den Wechsel src -> dst; None bei unbekannter Farbe."""
+    raw = orca_colour_volume(src, dst)
+    if raw is None:
+        return None
+    lo, hi = float(flush["flush_volume_min"]), float(flush["flush_volume_max"])
+    vol = min(max(raw + lo, lo), hi)
+    return max(0.0, vol * float(flush["flush_multiplier"]) / _AREA_175 + offset_mm)
+
+
+def _purge_per_filament(used, load_counts, stats, slots, purge, per_load_mm):
+    """mm Spuelen pro Filament-Index und die Methode ("transitions", "colours", "average").
+
+    transitions - neuer Patch 0003: jeder Wechsel von -> nach mit Anzahl, pro Wechsel gerechnet
+    colours     - Farben bekannt, Reihenfolge nicht: pro Filament der Mittelwert der Wechsel von
+                  den anderen benutzten Filamenten her; der erste Ladevorgang anteilig
+    average     - Bridge ohne Spuel-Modell: gemessener Mittelwert pro Ladevorgang
+    """
+    model = (purge or {}).get("model")
+    ids = [f["index"] for f in used]
+    if not isinstance(model, dict) or not ids:
+        return {i: per_load_mm * load_counts[i] for i in ids}, "average"
+    flush = {k: float(model.get(k, v)) for k, v in DEFAULT_FLUSH.items()}
+    offset = float(model.get("offset_mm", -3.0))
+    first = float(model.get("first_load_mm", 95.0))
+    # Firmware rechnet mit den Farben, die die ACE meldet
+    colours = {int(s["slot"]) - 1: (s.get("ace_color") or s.get("color")) for s in slots or []}
+
+    def change(i, j):
+        mm = purge_change_mm(colours.get(i), colours.get(j), flush, offset)
+        return per_load_mm if mm is None else mm
+
+    transitions = (stats or {}).get("transitions")
+    if transitions:
+        out = {i: 0.0 for i in ids}
+        for t in transitions:
+            to, n = int(t["to"]), int(t.get("count") or 1)
+            mm = first if t.get("from") is None else change(int(t["from"]), to)
+            out[to] = out.get(to, 0.0) + mm * n
+        return out, "transitions"
+    out = {}
+    share = 1.0 / len(ids)                     # wer zuerst geladen wird, sagt erst der neue Patch
+    for j in ids:
+        others = [change(i, j) for i in ids if i != j]
+        per = sum(others) / len(others) if others else first
+        out[j] = share * first + max(0.0, load_counts[j] - share) * per
+    return out, "colours"
+
+
 def _mm_to_g(mm, diameter, density):
     r = (diameter or 1.75) / 2
     return mm * 3.141592653589793 * r * r * (density or 1.24) / 1000
@@ -295,14 +398,16 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
 
     stats  - Ergebnis von orca.host.slice_statistics() (Volumen in mm3, Filament-Index ab 0)
     slots  - Slots aus /api/orca/state (slot, name, spool_id, remaining_weight)
-    purge  - /api/orca/state usage.purge (overhead_per_load_mm aus echten Drucken)
+    purge  - /api/orca/state usage.purge: "model" (Spuel-Modell der Bridge) oder nur
+             overhead_per_load_mm (aeltere Bridge)
 
     Filament N in Orca gehoert zu Slot N (so setzt es der Sync-Knopf). Die Orca-Werte sind
     dieselben wie in Orcas Legende: Modell, Stuetzen, Gereinigt, Turm, Gesamt = Summe davon
     (nicht total_volumes_per_extruder - das verteilt den Turm beim Wechsel anders). Dazu kommt
-    das Spuelen der Firmware beim Laden, das Orca nicht kennt: gemessene Menge pro Ladevorgang
-    (Bridge) mal Ladevorgaenge. Die zaehlt Orca pro Filament ("loads", neuerer Patch 0003);
-    fehlen sie, werden die Wechsel gleichmaessig auf die benutzten Filamente verteilt.
+    das Spuelen der Firmware beim Laden, das Orca nicht kennt: pro Farbwechsel aus den Slot-Farben
+    gerechnet (_purge_per_filament), sonst gemessene Menge pro Ladevorgang mal Ladevorgaenge.
+    Wechsel und Ladevorgaenge zaehlt Orca ("transitions", "loads" aus Patch 0003); fehlen sie,
+    werden die Wechsel gleichmaessig auf die benutzten Filamente verteilt.
     """
     by_slot = {s["slot"]: s for s in slots or []}
 
@@ -324,6 +429,15 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
         extra = (max(len(used), changes + 1) - len(used)) / len(used) if used else 0.0
         load_counts = {f["index"]: 1 + extra for f in used}
 
+    transitions = (stats or {}).get("transitions")
+    if transitions and used:
+        counted = {f["index"]: 0 for f in used}
+        for t in transitions:
+            counted[int(t["to"])] = counted.get(int(t["to"]), 0) + int(t.get("count") or 1)
+        load_counts = {i: max(1, counted.get(i, 0)) for i in load_counts}
+        loads_exact = True
+    purge_mm, purge_method = _purge_per_filament(used, load_counts, stats, slots, purge, per_load_mm)
+
     rows, short, tight = [], [], []
     for f in sorted(used, key=lambda x: x["index"]):
         slot_no = int(f["index"]) + 1
@@ -342,7 +456,7 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
             "tower_g": round(g(f.get("tower_mm3")), 2),
             "orca_g": round(g(orca_mm3(f)), 2),
             "loads": round(slot_loads, 1),
-            "purge_g": round(_mm_to_g(per_load_mm * slot_loads, diameter, density), 1),
+            "purge_g": round(_mm_to_g(purge_mm.get(f["index"], 0.0), diameter, density), 1),
         }
         row["need_g"] = round(row["orca_g"] + row["purge_g"], 1)
         s = by_slot.get(slot_no)
@@ -379,6 +493,8 @@ def build_forecast(stats, slots, purge=None, reserve_g=5.0):
         "per_load_g": round(_mm_to_g(per_load_mm, 1.75, 1.24), 2),
         "purge_measured": measured,
         "purge_jobs": purge.get("jobs", 0),
+        "purge_method": purge_method,
+        "purge_model": purge.get("model") if purge_method != "average" else None,
         "orca_g": round(sum(r["orca_g"] for r in rows), 2),
         "total_g": round(sum(r["need_g"] for r in rows), 1),
     }
@@ -992,17 +1108,28 @@ def forecast_html(fc):
     load_tab = ("<table><tr class='h'><td>Filament</td><td class='r'>Laden</td><td class='r'>g</td>"
                 f"<td class='r'>Bedarf</td><td class='r'>Rest</td></tr>{load_rows}</table>")
 
-    basis = (f"gemessen aus {fc['purge_jobs']} Druck{'en' if fc['purge_jobs'] != 1 else ''}"
-             if fc["purge_measured"] else "Schätzwert, bis die Bridge einen fertigen Druck gemessen hat")
     how = ("von Orca gezählt" if fc.get("loads_exact")
            else "gleichmäßig verteilt – genaue Zahl braucht einen neueren orca-kobra-Build")
+    m = fc.get("purge_model") or {}
+    if fc.get("purge_method") in ("transitions", "colours"):
+        learned = m.get("learned_from") or 0
+        tuned = (f"an {learned} Druck{'en' if learned != 1 else ''} eingemessen" if learned
+                 else "Werte aus den Messungen")
+        order = ("pro Farbwechsel" if fc["purge_method"] == "transitions"
+                 else "aus den Farben gemittelt – genaue Reihenfolge braucht einen neueren orca-kobra-Build")
+        purge_text = (f"{fc['loads']} Ladevorgänge ({how}), {order} aus den Slot-Farben berechnet wie die "
+                      f"Firmware (Multiplikator {_de(m.get('flush_multiplier', 1.0), 2)}, {tuned}).")
+    else:
+        basis = (f"gemessen aus {fc['purge_jobs']} Druck{'en' if fc['purge_jobs'] != 1 else ''}"
+                 if fc["purge_measured"] else "Schätzwert, bis die Bridge einen fertigen Druck gemessen hat")
+        purge_text = f"{fc['loads']} Ladevorgänge ({how}), je ca. {_de(fc['per_load_g'], 2)} g ({basis})."
     plate = f"Platte {fc['plate'] + 1} · " if isinstance(fc.get("plate"), int) else ""
     return (f"<div class='fc'><div class='fch'><b>Geplanter Verbrauch</b><span class='muted'>{plate}Gramm</span></div>"
             + "".join(lines)
             + "<details id='fcd'><summary>Details (Orca-Legende + Laden)</summary>"
             f"<div class='muted fct'>Wie Orcas Legende (Vorschau → Filament):</div>{orca_tab}"
             f"<div class='muted fct'>Dazu Laden: Die Firmware spült bei jedem Einlegen, das kennt Orca nicht. "
-            f"{fc['loads']} Ladevorgänge ({how}), je ca. {g(fc['per_load_g'], 2)} g ({basis}).</div>{load_tab}"
+            f"{purge_text}</div>{load_tab}"
             f"<div class='muted fct'>Bedarf = Orca Gesamt + Laden. Rest = was laut Spoolman auf der Spule ist.</div>"
             "</details></div>")
 
@@ -1090,7 +1217,14 @@ def build_panel_message(core: Core):
 
     purge = (st.get("usage") or {}).get("purge") or {}
     usage = ""
-    if purge.get("jobs") and not (fc and fc["rows"]):
+    model = purge.get("model") if isinstance(purge.get("model"), dict) else None
+    if model and not (fc and fc["rows"]):
+        learned = model.get("learned_from") or 0
+        usage = (f"<div class='muted'>Spülen der ACE: Multiplikator {_de(model.get('flush_multiplier', 1.0), 2)}, "
+                 "pro Farbwechsel aus den Slot-Farben berechnet"
+                 + (f" (an {learned} Druck{'en' if learned != 1 else ''} eingemessen)" if learned else "")
+                 + ".</div>")
+    elif purge.get("jobs") and not (fc and fc["rows"]):
         usage = (f"<div class='muted'>Mehrverbrauch (Spülen/Anfahren) bisher im Schnitt "
                  f"{_de(_mm175_to_g(purge['overhead_per_load_mm']))} g pro Laden "
                  f"({purge['jobs']} Druck{'e' if purge['jobs'] != 1 else ''}).</div>")

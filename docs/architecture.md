@@ -109,14 +109,23 @@ makes it match presets by `lane_data.filament_id` — which the bridge already w
 
 On `SlicingJobComplete` (and on every panel refresh) the plugin reads
 `orca.host.slice_statistics()` — per filament the model, support, prime tower, flush and total
-volume plus density and the number of loads. `build_forecast()` converts them to grams exactly like
-Orca's preview legend (*Gesamt* = model + support + flush + tower; Orca's own
-`total_volumes_per_extruder` attributes the tower differently at tool changes and is not used),
-adds the firmware purge per load (`usage.purge` from the bridge: the average of
-`(measured − G-code target) / loads` over finished prints) times the filament's loads and compares
-the sum with the spool's remaining weight. Loads come from Orca's processed moves (every time a
-filament becomes the extruding one); builds without that field fall back to spreading the filament
-changes evenly. Filament N is counted against slot N. When the plate's slice result becomes
+volume plus density, the number of loads and the filament changes (`transitions`: from → to with
+counts). `build_forecast()` converts them to grams exactly like Orca's preview legend (*Gesamt* =
+model + support + flush + tower; Orca's own `total_volumes_per_extruder` attributes the tower
+differently at tool changes and is not used), adds the firmware purge and compares the sum with the
+spool's remaining weight. Filament N is counted against slot N.
+
+**Firmware purge per colour change** (`bridge/app/acebridge/purge.py`, the same formula in the
+plugin): for prints via Moonraker the firmware ignores the slicer's flush matrix and computes
+`clamp(orca_colour_volume(from, to) + flush_volume_min, min, max) × flush_multiplier` — Orca's own
+`FlushVolCalculator` on the colours the ACE reports, see [findings](findings.md#the-firmwares-own-flush-setting).
+The bridge reads `flush_multiplier`, `flush_volume_min` and `flush_volume_max` from GoKlipper
+(`/printer/filament_hub/get_config`, every 10 minutes) and records every load of a print with its
+colours. From finished Orca prints (where *measured − G-code target* is the purge alone) it fits two
+small constants by least squares: an offset per change (≈ −3 mm) and the first load of a print
+(≈ 95 mm). `usage.purge.model` in `/api/orca/state` carries all of it. Fallbacks: an Orca build
+without `transitions` averages the changes from the other used colours; a bridge without the model
+gives the old measured average per load. When the plate's slice result becomes
 invalid the preview is hidden. Without patch 0003 the attribute is missing and the preview is
 simply not shown (feature detection, no version check).
 
