@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.xnovosx.kobraspoolman.data.AppState
+import io.github.xnovosx.kobraspoolman.data.ConsoleLines
+import io.github.xnovosx.kobraspoolman.data.PrintJob
+import io.github.xnovosx.kobraspoolman.data.LogLines
 import io.github.xnovosx.kobraspoolman.data.BridgeClient
 import io.github.xnovosx.kobraspoolman.data.BridgeException
 import io.github.xnovosx.kobraspoolman.data.Catalog
@@ -240,6 +243,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Bild von der Bridge holen (Kamera nur gekoppelt); null bei Fehler oder ohne Bild. */
     suspend fun image(path: String): ByteArray? = runCatching { client()?.image(path) }.getOrNull()
+
+    suspend fun jobs(): List<PrintJob>? = runCatching { client()?.jobs() }.getOrNull()
+    suspend fun console(after: Long): ConsoleLines? = runCatching { client()?.console(after) }.getOrNull()
+    suspend fun logs(after: Long, level: String): LogLines? = runCatching { client()?.logs(after, level) }.getOrNull()
 
     /** Kamera live ueber den Restream der Bridge; leer ohne Verbindung. */
     fun cameraStream(): Flow<ByteArray> = client()?.cameraStream() ?: emptyFlow()

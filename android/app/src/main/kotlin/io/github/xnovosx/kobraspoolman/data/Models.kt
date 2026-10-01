@@ -343,3 +343,35 @@ data class LocationChange(val slot: Int?)
 
 @Serializable
 data class TagLink(@SerialName("spool_id") val spoolId: Int, val uid: String, val force: Boolean = false)
+
+/** Druck aus der Historie (GET /api/jobs). */
+@Serializable
+data class PrintJob(
+    val job: String,
+    val file: String? = null,
+    val started: String? = null,
+    val ended: String? = null,
+    val state: String = "",
+    val changes: Int = 0,
+    val slots: List<JobSlot> = emptyList(),
+)
+
+@Serializable
+data class JobSlot(val slot: Int, val g: Double = 0.0, val mm: Double = 0.0)
+
+@Serializable
+data class PrintJobList(val jobs: List<PrintJob> = emptyList())
+
+/** Zeile der Drucker-Konsole: kind = command | response | error; source = wer gesendet hat. */
+@Serializable
+data class ConsoleLine(val id: Long, val time: Double, val kind: String, val text: String, val source: String? = null)
+
+@Serializable
+data class ConsoleLines(val lines: List<ConsoleLine> = emptyList(), val printing: Boolean = false)
+
+/** Zeile des Bridge-Logs. */
+@Serializable
+data class LogLine(val id: Long, val time: Double, val level: String, val name: String, val text: String)
+
+@Serializable
+data class LogLines(val lines: List<LogLine> = emptyList())

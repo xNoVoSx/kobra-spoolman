@@ -123,9 +123,9 @@ private fun share(v: Double): String = if (v <= 0.0) "aus" else "${(v * 100).rou
 /** Druckerdaten unter dem Bild: Temperaturen, Luefter, Tempo, Fluss, Schicht (nur was der Drucker meldet). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MachineBar(p: Printer) {
+fun MachineBar(p: Printer, inset: Boolean = true) {
     if (p.nozzle == null && p.bed == null && p.fans.isEmpty()) return
-    FlowRow(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+    FlowRow(Modifier.fillMaxWidth().then(if (inset) Modifier.padding(horizontal = 14.dp, vertical = 10.dp) else Modifier),
         horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         p.nozzle?.let { Stat("Düse", temp(it), hot = it.target > 0) }
         p.bed?.let { Stat("Bett", temp(it), hot = it.target > 0) }
@@ -206,7 +206,6 @@ fun PrintMedia(
                 }, style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.padding(16.dp))
             }
         }
-        MachineBar(printer)
     }
     if (full) {
         Dialog(onDismissRequest = { full = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {

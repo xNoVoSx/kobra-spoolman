@@ -104,6 +104,11 @@ class BridgeClient(
         }
     }.flowOn(Dispatchers.IO)
 
+    suspend fun jobs(): List<PrintJob> = call("GET", "/api/jobs", null, PrintJobList.serializer()).jobs
+    suspend fun console(after: Long): ConsoleLines = call("GET", "/api/console?after=$after", null, ConsoleLines.serializer())
+    suspend fun logs(after: Long, level: String): LogLines =
+        call("GET", "/api/logs?after=$after&level=$level", null, LogLines.serializer())
+
     suspend fun printInfo(): PrintInfo = call("GET", "/api/print/info", null, PrintInfo.serializer())
 
     suspend fun health(): Health = call("GET", "/api/health", null, Health.serializer())

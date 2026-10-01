@@ -46,7 +46,6 @@ fun SlotsScreen(
     lanMissing: Boolean,
     onGrantLan: () -> Unit,
     onRefresh: () -> Unit,
-    onSettings: () -> Unit,
     onSpool: (Int) -> Unit,
     onEmptySlot: (Int) -> Unit,
     onDryer: () -> Unit,
@@ -61,12 +60,7 @@ fun SlotsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Übersicht", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-                RoundIconButton(KIcons.Refresh, "Aktualisieren", onRefresh)
-                Spacer(Modifier.size(8.dp))
-                RoundIconButton(KIcons.Settings, "Einstellungen", onSettings)
-            }
+            ScreenHeader("Kobra S1", action = { RoundIconButton(KIcons.Refresh, "Aktualisieren", onRefresh) })
         }
         if (lanMissing) item { LanMissing(onGrantLan) }
         if (error != null) item { Hint(error, danger = true) }
@@ -75,13 +69,12 @@ fun SlotsScreen(
             return@LazyColumn
         }
         if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // aeltere Bridge
+        // Startseite: Kamera oben, darunter der Druck, dann die Slots und die ACE - der Rest steckt in den Tabs
+        if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera) }
         item {
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
-        if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera) }
-        state.notices?.let { n -> item { NoticesCard(n, state.version) } }
-        state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         state.slots.chunked(2).forEach { row ->
             item {
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -93,12 +86,7 @@ fun SlotsScreen(
                 }
             }
         }
-        if (state.shelf.isNotEmpty()) {
-            item {
-                Text("Im Regal", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 10.dp))
-            }
-            items(state.shelf, key = { it.spoolId }) { ShelfRow(it) { onSpool(it.spoolId) } }
-        }
+        state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         if (!state.canWrite) item {
             Hint("Nur lesen: Die App ist nicht gekoppelt. Koppeln unter Einstellungen.")
         }

@@ -120,11 +120,11 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
         containerColor = K.Ground,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            // Nur auf der Startseite; "Neue Spule" ist ein eigener Arbeitsschritt mit Abbrechen-Knopf
-            if (route == "slots") BottomBar(
+            // Auf den Haupt-Tabs; Unterseiten (Spule, Neue Spule, ...) haben eigene Zurueck-Knoepfe
+            if (route in TABS) BottomBar(
                 current = route,
-                onSlots = { nav.navigate("slots") { popUpTo("slots") { inclusive = false }; launchSingleTop = true } },
-                onNew = { nav.navigate("new") { launchSingleTop = true } },
+                notices = state?.notices?.messages.orEmpty().let { m -> m.size to (m.firstOrNull()?.level) },
+                onTab = { t -> nav.navigate(t) { popUpTo("slots") { inclusive = false }; launchSingleTop = true } },
                 onScan = { scanOpen = true },
             )
         },
@@ -133,13 +133,33 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             composable("slots") {
                 SlotsScreen(state, error.takeIf { lanGranted }, padding, lanMissing = !lanGranted, onGrantLan = askLan,
                     onRefresh = { vm.refreshNow() },
-                    onSettings = { nav.navigate("settings") },
                     onSpool = { nav.navigate("spool/$it") },
                     onEmptySlot = { fillSlot = it },
                     onDryer = { dryerOpen = true },
                     fetchImage = { vm.image(it) },
                     printInfo = { vm.printInfo() },
                     camera = { vm.cameraStream() })
+            }
+            composable("notices") { NoticesScreen(state, padding, onRefresh = { vm.refreshNow() }) }
+            composable("filament") {
+                FilamentHubScreen(state, catalog, padding,
+                    onLoadCatalog = { vm.loadCatalog() },
+                    onSpool = { nav.navigate("spool/$it") },
+                    onNewSpool = { nav.navigate("new") { launchSingleTop = true } },
+                    onNewFilament = { nav.navigate("filament/new") })
+            }
+            composable("more") {
+                MoreScreen(padding, hasAce = state?.dryer?.present == true,
+                    onAce = { dryerOpen = true },
+                    onJobs = { nav.navigate("jobs") },
+                    onProtocol = { nav.navigate("protocol") },
+                    onDevices = { nav.navigate("devices") },
+                    onSettings = { nav.navigate("settings") })
+            }
+            composable("jobs") { JobsScreen(padding, load = { vm.jobs() }, onBack = { nav.popBackStack() }) }
+            composable("protocol") {
+                ProtocolScreen(padding, console = { vm.console(it) }, logs = { a, l -> vm.logs(a, l) },
+                    onBack = { nav.popBackStack() })
             }
             composable("spool/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable
@@ -254,14 +274,25 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
 
 private fun allSpools(list: List<SpoolInfo>) = list.distinctBy { it.spoolId }
 
+private val TABS = setOf("slots", "notices", "filament", "more")
+
+/** Start · Meldungen (Zaehler: rot bei Fehlern, gelb bei Warnungen) · NFC · Filament · Mehr */
 @Composable
-private fun BottomBar(current: String?, onSlots: () -> Unit, onNew: () -> Unit, onScan: () -> Unit) {
+private fun BottomBar(current: String?, notices: Pair<Int, String?>, onTab: (String) -> Unit, onScan: () -> Unit) {
     Box(Modifier.fillMaxWidth().background(K.Sunken).navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically) {
-            NavItem(KIcons.Grid, "Slots", current == "slots", onSlots)
+            NavItem(KIcons.Grid, "Start", current == "slots") { onTab("slots") }
+            Box {
+                NavItem(KIcons.Bell, "Meldungen", current == "notices") { onTab("notices") }
+                val (n, level) = notices
+                if (n > 0 && level != "info") Text("$n", style = MaterialTheme.typography.labelSmall,
+                    color = K.OnAccent, modifier = Modifier.align(Alignment.TopEnd).padding(end = 10.dp)
+                        .clip(CircleShape).background(if (level == "error") K.Danger else K.Accent).padding(horizontal = 6.dp))
+            }
             Box(Modifier.size(64.dp))
-            NavItem(KIcons.Plus, "Neu", current?.startsWith("new") == true, onNew)
+            NavItem(KIcons.Spool, "Filament", current == "filament") { onTab("filament") }
+            NavItem(KIcons.More, "Mehr", current == "more") { onTab("more") }
         }
         Box(
             Modifier.align(Alignment.TopCenter).offset(y = (-22).dp).size(68.dp).clip(CircleShape).background(K.Accent)

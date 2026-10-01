@@ -131,6 +131,7 @@ fun StatusCard(p: Printer, activeName: String?) {
                 TimeStat("Fertig", Format.finishAt(p.etaS))
             }
         }
+        MachineBar(p, inset = false)
     }
 }
 

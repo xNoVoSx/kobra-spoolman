@@ -42,14 +42,14 @@ private fun Dot(c: Color) = Box(Modifier.padding(top = 6.dp).size(8.dp).clip(Cir
 
 /** Meldungen & Status der Uebersicht, wie in der Weboberflaeche (GET /api/app/state -> notices). */
 @Composable
-fun NoticesCard(n: Notices, bridgeVersion: String) {
+fun NoticesCard(n: Notices, bridgeVersion: String, title: Boolean = true) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(K.Surface)
             .border(1.dp, K.Line, RoundedCornerShape(20.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Meldungen", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(if (title) "Meldungen" else "", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             if (n.messages.isEmpty()) Text("alles gut", style = MaterialTheme.typography.labelMedium, color = K.Ok)
         }
         n.messages.forEach { m ->

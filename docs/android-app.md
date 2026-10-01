@@ -17,10 +17,20 @@ released, real NFC stickers still to be tested on the phone. Code: [`android/`](
 
 Everything that happens at the printer, on the phone — the same as the [web UI](usage.md), plus NFC:
 
-- **Slots and printer** — status card (*Bereit*, *Druckt* with file, progress and remaining time,
-  *Wechselt Filament*, *Pausiert*, *Fehler*, *Offline*), the four ACE slots as colour cards with the
-  active slot highlighted, the shelf below. All from the bridge's existing Moonraker subscription —
-  the app adds no load on the printer.
+Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
+
+- **Start** — only what matters while printing: the camera (the model only during a print), below
+  it the print (*Bereit*, *Druckt* with file, progress, running/remaining/finish time, *Pausiert*,
+  *Fehler*, *Offline*) with nozzle, bed, fans, speed and flow, then the four ACE slots and the ACE
+  line (humidity, dryer, purge). All from the bridge's existing Moonraker subscription — the app
+  adds no load on the printer.
+- **Meldungen** — the same messages and status as the web UI; the tab shows a counter (red for
+  errors, yellow for warnings).
+- **Filament** — *Spulen* (all spools, in the ACE and on the shelf) and *Sorten* (filament types
+  with their number of spools; tapping one lists its spools); *+* adds a spool or a filament type.
+- **Mehr** — ACE & dryer, print history, **Protokoll** (read-only: commands sent through the bridge
+  with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
+  terminal), devices, settings.
 - **Spool card** — remaining weight, temperatures, template, last prints; *In Slot 1–4*,
   *Ins Regal*, *Tag neu schreiben*, *Leer · archivieren*.
 - **Scan** — hold a spool to the phone: known tag → spool card; unknown tag → new spool or link to an

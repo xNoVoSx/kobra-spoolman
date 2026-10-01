@@ -11,6 +11,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   source; send G-code and macros with completion and history; risky commands and moves during a
   print ask first. **Logs** — the bridge log (levels, search, download), the end of the printer's
   log files (range request, no multi-MB download) and the per-print recordings.
+- App: tidied up — tabs *Start · Meldungen · Filament · Mehr*. Start shows the camera first, the
+  print with printer data below it, then slots and ACE; *Meldungen* has its own tab with a counter;
+  *Filament* holds spools and filament types; *Mehr* has ACE & dryer, print history, a read-only
+  *Protokoll* (commands with source, printer answers, bridge log), devices and settings.
 
 ### Fixed
 - Web UI: after an update the browser no longer keeps the old page (no more Ctrl+Shift+R). Files are
