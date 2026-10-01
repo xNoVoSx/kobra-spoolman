@@ -1,146 +1,90 @@
-# Android app "Kobra Spoolman" — concept
+# Android app "Kobra Spoolman"
 
 [Back to README](../README.md)
 
-Status: **concept, nothing built yet** (2026-09-30). Code will live in `android/`.
+Status: **preview** — feature-complete for daily use, tested on the emulator; not yet signed or
+released, real NFC stickers still to be tested on the phone. Code: [`android/`](../android).
 
-## Goal
+<table>
+  <tr>
+    <td align="center"><img src="images/app-slots.png" width="230" alt="Slots"><br><sub>Slots, printer, dryer, shelf</sub></td>
+    <td align="center"><img src="images/app-spool.png" width="230" alt="Spool card"><br><sub>Spool card: slot, shelf, tag, archive</sub></td>
+    <td align="center"><img src="images/app-adddevice.png" width="230" alt="Devices"><br><sub>Devices: QR code for the next device</sub></td>
+  </tr>
+</table>
 
-Everything that happens at the printer, done on the phone — without a PC and without Spoolman's
-web UI:
+## What it does
 
-- create a new spool (and, if needed, a new filament with all its Orca settings) in under a minute,
-- write an ACE-compatible NFC tag for it,
-- scan any spool to see it and act on it (load into a slot, shelf, empty/archive),
-- see and change the ACE slot assignment.
+Everything that happens at the printer, on the phone — the same as the [web UI](usage.md), plus NFC:
 
-Spoolman stays the single source of truth; the app is a better front end for it.
+- **Slots and printer** — status card (*Bereit*, *Druckt* with file, progress and remaining time,
+  *Wechselt Filament*, *Pausiert*, *Fehler*, *Offline*), the four ACE slots as colour cards with the
+  active slot highlighted, the shelf below. All from the bridge's existing Moonraker subscription —
+  the app adds no load on the printer.
+- **Spool card** — remaining weight, temperatures, template, last prints; *In Slot 1–4*,
+  *Ins Regal*, *Tag neu schreiben*, *Leer · archivieren*.
+- **Scan** — hold a spool to the phone: known tag → spool card; unknown tag → new spool or link to an
+  existing one. Original Anycubic tags are linked by their UID (they are write-protected).
+- **New spool** from an existing filament, optionally straight into a slot.
+- **New filament** — a 7-step wizard with every Orca field; template values are placeholders and
+  never stored; *Werte übernehmen von …* copies a product line for a new colour.
+- **Write ACE tags** — the bridge reserves a tag number per spool; the app writes pages 4–31 in the
+  ACE layout (verified byte for byte against original tags), reads them back and links the UID.
+  Tag format: [findings](findings.md#anycubic-rfid-tags).
+- **ACE dryer** — humidity/temperature card; start, stop and the automation rules.
+- **Pairing and devices** — scan the QR code from *Geräte → Gerät hinzufügen* (web UI or another
+  phone); list and remove devices; show a QR code for the next one.
+
+UI texts are German, like the web UI and the plugin.
+
+## Install
+
+1. Download the debug APK from the latest CI run (*Actions → CI → Artifacts →
+   kobra-spoolman-debug-apk*) and install it (`adb install -r app-debug.apk`, or open the file on the
+   phone and allow installing from that source).
+2. Start the app, allow *Nearby devices* (Android 17 treats the home network as "local network";
+   without it every request hangs).
+3. **Einstellungen → QR-Code scannen** and scan the code from the web UI (*Geräte → Gerät
+   hinzufügen*) — or type the bridge address and the 6-digit code.
+
+Unpaired, the app only reads; buttons that change something say so.
 
 ## Principles
 
-1. **Native Android** (Kotlin, Jetpack Compose, Material 3). A web page cannot do it: Web NFC only
-   reads and writes NDEF messages — "low-level operations are currently not supported"
-   ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_NFC_API)) — while the ACE reads raw
-   MIFARE Ultralight pages.
-2. **The app only talks to the bridge**, never to the printer or to Spoolman directly. The bridge
-   stays the one client on the printer (Rinkhals hardware limits, see `CLAUDE.md` of the setup) and
-   the rules (templates, inheritance, tag numbers) live in one place.
-3. **Inheritance is kept.** Empty Orca fields on a filament mean "from the template / Orca base
-   profile". The app shows template values as greyed hints and only writes fields the user
-   actually sets — never a copy of the template.
-4. **Own implementation of the tag format.** [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID) has
-   no licence, so its code is not reused. The page layout is documented there and is verified
-   against dumps of real Anycubic tags (unit tests).
-5. **UI texts German** (like the plugin and the slot page), strings in resources so English can
-   follow.
+1. **Native Android** (Kotlin, Jetpack Compose, Material 3). A web page cannot write the tags: Web NFC
+   only handles NDEF messages, the ACE reads raw MIFARE Ultralight pages.
+2. **The app only talks to the bridge** (`/api/app/*`, [API](api.md#app-and-web-ui)), never to the
+   printer or Spoolman directly. The bridge stays the one client on the printer and the rules
+   (templates, inheritance, tag numbers) live in one place.
+3. **Inheritance is kept.** Only fields the user actually sets are written — never a copy of the template.
+4. **Own implementation of the tag format.** [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID) has no
+   licence, so its code is not reused; the layout is verified against dumps of real tags (unit tests).
 
 ```mermaid
 flowchart LR
-    APP["Android app<br/>(NFC, UI)"] -- "HTTP + API token" --> BR["ace-lane-bridge"]
+    APP["Android app<br/>(NFC, UI)"] -- "HTTP + device key" --> BR["ace-lane-bridge"]
     BR -- "REST" --> SM["Spoolman"]
     BR -- "WebSocket" --> MR["Moonraker / ACE"]
     APP -- "NFC (raw pages)" --> TAG["NTAG213/215/216 tag"]
     TAG -. "read by" .-> MR
 ```
 
-## Stages
+## Build
 
-Each stage is usable on its own.
+Needs JDK 17+ and the Android SDK (platform 37); see [android/README.md](../android/README.md).
 
-### Stage 1 — bridge API for the app
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug
+```
 
-**Built** (bridge, unreleased): [API reference](api.md#android-app).
+The debug build has **virtual tags** in the scan sheet for testing on the emulator (no NFC). CI
+builds and tests the app on every push and attaches the debug APK.
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/app/state` | printer state, file, progress, remaining time, active slot, filament change in progress; slots (live, WebSocket or short polling) |
-| GET | `/api/app/catalog` | vendors, filaments, templates, extra-field definitions (with units), known Orca base profiles |
-| POST | `/api/app/vendor` | create a vendor |
-| POST | `/api/app/filament` | create a filament (native + extra fields; only the fields set) |
-| POST | `/api/app/filament/{id}/copy` | new colour of an existing product line: copy everything but name/colour |
-| PATCH | `/api/app/filament/{id}` | change a filament (same rules as Orca back-sync) |
-| POST | `/api/app/spool` | create a spool (optionally straight into a slot) |
-| POST | `/api/app/tag/issue` | reserve a tag number for a spool and return the tag content to write |
-| POST | `/api/app/tag/link` | link a written tag (number + UID) or an original Anycubic tag (UID only) to a spool |
-| GET | `/api/app/tag/{uid}` | spool for a scanned tag |
-| POST | `/api/slots/{slot}`, … | existing slot and shelf actions |
+## Next
 
-- **API token** for all writing calls (`APP_TOKEN` in the stack; entered once in the app). The
-  bridge currently has no authentication; the app writes to Spoolman, so any device on the LAN
-  should not be able to.
-- **Orca base profiles:** the bridge does not know Orca's profile names. The Orca plugin sends the
-  list of system filament profiles it resolved to the bridge (`POST /api/orca/bases`), so the app
-  can offer a searchable list instead of free text.
-- Tag numbers are unique per spool and stored in Spoolman (spool extra field, next to the existing
-  `nfc_uid`). The number format (random vs. sequential, SKU range) depends on the open test below.
-
-### Stage 2 — app basics
-
-**Built** (app, unreleased), including writing ACE tags — real-tag test on the phone pending.
-
-1. **Slots and printer status** — a status card on top: *Bereit* (standby), *Druckt* (file,
-   progress, remaining time), *Wechselt Filament* (slot N → M), *Pausiert*, *Fehler* (firmware
-   message), *Offline* (printer not reachable; bridge shows its last data). Below, the four ACE
-   slots as large colour cards (spool, material, remaining weight, hints such as *kein Material am
-   Drucker*); the **active slot** is highlighted. Tap a card for actions. Refreshes live. All of it
-   comes from the bridge's existing Moonraker subscription (`print_stats`, `virtual_sdcard`, `mmu`)
-   — the app adds no load on the printer.
-2. **Scan** — hold a spool to the phone: spool card with remaining weight, material, temperatures,
-   last prints; actions *In Slot N*, *Ins Regal*, *Leer / archivieren*, *Tag neu schreiben*.
-3. **New spool from an existing filament** — search filament (vendor, name, colour swatch) →
-   confirm weight → optionally *direkt in Slot N* → hold an empty tag → written and linked.
-4. **Write tag** in ACE format for any spool.
-
-### Stage 3 — new filament on the phone
-
-**Built** (app, unreleased).
-
-A step-by-step form; every step shows what the template would give:
-
-| Step | Fields |
-|---|---|
-| Vendor | pick or create |
-| Product | name, material (from the template list), template (auto by material, changeable), Orca base profile (searchable list) |
-| Colour | colour picker, hex input, or pick from the camera image; multi-colour optional |
-| Physical | diameter, density, net weight, empty spool weight, price |
-| Printing | nozzle / first layer, bed textured / smooth (+ first layer), chamber |
-| Cooling | part fan min/max, fan off first layers, overhang fan, aux fan, air filtration, exhaust during/after print |
-| Extrusion | flow ratio, pressure advance, max volumetric speed |
-| Retraction | length, speed, Z-hop |
-| Overrides | free Orca overrides (`key = value`) |
-| Spool | initial weight, lot, purchase date, price, comment, location |
-
-Values from the template are shown as placeholders; *Hersteller-Werte übernehmen* copies a known
-product line (all settings of another filament of the same vendor). Also: link original Anycubic
-spools by the tag's UID (read-only tags, but the UID is unique per tag — unlike `gate_spool_id`).
-
-### Stage 4 — automation (after the tag test)
-
-If the ACE passes a custom tag number through (`gate_spool_id`), the bridge assigns the spool to
-the slot by itself — also during a print, so consumption continues on the new spool at once.
-
-## Test environment (phone only at the end)
-
-- **Android emulator** on the development PC (KVM available) for all UI and API work;
-  screenshots via `adb` for review.
-- **NFC behind an interface**: the debug build has a fake reader/writer (virtual tags in app
-  storage, "scan" via a debug button), because the emulator has no NFC.
-- **Tag codec as plain Kotlin** with JVM unit tests against real tag dumps (read once from an
-  Anycubic tag).
-- **Local test backend**: a throw-away Spoolman with test data and the bridge against a simulated
-  printer (recorded `mmu` states), so development never writes to the real Spoolman or printer.
-- **Real phone last**: NFC read/write with real tags, then against the real bridge.
-
-## Build and distribution
-
-- `android/` in this repository, Gradle, CI job builds and tests on every push.
-- Signed release APK attached to the GitHub release (keystore as repository secret); installed by
-  file, no Play Store. Own version (`app x.y.z` in the changelog).
-- Minimum Android 10 (API 29), target the current API level.
-
-## Open points
-
-- Tag number format — depends on whether the ACE accepts a custom SKU (`AHPEBK-4711` →
-  `gate_spool_id` 4711, see [findings](findings.md#anycubic-rfid-tags)).
-- Exact page layout of the ACE tag verified against a real dump.
-- Which spool fields are shown by default vs. behind *mehr*.
+- Test with real NTAG215 stickers: does the ACE report our tag number (`AHPEBK-4711` →
+  `gate_spool_id` 4711)? If yes, the bridge assigns a spool to its slot by itself when it is loaded —
+  also during a print, so consumption continues on the new spool at once.
+- Signed release APK attached to the GitHub release (keystore as repository secret), own version in
+  the changelog.

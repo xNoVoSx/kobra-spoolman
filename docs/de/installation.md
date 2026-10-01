@@ -10,9 +10,11 @@ davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 1. [Drucker: Rinkhals und Moonraker](#1-drucker-rinkhals-und-moonraker)
 2. [Spoolman und seine Zusatzfelder](#2-spoolman-und-seine-zusatzfelder)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
-4. [OrcaSlicer (orca-kobra-Build)](#4-orcaslicer-orca-kobra-build)
-5. [Orca-Plugin „Kobra Spoolman“](#5-orca-plugin-kobra-spoolman)
-6. [Prüfen, ob alles läuft](#6-prüfen-ob-alles-läuft)
+4. [Das erste Gerät koppeln](#4-das-erste-gerät-koppeln)
+5. [OrcaSlicer (orca-kobra-Build)](#5-orcaslicer-orca-kobra-build)
+6. [Orca-Plugin „Kobra Spoolman“](#6-orca-plugin-kobra-spoolman)
+7. [Android-App (optional)](#7-android-app-optional)
+8. [Prüfen, ob alles läuft](#8-prüfen-ob-alles-läuft)
 
 ---
 
@@ -44,7 +46,8 @@ Ausführen schadet nicht. Es legt an:
   Hilfslüfter, Luftfilterung und Abluft, Flow Ratio, Pressure Advance, max. Volumenstrom,
   Retraction, Z-Hop, ein freies Feld *Orca-Overrides*, dazu *Orca-Basisprofil* und *Vorlage*.
   Vollständige Liste: [spoolman-fields.md](../spoolman-fields.md).
-- **Spulen-Feld** *NFC-Kennung* (für Etappe 4).
+- **Spulen-Felder** *NFC-Kennung* und *Tag-Nummer* (NFC-Tags aus der App).
+- Filament-Feld *Trocknen max.* – höchste Trockentemperatur, die das Filament verträgt (ACE-Trockner).
 - Einen Hersteller **„Vorlage“** mit sieben Vorlagen (PLA, PLA Silk, PETG, ASA, TPU, PLA-CF, PETG-CF),
   vorbelegt aus Orcas Generic-Profilen.
 
@@ -66,11 +69,14 @@ Den Dienst in deinen Stack aufnehmen (Portainer → Stacks, oder `docker compose
     environment:
       MOONRAKER_URL: "http://<drucker-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"   # Servicename im selben Stack
-      APP_TOKEN: "<zufallswert>"   # Schlüssel für die Android-App (optional, langer Zufallswert)
       TZ: Europe/Berlin
     depends_on:
       - spoolman
 ```
+
+Das Image läuft als Benutzer 1000. Gehört der Datenordner root (bei Portainer und Pfaden unter
+`/docker/...` üblich), entweder den Ordner für 1000 beschreibbar machen oder den Container mit
+`user: "0:0"` im Dienst als root laufen lassen.
 
 ### Variante B – direkt aus dem Quellcode
 
@@ -99,12 +105,31 @@ Internet). Aktualisieren = neuen `app/`-Ordner kopieren und den Container neu st
 
 ### Prüfen
 
-- `http://<docker-host>:7913` zeigt die **Slot-Seite** mit vier Slots und grünen Punkten bei
-  Drucker und Spoolman.
+- `http://<docker-host>:7913` öffnet die **Weboberfläche** – zuerst mit dem Koppeln (nächster Schritt).
 - `http://<docker-host>:7913/api/health` liefert Version und beide Verbindungen.
 - Alle Einstellungen: [configuration.md](../configuration.md).
 
-## 4. OrcaSlicer (orca-kobra-Build)
+## 4. Das erste Gerät koppeln
+
+Lesen darf jeder im Heimnetz; alles, was etwas ändert, braucht ein **gekoppeltes Gerät**. Die
+Schlüssel vergibt die Bridge selbst – du denkst dir kein Passwort aus.
+
+1. Das Log der Bridge öffnen (Portainer → Container → *ace-lane-bridge* → Logs, oder
+   `docker logs ace-lane-bridge`). Solange nichts gekoppelt ist, steht dort
+   `Noch kein Gerät gekoppelt. Einrichtungscode: 123456`.
+2. `http://<docker-host>:7913` öffnen, die sechs Ziffern und einen Namen für den Browser eingeben →
+   **Koppeln**. Der Browser merkt sich seinen Schlüssel und fragt nie wieder.
+3. Jedes weitere Gerät (anderer Browser, Handy, Orca-Plugin) bekommt einen frischen Code von einem
+   gekoppelten: Weboberfläche → **Geräte → Gerät hinzufügen** zeigt einen 6-stelligen Code und einen
+   QR-Code (5 Minuten gültig, einmal verwendbar). Dort lassen sich Geräte jederzeit entfernen.
+
+> [!NOTE]
+> Kommst du von einer Version mit `APP_TOKEN`? Der alte Wert gilt weiter als Schlüssel und lässt sich
+> als Kopplungscode eingeben (*Mit altem APP_TOKEN koppeln*). Sind alle Geräte gekoppelt, kann er aus dem Stack raus.
+
+<p align="center"><img src="../images/web-pair.png" width="560" alt="Koppeln in der Weboberfläche"></p>
+
+## 5. OrcaSlicer (orca-kobra-Build)
 
 Das Plugin braucht Orcas Plugin-System (Nightly 2.5.0-dev). Die **automatische Profilwahl** braucht
 zusätzlich einen kleinen Patch, der noch nicht in Orca übernommen ist
@@ -131,7 +156,7 @@ In Orca:
 > Ohne den orca-kobra-Build funktioniert alles andere trotzdem (Profile, Panel, Rücksync,
 > Verbrauch) – die `SM…`-Profile wählst du dann in den Filament-Feldern selbst aus.
 
-## 5. Orca-Plugin „Kobra Spoolman“
+## 6. Orca-Plugin „Kobra Spoolman“
 
 Bei geschlossenem Orca:
 
@@ -145,15 +170,28 @@ curl -fsSLo ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/kobra_spoolman.py \
 2. Reiter **Konfiguration** des Plugins: Bridge-Adresse eintragen, z.B. `http://192.168.1.10:7913`.
 3. Rechts öffnet sich das Panel **Kobra Spoolman** und legt im Hintergrund die Profile an. Fragt Orca,
    ob das Plugin die Bridge erreichen darf, mit Ja bestätigen.
-4. **Orca einmal neu starten** – Orca liest Profile nur beim Start. Deine Filamente stehen jetzt als
+4. **Plugin koppeln**: Das Panel zeigt *Plugin koppeln* – in der Weboberfläche einen Code holen
+   (*Geräte → Gerät hinzufügen*) und eingeben. Ungekoppelt laufen Panel und Profile trotzdem, nur das
+   Zurückschreiben eines Profils nach Spoolman wird abgelehnt.
+5. **Orca einmal neu starten** – Orca liest Profile nur beim Start. Deine Filamente stehen jetzt als
    `Hersteller Name (SM000010)` in den Filamentlisten.
 
-## 6. Prüfen, ob alles läuft
+## 7. Android-App (optional)
 
-- [ ] Slot-Seite: alle vier Slots zugeordnet, keine Warnungen.
+Die App ist eine Vorschau: Eine signierte Version gibt es noch nicht. Jeder CI-Lauf baut eine
+Debug-APK (*Actions → CI → letzter Lauf → Artifacts → kobra-spoolman-debug-apk*); installieren mit
+`adb install` oder durch Öffnen der Datei auf dem Handy. Dann: **Einstellungen → QR-Code scannen**
+und den QR-Code aus *Geräte → Gerät hinzufügen* der Weboberfläche scannen. Android 17 fragt nach
+*Geräte in der Nähe* (lokales Netz) – erlauben, sonst erreicht die App die Bridge nicht.
+Mehr: [android-app.md](../android-app.md) (englisch).
+
+## 8. Prüfen, ob alles läuft
+
+- [ ] Weboberfläche: Drucker und Spoolman verbunden (*Einstellungen*), alle vier Slots zugeordnet, keine Warnungen.
 - [ ] Orca-Panel: Bridge verbunden, vier Slots mit Spulennamen.
 - [ ] Orca: **Sync-Knopf** bei den Filamenten → die `SM…`-Profile stehen in Filament 1–4, das Panel zeigt *passt* für jeden Slot.
 - [ ] Einen Wert in einem `SM…`-Profil ändern und speichern → Frage *Nach Spoolman übernehmen?* → der Wert steht in Spoolman.
-- [ ] Nach einem Druck: Die Slot-Seite zeigt *Letzter Druck* pro Slot, und Spoolmans Restgewicht ist um genau diesen Wert gesunken.
+- [ ] Nach einem Druck: Der Druck steht unter *Drucke* mit Gramm pro Spule, und Spoolmans Restgewicht ist um genau diesen Wert gesunken.
+- [ ] *Geräte* zeigt deinen Browser, das Orca-Plugin (und das Handy).
 
 Weiter: [Alltag](usage.md).

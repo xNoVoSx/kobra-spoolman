@@ -2,14 +2,14 @@
 
 # kobra-spoolman
 
-**Spoolman as the single source of truth for an Anycubic Kobra S1 with ACE 2 Pro — in OrcaSlicer and on the printer.**
+**Spoolman as the single source of truth for an Anycubic Kobra S1 with ACE 2 Pro — in OrcaSlicer, in the browser, on your phone and on the printer.**
 
 [![CI](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/ci.yml/badge.svg)](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/ci.yml)
 [![Docker image](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/docker.yml/badge.svg)](https://github.com/xNoVoSx/kobra-spoolman/pkgs/container/ace-lane-bridge)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![OrcaSlicer build](https://img.shields.io/badge/OrcaSlicer-orca--kobra-2ea44f)](https://github.com/xNoVoSx/orca-kobra)
 
-[Deutsch](README.de.md) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [API](docs/api.md) · [Architecture](docs/architecture.md)
+[Deutsch](README.de.md) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [Troubleshooting](docs/troubleshooting.md) · [API](docs/api.md)
 
 </div>
 
@@ -18,18 +18,26 @@
 You enter a filament **once** in [Spoolman](https://github.com/Donkie/Spoolman) — temperatures, fans,
 aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 
-- **OrcaSlicer** has a matching filament profile, created and kept up to date automatically.
-- The **ACE slots** know which spool is loaded; one click on Orca's sync button puts the right
-  profiles into the right slots.
+- **OrcaSlicer** has a matching filament profile, created and kept up to date automatically, and
+  one click on Orca's sync button puts the right profiles into the right ACE slots.
 - Every print **books the consumption per spool** into Spoolman — measured on the printer,
   including purge, accurate to the millimetre.
+- A **web UI** (phone, desktop, ultrawide) and an **Android app** show the printer, the four ACE
+  slots and the shelf; you assign spools, create spools and filaments with all Orca settings and
+  control the **ACE dryer** — without touching Spoolman's own UI.
 - Changes you make to a profile in Orca are **written back to Spoolman** after you confirm.
-- After slicing, the panel shows **what each spool needs** for the plate and warns if one is too short.
+- After slicing, the Orca panel shows **what each spool needs** for the plate and warns if one is too short.
+
+<p align="center">
+  <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer, dryer, ACE slots and print history"><br>
+  <sub>Web UI: printer status, dryer, the four ACE slots with live consumption, print history</sub>
+</p>
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/orca-panel.png" width="260" alt="Orca side panel"><br><sub>Orca side panel: slots, spools, profile check</sub></td>
-    <td align="center"><img src="docs/images/slot-page-printing.png" width="520" alt="Slot page"><br><sub>Slot page: assign spools, live consumption per slot</sub></td>
+    <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Web UI on a phone"><br><sub>Web UI on the phone</sub></td>
+    <td align="center"><img src="docs/images/app-slots.png" width="230" alt="Android app"><br><sub>Android app</sub></td>
+    <td align="center"><img src="docs/images/orca-panel.png" width="230" alt="Orca side panel"><br><sub>Orca side panel</sub></td>
   </tr>
 </table>
 
@@ -38,29 +46,35 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 ```mermaid
 flowchart LR
     subgraph Printer["Kobra S1 + ACE 2 Pro (Rinkhals)"]
-        MR[Moonraker<br/>mmu · print_stats · lane_data]
+        MR[Moonraker<br/>mmu · print_stats · filament_hub · lane_data]
     end
     SM[(Spoolman)]
-    BR[ace-lane-bridge<br/>Docker]
+    BR[ace-lane-bridge<br/>Docker · web UI]
     subgraph PC["OrcaSlicer (orca-kobra build)"]
         AG[Moonraker agent<br/>+ patch 0001]
         PL[Kobra Spoolman<br/>plugin]
     end
-    Phone[Phone / browser<br/>slot page]
+    Web[Browser<br/>phone · desktop]
+    App[Android app<br/>NFC tags]
 
     MR -- "live status (WebSocket)" --> BR
-    BR -- "lane_data: material, colour, filament_id" --> MR
+    BR -- "lane_data, slot info, dryer" --> MR
     BR <-->|"spools, filaments, consumption"| SM
-    Phone --> BR
+    Web -- "paired key" --> BR
+    App -- "paired key" --> BR
     PL <-->|"profiles, slots, back-sync"| BR
     AG -- "sync button: lane_data.filament_id → profile" --> MR
     AG -- "upload & print" --> MR
 ```
 
+The bridge is the **only** client of this project on the printer (the Kobra S1 has little headroom
+for Moonraker clients); the browser, the app and the Orca plugin all talk to the bridge.
+
 | Component | What it does |
 |---|---|
-| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Slot ↔ spool assignment (mobile page), writes `lane_data` for Orca, measures and books consumption per spool, journal, open items, print history, Orca profile API. |
-| **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | Creates one Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, usage preview after slicing, back-sync of profile edits to Spoolman. |
+| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Web UI, slot ↔ spool assignment, writes `lane_data` for Orca, measures and books consumption per spool, open items, print history, ACE dryer automation, device pairing, API for app and plugin. |
+| **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | One Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, usage preview after slicing, back-sync of profile edits to Spoolman. |
+| **[Android app](android/)** (preview) | Slots, spool card, new spools and filaments, ACE dryer, writes ACE-compatible NFC tags, pairing by QR code. |
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with three small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), a Linux plugin-sandbox fix and read-only slice statistics for plugins. Updates itself. |
 
@@ -71,32 +85,55 @@ flowchart LR
 - A **Docker** host in the same network (Portainer, Compose, …).
 - **OrcaSlicer** with the plugin system (2.5.0-dev nightly). Automatic profile selection needs the
   `orca-kobra` build (Linux AppImage) until PR #14423 is merged upstream.
+- Optional: an Android phone (Android 10+) with NFC for the app.
 
 > [!NOTE]
-> The user interfaces (slot page, Orca panel) are currently German. The code and API are language-neutral; translations are welcome.
+> The user interfaces (web UI, app, Orca panel) are German. Code, API and documentation are English; translations are welcome.
 
 ## Quick start
 
 1. **Spoolman fields and templates** — once:
    `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
-2. **Bridge** — add it to your Spoolman stack ([compose example](bridge/compose.yaml)) and set
-   `MOONRAKER_URL=http://<printer-ip>:7125`. Open `http://<docker-host>:7913`.
-3. **OrcaSlicer** — install the self-updating build from [orca-kobra](https://github.com/xNoVoSx/orca-kobra) (`tools/install.sh`).
-4. **Plugin** — copy [`kobra_spoolman.py`](orca-plugin/kobra_spoolman.py) to
-   `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/`, enable it in the Plugins dialog and set the bridge address.
-5. Restart Orca once — your Spoolman filaments are now Orca profiles.
+2. **Bridge** — add it to your Spoolman stack ([compose example](bridge/compose.yaml)) with
+   `MOONRAKER_URL=http://<printer-ip>:7125`.
+3. **Pair your browser** — open `http://<docker-host>:7913` and enter the setup code from the
+   bridge log (`Einrichtungscode: …`). Further devices get a code under *Geräte → Gerät hinzufügen*.
+4. **OrcaSlicer** — install the self-updating build from [orca-kobra](https://github.com/xNoVoSx/orca-kobra) (`tools/install.sh`).
+5. **Plugin** — copy [`kobra_spoolman.py`](orca-plugin/kobra_spoolman.py) to
+   `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/`, enable it, set the bridge address and
+   enter a pairing code in its panel. Restart Orca once — your Spoolman filaments are now Orca profiles.
 
 Full guide: **[docs/installation.md](docs/installation.md)**.
 
 ## Daily use
 
-1. New filament → enter it in Spoolman (template or an Orca base profile, plus whatever you want to override).
-2. Load the spool → assign it to its slot on the slot page (the page suggests spools that match what the ACE reports).
-3. In Orca press the filament **sync** button → the `SM…` profiles land in slots 1–4; the panel confirms each slot.
-4. Print → consumption is booked per spool, visible on the slot page and in Spoolman.
+1. New filament → create it in the web UI or the app (or in Spoolman): template or Orca base
+   profile, plus whatever you want to override.
+2. Load the spool → assign it to its slot in the web UI or the app; spools that match what the ACE
+   reports come first. Spools without an Anycubic tag get their material and colour passed to the
+   printer display.
+3. In Orca press the filament **sync** button → the `SM…` profiles land in slots 1–4.
+4. Print → consumption is booked per spool, visible live in the web UI and in Spoolman.
 5. Tweak a profile in Orca and save → confirm → the change is stored in Spoolman.
 
 Details: **[docs/usage.md](docs/usage.md)**.
+
+## Screens
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/web-shelf.png" width="420" alt="Shelf with spool details"><br><sub>Shelf: search, filters, edit a spool, move it to a slot</sub></td>
+    <td align="center"><img src="docs/images/web-filament.png" width="420" alt="Filament editor"><br><sub>Filament editor: every Orca setting, template values as placeholders</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/web-dryer.png" width="420" alt="Dryer automation"><br><sub>ACE dryer: automation by humidity, never hotter than the most sensitive spool</sub></td>
+    <td align="center"><img src="docs/images/web-devices.png" width="420" alt="Pairing a device"><br><sub>Devices: one key per device, pairing by code or QR</sub></td>
+  </tr>
+</table>
+
+On a 5120×1440 ultrawide everything sits side by side — printer, slots, shelf, spool details and prints:
+
+<p align="center"><img src="docs/images/web-ultrawide.png" width="100%" alt="Web UI on an ultrawide screen"></p>
 
 ## Measured accuracy
 
@@ -112,29 +149,37 @@ consumption tracker — this recording is part of the [test suite](tests/test_us
 
 The sum matches the printer's `filament_used` counter exactly. More in [docs/findings.md](docs/findings.md).
 
+## Security
+
+Reading is open in your network. Everything that changes something — Spoolman, slot assignment,
+open items, the dryer, Orca back-sync — needs a **paired device**: the bridge issues one key per
+browser, phone and Orca plugin, stores only its hash and lets you remove devices at any time.
+Keep the bridge inside your home network; it has no TLS.
+
 ## Documentation
 
 | | |
 |---|---|
-| [Installation](docs/installation.md) | Spoolman, bridge (Docker/Portainer), Orca build, plugin |
-| [Daily use](docs/usage.md) | Entering filaments, assigning slots, printing, open items, back-sync |
+| [Installation](docs/installation.md) | Spoolman, bridge (Docker/Portainer), pairing, Orca build, plugin, app |
+| [Daily use](docs/usage.md) | Web UI and app, filaments, slots, printing, dryer, open items, back-sync |
+| [Troubleshooting](docs/troubleshooting.md) | Common problems and how to solve them |
 | [Spoolman fields](docs/spoolman-fields.md) | Which Spoolman field becomes which Orca setting |
 | [Configuration](docs/configuration.md) | All bridge environment variables and plugin settings |
 | [API](docs/api.md) | HTTP API of the bridge |
-| [Architecture](docs/architecture.md) | Data flow, consumption algorithm, profile resolution, design decisions |
+| [Architecture](docs/architecture.md) | Data flow, consumption algorithm, profile resolution, pairing, design decisions |
+| [Android app](docs/android-app.md) | What the app does, NFC tags, building it |
 | [Findings](docs/findings.md) | What we measured and learned about Rinkhals, the ACE and Orca's plugin API |
-| [Android app (concept)](docs/android-app.md) | Planned phone app: create spools and filaments, write ACE tags, slots |
-| [Troubleshooting](docs/troubleshooting.md) | Common problems and how to solve them |
 | [Changelog](CHANGELOG.md) | Version history |
 
 ## Roadmap
 
 | Stage | Content | Status |
 |---|---|---|
-| 1 | Moonraker + Spoolman connection, slot page, `lane_data`, telemetry | ✅ done |
+| 1 | Moonraker + Spoolman connection, slot assignment, `lane_data`, telemetry | ✅ done |
 | 2 | Consumption per spool, journal, open items, target comparison, history | ✅ done |
 | 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build, usage preview after slicing | ✅ done (reloading profiles without a restart is deferred, see [findings](docs/findings.md)) |
-| 4 | NFC tags and Android app: create spools on the phone, write ACE tags, recognise spools when loaded ([concept](docs/android-app.md)) | 🔜 planned |
+| 4 | Web UI, Android app, pairing, ACE dryer, NFC tags | ✅ web UI, pairing, dryer · 🧪 app (preview) · 🔜 recognise spools by their tag when loaded |
+| — | Purge per colour change: learn the firmware's purge per transition for exact bookings and previews | 🔜 planned |
 | 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
 
 ## Credits
@@ -144,9 +189,13 @@ The sum matches the printer's `filament_used` counter exactly. More in [docs/fin
 [Rinkhals](https://github.com/rinkhals-community/Rinkhals) ·
 Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) by Broncosis ·
 [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID) ·
-[SimplyPrint's notes on the Anycubic tag format](https://help.simplyprint.io/en/article/the-anycubic-material-standard-nfcrfid-for-the-anycubic-ace-js3oty/)
+[SimplyPrint's notes on the Anycubic tag format](https://help.simplyprint.io/en/article/the-anycubic-material-standard-nfcrfid-for-the-anycubic-ace-js3oty/) ·
+[Preact](https://preactjs.com/) + [htm](https://github.com/developit/htm) ·
+[qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) ·
+fonts [Space Grotesk](https://github.com/floriankarsten/space-grotesk) and [IBM Plex](https://github.com/IBM/plex)
 
 ## License
 
-[MIT](LICENSE). The OrcaSlicer patches live in [orca-kobra](https://github.com/xNoVoSx/orca-kobra) under AGPL-3.0, like OrcaSlicer itself.
+[MIT](LICENSE). Bundled third-party files keep their licences (`bridge/app/acebridge/static/licenses`, `android/licenses`).
+The OrcaSlicer patches live in [orca-kobra](https://github.com/xNoVoSx/orca-kobra) under AGPL-3.0, like OrcaSlicer itself.
 Not affiliated with Anycubic, OrcaSlicer or Spoolman.

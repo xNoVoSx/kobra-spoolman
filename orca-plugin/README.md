@@ -13,6 +13,9 @@ Makes Spoolman the source for OrcaSlicer filament profiles.
   spool is too short; the details show Orca's legend values plus the measured firmware purge per load.
   Needs the orca-kobra build with patch 0003 (`orca.host.slice_statistics`).
 - Removes profiles of filaments without an active spool (only its own, marked in `filament_notes`).
+- **Pairing**: back-sync writes to Spoolman and therefore needs a key from the bridge. When the plugin
+  is not paired, the panel shows *Plugin koppeln* — enter a code from the web UI (*Geräte → Gerät
+  hinzufügen*) once; the key is stored in `kobra_device.json` next to the plugin.
 
 Requirements: OrcaSlicer with the Python plugin system (2.5.0-dev). Automatic profile selection with
 Orca's sync button needs the [orca-kobra](https://github.com/xNoVoSx/orca-kobra) build.
@@ -25,7 +28,7 @@ cp kobra_spoolman.py ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/
 ```
 
 Enable it in Orca's **Plugins** dialog, set the bridge address in its **Configuration** tab,
-restart Orca once. Menu actions: *Kobra Spoolman* (open panel) and
+pair it in the panel and restart Orca once. Menu actions: *Kobra Spoolman* (open panel) and
 *Kobra Spoolman: Profile aktualisieren*.
 
 Notes:

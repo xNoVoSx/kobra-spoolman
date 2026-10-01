@@ -10,7 +10,7 @@
 | `MOONRAKER_API_KEY` | – | only if Moonraker requires one |
 | `SPOOLMAN_URL` | `http://spoolman:8000` | inside the same stack via the service name |
 | `SPOOLMAN_POLL_S` | `20` | how often Spoolman is re-read |
-| `HTTP_HOST` / `HTTP_PORT` | `0.0.0.0` / `7913` | API and slot page |
+| `HTTP_HOST` / `HTTP_PORT` | `0.0.0.0` / `7913` | API and web UI |
 | `SLOT_LOCATION_PREFIX` | `ACE Slot ` | Spoolman location of a loaded spool (`ACE Slot 1` …) |
 | `SHELF_LOCATION` | `Regal` | location of unloaded spools |
 | `TEMPLATE_VENDOR` | `Vorlage` | vendor name of the material templates |
@@ -19,7 +19,7 @@
 | `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd |
 | `LANE_NAMESPACE` | `lane_data` | Moonraker database namespace |
 | `EMPTY_GATE_MODE` | `delete` | `delete` empty gates from `lane_data`, or `keep` |
-| `SET_ACE_SLOT_INFO` | `true` | when a spool is assigned on the slot page, give its material/colour to the ACE (Rinkhals `MMU_GATE_MAP`) — once, after it is loaded, never while printing; slots with RFID tag are refused by Rinkhals — see [findings](findings.md#print-start-and-ace-slot-info-2026-09-30) |
+| `SET_ACE_SLOT_INFO` | `true` | when a spool is assigned (web UI, app), give its material/colour to the ACE (Rinkhals `MMU_GATE_MAP`) — once, after it is loaded, never while printing; slots with RFID tag are refused by Rinkhals — see [findings](findings.md#print-start-and-ace-slot-info-2026-09-30) |
 | `BOOK_USAGE` | `true` | book consumption into Spoolman |
 | `BOOK_INTERVAL_S` | `300` | intermediate booking during a print |
 | `BOOK_MIN_MM` | `10` | smallest intermediate booking |
@@ -30,16 +30,27 @@
 | `TAG_SKU_PREFIX` / `TAG_NR_MIN` / `TAG_NR_MAX` | `AHPEBK` / `1000` / `99999` | tag numbers for self-written NFC tags (SKU `<prefix>-<number>`); provisional until the tag test |
 | `TELEMETRY` / `TELEMETRY_KEEP` | `true` / `30` | raw recordings of the last prints |
 | `DEFAULT_DIAMETER` / `DEFAULT_DENSITY` | `1.75` / `1.24` | only for estimates without a spool |
-| `SPOOLMAN_PUBLIC_URL` | – | Spoolman link on the slot page; empty = same host, port 7912 |
-| `PRINTER_UI_URL` | – | Mainsail link; empty = printer IP, port 4409 (Rinkhals) |
+| `SPOOLMAN_PUBLIC_URL` | – | Spoolman link in the web UI; empty = same host, port 7912 |
+| `PRINTER_UI_URL` | – | Mainsail link (*In Mainsail öffnen*); empty = printer IP, port 4409 (Rinkhals) |
 | `DRY_RUN` | `false` | log only, write nothing |
 | `DATA_DIR` | `/data` | state, journal, history, telemetry |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for more detail |
+
+The dryer automation (on/off, thresholds, max. time, pause, while printing) is set in the web UI or
+app (*Trockner → Regeln*) and stored in `dryer.json`, not in the environment.
+
+### Docker user
+
+The image runs as user 1000. If the data folder belongs to root, make it writable for that user or
+run the container as root with `user: "0:0"` in the service.
 
 ### Data folder
 
 ```
 data/
+  devices.json          paired devices (name, kind, SHA-256 of the key — never the key itself)
+  dryer.json            dryer automation settings
+  orca_bases.json       Orca base profile names reported by the plugin
   usage/state.json      running print + open items (restart-safe)
   usage/jobs.json       print history
   usage/journal.jsonl   every booking, open item, start/end (rotated at 5 MB)
@@ -62,6 +73,10 @@ Plugins dialog → **Kobra Spoolman** → **Configuration**:
 | Warn after slicing | on | Orca notification when a spool does not hold enough for the sliced plate |
 | Reserve (g) | `5` | usage preview says *knapp* (tight) when less than this (or 5 % of the need) would be left |
 
+Pairing is not a setting: when the plugin is not paired, its panel shows a field for the pairing
+code. The key is then stored in `kobra_device.json` and belongs to that bridge address — changing
+the address means pairing again.
+
 Plugin files: `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/` (the plugin keeps its state in
-`kobra_state.json` and its last written profiles in `written/` there). Log output:
+`kobra_state.json`, its key in `kobra_device.json` and its last written profiles in `written/` there). Log output:
 `~/.config/OrcaSlicer/log/python_*.log`, lines start with `[kobra-spoolman]`.

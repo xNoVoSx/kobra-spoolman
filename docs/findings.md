@@ -191,7 +191,7 @@ Moonraker log (`/server/files/logs/moonraker.log`, timestamps in UTC) shows why:
   After entering PETG at the display the same file printed fine — the slot temperatures stayed at
   0, so **material (and colour) is what counts**.
 
-The bridge therefore flags a loaded slot without material (slot page, Orca panel card, usage
+The bridge therefore flags a loaded slot without material (web UI, Orca panel card, usage
 preview after slicing: *Druck bricht ab*).
 
 ### Setting slot material/colour without the display: `MMU_GATE_MAP`
@@ -216,7 +216,7 @@ MMU_GATE_MAP MAP="{0: {'status': 1, 'name': 'Sunlu PETG', 'material': 'PETG', 'c
 - Tagged slots: Rinkhals does not expose the internal `rfid` flag, but `mmu.gate_spool_id` is only
   set with a tag (Anycubic tags `102`/`107`, untagged `0`) — the bridge uses it to leave tagged
   slots alone.
-- The bridge sends it **only when a spool is assigned on the slot page** (`SET_ACE_SLOT_INFO`,
+- The bridge sends it **only when a spool is assigned in the web UI or app** (`SET_ACE_SLOT_INFO`,
   default on) — once per assignment, after the spool is loaded and never while printing; skipped
   when the ACE already reports exactly these values. A bridge restart, an entry at the display or a
   change in Spoolman never overwrites the slot; to push again, assign the spool again.

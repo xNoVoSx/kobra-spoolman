@@ -10,9 +10,11 @@ first OrcaSlicer build, which GitHub does for you.
 1. [Printer: Rinkhals and Moonraker](#1-printer-rinkhals-and-moonraker)
 2. [Spoolman and its extra fields](#2-spoolman-and-its-extra-fields)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
-4. [OrcaSlicer (orca-kobra build)](#4-orcaslicer-orca-kobra-build)
-5. [Orca plugin "Kobra Spoolman"](#5-orca-plugin-kobra-spoolman)
-6. [Check that everything works](#6-check-that-everything-works)
+4. [Pair your first device](#4-pair-your-first-device)
+5. [OrcaSlicer (orca-kobra build)](#5-orcaslicer-orca-kobra-build)
+6. [Orca plugin "Kobra Spoolman"](#6-orca-plugin-kobra-spoolman)
+7. [Android app (optional)](#7-android-app-optional)
+8. [Check that everything works](#8-check-that-everything-works)
 
 ---
 
@@ -44,7 +46,8 @@ so running it again is harmless. It adds:
   air filtration and exhaust fan, flow ratio, pressure advance, max volumetric speed, retraction,
   Z-hop, a free *Orca overrides* field, plus *Orca base profile* and *Template*.
   Full list: [spoolman-fields.md](spoolman-fields.md).
-- **Spool field** *NFC-Kennung* (used by stage 4).
+- **Spool fields** *NFC-Kennung* and *Tag-Nummer* (NFC tags from the app).
+- Filament field *Trocknen max.* — the highest drying temperature the filament takes (ACE dryer).
 - A vendor **"Vorlage"** with seven templates (PLA, PLA Silk, PETG, ASA, TPU, PLA-CF, PETG-CF),
   pre-filled from Orca's Generic profiles.
 
@@ -66,11 +69,14 @@ Add the service to your stack (Portainer → Stacks, or `docker compose`):
     environment:
       MOONRAKER_URL: "http://<printer-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"   # service name inside the same stack
-      APP_TOKEN: "<random-string>"   # key for the Android app (optional, long random string)
       TZ: Europe/Berlin
     depends_on:
       - spoolman
 ```
+
+The image runs as user 1000. If your data folder belongs to root (common with Portainer and
+`/docker/...` paths), either make it writable for 1000 or run the container as root by adding
+`user: "0:0"` to the service.
 
 ### Option B — run from source
 
@@ -98,12 +104,31 @@ Updating = copy the new `app/` folder and restart the container.
 
 ### Check
 
-- `http://<docker-host>:7913` shows the **slot page** with four slots and green dots for
-  printer and Spoolman.
+- `http://<docker-host>:7913` opens the **web UI** — first with the pairing screen (next step).
 - `http://<docker-host>:7913/api/health` returns the version and both connections.
 - All settings: [configuration.md](configuration.md).
 
-## 4. OrcaSlicer (orca-kobra build)
+## 4. Pair your first device
+
+Reading works for everyone in your network; everything that changes something needs a **paired
+device**. The bridge issues the keys itself — you never invent a password.
+
+1. Open the bridge log (Portainer → Containers → *ace-lane-bridge* → Logs, or
+   `docker logs ace-lane-bridge`). As long as nothing is paired it says
+   `Noch kein Gerät gekoppelt. Einrichtungscode: 123456`.
+2. Open `http://<docker-host>:7913`, enter the six digits and a name for the browser → **Koppeln**.
+   The browser keeps its key and never asks again.
+3. Every further device (another browser, the phone, the Orca plugin) gets a fresh code from a paired
+   one: web UI → **Geräte → Gerät hinzufügen** shows a 6-digit code and a QR code (valid 5 minutes,
+   single use). Devices can be removed there at any time.
+
+> [!NOTE]
+> Coming from a version with `APP_TOKEN`? The old token still works as a key and can be typed in as
+> pairing code (*Mit altem APP_TOKEN koppeln*). Once all devices are paired you can drop it from the stack.
+
+<p align="center"><img src="images/web-pair.png" width="560" alt="Pairing screen of the web UI"></p>
+
+## 5. OrcaSlicer (orca-kobra build)
 
 The plugin needs OrcaSlicer's plugin system (2.5.0-dev nightly). **Automatic profile selection**
 additionally needs a small patch that is not merged upstream yet
@@ -129,7 +154,7 @@ In Orca:
 > Without the orca-kobra build everything else still works (profiles, panel, back-sync,
 > consumption) — you just select the `SM…` profiles in the filament boxes yourself.
 
-## 5. Orca plugin "Kobra Spoolman"
+## 6. Orca plugin "Kobra Spoolman"
 
 With Orca closed:
 
@@ -143,15 +168,27 @@ curl -fsSLo ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/kobra_spoolman.py \
 2. **Configuration** tab of the plugin: enter the bridge address, e.g. `http://192.168.1.10:7913`.
 3. The **Kobra Spoolman** panel opens on the right and creates the profiles in the background.
    If Orca asks whether the plugin may connect to the bridge, allow it.
-4. **Restart Orca once** — Orca reads profiles only at start-up. Your filaments now appear as
+4. **Pair the plugin**: the panel shows *Plugin koppeln* — get a code in the web UI
+   (*Geräte → Gerät hinzufügen*) and enter it. Without pairing the panel and profiles still work,
+   but saving a profile back to Spoolman is refused.
+5. **Restart Orca once** — Orca reads profiles only at start-up. Your filaments now appear as
    `Vendor Name (SM000010)` in the filament lists.
 
-## 6. Check that everything works
+## 7. Android app (optional)
 
-- [ ] Slot page: all four slots assigned, no warnings.
+The app is a preview: there is no signed release yet. Every CI run builds a debug APK
+(*Actions → CI → latest run → Artifacts → kobra-spoolman-debug-apk*); install it with `adb install` or by opening the
+file on the phone. Then: **Einstellungen → QR-Code scannen** and scan the QR code from
+*Geräte → Gerät hinzufügen* in the web UI. Android 17 asks for *Nearby devices* (local network) —
+allow it, otherwise the app cannot reach the bridge. More: [android-app.md](android-app.md).
+
+## 8. Check that everything works
+
+- [ ] Web UI: printer and Spoolman connected (*Einstellungen*), all four slots assigned, no warnings.
 - [ ] Orca panel: bridge connected, four slots with spool names.
 - [ ] Orca: filament **sync** button → the `SM…` profiles are in filament 1–4, panel says *passt* for each slot.
 - [ ] Change a value in an `SM…` profile, save → dialog *Nach Spoolman übernehmen?* → value appears in Spoolman.
-- [ ] After a print: the slot page shows *Letzter Druck* per slot and Spoolman's remaining weight dropped by that amount.
+- [ ] After a print: the print appears under *Drucke* with grams per spool, and Spoolman's remaining weight dropped by that amount.
+- [ ] *Geräte* lists your browser, the Orca plugin (and the phone).
 
 Next: [daily use](usage.md).

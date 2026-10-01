@@ -6,8 +6,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.6.0] – 2026-10-01
+
+Ships plugin 0.4.0 — **update the plugin together with the bridge and pair it once**, otherwise
+back-sync to Spoolman is refused. The Android app stays a preview (debug APK from CI).
+
 ### Added
-- Bridge: **pairing devices** — the bridge issues a key per device (app, browser, later the Orca
+- Bridge: **pairing devices** — the bridge issues a key per device (app, browser, Orca
   plugin), stores only its hash, and lists/removes devices. Pairing with a 6-digit code (5 min,
   single use) or a QR code; the first device uses a setup code from the bridge log. `APP_TOKEN`
   keeps working during the transition.
@@ -30,6 +35,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   assignment, dryer, open items and the Orca back-sync / base-profile report, like the app API
   before. Reading stays open. Update the Orca plugin to 0.4.0 and pair it once, otherwise
   back-sync is refused.
+- Bridge: the warning about double booking accepts every spelling of "off" for the firmware's
+  `spoolman_support` (`off`, `false`, `0`).
+- Android app: hints talk about pairing instead of the app key; device dates in German format.
+- Documentation rewritten for the web UI, pairing and the app, with new screenshots (EN + DE).
+
+### Removed
+- The old slot page (replaced by the web UI at the same address).
 
 ## [2.5.0] – 2026-10-01
 
@@ -57,7 +69,7 @@ Ships plugin 0.3.4. The Android app is a preview (debug APK from CI), not part o
 - CI: builds and tests the Android app; the debug APK is attached to every run.
 
 ### Added
-- Bridge: API for the Android app (`/api/app/…`, [reference](docs/api.md#android-app)): printer status
+- Bridge: API for the Android app (`/api/app/…`, [reference](docs/api.md#app-and-web-ui)): printer status
   with active slot, catalog (vendors, templates, filaments, extra fields with Orca keys, Orca base
   profiles), create vendors/filaments/spools, copy a product line in a new colour, move/archive
   spools, reserve tag numbers and link NFC tags. Writing needs `APP_TOKEN`. Only fields the user sets

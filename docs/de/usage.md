@@ -2,106 +2,161 @@
 
 [English](../usage.md) · [Zurück zur README](../../README.de.md)
 
+## Weboberfläche und App
+
+Alles, was du am Drucker machst, läuft über die **Weboberfläche** (`http://<docker-host>:7913`) oder
+die **Android-App**. Beide zeigen dieselben Daten der Bridge; die App kann zusätzlich NFC-Tags lesen
+und schreiben. Spoolmans eigene Oberfläche brauchst du nur noch für Dinge, die die Bridge nicht
+abdeckt (z.B. einen Hersteller umbenennen).
+
+| Bildschirmbreite | Aufbau |
+|---|---|
+| Handy | Leiste unten: *Slots*, *Regal*, *Drucke*, *Mehr* – wie in der App |
+| Desktop | Seitenleiste links, Seiten für Übersicht, Regal, Filamente, Drucke, Trockner, Geräte, Einstellungen |
+| Ultrawide (ab 3000 px, z.B. 5120×1440) | die Übersicht zeigt alles nebeneinander: Drucker, Slots, Regal, Spulendetails, Drucke |
+
+Tastatur (Desktop): `/` suchen, `n` neue Spule, `↑` `↓` im Regal wählen, `Esc` schließen.
+Rechtsklick auf eine Spule → in einen Slot legen, ins Regal, archivieren.
+
+Die Weboberfläche fragt einmal pro Browser nach dem Koppeln ([Installation](installation.md#4-das-erste-gerät-koppeln)).
+*Nur ansehen* überspringt das – alles ist sichtbar, Knöpfe, die etwas ändern, führen zum Koppeln.
+
 ## Ein neues Filament kommt
 
-In Spoolman mit **Add spools** eintragen (das Filament lässt sich im selben Dialog anlegen).
+In der Weboberfläche unter **Filamente → Neu** anlegen, in der App über **Neu → Nicht dabei? Neues Filament**
+oder direkt in Spoolman.
 
 | Feld | Eintrag |
 |---|---|
 | Hersteller, Name | z.B. *Sunlu*, *PETG 2.0 Lavendel* – die Farbe gehört in den Namen |
 | Material | `PLA`, `PETG`, `PLA Silk` … (der Grundtyp bestimmt den Orca-Filamenttyp) |
-| Farbe | der Hex-Wert; bei Anycubic-Spulen den Wert, den die ACE meldet, dann passt der Slot-Abgleich |
+| Farbe | Hex-Farbe; bei Anycubic-Spulen die Farbe nehmen, die die ACE meldet, damit der Slot-Abgleich passt |
 | Dichte, Durchmesser, Gewicht, Preis | vom Etikett / aus dem Shop |
-| Düsen-/Betttemperatur | die Werte, die du in Orca willst |
-| **Orca-Basisprofil** *oder* **Vorlage** | siehe unten |
-| Alles andere | nur, was du abweichend haben willst |
+| **Vorlage** *oder* **Orca-Basisprofil** | siehe unten |
+| Alles andere | nur, was du abweichend willst – leere Felder zeigen den geerbten Wert grau als Platzhalter |
 
 **Vorlage oder Basisprofil?**
 
 - **Vorlage** (`Vorlage PETG`, …): allgemeine Startwerte, gepflegt in Spoolman. Passt für die meisten
-  Fremdfilamente. Leer lassen → die Vorlage wird über das Material gewählt.
+  Fremd-Filamente. Leer lassen → die Vorlage wird nach Material gewählt.
 - **Orca-Basisprofil**: der genaue Name eines Orca-Systemprofils, z.B.
-  `Anycubic PLA Silk @Anycubic Kobra S1 0.4 nozzle`. Nimm das, wenn Orca für genau dieses Filament
-  schon ein abgestimmtes Profil mitbringt – die Vorlage wird dann komplett ignoriert.
+  `Anycubic PLA Silk @Anycubic Kobra S1 0.4 nozzle`. Der Editor bietet die Namen an, die das
+  Orca-Plugin gemeldet hat. Nimm es, wenn Orca schon ein abgestimmtes Profil mitbringt – die Vorlage
+  wird dann komplett ignoriert.
 
-Rangfolge (später gewinnt): *Orca-Basisprofil* ← *Vorlage* ← *Felder am Filament* ← *Orca-Overrides*.
-Feldübersicht: [spoolman-fields.md](../spoolman-fields.md).
+Reihenfolge (später gewinnt): *Orca-Basisprofil* ← *Vorlage* ← *Filament-Felder* ← *Orca-Overrides*.
+Feldübersicht: [spoolman-fields.md](../spoolman-fields.md) (englisch).
 
-Beim nächsten Orca-Start legt das Plugin das Profil `Hersteller Name (SM0000xx)` an. Läuft Orca schon?
-Im Panel **Profile aktualisieren** drücken und Orca neu starten.
-Das legt nur die Profile an – in die Filament-Felder kommen sie über Orcas **Sync**-Knopf (siehe unten).
+**Gleiches Produkt, andere Farbe:** Filament öffnen und **Neue Farbe** drücken – alle Werte werden
+übernommen, du gibst nur Name und Farbe ein.
 
-## Spule in die ACE legen
+Das Orca-Plugin legt beim nächsten Orca-Start das Profil `Hersteller Name (SM0000xx)` an. Läuft Orca
+schon? Im Panel **Profile aktualisieren** drücken, dann Orca neu starten. Orcas Filament-**Sync**-Knopf
+setzt die Profile danach in die Filament-Felder (siehe unten).
 
-Die Slot-Seite (`http://<docker-host>:7913`) auf dem Handy öffnen, beim Slot **Spule wählen** tippen und
-die Spule auswählen. Spulen, die zum ACE-Tag passen, sind markiert: *passt zur ACE* (Material **und**
-Farbe) oder *Material passt, Farbe nicht*.
+<p align="center"><img src="../images/web-filament.png" width="760" alt="Filament-Editor"></p>
 
-**Spulen ohne Anycubic-Tag:** Der Drucker kennt ihr Material nicht. Ordnest du die Spule auf der
-Slot-Seite zu, gibt die Bridge Material und Farbe aus Spoolman an die ACE – das Display zeigt sie
-sofort (vor dem Einlegen zugeordnet: sobald die Spule drin ist; während eines Drucks: danach). Nur das
-Zuordnen löst das aus – zum erneuten Setzen die Spule einfach nochmal zuordnen. Ohne das (Bridge aus, `SET_ACE_SLOT_INFO=false`) am Display eintragen, sonst bricht der Druck
-beim Start ab (`index out of range`). Slot-Seite und Orca-Panel warnen bei solchen Slots.
+## Eine neue Spule
 
-Spule rausnehmen: Meldet die ACE einen Slot eine Weile leer, wandert die Spule automatisch ins Regal
-(während eines Drucks erst danach). Oder **Ins Regal** drücken.
+**Neue Spule** (oben rechts oder `n`): Filament wählen, Gewichte prüfen (Vorgaben kommen vom
+Filament), wahlweise **Gleich einlegen** in einen Slot. In der App kannst du vorher einen NFC-Tag
+scannen – die neue Spule wird damit verknüpft, oder die App schreibt ihr einen ACE-tauglichen Tag
+([android-app.md](../android-app.md), englisch).
+
+## Spule in die ACE einlegen
+
+Auf der Slot-Karte **Spule wechseln** (bei leerem Slot **Spule zuordnen**) drücken und die Spule
+wählen. Spulen, die zu dem passen, was die ACE vom Tag liest, stehen oben und sind mit *passt* markiert.
+
+**Spulen ohne Anycubic-Tag:** Der Drucker kennt ihr Material nicht. Ordnest du so eine Spule zu, gibt
+die Bridge Material und Farbe aus Spoolman an die ACE – das Druckerdisplay zeigt sie sofort an (vor
+dem Einlegen zugeordnet: sobald die Spule drin ist; während eines Drucks: danach). Nur die Zuordnung
+macht das; zum erneuten Senden die Spule nochmal zuordnen. Ohne das (Bridge aus,
+`SET_ACE_SLOT_INFO=false`) am Display eintragen, sonst bricht der Druck beim Start ab
+(`index out of range`). Weboberfläche, App und Orca-Panel warnen bei solchen Slots.
+
+Spule herausnehmen: Meldet die ACE einen Slot eine Weile als leer, kommt die Spule automatisch ins
+Regal (während eines Drucks erst danach). Oder auf der Slot-Karte **Leeren** drücken.
+
+## Das Regal
+
+**Regal** zeigt alle aktiven Spulen mit Restgewicht, Ort und Tag-Nummer; filtern nach Material,
+*im ACE* oder *fast leer* (< 200 g), oder suchen. Spule wählen, um sie zu bearbeiten:
+
+- **Spule**: Restgewicht (nach dem Wiegen), Leerspule, Netto neu, Preis, Charge, Notiz und – bei
+  Spulen im Regal – der Lagerort.
+- **Filament**: der Filament-Editor, direkt dort.
+- **Verbrauch**: erste und letzte Benutzung und jeder aufgezeichnete Druck mit dieser Spule.
+
+<p align="center"><img src="../images/web-shelf.png" width="760" alt="Regal mit Spulendetails"></p>
 
 ## Trocknen (ACE-Trockner)
 
-Slot-Seite und App zeigen Feuchte und Temperatur der ACE und den Trockner. **Trocknen …** startet oder
-stoppt von Hand; die Automatik startet, wenn die Feuchte über einen Wert steigt (Standard 20 %), und
-stoppt unter einem zweiten (Standard 10 %) oder nach einer Höchstdauer.
+Die Trockner-Karte zeigt Feuchte und Temperatur der ACE und den Zustand. **Trocknen** / **Stoppen**
+geht von Hand; **Regeln** stellt die Automatik ein: Start, wenn die Feuchte über eine Schwelle steigt
+(Standard 20 %), Stopp unter einer zweiten (Standard 10 %) oder nach einer Höchstdauer, danach eine
+Pause; wahlweise auch während eines Drucks.
 
-Die Temperatur ist **nie höher, als das empfindlichste eingelegte Filament verträgt** – Feld *Trocknen
-max.* am Filament in Spoolman, sonst an seiner Vorlage, sonst ein vorsichtiger Startwert je Material
-(PLA 45 °C, PETG 60 °C, …) – und nie höher, als die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C). Wird
-während des Trocknens eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort.
+Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament verträgt** – Feld
+*Trocknen max.* am Filament, sonst an der Vorlage, sonst ein vorsichtiger Wert pro Material
+(PLA 45 °C, PETG 60 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C).
+Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort. Die
+Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
 
-## Slicen und drucken
+## Slicen und Drucken
 
-1. In Orca den **Sync-Knopf** bei den Filamenten drücken. Mit dem orca-kobra-Build werden die
-   `SM…`-Profile für Slot 1–4 automatisch gewählt; das Panel zeigt pro Slot *Filament N in Orca: passt*
-   und warnt, wenn ein Filament-Feld nicht zu seinem Slot passt.
-2. Slicen. Oben im Panel steht jetzt **Geplanter Verbrauch** mit einer Zeile pro Slot:
-   *Bedarf / Rest in g* und ✓ (reicht), ⚠ (knapp) oder ✗ (reicht nicht). Reicht eine Spule nicht,
-   warnt Orca zusätzlich mit einem Hinweis. *Details* klappt die Aufschlüsselung auf (siehe unten).
-3. Drucken wie gewohnt (Printer Agent *Moonraker*).
-4. Während des Drucks zeigt die Slot-Seite *Dieser Druck: x g* pro Slot. Die Bridge bucht in Spoolman
-   bei jedem Farbwechsel, alle 5 Minuten und am Ende.
+1. In Orca den Filament-**Sync**-Knopf drücken. Mit dem orca-kobra-Build werden die `SM…`-Profile für
+   Slot 1–4 automatisch gewählt; das Panel zeigt pro Slot *Filament N in Orca: passt* und warnt, wenn
+   ein Filament-Feld nicht zum Slot passt.
+2. Slicen. Oben im Panel zeigt **Geplanter Verbrauch** eine Zeile pro Slot: *Bedarf / Rest g* und
+   ✓ (reicht), ⚠ (*knapp*) oder ✗ (*reicht nicht*). Reicht eine Spule nicht, warnt auch Orca.
+   *Details* klappt die Aufschlüsselung auf (unten).
+3. Wie gewohnt drucken (Printer Agent *Moonraker*).
+4. Während des Drucks zeigen Druckerkarte und Slot-Karten den bisherigen Verbrauch (*dieser Druck*).
+   Die Bridge bucht bei jedem Farbwechsel, alle 5 Minuten und am Ende in Spoolman. Fertige Drucke
+   stehen unter **Drucke** mit Gramm pro Spule.
 
-### So rechnet die Verbrauchsvorschau
+Die Weboberfläche *zeigt* den Drucker nur an – Pause, Abbrechen und alles andere bleiben in
+Mainsail/Fluidd (*In Mainsail öffnen* auf der Druckerkarte).
+
+### So wird die Verbrauchsvorschau berechnet
 
 Unter *Details* stehen zwei Tabellen, alle Werte in Gramm.
 
-| Spalte | Herkunft |
+| Spalte | Quelle |
 |---|---|
 | *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Genau Orcas Vorschau-Legende (Vorschau → Filament): Modell, Stützen, Spülen und Reinigungsturm pro Filament, *Gesamt* ist die Summe. Leere Spalten fehlen wie in Orca. |
-| *Laden* | Spülen der Firmware, wenn die ACE das Filament lädt. Das kennt Orca nicht; die Bridge misst es bei jedem fertigen Druck (Mittel pro Ladevorgang). Bis zum ersten gemessenen Druck gilt ein Schätzwert von 0,32 m pro Ladevorgang. Wie oft jedes Filament geladen wird, zählt Orca (erste Benutzung plus jeder Wechsel zurück); mit einem älteren orca-kobra-Build werden die Filamentwechsel gleichmäßig auf die benutzten Filamente verteilt. |
+| *Laden* | Spülen der Firmware beim Laden durch die ACE. Orca kennt es nicht; die Bridge misst es bei jedem fertigen Druck (Mittel pro Ladevorgang). Bis zum ersten gemessenen Druck gilt eine Schätzung von 0,32 m pro Laden. Die Zahl der Ladevorgänge pro Filament zählt Orca (erste Nutzung plus jeder Wechsel zurück); mit älterem orca-kobra-Build werden die Wechsel gleichmäßig auf die benutzten Filamente verteilt. |
 | *Bedarf* | *Gesamt* + *Laden* |
-| *Rest* | Restgewicht der Spule im Slot, aus Spoolman |
+| *Rest* | Restgewicht der dem Slot zugeordneten Spule, aus Spoolman |
 
-Filament N in Orca zählt gegen Slot N – dieselbe Zuordnung, die der Sync-Knopf setzt. Die
-Vorschau braucht den orca-kobra-Build (Patch 0003); sie verschwindet, sobald das Slice-Ergebnis
-nicht mehr gilt (Modell oder Einstellungen geändert). Die Reserve für *knapp* stellst du in den
-Plugin-Einstellungen ein (Standard 5 g).
+Filament N in Orca zählt gegen Slot N – dieselbe Zuordnung, die der Sync-Knopf setzt. Die Vorschau
+braucht den orca-kobra-Build (Patch 0003); sie verschwindet, wenn das Slice-Ergebnis nicht mehr gilt
+(Modell oder Einstellungen geändert).
 
 ## Offene Posten
 
-Wurde ein Slot ohne zugeordnete Spule benutzt, oder gibt es dessen Spule nicht mehr, bleibt der
-Verbrauch als **offener Posten** oben auf der Slot-Seite stehen (*Nicht gebucht*). Einer Spule zuordnen
-oder verwerfen. War Spoolman nicht erreichbar, holt die Bridge die Buchung automatisch nach.
+Wurde ein Slot ohne zugeordnete Spule benutzt oder seine Spule gelöscht, bleibt der Verbrauch als
+**offener Posten** stehen (Karte *Offene Buchungen*, Zahl bei *Drucke*). **Buchen** drücken und die
+Spule wählen, oder **Verwerfen**. War Spoolman nicht erreichbar, holt die Bridge die Buchung selbst nach.
 
 ## Ein Profil in Orca ändern
 
 Ein `SM…`-Profil ändern und speichern. Das Plugin fragt *Nach Spoolman übernehmen?*:
 
-- **Ja** – bekannte Einstellungen landen in ihren Spoolman-Feldern, alles andere in *Orca-Overrides*.
+- **Ja** – bekannte Werte landen in ihren Spoolman-Feldern, alles andere in *Orca-Overrides*.
 - **Nein** – der nächste Sync setzt das Profil auf die Spoolman-Werte zurück (Spoolman bleibt die Quelle).
 
-Einen einzelnen Wert wieder von der Vorlage holen: das Feld in Spoolman leeren (oder
-`POST /api/orca/reset`, siehe [api.md](../api.md)).
+Dafür muss das Plugin gekoppelt sein; sonst sagt es Bescheid. Um für einen einzelnen Wert zur Vorlage
+zurückzukehren, das Feld im Filament-Editor leeren (oder `POST /api/orca/reset`, siehe [api.md](../api.md)).
 
-## Filament leer
+## Wenn ein Filament leer ist
 
-Die Spule in Spoolman archivieren. Filamente ohne aktive Spule verlieren beim nächsten Sync ihr
-Orca-Profil; Profile, die das Plugin nicht selbst angelegt hat, fasst es nie an.
+**Archivieren** an der Spule (Regal, App oder Spoolman). Filamente ohne aktive Spule verlieren beim
+nächsten Sync ihr Orca-Profil; Profile, die das Plugin nicht selbst angelegt hat, bleiben unangetastet.
+
+## Geräte
+
+**Geräte** listet jeden gekoppelten Browser, jedes Handy und Orca-Plugin mit dem Zeitpunkt der letzten
+Nutzung. **Gerät hinzufügen** zeigt Code und QR-Code für ein neues Gerät; **Entfernen** sperrt einen
+Schlüssel sofort (z.B. bei einem verlorenen Handy). *Entkoppeln* beim eigenen Browser vergisst dessen Schlüssel.

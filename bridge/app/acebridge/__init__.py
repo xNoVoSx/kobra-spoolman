@@ -1,11 +1,16 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.5.0"
+__version__ = "2.6.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.6.0", "2026-10-01", [
+        "Neue Weboberfläche für Handy, Desktop und Ultrawide: Slots, Regal, Filamente, Drucke, Trockner, Geräte",
+        "Geräte koppeln: ein Schlüssel pro Browser, App und Orca-Plugin; Ändern nur noch gekoppelt",
+        "Orca-Plugin 0.4.0 koppelt im Panel – zusammen mit der Bridge aktualisieren",
+    ]),
     ("2.5.0", "2026-10-01", [
         "ACE-Trockner: Feuchte und Temperatur, Trocknen von Hand und Automatik nach Feuchte",
         "Trockentemperatur nie über dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“)",

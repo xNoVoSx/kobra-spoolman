@@ -2,10 +2,12 @@
 
 The service between **Moonraker** (Kobra S1 + ACE 2 Pro with Rinkhals) and **Spoolman**:
 
-- slot ↔ spool assignment with a mobile page (`http://<host>:7913`)
+- web UI for phone, desktop and ultrawide (`http://<host>:7913`): slots, shelf, filaments, prints, dryer, devices
+- device pairing: one key per browser, app and Orca plugin; everything that writes needs one
 - writes Moonraker `lane_data` (material, colour, `filament_id` = `SM` + Spoolman ID) for OrcaSlicer
 - measures consumption per slot and books it per spool into Spoolman (restart-safe, open items)
-- Orca profile API for the [Kobra Spoolman plugin](../orca-plugin/)
+- ACE dryer: state, manual start/stop, automation by humidity
+- Orca profile API for the [Kobra Spoolman plugin](../orca-plugin/), API for the [Android app](../android/)
 
 Python 3.11+, only dependency `aiohttp`.
 
@@ -29,5 +31,8 @@ app/acebridge/
   profiles.py      template / base profile resolution, Orca IDs
   telemetry.py     raw recordings per print
   web.py           HTTP API
+  appapi.py        API for the app and the web UI
+  auth.py          device pairing and keys
+  dryer.py         ACE dryer state and automation
   static/            web UI (Preact + htm, bundled fonts, no build step)
 ```

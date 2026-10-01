@@ -2,61 +2,104 @@
 
 [Deutsch](de/usage.md) · [Back to README](../README.md)
 
+## Web UI and app
+
+Everything you do at the printer goes through the **web UI** (`http://<docker-host>:7913`) or the
+**Android app**. Both show the same data from the bridge; the app can additionally read and write
+NFC tags. Spoolman's own UI is only needed for things the bridge does not cover (e.g. editing a vendor).
+
+| Screen width | Layout |
+|---|---|
+| Phone | bar at the bottom: *Slots*, *Regal*, *Drucke*, *Mehr* — like the app |
+| Desktop | side bar on the left, pages for overview, shelf, filaments, prints, dryer, devices, settings |
+| Ultrawide (≥ 3000 px, e.g. 5120×1440) | the overview shows everything side by side: printer, slots, shelf, spool details, prints |
+
+Keyboard (desktop): `/` search, `n` new spool, `↑` `↓` select in the shelf, `Esc` close.
+Right-click on a spool → put it into a slot, back on the shelf, archive.
+
+The web UI asks for pairing once per browser ([installation](installation.md#4-pair-your-first-device)).
+*Nur ansehen* skips it — everything is visible, but buttons that change something lead to the pairing screen.
+
 ## A new filament arrives
 
-Enter it in Spoolman with **Add spools** (you can create the filament in the same dialog).
+Create it in the web UI under **Filamente → Neu**, in the app with **Neu → Nicht dabei? Neues Filament**, or in
+Spoolman directly.
 
 | Field | What to enter |
 |---|---|
-| Vendor, Name | e.g. *Sunlu*, *PETG 2.0 Lavender* — name includes the colour |
+| Vendor, Name | e.g. *Sunlu*, *PETG 2.0 Lavender* — the name includes the colour |
 | Material | `PLA`, `PETG`, `PLA Silk` … (the base type decides the Orca filament type) |
-| Colour | the hex colour; for Anycubic spools use what the ACE reports so the slot check matches |
-| Density, Diameter, Weight, Price | from the label / shop |
-| Nozzle / bed temperature | the values you want in Orca |
-| **Orca base profile** *or* **Template** | see below |
-| Everything else | only what you want to override |
+| Colour | hex colour; for Anycubic spools use what the ACE reports so the slot check matches |
+| Density, diameter, weight, price | from the label / shop |
+| **Template** *or* **Orca base profile** | see below |
+| Everything else | only what you want to override — empty fields show the inherited value as a grey placeholder |
 
 **Template or base profile?**
 
-- **Template** (`Vorlage PETG`, …): generic starting values maintained in Spoolman. Good for
-  most third-party filaments. Leave empty → the template is picked by material.
+- **Template** (`Vorlage PETG`, …): generic starting values maintained in Spoolman. Good for most
+  third-party filaments. Leave empty → the template is picked by material.
 - **Orca base profile**: the exact name of an Orca system profile, e.g.
-  `Anycubic PLA Silk @Anycubic Kobra S1 0.4 nozzle`. Use it when Orca already ships a tuned profile
-  for that filament — the template is then ignored completely.
+  `Anycubic PLA Silk @Anycubic Kobra S1 0.4 nozzle`. The editor offers the names the Orca plugin
+  reported. Use it when Orca already ships a tuned profile — the template is then ignored completely.
 
 Order of precedence (later wins): *Orca base profile* ← *template* ← *filament fields* ← *Orca overrides*.
 Field reference: [spoolman-fields.md](spoolman-fields.md).
 
-The next time Orca starts, the plugin creates the profile `Vendor Name (SM0000xx)`.
-Already running? Press **Profile aktualisieren** (update profiles) in the panel, then restart Orca.
-This only creates the profiles — Orca's filament **sync** button puts them into the filament slots (see below).
+**Same product, another colour:** open the filament and press **Neue Farbe** — all values are copied,
+you only enter name and colour.
+
+The Orca plugin creates the profile `Vendor Name (SM0000xx)` the next time Orca starts. Already
+running? Press **Profile aktualisieren** in the panel, then restart Orca. Orca's filament **sync**
+button then puts the profiles into the filament slots (see below).
+
+<p align="center"><img src="images/web-filament.png" width="760" alt="Filament editor"></p>
+
+## A new spool
+
+**Neue Spule** (top right, or `n`): pick the filament, check the weights (defaults come from the
+filament), optionally **Gleich einlegen** into a slot. In the app you can also scan an NFC tag first
+— the new spool is linked to it, or the app writes an ACE-compatible tag for it
+([android-app.md](android-app.md)).
 
 ## Loading a spool into the ACE
 
-Open the slot page (`http://<docker-host>:7913`) on your phone, tap **Spule wählen** on the slot
-and pick the spool. Spools that match what the ACE reads from the tag are marked
-*passt zur ACE* (material **and** colour) or *Material passt, Farbe nicht*.
+On the slot card press **Spule wechseln** (or **Spule zuordnen** for an empty slot) and pick the
+spool. Spools that match what the ACE reads from the tag are on top and marked *passt*.
 
-**Spools without an Anycubic tag:** the printer does not know their material. When you assign
-the spool on the slot page, the bridge passes material and colour from Spoolman to the ACE — the
-display shows them right away (assigned before loading: as soon as the spool is in; during a print:
-afterwards). Only the assignment does this — to push the values again, assign the spool again. Without that (bridge off, `SET_ACE_SLOT_INFO=false`) enter them at
-the display, otherwise the print fails at the start (`index out of range`). The slot page and the
-Orca panel warn about such slots.
+**Spools without an Anycubic tag:** the printer does not know their material. When you assign such a
+spool, the bridge passes material and colour from Spoolman to the ACE — the printer display shows
+them right away (assigned before loading: as soon as the spool is in; during a print: afterwards).
+Only the assignment does this; to push the values again, assign the spool again. Without it (bridge
+off, `SET_ACE_SLOT_INFO=false`) enter them at the display, otherwise the print fails at the start
+(`index out of range`). The web UI, the app and the Orca panel warn about such slots.
 
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
-automatically (during a print only after it ends). You can also press **Ins Regal**.
+automatically (during a print only after it ends). You can also press **Leeren** on the slot card.
+
+## The shelf
+
+**Regal** lists every active spool with remaining weight, location and tag number; filter by material,
+*im ACE* or *fast leer* (< 200 g), or search. Select a spool to edit it:
+
+- **Spule**: remaining weight (after weighing), empty spool weight, net weight, price, lot, note and —
+  for spools on the shelf — the storage location.
+- **Filament**: the filament editor, right there.
+- **Verbrauch**: first and last use and every recorded print with this spool.
+
+<p align="center"><img src="images/web-shelf.png" width="760" alt="Shelf with spool details"></p>
 
 ## Drying (ACE dryer)
 
-The slot page and the app show the ACE's humidity and temperature and the dryer state. **Trocknen …**
-starts or stops drying by hand; the automation starts drying when the humidity rises above a
-threshold (default 20 %) and stops below a second one (default 10 %) or after a maximum time.
+The dryer card shows the ACE's humidity and temperature and the dryer state. **Trocknen** /
+**Stoppen** works by hand; **Regeln** sets the automation: start when the humidity rises above a
+threshold (default 20 %), stop below a second one (default 10 %) or after a maximum time, then a
+pause; optionally also while printing.
 
 The temperature is **never higher than the most sensitive loaded filament allows** — the field
-*Trocknen max.* on the filament in Spoolman, else on its template, else a cautious default per
-material (PLA 45 °C, PETG 60 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro
-55 °C). If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once.
+*Trocknen max.* on the filament, else on its template, else a cautious default per material
+(PLA 45 °C, PETG 60 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C).
+If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once. The
+**Trockner** page shows which slot sets the limit.
 
 ## Slicing and printing
 
@@ -67,8 +110,12 @@ material (PLA 45 °C, PETG 60 °C, …) — and never higher than the ACE can do
    *need / remaining g* and ✓ (enough), ⚠ (*knapp*, tight) or ✗ (*reicht nicht*, too short). If a
    spool is too short, Orca also shows a warning. *Details* expands the breakdown (below).
 3. Print as usual (printer agent *Moonraker*).
-4. During the print the slot page shows *Dieser Druck: x g* per slot. The bridge books consumption
-   into Spoolman at every colour change, every 5 minutes and at the end.
+4. During the print the printer card and the slot cards show the consumption so far
+   (*dieser Druck*). The bridge books into Spoolman at every colour change, every 5 minutes and at
+   the end. Finished prints appear under **Drucke** with grams per spool.
+
+The web UI only *shows* the printer — pause, cancel and everything else stay in Mainsail/Fluidd
+(*In Mainsail öffnen* on the printer card).
 
 ### How the usage preview is calculated
 
@@ -88,8 +135,8 @@ valid (model or settings changed).
 ## Open items
 
 If a slot without an assigned spool was used, or its spool was deleted, the consumption is kept as
-an **open item** at the top of the slot page (*Nicht gebucht*). Assign it to a spool or discard it.
-If Spoolman was unreachable, bookings are retried automatically.
+an **open item** (card *Offene Buchungen*, badge on *Drucke*). Press **Buchen**, pick the spool, or
+**Verwerfen**. If Spoolman was unreachable, bookings are retried automatically.
 
 ## Changing a profile in Orca
 
@@ -98,10 +145,16 @@ Edit an `SM…` profile and save it. The plugin asks *Nach Spoolman übernehmen?
 - **Yes** — known settings go to their Spoolman fields, everything else to *Orca overrides*.
 - **No** — the next sync resets the profile to the Spoolman values (Spoolman stays the source of truth).
 
-To go back to the template for a single value, clear that field in Spoolman (or use
-`POST /api/orca/reset`, see [api.md](api.md)).
+This needs the plugin to be paired; otherwise it tells you so. To go back to the template for a
+single value, clear that field in the filament editor (or use `POST /api/orca/reset`, see [api.md](api.md)).
 
 ## When a filament is used up
 
-Archive the spool in Spoolman. Filaments without any active spool lose their Orca profile on the
-next sync; profiles the plugin did not create are never touched.
+**Archivieren** on the spool (shelf, app or Spoolman). Filaments without any active spool lose their
+Orca profile on the next sync; profiles the plugin did not create are never touched.
+
+## Devices
+
+**Geräte** lists every paired browser, phone and Orca plugin with the time it was last seen.
+**Gerät hinzufügen** shows a code and QR code for a new device; **Entfernen** revokes a key at once
+(e.g. a lost phone). *Entkoppeln* on your own browser forgets its key.

@@ -34,6 +34,33 @@ sequenceDiagram
     B->>S: PUT spool/{id}/use {use_length}
 ```
 
+## Clients and pairing (`bridge/app/acebridge/auth.py`)
+
+The bridge is the only component of this project that talks to the printer — the Kobra S1 handles
+only a few Moonraker clients. Browser, Android app and Orca plugin are clients of the bridge.
+
+- **Reading is open**, like Moonraker and Spoolman in a home network.
+- **Writing needs a paired device:** Spoolman changes, slot assignment, open items, the dryer and
+  Orca back-sync. The client sends `Authorization: Bearer <key>`.
+- The **bridge issues the keys** (`secrets.token_urlsafe(32)`), one per device, and stores only
+  their SHA-256 in `devices.json`. A device is paired with a 6-digit code (5 minutes, single use)
+  that a paired device requests; the very first device uses a setup code that the bridge logs at
+  start while nothing is paired. Wrong codes are throttled. The app pairs by scanning a QR code
+  (`kobraspoolman://pair?b=<bridge-url>&c=<code>`).
+- Removing a device revokes its key immediately; a client that gets 401 drops its key and asks to
+  pair again. A legacy `APP_TOKEN` keeps working as a key and pairing code during the transition.
+
+## Web UI (`bridge/app/acebridge/static/`)
+
+- Served by the bridge itself at `/`; no build step: [Preact](https://preactjs.com/) with
+  [htm](https://github.com/developit/htm) tagged templates as ES modules, fonts as WOFF2 and a QR
+  encoder are bundled — the page works without internet.
+- It uses the same API as the app (`/api/app/*`, `/api/slots`, `/api/dryer`, `/api/jobs`,
+  `/api/auth/*`) and polls `/api/app/state` every 3 s (only the bridge, never the printer).
+- One code base for all widths: phone (bottom bar), desktop (side bar, list + detail), ultrawide
+  ≥ 3000 px (five columns on the overview). Design tokens match the Android app's theme.
+- The key lives in `localStorage` of the browser.
+
 ## Consumption algorithm (`bridge/app/acebridge/usage.py`)
 
 Based on a real test print (see [findings.md](findings.md)):
