@@ -244,6 +244,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Bild von der Bridge holen (Kamera nur gekoppelt); null bei Fehler oder ohne Bild. */
     suspend fun image(path: String): ByteArray? = runCatching { client()?.image(path) }.getOrNull()
 
+    fun printAction(action: String, done: String) = launchSafe {
+        it.printAction(action)
+        _messages.send(done)
+        refresh()
+    }
+
+    fun tune(body: kotlinx.serialization.json.JsonObject) = launchSafe {
+        it.tune(body)
+        _messages.send("Übernommen")
+        refresh()
+    }
+
     suspend fun jobs(): List<PrintJob>? = runCatching { client()?.jobs() }.getOrNull()
     suspend fun console(after: Long): ConsoleLines? = runCatching { client()?.console(after) }.getOrNull()
     suspend fun logs(after: Long, level: String): LogLines? = runCatching { client()?.logs(after, level) }.getOrNull()

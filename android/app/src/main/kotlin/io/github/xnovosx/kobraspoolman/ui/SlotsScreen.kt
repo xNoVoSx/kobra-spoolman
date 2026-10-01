@@ -52,6 +52,8 @@ fun SlotsScreen(
     fetchImage: suspend (String) -> ByteArray? = { null },
     printInfo: suspend () -> PrintInfo? = { null },
     camera: () -> Flow<ByteArray> = { emptyFlow() },
+    onPrintAction: (String, String) -> Unit = { _, _ -> },
+    onTune: () -> Unit = {},
 ) {
     LazyColumn(
         Modifier.fillMaxSize().background(K.Ground),
@@ -75,6 +77,7 @@ fun SlotsScreen(
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
+        if (state.canWrite && state.printer.state != "offline") item { ControlRow(state.printer, onPrintAction, onTune) }
         state.slots.chunked(2).forEach { row ->
             item {
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -219,6 +219,16 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .spool-link { gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunken); color: var(--text); }
 .spool-link:hover { background: var(--surface2); }
 
+/* ------------------------------------------------------------ Drucksteuerung */
+.ctl { gap: 8px; }
+.btn.hold { position: relative; overflow: hidden; touch-action: none; user-select: none; }
+.btn.hold::before { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p, 0));
+  background: var(--danger); opacity: .35; pointer-events: none; }
+.tune-row { display: flex; flex-direction: column; gap: 6px; }
+.tune-row input[type=range] { width: 100%; accent-color: var(--accent); }
+.tune-temp { display: flex; flex-direction: column; gap: 6px; }
+.tune-temp .inp { max-width: 90px; }
+
 /* ------------------------------------------------------------ Terminal / Logs */
 .term-page { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
 .term { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }

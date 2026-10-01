@@ -20,6 +20,7 @@ from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
 from .camera import CameraError
 from .console import LOG_BUFFER, check_command
+from .control import ControlError, check_action, tune_commands
 from .appapi import AppApi
 from .auth import AuthError
 
@@ -505,6 +506,55 @@ def build_app(bridge: "Bridge") -> web.Application:
         if not path:
             return _err(404, "nicht gefunden")
         return web.FileResponse(path, headers={"Content-Type": "application/x-ndjson"})
+
+    # ---------------------------------------------------------------- Drucksteuerung
+    async def _body(request: web.Request) -> dict:
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            return {}
+        return body if isinstance(body, dict) else {}
+
+    @r.post("/api/print/tune")
+    async def print_tune(request: web.Request):
+        """Tempo, Fluss, Luefter, Temperaturen (gekoppelt)."""
+        try:
+            dev = bridge.devices.require(request.headers.get("Authorization"))
+        except AuthError as e:
+            return _err(e.status, str(e))
+        body = await _body(request)
+        try:
+            cmds, confirm = tune_commands(body)
+        except ControlError as e:
+            return _err(e.status, str(e))
+        if confirm and not body.get("confirm"):
+            return web.json_response({"error": confirm, "confirm": True}, status=409)
+        try:
+            await bridge.moon.gcode("\n".join(cmds), source=dev.get("name") or "Weboberfläche")
+        except Exception as e:  # noqa: BLE001
+            return _err(400 if isinstance(e, RuntimeError) else 503, str(e) or "Befehl fehlgeschlagen")
+        return web.json_response({"ok": True, "sent": cmds})
+
+    @r.post("/api/print/{action}")
+    async def print_action(request: web.Request):
+        """pause, resume, cancel (Rueckfrage), emergency_stop (Rueckfrage; danach Aus/An noetig)."""
+        try:
+            dev = bridge.devices.require(request.headers.get("Authorization"))
+        except AuthError as e:
+            return _err(e.status, str(e))
+        body = await _body(request)
+        state = (bridge.moon.status.get("print_stats") or {}).get("state")
+        try:
+            method, label = check_action(request.match_info["action"], state, bool(body.get("confirm")))
+        except ControlError as e:
+            if e.confirm:
+                return web.json_response({"error": str(e), "confirm": True}, status=409)
+            return _err(e.status, str(e))
+        try:
+            await bridge.moon.action(method, label, source=dev.get("name") or "Weboberfläche")
+        except Exception as e:  # noqa: BLE001
+            return _err(400 if isinstance(e, RuntimeError) else 503, str(e) or "Aktion fehlgeschlagen")
+        return web.json_response({"ok": True})
 
     # ---------------------------------------------------------------- Konsole und Logs
     help_cache: dict = {"at": 0.0, "commands": {}}

@@ -202,6 +202,14 @@ zurückzukehren, das Feld im Filament-Editor leeren (oder `POST /api/orca/reset`
 **Archivieren** an der Spule (Regal, App oder Spoolman). Filamente ohne aktive Spule verlieren beim
 nächsten Sync ihr Orca-Profil; Profile, die das Plugin nicht selbst angelegt hat, bleiben unangetastet.
 
+## Einen Druck steuern
+
+Unter dem Druckstatus (Weboberfläche und App, nur gekoppelt): **Pause** / **Weiter**, **Abbrechen**
+(fragt nach, ein abgebrochener Druck lässt sich nicht fortsetzen), **Nachjustieren** – Tempo, Fluss,
+die drei Lüfter und die Solltemperatur von Düse und Bett, auch ohne Druck (z. B. zum Vorheizen) – und
+**Not-Aus**: zwei Sekunden gedrückt halten, dann bestätigen. Nach einem Not-Aus muss der Drucker aus-
+und wieder eingeschaltet werden; Rinkhals sperrt den Firmware-Neustart, weil GoKlipper sonst hängt.
+
 ## Terminal und Logs
 
 **Terminal** zeigt, was der Drucker antwortet, und jeden Befehl, der über die Bridge ging – mit

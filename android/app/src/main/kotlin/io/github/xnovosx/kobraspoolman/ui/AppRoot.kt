@@ -77,6 +77,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     var linkTagUid by remember { mutableStateOf<String?>(null) }
     var fillSlot by remember { mutableStateOf<Int?>(null) }
     var dryerOpen by remember { mutableStateOf(false) }
+    var tuneOpen by remember { mutableStateOf(false) }
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val slotCount = state?.slots?.size?.takeIf { it > 0 } ?: 4
     val canWrite = state?.canWrite == true && connection?.token?.isNotBlank() == true
@@ -138,7 +139,9 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onDryer = { dryerOpen = true },
                     fetchImage = { vm.image(it) },
                     printInfo = { vm.printInfo() },
-                    camera = { vm.cameraStream() })
+                    camera = { vm.cameraStream() },
+                    onPrintAction = { action, done -> vm.printAction(action, done) },
+                    onTune = { tuneOpen = true })
             }
             composable("notices") { NoticesScreen(state, padding, onRefresh = { vm.refreshNow() }) }
             composable("filament") {
@@ -233,6 +236,12 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 onPreview = { vm.loadPurgePreview(it) },
                 onSetFlush = { v, confirm -> vm.setFlushMultiplier(v, confirm) },
                 onOption = { k, v, confirm -> vm.setAceOption(k, v, confirm) })
+        }
+    }
+    val printer = state?.printer
+    if (tuneOpen && printer != null) {
+        ModalBottomSheet(onDismissRequest = { tuneOpen = false }, containerColor = K.Surface) {
+            TuneSheet(printer) { body -> tuneOpen = false; vm.tune(body) }
         }
     }
     if (scanOpen) {

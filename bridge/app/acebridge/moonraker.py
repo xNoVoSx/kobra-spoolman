@@ -122,6 +122,22 @@ class Moonraker:
                 self.console.add("error", str(e) or e.__class__.__name__, source)
             raise
 
+    async def action(self, method: str, label: str, source: str = "Bridge", timeout: float = 30) -> None:
+        """Moonraker-Aktion wie printer.print.pause; steht als label mit Absender in der Konsole."""
+        if self.console is not None:
+            self.console.add("command", label, source + (" (dry-run)" if self.cfg.dry_run else ""))
+        if self.cfg.dry_run:
+            log.info("[dry-run] %s", method)
+            return
+        if self._ws is None:
+            raise ConnectionError("Moonraker nicht verbunden")
+        try:
+            await self._call(method, timeout=timeout)
+        except Exception as e:
+            if self.console is not None:
+                self.console.add("error", str(e) or e.__class__.__name__, source)
+            raise
+
     # ------------------------------------------------------------------ WebSocket
     def _ws_url(self) -> str:
         base = self.cfg.moonraker_url

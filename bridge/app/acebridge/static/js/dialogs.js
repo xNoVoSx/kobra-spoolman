@@ -5,6 +5,7 @@ import { get, post } from "./api.js";
 import { Dialog, Field, Swatch } from "./components.js";
 import { Icon } from "./icons.js";
 import { CameraDialog } from "./media.js";
+import { TuneDialog } from "./control.js";
 import { S, closeDialog, loadCatalog, toast } from "./store.js";
 import { cls, grams, hex, num, parseNum, title } from "./util.js";
 
@@ -21,8 +22,9 @@ function Run({ label, run, disabled, kind = "acc" }) {
 }
 const Cancel = () => html`<button class="btn ghost" onClick=${closeDialog}>Abbrechen</button>`;
 
-function Confirm({ title, text, ok, action, danger }) {
-  return html`<${Dialog} title=${title} footer=${html`<${Cancel} /><${Run} label=${ok} run=${action} kind=${danger ? "danger" : "acc"} />`}>
+function Confirm({ title, text, ok, action, danger, back }) {
+  const no = back ? html`<button class="btn ghost" onClick=${closeDialog}>${back}</button>` : html`<${Cancel} />`;
+  return html`<${Dialog} title=${title} footer=${html`${no}<${Run} label=${ok} run=${action} kind=${danger ? "danger" : "acc"} />`}>
     <p style="margin:0">${text}</p></${Dialog}>`;
 }
 
@@ -241,7 +243,7 @@ function AddDevice() {
 }
 
 const KINDS = { confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
-  bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice, camera: CameraDialog };
+  bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice, camera: CameraDialog, tune: TuneDialog };
 
 export function Dialogs() {
   const d = S.dialog;

@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Web UI and app: **print control** — pause/resume, cancel (asks first), emergency stop (hold 2 s,
+  then confirm; power cycle needed afterwards), and *Nachjustieren*: speed, flow, part/enclosure/
+  air-filter fan, nozzle and bed target (also without a print). Bridge: `/api/print/pause|resume|
+  cancel|emergency_stop|tune`.
+
 ### Fixed
 - Web UI: the overview's ACE card has the multiplier field again (with the 0.1–3.0 check), not only
   the presets.

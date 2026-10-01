@@ -335,6 +335,15 @@ the *mjpegstreamer-adaptive* service, which polls snapshots — that is why Main
 the printer like this. Since bridge 2.10.1 the bridge polls snapshots too and adapts the rate to the
 printer CPU (`notify_proc_stat_update`).
 
+## Print control on GoKlipper (2026-10-01)
+
+Checked on the idle printer (each set and reset): `M220 S…` → `gcode_move.speed_factor`, `M221 S…` →
+`extrude_factor`, `M106 S0–255` → `fan.speed`, `SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0–1` →
+`fan_generic …`, `M104 S…` / `M140 S…` → heater targets. From Rinkhals' `kobra.py`: `CANCEL_PRINT` is
+redirected to Anycubic's MQTT stop for MQTT prints; `FIRMWARE_RESTART`/`RESTART` are refused (GoKlipper
+deadlocks, issue #32), so an emergency stop needs a power cycle. Pause/resume (GoKlipper macros) not
+yet tested during a real print.
+
 ## Android 17: local network protection (2026-09-30)
 
 Apps targeting Android 17 (API 37) cannot reach the local network (10.0.0.0/8, 192.168.0.0/16, …,

@@ -181,6 +181,20 @@ in the data folder and can be replaced by any paired device.
 The bridge downloads the running file once at print start through Moonraker (throttled) and
 renders it itself; progress comes from `virtual_sdcard.file_position`.
 
+## Print control
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/print/pause` | *(paired)* pause (Moonraker `printer.print.pause` → GoKlipper's `PAUSE`) |
+| POST | `/api/print/resume` | *(paired)* resume |
+| POST | `/api/print/cancel` | *(paired)* `{"confirm": true}` required, otherwise **409** — Rinkhals forwards `CANCEL_PRINT` to Anycubic's own stop for MQTT prints |
+| POST | `/api/print/emergency_stop` | *(paired)* `{"confirm": true}` required — afterwards the printer must be **power-cycled** (Rinkhals refuses `FIRMWARE_RESTART`, GoKlipper would hang) |
+| POST | `/api/print/tune` | *(paired)* any of `{"speed": 120, "flow": 98, "fans": {"part": 60, "box": 30, "filter": 0}, "nozzle": 240, "bed": 70}` — percent / °C; nozzle above 260 °C needs `confirm: true` |
+
+`tune` sends `M220`, `M221`, `M106` (part fan), `SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1`,
+`M104`, `M140` — all checked on a Kobra S1. Limits: speed 10–300 %, flow 50–150 %, fans 0–100 %,
+nozzle 0–300 °C, bed 0–110 °C. Every action shows in the console with the device that sent it.
+
 ## Console and logs
 
 | Method | Path | Purpose |

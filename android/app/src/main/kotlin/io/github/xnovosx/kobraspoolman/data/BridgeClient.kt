@@ -149,6 +149,16 @@ class BridgeClient(
         call("DELETE", "/api/auth/devices/$id", null, ApiError.serializer())
     }
 
+    /** pause, resume, cancel, emergency_stop - die App hat vorher selbst nachgefragt (confirm). */
+    suspend fun printAction(action: String) {
+        call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
+    }
+
+    /** Nachjustieren: {speed, flow, fans: {part, box, filter}, nozzle, bed}. */
+    suspend fun tune(body: JsonObject) {
+        call("POST", "/api/print/tune", body.toString(), ApiError.serializer())
+    }
+
     suspend fun dryerStart(temp: Int?, hours: Double?) {
         call("POST", "/api/dryer/start", json.encodeToString(DryerStart.serializer(), DryerStart(temp, hours)), ApiError.serializer())
     }

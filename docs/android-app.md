@@ -22,7 +22,8 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
 - **Start** — only what matters while printing: the camera (the model only during a print), below
   it the print (*Bereit*, *Druckt* with file, progress, running/remaining/finish time, *Pausiert*,
   *Fehler*, *Offline*) with nozzle, bed, fans, speed and flow, then the four ACE slots and the ACE
-  line (humidity, dryer, purge). All from the bridge's existing Moonraker subscription — the app
+  line (humidity, dryer, purge). Below the print: pause/resume, cancel, *Nachjustieren* (speed,
+  flow, fans, temperatures) and an emergency stop you hold for two seconds. All from the bridge's existing Moonraker subscription — the app
   adds no load on the printer.
 - **Meldungen** — the same messages and status as the web UI; the tab shows a counter (red for
   errors, yellow for warnings).

@@ -198,6 +198,14 @@ single value, clear that field in the filament editor (or use `POST /api/orca/re
 **Archivieren** on the spool (shelf, app or Spoolman). Filaments without any active spool lose their
 Orca profile on the next sync; profiles the plugin did not create are never touched.
 
+## Controlling a print
+
+Below the print status (web UI and app, paired devices only): **Pause** / **Weiter**, **Abbrechen**
+(asks first, a cancelled print cannot be resumed), **Nachjustieren** — speed, flow, the three fans and
+the nozzle/bed target, also without a print (e.g. to preheat) — and **Not-Aus**: hold it for two
+seconds, then confirm. After an emergency stop the printer has to be switched off and on again;
+Rinkhals blocks a firmware restart because GoKlipper would hang.
+
 ## Terminal and logs
 
 **Terminal** shows what the printer answers and every command sent through the bridge, with who sent

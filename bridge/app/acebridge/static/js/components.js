@@ -2,6 +2,7 @@
 
 import { html, useEffect, useRef } from "../vendor/preact-htm.module.js";
 import { Icon } from "./icons.js";
+import { ControlBar } from "./control.js";
 import { PrintMedia } from "./media.js";
 import { S, set, closeDialog, guard, openDialog, spoolById } from "./store.js";
 import { JOB_STATE, cls, duration, fileName, finishAt, grams, hex, minutes, num, printerLook, tint, title, when } from "./util.js";
@@ -46,6 +47,7 @@ export function PrinterCard({ compact, tall }) {
       <div><span>Noch ca.</span><b class="m">${duration(p.eta_s)}</b></div>
       <div><span>Fertig</span><b class="m">${finishAt(p.eta_s)}</b></div>
     </div>`}
+    <${ControlBar} p=${p} />
     ${p?.message && html`<div class="small" style=${{ color: look.fg }}>${p.message}</div>`}
     ${p?.state === "offline" && html`<div class="small muted">Die Bridge erreicht den Drucker gerade nicht.</div>`}
     ${p?.state !== "offline" && html`<${PrintMedia} tall=${tall} />`}
