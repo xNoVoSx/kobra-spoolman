@@ -137,3 +137,31 @@ def test_no_ace_no_action(make):
     d.set_config({"enabled": True})
     run(d.evaluate())
     assert moon.sent == [] and d.state()["present"] is False
+
+
+def test_planned_drying_starts_once_and_survives_restart(make, cfg):
+    d, moon, clock = make([spool(1, 1, "PLA")], hub(humidity=15))
+    with pytest.raises(ValueError):
+        d.set_schedule(clock.t - 10)                               # Vergangenheit
+    with pytest.raises(ValueError):
+        d.set_schedule(clock.t + 8 * 86400)                        # mehr als eine Woche
+    d.set_schedule(clock.t + 3600, temp=70, hours=4)
+    assert d.state()["schedule"]["temp"] == 70
+    assert Dryer(cfg, moon, d.slots).schedule["at"] == clock.t + 3600   # bleibt nach Neustart
+    run(d.evaluate())
+    assert moon.sent == []                                         # noch nicht faellig
+    clock.t += 3601
+    run(d.evaluate())
+    assert moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=240 TEMP=45"]   # auf PLA gedeckelt
+    assert d.schedule is None and d.state()["schedule"] is None
+    d.set_schedule(clock.t + 60)
+    d.clear_schedule()
+    assert d.schedule is None
+
+
+def test_planned_drying_when_already_drying_is_dropped(make):
+    d, moon, clock = make([spool(1, 1, "PETG")], hub(drying=True, target=60, remain=100))
+    d.set_schedule(clock.t + 10)
+    clock.t += 11
+    run(d.evaluate())
+    assert moon.sent == [] and d.schedule is None and "lief bereits" in d.last_event["text"]

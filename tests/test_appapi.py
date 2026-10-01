@@ -13,8 +13,10 @@ from conftest import FakeMoonraker
 
 from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, convert_extra, copy_filament_body,
                               normalize_uid, printer_state, tag_content)
+from acebridge.ace import AceSettings
 from acebridge.auth import Devices
 from acebridge.dryer import Dryer
+from acebridge.purge import PurgeModel
 from acebridge.slots import SlotManager
 from acebridge.web import build_app
 
@@ -216,6 +218,7 @@ class FakeBridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.usage = FakeUsage()
         self.dryer = Dryer(cfg, self.moon, self.slots)
+        self.ace = AceSettings(self.moon, PurgeModel(), self.slots, self.sm)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
 
     def safety_warnings(self):
@@ -271,10 +274,14 @@ def test_every_write_route_needs_a_paired_device(api):
                                ("POST", "/api/open/x", {"spool_id": 1}), ("DELETE", "/api/open/x", None),
                                ("POST", "/api/orca/backsync", {"orca_id": "SM000020", "changes": {"a": 1}}),
                                ("POST", "/api/orca/reset", {"orca_id": "SM000020", "keys": ["a"]}),
-                               ("PATCH", "/api/app/spool/1", {"comment": "x"})):
+                               ("PATCH", "/api/app/spool/1", {"comment": "x"}),
+                               ("POST", "/api/ace/flush", {"multiplier": 1.0}),
+                               ("POST", "/api/ace/options", {"auto_refill": True}),
+                               ("POST", "/api/dryer/schedule", {"at": 9999999999}),
+                               ("DELETE", "/api/dryer/schedule", None)):
         assert call(method, path, body, token=None)[0] == 401, path
         assert call(method, path, body, token="falsch")[0] == 401, path
-    for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state"):
+    for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state", "/api/ace"):
         assert call("GET", path, token=None)[0] == 200, path
     # mit Schluessel kommt die Anfrage durch (hier: Slot leeren)
     status, res = call("POST", "/api/slots/1", {"spool_id": None})

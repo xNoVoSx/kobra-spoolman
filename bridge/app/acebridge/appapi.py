@@ -483,6 +483,7 @@ class AppApi:
                            "spool": self._with_tag(s["spool"])} for s in slots],
                 "shelf": shelf,
                 "dryer": b.dryer.state(),
+                "ace": b.ace.state(),
                 "usage": {"live": b.usage.live(), "open": b.usage.open},
                 "warnings": b.safety_warnings() + b.slots.warnings,
             })

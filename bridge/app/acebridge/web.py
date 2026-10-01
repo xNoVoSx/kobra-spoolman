@@ -16,6 +16,7 @@ import re
 import time
 
 from . import CHANGELOG, __app_name__, __description__, __version__
+from .ace import AceError
 from .appapi import AppApi
 from .auth import AuthError
 
@@ -187,6 +188,73 @@ def build_app(bridge: "Bridge") -> web.Application:
         async def apply():
             return bridge.dryer.set_config(body).__dict__
         return await _dryer_call(apply())
+
+    @r.post("/api/dryer/schedule")
+    @need_device
+    async def dryer_schedule(request: web.Request):
+        try:
+            body = await request.json()
+            at = body.get("at")
+            if isinstance(at, str):
+                from datetime import datetime
+                at = datetime.fromisoformat(at).timestamp()
+            at = float(at)
+            temp = float(body["temp"]) if body.get("temp") not in (None, "") else None
+            hours = float(body["hours"]) if body.get("hours") not in (None, "") else None
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"at\": <ISO-Zeit oder Sekunden>, \"temp\": <degC oder null>, \"hours\": <h oder null>}")
+
+        async def apply():
+            return bridge.dryer.set_schedule(at, temp, hours)
+        return await _dryer_call(apply())
+
+    @r.delete("/api/dryer/schedule")
+    @need_device
+    async def dryer_schedule_clear(_):
+        async def apply():
+            bridge.dryer.clear_schedule()
+        return await _dryer_call(apply())
+
+    # ---------------------------------------------------------------- ACE-Einstellungen
+    async def _ace_call(coro):
+        try:
+            return web.json_response({"ok": True, "settings": await coro, "purge": bridge.ace.purge_preview()})
+        except AceError as e:
+            return _err(e.status, str(e))
+        except Exception as e:  # noqa: BLE001
+            log.warning("ACE-Einstellung: %s", e)
+            return _err(502, str(e))
+
+    @r.get("/api/ace")
+    async def ace_state(request: web.Request):
+        mult = request.query.get("multiplier")
+        try:
+            mult_f = float(mult.replace(",", ".")) if mult else None
+        except ValueError:
+            return _err(400, "multiplier muss eine Zahl sein")
+        return web.json_response({"settings": bridge.ace.state(), "purge": bridge.ace.purge_preview(mult_f)})
+
+    @r.post("/api/ace/flush")
+    @need_device
+    async def ace_flush(request: web.Request):
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"multiplier\": 1.0, \"confirm_printing\": false}")
+        return await _ace_call(bridge.ace.set_flush_multiplier(body.get("multiplier"),
+                                                                bool(body.get("confirm_printing"))))
+
+    @r.post("/api/ace/options")
+    @need_device
+    async def ace_options(request: web.Request):
+        try:
+            body = await request.json()
+            if not isinstance(body, dict):
+                raise TypeError
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"auto_refill\": true, \"runout_detect\": true}")
+        confirm = bool(body.pop("confirm_printing", False))
+        return await _ace_call(bridge.ace.set_options(body, confirm))
 
     # ---------------------------------------------------------------- Verbrauch (Etappe 2)
     @r.get("/api/usage")

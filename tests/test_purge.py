@@ -55,7 +55,7 @@ def test_learns_offset_and_first_load_from_orca_prints():
     m = PurgeModel()
     m.learn([color_pla_job()])
     assert m.learned_from == 1
-    assert m.offset_mm == pytest.approx(-3.4, abs=0.3)
+    assert m.offset_mm == pytest.approx(-2.9, abs=0.3)
     assert m.first_load_mm == pytest.approx(94.6, abs=0.5)
     # Vorhersage mit den gelernten Werten trifft die Messung
     m.flush = {**FW, "flush_multiplier": 1.5}

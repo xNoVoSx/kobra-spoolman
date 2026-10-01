@@ -86,7 +86,7 @@ def firmware_volume(src: Optional[str], dst: Optional[str], flush: Dict[str, flo
     if raw is None:
         return None
     lo, hi = float(flush["flush_volume_min"]), float(flush["flush_volume_max"])
-    return min(max(raw + lo, lo), hi)
+    return min(max(float(int(raw + lo)), lo), hi)        # Orca schneidet auf ganze mm3 ab
 
 
 def change_mm(src: Optional[str], dst: Optional[str], flush: Dict[str, float], offset_mm: float) -> Optional[float]:

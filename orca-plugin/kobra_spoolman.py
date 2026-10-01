@@ -345,7 +345,7 @@ def purge_change_mm(src, dst, flush, offset_mm):
     if raw is None:
         return None
     lo, hi = float(flush["flush_volume_min"]), float(flush["flush_volume_max"])
-    vol = min(max(raw + lo, lo), hi)
+    vol = min(max(float(int(raw + lo)), lo), hi)        # Orca schneidet auf ganze mm3 ab
     return max(0.0, vol * float(flush["flush_multiplier"]) / _AREA_175 + offset_mm)
 
 

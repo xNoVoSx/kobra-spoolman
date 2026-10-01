@@ -75,6 +75,17 @@ class Moonraker:
             data = await r.json(content_type=None)
         return data.get("result", data) if isinstance(data, dict) else data
 
+    async def post_json(self, path: str, body: Dict[str, Any], timeout: float = 10) -> Any:
+        """Schreibende HTTP-Abfrage an Moonraker/GoKlipper (z.B. filament_hub/set_config)."""
+        if self.cfg.dry_run:
+            log.info("[dry-run] POST %s %s", path, json.dumps(body))
+            return None
+        async with self.session.post(f"{self.cfg.moonraker_url}{path}", json=body, headers=self._headers(),
+                                     timeout=aiohttp.ClientTimeout(total=timeout)) as r:
+            r.raise_for_status()
+            data = await r.json(content_type=None)
+        return data.get("result", data) if isinstance(data, dict) else data
+
     async def gcode(self, script: str, timeout: float = 15) -> None:
         """G-Code ueber die bestehende WebSocket-Verbindung (Moonraker/Rinkhals faengt MMU_* ab)."""
         if self.cfg.dry_run:

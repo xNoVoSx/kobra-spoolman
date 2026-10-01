@@ -107,6 +107,7 @@ class Dryer:
         self.auto_run = False           # laeuft ein Durchgang, den die Automatik gestartet hat?
         self.pause_until = 0.0
         self.last_event: Optional[Dict[str, Any]] = None
+        self.schedule: Optional[Dict[str, Any]] = None   # geplanter Start: {"at": epoch, "temp", "hours"}
         self._busy = False
         self._last_cmd_at = -1e12
         self._load()
@@ -119,6 +120,9 @@ class Dryer:
             self.config = DryerConfig(**{k: v for k, v in (data.get("config") or {}).items()
                                          if k in DryerConfig.__dataclass_fields__})
             self.config.validate()
+            sched = data.get("schedule")
+            if isinstance(sched, dict) and isinstance(sched.get("at"), (int, float)):
+                self.schedule = sched
         except FileNotFoundError:
             pass
         except Exception as e:  # noqa: BLE001
@@ -128,7 +132,7 @@ class Dryer:
     def _save(self) -> None:
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"config": asdict(self.config)}, fh, indent=1)
+            json.dump({"config": asdict(self.config), "schedule": self.schedule}, fh, indent=1)
         os.replace(tmp, self.path)
 
     def set_config(self, changes: Dict[str, Any]) -> DryerConfig:
@@ -143,6 +147,30 @@ class Dryer:
         self._save()
         log.info("Trockner-Automatik: %s", asdict(new))
         return new
+
+    def set_schedule(self, at: float, temp: Optional[float] = None, hours: Optional[float] = None) -> Dict[str, Any]:
+        """Einmaligen Start planen (Zeitpunkt in Sekunden seit 1970). Temperatur wie beim Start von Hand
+        nie ueber dem empfindlichsten eingelegten Filament; leer = automatisch."""
+        now = self.clock()
+        if at <= now:
+            raise ValueError("Der Zeitpunkt muss in der Zukunft liegen")
+        if at > now + 7 * 86400:
+            raise ValueError("Höchstens eine Woche im Voraus")
+        if hours is not None and not 0.5 <= float(hours) <= 24:
+            raise ValueError("Laufzeit 0,5 bis 24 Stunden")
+        if temp is not None and not 20 <= float(temp) <= 90:
+            raise ValueError("Temperatur 20 bis 90 °C")
+        self.schedule = {"at": float(at), "temp": None if temp is None else float(temp),
+                         "hours": None if hours is None else float(hours)}
+        self._save()
+        log.info("Trocknen geplant: %s", time.strftime("%d.%m. %H:%M", time.localtime(at)))
+        return self.schedule
+
+    def clear_schedule(self) -> None:
+        if self.schedule:
+            self.schedule = None
+            self._save()
+            log.info("Geplantes Trocknen gelöscht")
 
     def required_temp(self) -> Dict[str, Any]:
         """Hoechste Temperatur, die alle eingelegten Filamente vertragen, mit Begruendung."""
@@ -169,7 +197,11 @@ class Dryer:
                 "limited_by": [p["slot"] for p in parts if limit is not None and p["temp"] == limit]}
 
     def state(self) -> Dict[str, Any]:
+        sched = None
+        if self.schedule:
+            sched = {**self.schedule, "at_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.schedule["at"]))}
         return {**hub_state(self.moon.status), "required": self.required_temp(), "config": asdict(self.config),
+                "schedule": sched,
                 "auto_run": self.auto_run,
                 "paused_until": self.pause_until if self.pause_until > self.clock() else None,
                 "last_event": self.last_event}
@@ -226,6 +258,10 @@ class Dryer:
         req = self.required_temp()
         c = self.config
         if hub["drying"]:
+            if self.schedule and now >= self.schedule["at"]:
+                self.schedule = None
+                self._save()
+                self._event("Geplantes Trocknen fällig – Trockner lief bereits")
             # Sicherheit, auch bei Start von Hand: empfindlicheres Filament eingelegt -> Temperatur senken
             if req["temp"] is not None and hub["target_temp"] and hub["target_temp"] > req["temp"]:
                 left = (hub["remaining_min"] or c.max_hours * 60) / 60
@@ -234,6 +270,14 @@ class Dryer:
                 return
             if self.auto_run and hub["humidity"] is not None and hub["humidity"] <= c.stop_below:
                 await self.stop(source="auto")
+            return
+        if self.schedule and now >= self.schedule["at"]:
+            sched, self.schedule = self.schedule, None
+            self._save()
+            if req["temp"] is None and sched.get("temp") is None:
+                self._event("Geplantes Trocknen übersprungen: keine Spule eingelegt")
+                return
+            await self.start(sched.get("temp"), sched.get("hours"), source="plan")
             return
         if self.auto_run:       # die ACE hat den Durchgang selbst beendet (Laufzeit um)
             self.auto_run = False
