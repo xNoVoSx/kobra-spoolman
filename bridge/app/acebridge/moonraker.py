@@ -67,6 +67,14 @@ class Moonraker:
             if r.status not in (200, 404):
                 r.raise_for_status()
 
+    async def get_json(self, path: str, timeout: float = 10) -> Any:
+        """Lesende HTTP-Abfrage an Moonraker (z.B. GoKlippers /printer/filament_hub/get_config)."""
+        async with self.session.get(f"{self.cfg.moonraker_url}{path}", headers=self._headers(),
+                                    timeout=aiohttp.ClientTimeout(total=timeout)) as r:
+            r.raise_for_status()
+            data = await r.json(content_type=None)
+        return data.get("result", data) if isinstance(data, dict) else data
+
     async def gcode(self, script: str, timeout: float = 15) -> None:
         """G-Code ueber die bestehende WebSocket-Verbindung (Moonraker/Rinkhals faengt MMU_* ab)."""
         if self.cfg.dry_run:

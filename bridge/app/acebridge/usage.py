@@ -34,6 +34,7 @@ from .config import Config
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
+    from .purge import PurgeModel
     from .slots import SlotManager
     from .spoolman import Spoolman
 
@@ -105,6 +106,18 @@ def parse_targets(vsd: Dict[str, Any], diameter: float) -> Optional[Dict[str, An
             "types": types}
 
 
+def group_transitions(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Gleiche Wechsel (von, nach, Farben) zusammenfassen: [{..., "count": n}]."""
+    out: Dict[tuple, Dict[str, Any]] = {}
+    for t in items:
+        key = (t.get("from_slot"), t.get("to_slot"), t.get("from_color"), t.get("to_color"))
+        if key in out:
+            out[key]["count"] += 1
+        else:
+            out[key] = {**t, "count": 1}
+    return list(out.values())
+
+
 class UsageTracker:
     def __init__(self, cfg: Config, moon: "Moonraker", sm: "Spoolman", slots: "SlotManager"):
         self.cfg = cfg
@@ -123,6 +136,7 @@ class UsageTracker:
         self.job: Optional[Dict[str, Any]] = None
         self.open: List[Dict[str, Any]] = []
         self.history: List[Dict[str, Any]] = []
+        self.purge: Optional["PurgeModel"] = None    # setzt die Bridge (Spuel-Modell, purge.py)
         self._load()
 
     # ================================================================== Persistenz
@@ -231,6 +245,9 @@ class UsageTracker:
             "buckets": {},             # "gate:spool" -> {gate, spool_id, mm, booked_mm, last_book}
             "loads": 0,                # wie oft ein Slot aktiv wurde (erster + Wechsel)
             "changes": [],             # Slotwechsel
+            "transitions": [],         # jedes Laden mit ACE-Farben (fuer das Spuel-Modell)
+            "slicer": vsd.get("slicer"),
+            "flush": dict(self.purge.flush) if self.purge and self.purge.flush_source == "printer" else None,
             "targets": parse_targets(vsd, self.cfg.default_diameter),
         }
         self._dirty = True
@@ -266,6 +283,10 @@ class UsageTracker:
             return
         job["gate"] = gate
         job["loads"] += 1
+        job.setdefault("transitions", []).append({
+            "from_slot": old + 1 if old is not None else None, "to_slot": gate + 1,
+            "from_color": self.slots.ace_gate(old)["color"] if old is not None else None,
+            "to_color": self.slots.ace_gate(gate)["color"]})
         if job["pre_mm"]:
             self._add(gate, job["pre_mm"])
             job["pre_mm"] = 0.0
@@ -347,6 +368,8 @@ class UsageTracker:
 
             # Sollwerte kommen manchmal erst nach dem Start an und werden spaeter geleert
             vsd_d = delta.get("virtual_sdcard") or {}
+            if vsd_d.get("slicer") and not self.job.get("slicer"):
+                self.job["slicer"] = vsd_d["slicer"]
             if "filament_used" in vsd_d and not self.job.get("targets"):
                 t = parse_targets(status.get("virtual_sdcard", {}) or {}, self.cfg.default_diameter)
                 if t:
@@ -529,6 +552,8 @@ class UsageTracker:
         summary = self._summary(job, end_state)
         self.history.insert(0, summary)
         del self.history[self.cfg.job_history:]
+        if self.purge is not None:
+            self.purge.learn(self.history)
         try:
             self._atomic_write(self.history_path, self.history)
         except OSError as e:
@@ -590,6 +615,9 @@ class UsageTracker:
             "changes": len(job["changes"]),
             "slots": sorted(per_slot.values(), key=lambda s: s["slot"]),
             "warnings": warnings,
+            "slicer": job.get("slicer"),
+            "flush": job.get("flush"),
+            "transitions": group_transitions(job.get("transitions") or []),
         }
 
     def live(self) -> Optional[Dict[str, Any]]:
@@ -619,15 +647,23 @@ class UsageTracker:
                 for s in last["slots"] if s["slot"] > 0}
 
     def purge_stats(self) -> Dict[str, Any]:
-        """Mehrverbrauch (Spuelen, Anfahren) gegenueber dem Modell - Grundlage fuer Etappe 3.
-        Erste Naeherung: Mehrverbrauch pro Ladevorgang aus allen fertigen Drucken."""
-        rows = [h for h in self.history if h.get("overhead_mm") is not None and h.get("loads")]
-        if not rows:
-            return {"jobs": 0}
-        per_load = [h["overhead_mm"] / h["loads"] for h in rows]
-        return {"jobs": len(rows), "overhead_per_load_mm": round(sum(per_load) / len(per_load), 1),
-                "last": [{"file": h["file"], "overhead_mm": h["overhead_mm"], "loads": h["loads"]}
-                         for h in rows[:10]]}
+        """Spuelen der Firmware fuer die Vorschau im Plugin.
+
+        "model": Firmware-Werte und eingemessene Konstanten des Spuel-Modells (purge.py) - damit
+        rechnet das Plugin pro Farbwechsel. "overhead_per_load_mm": alter Mittelwert pro Laden fuer
+        aeltere Plugins; nur aus Drucken, bei denen "gemessen - G-Code-Soll" das Spuelen ist
+        (AnycubicSlicer schreibt seine Spuelmenge ins Soll, das macht den Wert falsch)."""
+        out: Dict[str, Any] = {"jobs": 0}
+        rows = [h for h in self.history if h.get("overhead_mm") is not None and h.get("loads")
+                and h.get("slicer") != "AnycubicSlicer"]
+        if rows:
+            per_load = [h["overhead_mm"] / h["loads"] for h in rows]
+            out = {"jobs": len(rows), "overhead_per_load_mm": round(sum(per_load) / len(per_load), 1),
+                   "last": [{"file": h["file"], "overhead_mm": h["overhead_mm"], "loads": h["loads"]}
+                            for h in rows[:10]]}
+        if self.purge is not None:
+            out["model"] = self.purge.state()
+        return out
 
     # ================================================================== offene Posten (API)
     async def resolve_open(self, item_id: str, spool_id: Optional[int]) -> Dict[str, Any]:

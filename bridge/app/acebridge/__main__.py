@@ -14,6 +14,7 @@ from aiohttp import web
 from . import __version__
 from .config import Config
 from .moonraker import Moonraker
+from .purge import PurgeModel
 from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
@@ -25,10 +26,10 @@ from .web import build_app
 log = logging.getLogger("bridge")
 
 
-
 def spoolman_support_off(value) -> bool:
     """Rinkhals meldet "off"; False/0/"false" (andere Staende) gelten ebenso als aus."""
     return value is None or value is False or str(value).strip().lower() in ("off", "false", "0", "disabled", "")
+
 
 class Bridge:
     def __init__(self, cfg: Config, session: aiohttp.ClientSession):
@@ -39,6 +40,10 @@ class Bridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.recorder = Recorder(cfg)
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
+        self.purge = PurgeModel()
+        self.usage.purge = self.purge
+        self.purge.learn(self.usage.history)
+        self._flush_tried = 0.0
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self._print_state = ""
@@ -89,6 +94,19 @@ class Bridge:
                     await self.slots.evaluate()
             await asyncio.sleep(self.cfg.spoolman_poll_s)
 
+    async def refresh_flush_config(self) -> None:
+        """Spuel-Einstellung der Firmware alle 10 Minuten lesen (eine kleine Abfrage, kein Abo)."""
+        if not self.moon.klippy_ready or not self.purge.config_due():
+            return
+        now = asyncio.get_running_loop().time()
+        if now - self._flush_tried < 60:
+            return
+        self._flush_tried = now
+        try:
+            self.purge.set_flush_config(await self.moon.get_json("/printer/filament_hub/get_config"))
+        except Exception as e:  # noqa: BLE001
+            log.info("Spuel-Einstellung der Firmware nicht lesbar: %s", e)
+
     async def ticker(self) -> None:
         while True:
             await asyncio.sleep(2)
@@ -97,6 +115,7 @@ class Bridge:
                 await self.usage.tick()
                 await self.slots.evaluate()  # Entprellung der Auto-Freigabe
                 await self.dryer.evaluate()  # Automatik und Temperatur-Sicherheit
+                await self.refresh_flush_config()
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")
 

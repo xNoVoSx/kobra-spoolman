@@ -58,6 +58,25 @@ def test_replay_books_each_slot_exactly(cfg):
     assert tracker.job is None and tracker.open == []
 
 
+def test_replay_records_colour_changes_for_the_purge_model(cfg):
+    """Fuer das Spuel-Modell: Slicer, Firmware-Einstellung und jedes Laden mit den ACE-Farben."""
+    from acebridge.purge import PurgeModel
+    moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
+    tracker.purge = PurgeModel()
+    tracker.purge.set_flush_config({"flush_multiplier": 1.5, "flush_volume_min": 107, "flush_volume_max": 800})
+    rows = load_recording()
+    rows[0]["status"]["virtual_sdcard"]["slicer"] = "OrcaSlicer"   # meldet die Firmware seit Ende September
+    feed(moon, tracker, rows)
+
+    job = tracker.history[0]
+    assert job["slicer"] == "OrcaSlicer" and job["flush"]["flush_multiplier"] == 1.5
+    assert [(t["from_slot"], t["to_slot"], t["count"]) for t in job["transitions"]] == [(None, 2, 1), (2, 1, 1)]
+    assert all(t["to_color"] for t in job["transitions"])
+    # die Bridge hat daraus eingemessen (zwei Slots: erster Ladevorgang und ein Wechsel)
+    assert tracker.purge.learned_from == 1
+    assert "model" in tracker.purge_stats()
+
+
 def test_restart_in_the_middle_does_not_double_book(cfg):
     rows = load_recording()
     cut = len(rows) // 2
