@@ -132,11 +132,39 @@ the flush per colour pair itself (AnycubicSlicer's colour algorithm), multiplies
 | black → white | 551 mm³ | 800 mm³ (826) | 333 | 364 |
 | white → black | 137 mm³ | 205 mm³ | 85 | 106 |
 
-Confirmation pending: the same test print with the multiplier set to 1.0 should purge ≈ 2/3.
+**Confirmed (2026-10-01):** test A printed again with the multiplier set to 1.0 at the display.
+Same G-code, so the model part of each of the 13 slabs is identical — the difference per slab is
+purge only. Steady slabs (4–13) are constant to ±1 mm:
+
+| change | × 1.5 slab | × 1.0 slab | measured difference | model: colour volume × 0.5 / 2.405 |
+|---|---|---|---|---|
+| lavender → magenta | 271–274 mm | 205–208 mm | **66 mm** | 64.9 mm (312 mm³) |
+| magenta → lavender | 307–308 mm | 229–230 mm | **78 mm** | 79.2 mm (381 mm³) |
+
+Total: 4064 mm → 2946 mm (−28 %). Assuming equal model parts per colour (1391 mm real extrusion,
+7 magenta and 6 lavender slabs), the absolute purge per load is
+
+| change | × 1.0 | × 1.5 |
+|---|---|---|
+| lavender → magenta | ≈ 97 mm | ≈ 162 mm |
+| magenta → lavender | ≈ 126 mm | ≈ 205 mm |
+
+→ **purge ≈ clamp(colour volume × flush_multiplier, 107, 800 mm³) / 2.405 − ≈ 32 mm** (the offset
+fits both multipliers; it matches the ≈ 50 mm the firmware retracts before cutting, partly reused
+by the next purge). The first load of a print is larger (from an unloaded nozzle, ≈ +90 mm).
+
+Consequences:
+- The bridge's bookings were already right (it measures; purge lands on the newly loaded spool).
+- A per-transition prediction is possible from the colours alone, if the colour volume equals what
+  Orca's own "flushing volumes from colours" computes before its multiplier — to be checked against
+  Orca's matrix for the same two colours. Then the plugin's preview can use Orca's matrix × the
+  firmware multiplier instead of one average per load.
+
 [Kobra-S1/ACEPRO](https://github.com/Kobra-S1/ACEPRO) (vanilla Klipper replacing the stock
 firmware — not compatible with Rinkhals) converts Orca's flush matrix into a purge length per change,
 the same per-transition idea.
-Per direction (A, B, B2): magenta → lavender 219–231 mm, lavender → magenta 163–200 mm per load.
+Per direction (A, B, B2, slab totals including the model part): magenta → lavender 219–231 mm,
+lavender → magenta 163–200 mm per load.
 
 Side effect: the header `filament_used` of AnycubicSlicer files contains the slicer's flush volume,
 although no G-code extrudes it. The bridge's "overhead = measured − header target" is therefore
