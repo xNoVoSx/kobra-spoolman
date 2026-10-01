@@ -14,8 +14,10 @@ from aiohttp import web
 from . import __version__
 from .config import Config
 from .ace import AceSettings
+from .camera import Camera
 from .moonraker import Moonraker
 from .purge import PurgeModel
+from .render import PrintPreview
 from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
@@ -45,6 +47,8 @@ class Bridge:
         self.usage.purge = self.purge
         self.purge.learn(self.usage.history)
         self.ace = AceSettings(self.moon, self.purge, self.slots, self.sm)
+        self.camera = Camera(cfg, self.moon, session)
+        self.preview = PrintPreview(cfg, self.moon, session)
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self._print_state = ""
@@ -62,6 +66,10 @@ class Bridge:
             await self.usage.on_status(delta, full, self.moon.status)
         except Exception:  # noqa: BLE001
             log.exception("Verbrauchs-Fehler")
+        try:
+            self.preview.watch(self.moon.status)        # neuer Druck -> Datei fuer die Vorschau laden
+        except Exception:  # noqa: BLE001
+            log.exception("Vorschau-Fehler")
         new_state = (self.moon.status.get("print_stats", {}) or {}).get("state", "") or ""
         old_state, self._print_state = self._print_state, new_state
         if new_state != old_state:

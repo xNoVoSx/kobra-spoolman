@@ -17,6 +17,7 @@ import time
 
 from . import CHANGELOG, __app_name__, __description__, __version__
 from .ace import AceError
+from .camera import CameraError
 from .appapi import AppApi
 from .auth import AuthError
 
@@ -255,6 +256,40 @@ def build_app(bridge: "Bridge") -> web.Application:
             return _err(400, "Erwartet JSON {\"auto_refill\": true, \"runout_detect\": true}")
         confirm = bool(body.pop("confirm_printing", False))
         return await _ace_call(bridge.ace.set_options(body, confirm))
+
+    # ---------------------------------------------------------------- Kamera und Druckvorschau
+    @r.get("/api/camera")
+    async def camera_state(_):
+        return web.json_response(bridge.camera.state())
+
+    @r.get("/api/camera/snapshot.jpg")
+    @need_device
+    async def camera_snapshot(_):
+        """Nur fuer gekoppelte Geraete: es ist ein Bild aus der Wohnung."""
+        try:
+            data, taken = await bridge.camera.snapshot()
+        except CameraError as e:
+            return _err(503, str(e))
+        return web.Response(body=data, content_type="image/jpeg",
+                            headers={"Cache-Control": "no-store", "X-Taken-At": str(int(taken))})
+
+    @r.get("/api/print/info")
+    async def print_info(_):
+        return web.json_response(bridge.preview.info(bridge.moon.status))
+
+    @r.get("/api/print/preview.png")
+    async def print_preview(_):
+        png = await bridge.preview.render(bridge.moon.status)
+        if png is None:
+            return _err(404, "Keine Vorschau (" + bridge.preview.status + ")")
+        return web.Response(body=png, content_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @r.get("/api/print/thumbnail.png")
+    async def print_thumbnail(_):
+        m = bridge.preview.model
+        if not m or not m.thumbnail:
+            return _err(404, "Kein Vorschaubild in der Datei")
+        return web.Response(body=m.thumbnail, content_type="image/png", headers={"Cache-Control": "no-store"})
 
     # ---------------------------------------------------------------- Verbrauch (Etappe 2)
     @r.get("/api/usage")
