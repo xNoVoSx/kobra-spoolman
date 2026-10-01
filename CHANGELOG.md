@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Web UI: the overview's ACE card has the multiplier field again (with the 0.1–3.0 check), not only
+  the presets.
+
 ## [2.10.1] – 2026-10-01
 
 ### Changed

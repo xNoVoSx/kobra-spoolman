@@ -91,13 +91,13 @@ export function AceCard({ compact }) {
         <button class=${cls("chip", Math.abs((current ?? -1) - v) < 0.001 && "on")} disabled=${locked || busy}
                 onClick=${() => setFlush(v)}>${{ minimal: "Minimal", normal: "Normal", maximum: "Maximum" }[k] || k} ${fixed(v, 1)}</button>`)}
     </div>
-    ${!compact && html`
     <div class="row" style="gap:8px">
       <input class="inp" style="max-width:120px" inputmode="decimal" aria-label="Multiplikator" value=${text} disabled=${locked}
-             onInput=${(e) => setText(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && changed && setFlush(wanted)} />
+             aria-invalid=${!valid && !!text} onInput=${(e) => setText(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && changed && setFlush(wanted)} />
       <button class="btn sm acc" disabled=${!changed || locked || busy} onClick=${() => setFlush(wanted)}>Übernehmen</button>
-      ${!valid && text && html`<span class="small" style="color:var(--danger-text)">0,1 bis 3,0</span>`}
+      ${!valid && text && html`<span class="small" style="color:var(--danger-text)">erlaubt 0,1 bis 3,0</span>`}
     </div>
+    ${!compact && html`
     ${preview && preview.pairs.length > 0 && html`
       <div class="col" style="gap:6px">
         <${PurgeSummary} pairs=${preview.pairs} />
