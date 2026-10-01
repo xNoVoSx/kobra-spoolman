@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.10.1"
+__version__ = "2.11.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.11.0", "2026-10-01", [
+        "Drucksteuerung: Pause/Weiter, Abbrechen, Not-Aus (2 s halten), Nachjustieren (Tempo, Fluss, Lüfter, Temperaturen)",
+        "Feld für den Spül-Multiplikator wieder auf Übersicht und Seite ACE",
+    ]),
     ("2.10.1", "2026-10-01", [
         "Kamera schont den Drucker: Einzelbilder statt Stream, 1–10 fps je nach Drucker-CPU",
         "Status zeigt die Drucker-CPU; Warnung bei Dauerlast",
