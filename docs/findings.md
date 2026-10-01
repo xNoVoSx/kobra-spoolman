@@ -155,10 +155,16 @@ by the next purge). The first load of a print is larger (from an unloaded nozzle
 
 Consequences:
 - The bridge's bookings were already right (it measures; purge lands on the newly loaded spool).
-- A per-transition prediction is possible from the colours alone, if the colour volume equals what
-  Orca's own "flushing volumes from colours" computes before its multiplier — to be checked against
-  Orca's matrix for the same two colours. Then the plugin's preview can use Orca's matrix × the
-  firmware multiplier instead of one average per load.
+- **The colour volume is Orca's own formula + 107 mm³.** Orca's `FlushVolCalculator::calc_flush_vol`
+  (`src/libslic3r/FlushVolCalc.cpp`, inherited from Bambu Studio: HSV distance + luminance, 60 mm³
+  floor) gives 205 / 274 mm³ for lavender ↔ magenta and 480 / 67 mm³ for black ↔ white
+  (`#212721` / `#EFF0F1`); adding `flush_volume_min` = 107 gives exactly AnycubicSlicer's automatic
+  values 312 / 381 and 587 / 173. (One older black/white export shows 551 / 137 — a different
+  minimum was set in that slicer project.)
+- So the purge per transition can be **computed from the two slot colours** without learning:
+  `clamp((orca_colour_volume + 107) × flush_multiplier, 107, 800) / 2.405 − ~32 mm`, first load
+  ≈ +90 mm. The firmware values (`flush_multiplier`, min, max) are readable at
+  `/printer/filament_hub/get_config`.
 
 [Kobra-S1/ACEPRO](https://github.com/Kobra-S1/ACEPRO) (vanilla Klipper replacing the stock
 firmware — not compatible with Rinkhals) converts Orca's flush matrix into a purge length per change,
