@@ -6,6 +6,17 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Release builds a **signed app APK** (`kobra-spoolman-app-<version>.apk` on the GitHub release) and
+  puts it into the Docker image; the bridge offers it to the app as an update (`/api/app/update`).
+
+## app 1.0.0 – 2026-10-01
+
+First release build of the Android app (own version, independent of the bridge).
+- Start: camera, print status with printer data, controls, slots, ACE
+- Meldungen, Filament (spools and filament types), Mehr (ACE & dryer, prints, Protokoll, devices, settings)
+- Updates from the bridge: shows new versions and installs them after a tap
+
 ## [2.11.0] – 2026-10-01
 
 ### Added

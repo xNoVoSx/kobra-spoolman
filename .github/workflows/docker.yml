@@ -1,6 +1,7 @@
 # Baut das Docker-Image der Bridge und veroeffentlicht es unter ghcr.io/<owner>/ace-lane-bridge.
 #   - Push auf main     -> Tag "edge"
-#   - Tag vX.Y.Z        -> Tags "X.Y.Z", "X.Y", "latest"
+#   - Tag vX.Y.Z        -> Tags "X.Y.Z", "X.Y", "latest" - mit der signierten App-APK im Image
+#                          (die Bridge bietet sie der App als Update an, /api/app/update)
 name: Docker image
 
 on:
@@ -17,10 +18,23 @@ permissions:
   packages: write
 
 jobs:
+  app:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/apk.yml
+    secrets: inherit
+
   image:
+    needs: app
+    # auch ohne APK-Job (Push auf main): dann Image ohne App-Update
+    if: ${{ !cancelled() && (needs.app.result == 'success' || needs.app.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: app
+          path: bridge/app/acebridge/appdist
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3

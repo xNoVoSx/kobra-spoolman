@@ -1,0 +1,61 @@
+# Baut die signierte Release-APK der App (wird von release.yml und docker.yml aufgerufen).
+# Ergebnis als Artefakt "app": kobra-spoolman-app-<version>.apk und app.json (Version, versionCode, Aenderungen).
+name: App-APK
+
+on:
+  workflow_call:
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_KEYSTORE_PASSWORD:
+        required: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Schluessel bereitstellen
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KEYSTORE_B64" ] || { echo "Secret ANDROID_KEYSTORE_BASE64 fehlt"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Release-APK bauen
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew testDebugUnitTest assembleRelease
+      - name: Signatur pruefen und Paket zusammenstellen
+        run: |
+          ver=$(sed -n 's/^versionName=//p' android/app/version.properties)
+          IFS=. read -r a b c <<< "$ver"; code=$((a * 10000 + b * 100 + c))
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          dn=$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -m1 "certificate DN")
+          echo "$dn"
+          case "$dn" in *"Android Debug"*) echo "APK ist debug-signiert - Abbruch"; exit 1;; esac
+          mkdir -p appdist
+          cp android/app/build/outputs/apk/release/app-release.apk "appdist/kobra-spoolman-app-$ver.apk"
+          # Aenderungen der App aus CHANGELOG.md ("## app x.y.z – Datum")
+          awk -v v="$ver" '$0 ~ "^## app "v"( |$)" {f=1; next} f && /^## / {exit} f && /^- / {sub(/^- /, ""); print}' CHANGELOG.md > changes.txt
+          python3 - "$ver" "$code" <<'PY'
+          import json, os, sys
+          ver, code = sys.argv[1], int(sys.argv[2])
+          changes = [l.strip() for l in open("changes.txt", encoding="utf-8") if l.strip()]
+          apk = f"kobra-spoolman-app-{ver}.apk"
+          json.dump({"version": ver, "code": code, "file": apk, "size": os.path.getsize(f"appdist/{apk}"),
+                     "changes": changes}, open("appdist/app.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+          PY
+          cat appdist/app.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app
+          path: appdist/
+          retention-days: 7

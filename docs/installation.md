@@ -176,9 +176,11 @@ curl -fsSLo ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/kobra_spoolman.py \
 
 ## 7. Android app (optional)
 
-The app is a preview: there is no signed release yet. Every CI run builds a debug APK
-(*Actions → CI → latest run → Artifacts → kobra-spoolman-debug-apk*); install it with `adb install` or by opening the
-file on the phone. Then: **Einstellungen → QR-Code scannen** and scan the QR code from
+Download `kobra-spoolman-app-<version>.apk` from the latest
+[GitHub release](https://github.com/xNoVoSx/kobra-spoolman/releases) and open it on the phone (allow
+installing from that source). Later updates come from the bridge: when the bridge brings a newer app,
+**Mehr** shows *Update auf …* — one tap downloads it from the bridge and Android asks to install it.
+Then: **Einstellungen → QR-Code scannen** and scan the QR code from
 *Geräte → Gerät hinzufügen* in the web UI. Android 17 asks for *Nearby devices* (local network) —
 allow it, otherwise the app cannot reach the bridge. More: [android-app.md](android-app.md).
 

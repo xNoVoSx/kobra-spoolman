@@ -1,4 +1,4 @@
-# Beim Tag vX.Y.Z: Release mit Plugin, Setup-Skript und Bridge-Paket anlegen.
+# Beim Tag vX.Y.Z: Release mit Plugin, Setup-Skript, Bridge-Paket und signierter App-APK anlegen.
 name: Release
 
 on:
@@ -9,14 +9,24 @@ permissions:
   contents: write
 
 jobs:
+  app:
+    uses: ./.github/workflows/apk.yml
+    secrets: inherit
+
   release:
+    needs: app
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: app
+          path: appdist
       - name: Pakete bauen
         run: |
           mkdir dist
           cp orca-plugin/kobra_spoolman.py spoolman/spoolman_setup.py dist/
+          cp appdist/*.apk dist/
           tar czf "dist/ace-lane-bridge-${GITHUB_REF_NAME}.tar.gz" -C bridge app
           (cd dist && sha256sum ./* > SHA256SUMS)
       - name: Release-Notizen aus CHANGELOG.md

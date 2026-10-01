@@ -37,7 +37,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.xnovosx.kobraspoolman.BuildConfig
 import io.github.xnovosx.kobraspoolman.data.AppState
+import io.github.xnovosx.kobraspoolman.data.AppUpdate
 import io.github.xnovosx.kobraspoolman.data.Catalog
 import io.github.xnovosx.kobraspoolman.data.ConsoleLine
 import io.github.xnovosx.kobraspoolman.data.ConsoleLines
@@ -158,6 +160,10 @@ private fun parseColor(hex: String): Color =
 @Composable
 fun MoreScreen(
     padding: PaddingValues,
+    update: AppUpdate?,
+    updateProgress: Float?,
+    onInstall: () -> Unit,
+    onCheckUpdate: () -> Unit,
     hasAce: Boolean,
     onAce: () -> Unit,
     onJobs: () -> Unit,
@@ -168,11 +174,30 @@ fun MoreScreen(
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), contentPadding = listPadding(padding),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { ScreenHeader("Mehr") }
+        update?.let { u -> item { UpdateCard(u, updateProgress, onInstall) } }
         if (hasAce) item { MoreRow(KIcons.Dryer, "ACE & Trockner", "Trocknen, Spülen, Nachladen", onAce) }
         item { MoreRow(KIcons.Clock, "Drucke", "Verbrauch pro Druck und Spule", onJobs) }
         item { MoreRow(KIcons.Terminal, "Protokoll", "Gesendete Befehle, Antworten, was die Bridge macht", onProtocol) }
         item { MoreRow(KIcons.Phone, "Geräte", "Gekoppelte Geräte, Gerät hinzufügen", onDevices) }
         item { MoreRow(KIcons.Settings, "Einstellungen", "Bridge-Adresse, Kopplung", onSettings) }
+        item {
+            Text("App ${BuildConfig.VERSION_NAME} · nach Updates suchen", style = MaterialTheme.typography.bodySmall,
+                color = K.Muted, modifier = Modifier.clickable(onClick = onCheckUpdate).padding(vertical = 8.dp))
+        }
+    }
+}
+
+/** Neue App-Version von der Bridge: Aenderungen, Download mit Fortschritt, dann Androids Installations-Rueckfrage. */
+@Composable
+private fun UpdateCard(u: AppUpdate, progress: Float?, onInstall: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.AccentSoft)
+        .border(1.dp, K.Accent, RoundedCornerShape(18.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Update auf ${u.version}", style = MaterialTheme.typography.titleMedium, color = K.Accent)
+        Text("Installiert: ${BuildConfig.VERSION_NAME} · ${"%.1f".format(Locale.GERMANY, u.size / 1e6)} MB von der Bridge",
+            style = MaterialTheme.typography.bodySmall, color = K.Muted)
+        u.changes.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+        if (progress != null) FillBar(progress, color = K.Accent, track = K.Surface2)
+        else PrimaryButton("Herunterladen und installieren", onInstall, Modifier.fillMaxWidth())
     }
 }
 

@@ -99,6 +99,9 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
         }
     }
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
+    // Einmal pro Start nachsehen, ob die Bridge eine neuere App mitbringt
+    LaunchedEffect(connection?.configured) { if (connection?.configured == true) vm.checkUpdate() }
+    val hasUpdate = vm.appUpdate.collectAsState().value != null
     LaunchedEffect(Unit) { scanner.tags.collect { vm.onTag(it) } }
     LaunchedEffect(Unit) {
         scanner.writes.collect { r ->
@@ -125,6 +128,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             if (route in TABS) BottomBar(
                 current = route,
                 notices = state?.notices?.messages.orEmpty().let { m -> m.size to (m.firstOrNull()?.level) },
+                hasUpdate = hasUpdate,
                 onTab = { t -> nav.navigate(t) { popUpTo("slots") { inclusive = false }; launchSingleTop = true } },
                 onScan = { scanOpen = true },
             )
@@ -152,7 +156,10 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onNewFilament = { nav.navigate("filament/new") })
             }
             composable("more") {
-                MoreScreen(padding, hasAce = state?.dryer?.present == true,
+                val update by vm.appUpdate.collectAsState()
+                val progress by vm.updateProgress.collectAsState()
+                MoreScreen(padding, update, progress, onInstall = { vm.installUpdate() }, onCheckUpdate = { vm.checkUpdate(true) },
+                    hasAce = state?.dryer?.present == true,
                     onAce = { dryerOpen = true },
                     onJobs = { nav.navigate("jobs") },
                     onProtocol = { nav.navigate("protocol") },
@@ -287,7 +294,7 @@ private val TABS = setOf("slots", "notices", "filament", "more")
 
 /** Start · Meldungen (Zaehler: rot bei Fehlern, gelb bei Warnungen) · NFC · Filament · Mehr */
 @Composable
-private fun BottomBar(current: String?, notices: Pair<Int, String?>, onTab: (String) -> Unit, onScan: () -> Unit) {
+private fun BottomBar(current: String?, notices: Pair<Int, String?>, hasUpdate: Boolean, onTab: (String) -> Unit, onScan: () -> Unit) {
     Box(Modifier.fillMaxWidth().background(K.Sunken).navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically) {
@@ -301,7 +308,11 @@ private fun BottomBar(current: String?, notices: Pair<Int, String?>, onTab: (Str
             }
             Box(Modifier.size(64.dp))
             NavItem(KIcons.Spool, "Filament", current == "filament") { onTab("filament") }
-            NavItem(KIcons.More, "Mehr", current == "more") { onTab("more") }
+            Box {
+                NavItem(KIcons.More, "Mehr", current == "more") { onTab("more") }
+                if (hasUpdate) Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 14.dp).size(9.dp)
+                    .clip(CircleShape).background(K.Accent))
+            }
         }
         Box(
             Modifier.align(Alignment.TopCenter).offset(y = (-22).dp).size(68.dp).clip(CircleShape).background(K.Accent)

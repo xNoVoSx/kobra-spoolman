@@ -104,6 +104,35 @@ class BridgeClient(
         }
     }.flowOn(Dispatchers.IO)
 
+    suspend fun appUpdate(): AppUpdate = call("GET", "/api/app/update", null, AppUpdate.serializer())
+
+    /** APK von der Bridge in eine Datei laden; progress bekommt 0..1. */
+    suspend fun download(path: String, dest: java.io.File, progress: (Float) -> Unit) = withContext(Dispatchers.IO) {
+        val req = Request.Builder().url(base + path).build()
+        try {
+            http.newBuilder().readTimeout(60, TimeUnit.SECONDS).build().newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) throw BridgeException(resp.code, "Download fehlgeschlagen (HTTP ${resp.code})")
+                val total = resp.body.contentLength().takeIf { it > 0 } ?: -1L
+                dest.parentFile?.mkdirs()
+                resp.body.byteStream().use { input ->
+                    dest.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        var done = 0L
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                            done += n
+                            if (total > 0) progress(done.toFloat() / total)
+                        }
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            throw BridgeException(0, "Download abgebrochen (${e.message ?: e.javaClass.simpleName})")
+        }
+    }
+
     suspend fun jobs(): List<PrintJob> = call("GET", "/api/jobs", null, PrintJobList.serializer()).jobs
     suspend fun console(after: Long): ConsoleLines = call("GET", "/api/console?after=$after", null, ConsoleLines.serializer())
     suspend fun logs(after: Long, level: String): LogLines =

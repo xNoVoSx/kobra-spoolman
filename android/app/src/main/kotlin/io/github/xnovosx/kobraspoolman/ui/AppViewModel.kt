@@ -3,7 +3,10 @@ package io.github.xnovosx.kobraspoolman.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.xnovosx.kobraspoolman.BuildConfig
 import io.github.xnovosx.kobraspoolman.data.AppState
+import io.github.xnovosx.kobraspoolman.data.AppUpdate
+import io.github.xnovosx.kobraspoolman.update.Installer
 import io.github.xnovosx.kobraspoolman.data.ConsoleLines
 import io.github.xnovosx.kobraspoolman.data.PrintJob
 import io.github.xnovosx.kobraspoolman.data.LogLines
@@ -254,6 +257,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         it.tune(body)
         _messages.send("Übernommen")
         refresh()
+    }
+
+    // ------------------------------------------------ App-Update von der Bridge
+    private val _appUpdate = MutableStateFlow<AppUpdate?>(null)
+    /** Neuere App, die die Bridge mitbringt (nur Release-Build; die Debug-App hat eine eigene Paket-ID). */
+    val appUpdate: StateFlow<AppUpdate?> = _appUpdate
+    private val _updateProgress = MutableStateFlow<Float?>(null)
+    val updateProgress: StateFlow<Float?> = _updateProgress
+
+    fun checkUpdate(announce: Boolean = false) = viewModelScope.launch {
+        val u = client()?.let { c -> runCatching { c.appUpdate() }.getOrNull() }
+        _appUpdate.value = u?.takeIf { it.available && it.code > BuildConfig.VERSION_CODE && !BuildConfig.DEBUG }
+        if (announce) _messages.send(when {
+            BuildConfig.DEBUG -> "Debug-Build: Updates gibt es nur für die Release-App"
+            u == null -> "Bridge nicht erreichbar"
+            _appUpdate.value != null -> "Update auf ${u.version} verfügbar"
+            u.available -> "Die App ist aktuell (${BuildConfig.VERSION_NAME})"
+            else -> "Diese Bridge bringt keine App mit"
+        })
+    }
+
+    fun installUpdate() = launchSafe(showBusy = false) { c ->
+        val u = _appUpdate.value ?: return@launchSafe
+        val ctx = getApplication<Application>()
+        if (!Installer.allowed(ctx)) {
+            Installer.openPermission(ctx)
+            _messages.send("„Unbekannte Apps installieren“ erlauben, dann noch einmal auf Installieren tippen")
+            return@launchSafe
+        }
+        val file = java.io.File(ctx.cacheDir, "update/kobra-spoolman-${u.version}.apk")
+        _updateProgress.value = 0f
+        try {
+            c.download(u.url, file) { _updateProgress.value = it }
+        } finally {
+            _updateProgress.value = null
+        }
+        Installer.install(ctx, file)
     }
 
     suspend fun jobs(): List<PrintJob>? = runCatching { client()?.jobs() }.getOrNull()

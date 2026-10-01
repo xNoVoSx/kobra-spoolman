@@ -375,3 +375,14 @@ data class LogLine(val id: Long, val time: Double, val level: String, val name: 
 
 @Serializable
 data class LogLines(val lines: List<LogLine> = emptyList())
+
+/** App-Update, das die Bridge mitbringt (GET /api/app/update). */
+@Serializable
+data class AppUpdate(
+    val available: Boolean = false,
+    val version: String = "",
+    val code: Int = 0,
+    val size: Long = 0,
+    val changes: List<String> = emptyList(),
+    val url: String = "",
+)

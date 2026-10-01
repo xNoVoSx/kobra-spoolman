@@ -50,15 +50,27 @@ UI texts are German, like the web UI and the plugin.
 
 ## Install
 
-1. Download the debug APK from the latest CI run (*Actions → CI → Artifacts →
-   kobra-spoolman-debug-apk*) and install it (`adb install -r app-debug.apk`, or open the file on the
-   phone and allow installing from that source).
+1. Download `kobra-spoolman-app-<version>.apk` from the latest GitHub release and open it on the
+   phone (allow installing from that source). The CI's debug APK (*Actions → CI → Artifacts*) is
+   for development only — it has another package name (`….debug`) and gets no updates.
 2. Start the app, allow *Nearby devices* (Android 17 treats the home network as "local network";
    without it every request hangs).
 3. **Einstellungen → QR-Code scannen** and scan the code from the web UI (*Geräte → Gerät
    hinzufügen*) — or type the bridge address and the 6-digit code.
 
 Unpaired, the app only reads; buttons that change something say so.
+
+### Updates
+
+The app has its own version (`android/app/version.properties`, changelog lines `## app x.y.z`).
+On every tag the release workflow builds the APK signed with the release key (GitHub secrets
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`; it refuses a debug-signed build), attaches it
+to the GitHub release and puts it into the bridge's Docker image together with `app.json`.
+The app asks the bridge (`GET /api/app/update`) once per start; a newer version shows up under
+**Mehr** (dot on the tab). One tap downloads it from the bridge (`/api/app/update/apk`) and hands it
+to Android's package installer, which asks before installing. The first time Android asks to allow
+*Install unknown apps* for Kobra Spoolman. Bridge and app therefore always match, and the phone
+needs no internet access.
 
 ## Principles
 

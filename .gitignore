@@ -9,3 +9,6 @@ bridge/data/
 *.log
 .env
 push.sh
+
+# App-APK fuers Update (legt der Docker-Workflow ins Image)
+bridge/app/acebridge/appdist/

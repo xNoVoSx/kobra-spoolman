@@ -10,6 +10,8 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <!-- Die App funktioniert auch ohne NFC (dann ohne Scannen/Tag schreiben) -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <!-- App-Updates von der Bridge installieren (Android fragt vor jeder Installation nach) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Die Bridge laeuft im Heimnetz ohne TLS (http://<docker-host>:7913) -->
     <application
@@ -29,5 +31,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <receiver android:name=".update.InstallReceiver" android:exported="false" />
     </application>
 </manifest>

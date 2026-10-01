@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 
 from aiohttp import web
 
-from . import __version__
+from . import __version__, appupdate
 from .assets import TAG as UI_TAG
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
@@ -371,6 +371,7 @@ class AppApi:
         self.bridge = bridge
         self.rng = rng or random.SystemRandom()
         self.bases_file = os.path.join(bridge.cfg.data_dir, "orca_bases.json")
+        self.update = appupdate.load()
 
     # ------------------------------------------------------------ Hilfen
     def _device(self, request: web.Request) -> Optional[Dict[str, Any]]:
@@ -471,6 +472,20 @@ class AppApi:
                         return web.json_response({"error": str(e)}, status=502)
                 return wrapped
             return deco
+
+        # ------------------------------------------------ App-Update (APK im Image, siehe appupdate.py)
+        @r.get("/api/app/update")
+        @handler(write=False)
+        async def app_update(_):
+            return web.json_response(appupdate.public(self.update))
+
+        @r.get("/api/app/update/apk")
+        async def app_update_apk(_):
+            if not self.update:
+                return web.json_response({"error": "Diese Bridge bringt keine App mit"}, status=404)
+            return web.FileResponse(self.update["path"], headers={
+                "Content-Type": "application/vnd.android.package-archive",
+                "Content-Disposition": f'attachment; filename="kobra-spoolman-app-{self.update["version"]}.apk"'})
 
         # ------------------------------------------------ Geraete koppeln
         @r.get("/api/auth/status")

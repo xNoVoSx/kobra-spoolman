@@ -316,6 +316,13 @@ every move (position, live velocity) is subscribed. Missing objects are left out
 Temperatures span the print and first-layer values (filament, else template). The SKU format is
 provisional until the tag test shows what the ACE accepts (`TAG_SKU_PREFIX`, `TAG_NR_MIN`/`MAX`).
 
+## App update
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/app/update` | `{"available": true, "version": "1.0.0", "code": 10000, "size": 5380875, "changes": […], "url": "/api/app/update/apk"}` — the app APK built into this image (`{"available": false}` for images without one, e.g. `edge`) |
+| GET | `/api/app/update/apk` | the signed APK |
+
 ## Telemetry
 
 | Method | Path | Purpose |
