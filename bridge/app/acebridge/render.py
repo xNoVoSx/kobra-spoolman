@@ -236,13 +236,19 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
     pts = []
     minx = miny = math.inf
     maxx = maxy = -math.inf
+    # Ausschnitt nach dem Objekt ab der zweiten Schicht - die Anfangslinie am Bettrand (nur erste Schicht)
+    # wuerde das Bild sonst klein machen. Einschichtige Drucke nehmen alles.
+    first = model.layers[0] if len(model.layers) > 1 else None
     for i in idx:
         z = model.z[i]
         ax, ay, d0 = proj(model.x0[i], model.y0[i], z)
         bx, by, d1 = proj(model.x1[i], model.y1[i], z)
         pts.append((z, -(d0 + d1) / 2, i, ax, ay, bx, by))
-        minx, maxx = min(minx, ax, bx), max(maxx, ax, bx)
-        miny, maxy = min(miny, ay, by), max(maxy, ay, by)
+        if first is None or z > first + 1e-4:
+            minx, maxx = min(minx, ax, bx), max(maxx, ax, bx)
+            miny, maxy = min(miny, ay, by), max(maxy, ay, by)
+    if first is not None:       # Fuss des Objekts (erste Schicht) gehoert in den Ausschnitt
+        maxy += 2.0
     margin = 0.08
     span = max(maxx - minx, (maxy - miny) * W / H, 1e-6)
     scale = W * (1 - 2 * margin) / span

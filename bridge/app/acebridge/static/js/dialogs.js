@@ -4,6 +4,7 @@ import { html, useEffect, useMemo, useState } from "../vendor/preact-htm.module.
 import { get, post } from "./api.js";
 import { Dialog, Field, Swatch } from "./components.js";
 import { Icon } from "./icons.js";
+import { CameraDialog } from "./media.js";
 import { S, closeDialog, loadCatalog, toast } from "./store.js";
 import { cls, grams, hex, num, parseNum, title } from "./util.js";
 
@@ -240,7 +241,7 @@ function AddDevice() {
 }
 
 const KINDS = { confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
-  bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice };
+  bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice, camera: CameraDialog };
 
 export function Dialogs() {
   const d = S.dialog;

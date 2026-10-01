@@ -35,7 +35,7 @@ export function Ultra() {
   <div class="ultra">
     <div class="ucol">
       <span class="lbl">Drucker</span>
-      <${PrinterCard} />
+      <${PrinterCard} tall />
       ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
       <${DryerCard} big />
       <${AceCard} />
@@ -47,7 +47,7 @@ export function Ultra() {
       <${Slots} />
     </div>
     <${SpoolList} wideCols />
-    <${SpoolDetail} id=${S.sel} />
+    <${SpoolDetail} id=${S.sel ?? S.st?.slots?.find((s) => s.ace?.active)?.spool?.spool_id ?? null} />
     <div class="ucol">
       <span class="lbl">Drucke</span>
       <${JobsList} limit=${12} compact />

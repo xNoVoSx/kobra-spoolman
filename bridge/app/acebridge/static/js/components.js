@@ -2,6 +2,7 @@
 
 import { html, useEffect, useRef } from "../vendor/preact-htm.module.js";
 import { Icon } from "./icons.js";
+import { PrintMedia } from "./media.js";
 import { S, set, closeDialog, guard, openDialog, spoolById } from "./store.js";
 import { JOB_STATE, cls, duration, fileName, grams, hex, minutes, num, printerLook, tint, title, when } from "./util.js";
 
@@ -21,7 +22,7 @@ export function Bar({ value, max, warnBelow = 200 }) {
 }
 
 // ------------------------------------------------------------ Drucker
-export function PrinterCard({ compact }) {
+export function PrinterCard({ compact, tall }) {
   const p = S.st?.printer;
   const look = printerLook(p);
   const running = p && (p.state === "printing" || p.state === "paused");
@@ -30,6 +31,7 @@ export function PrinterCard({ compact }) {
   const ui = S.health?.links?.printer_ui;
   return html`
   <section class="card pad printer" style=${{ background: look.bg, borderColor: look.line }} aria-label="Drucker">
+    <${PrintMedia} tall=${tall} />
     <div class="row">
       <span class="dot" style=${{ background: look.dot }}></span>
       <span class="state" style=${{ color: look.fg }}>${look.label}</span>
