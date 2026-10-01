@@ -35,6 +35,8 @@ import io.github.xnovosx.kobraspoolman.data.PrintInfo
 import io.github.xnovosx.kobraspoolman.data.Slot
 import io.github.xnovosx.kobraspoolman.data.SpoolInfo
 import io.github.xnovosx.kobraspoolman.ui.theme.K
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
 fun SlotsScreen(
@@ -50,6 +52,7 @@ fun SlotsScreen(
     onDryer: () -> Unit,
     fetchImage: suspend (String) -> ByteArray? = { null },
     printInfo: suspend () -> PrintInfo? = { null },
+    camera: () -> Flow<ByteArray> = { emptyFlow() },
 ) {
     LazyColumn(
         Modifier.fillMaxSize().background(K.Ground),
@@ -76,7 +79,7 @@ fun SlotsScreen(
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
-        if (state.printer.state != "offline") item { PrintMedia(state.canWrite, fetchImage, printInfo) }
+        if (state.printer.state != "offline") item { PrintMedia(state.canWrite, fetchImage, printInfo, camera) }
         state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         state.slots.chunked(2).forEach { row ->
             item {

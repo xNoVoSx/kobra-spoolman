@@ -1,6 +1,9 @@
 package io.github.xnovosx.kobraspoolman.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -76,6 +79,30 @@ class BridgeClient(
             throw BridgeException(0, "Bridge nicht erreichbar (${e.message ?: e.javaClass.simpleName})")
         }
     }
+
+    /**
+     * Kamera live: Restream der Bridge (eine Verbindung zum Drucker fuer alle Zuschauer). Laeuft, solange
+     * gesammelt wird; Fehler beenden den Flow mit BridgeException.
+     */
+    fun cameraStream(): Flow<ByteArray> = flow {
+        val builder = Request.Builder().url("$base/api/camera/stream.mjpg")
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        val call = http.newCall(builder.build())
+        try {
+            call.execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    val msg = runCatching { json.decodeFromString(ApiError.serializer(), resp.body.string()).error }.getOrNull()
+                    throw BridgeException(resp.code, msg?.takeIf { it.isNotBlank() } ?: "HTTP ${resp.code}")
+                }
+                val reader = MjpegReader(resp.body.byteStream())
+                while (true) emit(reader.next() ?: break)
+            }
+        } catch (e: IOException) {
+            throw BridgeException(0, "Kamera unterbrochen (${e.message ?: e.javaClass.simpleName})")
+        } finally {
+            call.cancel()
+        }
+    }.flowOn(Dispatchers.IO)
 
     suspend fun printInfo(): PrintInfo = call("GET", "/api/print/info", null, PrintInfo.serializer())
 

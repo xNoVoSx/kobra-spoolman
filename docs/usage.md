@@ -105,8 +105,14 @@ If a more sensitive spool is loaded while drying, the bridge lowers the temperat
 
 The printer card shows **Modell** — the print file drawn by the bridge in the colours of your
 loaded spools, printed part solid, the rest as a shadow, with the current layer — and **Kamera**,
-the printer camera (only on paired devices). Tap the image for full screen. The bridge fetches at
-most one camera image per second from the printer, however many browsers and phones watch.
+the printer camera live (only on paired devices), with the frame rate in the corner. Tap the image
+for full screen.
+
+The bridge **restreams** the camera: however many browsers and phones watch, the printer serves one
+stream, and only while someone is watching. Point Mainsail at the bridge too, so it does not open
+a second stream: **Geräte → Kamera-Link** shows a stream and a snapshot URL. In Mainsail open
+*Settings → Webcams*, edit the webcam, choose the service *MJPEG-Streamer* and paste the two URLs.
+The link only shows the camera; *Neu erzeugen* replaces it (the old one stops working).
 
 ## ACE settings and purge
 

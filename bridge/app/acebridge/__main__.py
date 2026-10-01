@@ -21,7 +21,7 @@ from .render import PrintPreview
 from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
-from .auth import Devices
+from .auth import CameraKey, Devices
 from .dryer import Dryer
 from .usage import UsageTracker
 from .web import build_app
@@ -51,6 +51,7 @@ class Bridge:
         self.preview = PrintPreview(cfg, self.moon, session)
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
+        self.camera_key = CameraKey(cfg.data_dir)
         self._print_state = ""
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:

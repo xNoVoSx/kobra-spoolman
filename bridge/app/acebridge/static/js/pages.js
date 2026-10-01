@@ -6,6 +6,7 @@ import { AceCard } from "./ace.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots } from "./components.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
 import { Icon } from "./icons.js";
+import { cameraKey, cameraUrl } from "./media.js";
 import { SpoolDetail, SpoolList } from "./spools.js";
 import { S, guard, loadCatalog, loadHealth, loadJobs, openDialog, set, toast } from "./store.js";
 import { ago, cls, num, when } from "./util.js";
@@ -143,7 +144,33 @@ export function DevicesPage() {
           ${d.id !== "app_token" && html`<button class="btn sm danger" onClick=${() => remove(d)}>${d.me ? "Entkoppeln" : "Entfernen"}</button>`}
         </div>`)}
     </section>
+    <${CameraLinkCard} />
   </div>`;
+}
+
+/** Kamera-Link fuer Mainsail & Co.: alle schauen ueber die Bridge, zum Drucker geht nur eine Verbindung. */
+function CameraLinkCard() {
+  const [key, setKey] = useState(null);
+  useEffect(() => { cameraKey(true).then(setKey).catch((e) => toast(e.message, "bad")); }, []);
+  const copy = async (text) => {
+    try { await navigator.clipboard.writeText(text); toast("Kopiert", "ok"); } catch { toast("Kopieren nicht möglich – Text markieren", "bad"); }
+  };
+  const rotate = () => openDialog("confirm", {
+    title: "Neuen Kamera-Link erzeugen?",
+    text: "Der alte Link (z. B. in Mainsail eingetragen) zeigt danach kein Bild mehr und muss ersetzt werden.",
+    ok: "Neu erzeugen", danger: true,
+    action: async () => { setKey((await post("/api/camera/link")).key); await cameraKey(true); toast("Neuer Kamera-Link", "ok"); },
+  });
+  const Line = ({ label, url }) => html`<span style="align-self:center">${label}</span><span class="row" style="gap:8px;min-width:0">
+    <span class="m small grow" style="overflow-wrap:anywhere">${url}</span>
+    <button class="btn sm icon ghost" aria-label=${label + " kopieren"} onClick=${() => copy(url)}><${Icon} name="copy" small /></button></span>`;
+  return html`<section class="card pad col">
+    <div class="row"><h2 class="h2 grow">Kamera-Link</h2><button class="btn sm" disabled=${!key} onClick=${rotate}>Neu erzeugen</button></div>
+    <div class="small muted">Für Mainsail (Einstellungen → Webcams, Dienst „MJPEG-Streamer“) und andere Programme ohne Kopplung.
+      Alle Zuschauer laufen über die Bridge, der Drucker liefert den Stream nur einmal. Der Link zeigt nur die Kamera.</div>
+    ${key ? html`<div class="kv"><${Line} label="Stream" url=${cameraUrl(key)} /><${Line} label="Einzelbild" url=${cameraUrl(key, "snapshot.jpg")} /></div>`
+          : html`<div class="small muted">lade …</div>`}
+  </section>`;
 }
 
 // ------------------------------------------------------------ Einstellungen / Info

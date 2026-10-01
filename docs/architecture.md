@@ -49,6 +49,19 @@ only a few Moonraker clients. Browser, Android app and Orca plugin are clients o
   (`kobraspoolman://pair?b=<bridge-url>&c=<code>`).
 - Removing a device revokes its key immediately; a client that gets 401 drops its key and asks to
   pair again. A legacy `APP_TOKEN` keeps working as a key and pairing code during the transition.
+- **Camera key:** camera images are private too (paired devices only), but Mainsail and an `<img>`
+  tag cannot send a header. A separate, view-only key (`camera.json`) is accepted as `?key=` on the
+  camera URLs; any paired device can show or replace it.
+
+## Camera restream (`bridge/app/acebridge/camera.py`)
+
+Every stream a client opens on the printer costs its weak CPU. The bridge therefore holds **at most
+one** connection to the printer's MJPEG stream (Rinkhals' mjpg-streamer), opened on demand and
+closed 20 s after the last viewer, and fans the frames out: web UI, app, Mainsail (camera link) and
+later the AI service. Each viewer always gets the newest frame — a slow viewer skips frames instead
+of building up a queue. Snapshots come from the running stream. The bridge measures the frame rate
+(`/api/camera` → `fps`), the UIs show it in the corner. Without a stream on the printer it falls
+back to single snapshots.
 
 ## Web UI (`bridge/app/acebridge/static/`)
 

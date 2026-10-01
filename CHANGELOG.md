@@ -12,8 +12,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   automatic refill and runout detection. Locked during a print until *Freischalten*.
 - Bridge, web UI and app: **print view** — the bridge downloads the running file once (throttled)
   and draws it itself in the ACE colours, with progress, layer and nozzle; plus the slicer
-  thumbnail. **Camera** through the bridge: single snapshots only (never the CPU-heavy stream), at
-  most one per second shared by all viewers, paired devices only. Full screen on tap.
+  thumbnail. **Camera restream**: the bridge holds at most one stream connection to the printer
+  (only while someone watches, closed 20 s after the last viewer) and hands the frames to every
+  viewer — web UI, app and, through a view-only *camera link*, Mainsail or any MJPEG client. Live
+  frame rate in the corner of the image. Paired devices or camera link only. Full screen on tap.
 - Dryer: **plan a start** (e.g. tonight 22:00), kept across restarts, capped like a manual start.
 
 ### Changed

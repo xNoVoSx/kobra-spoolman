@@ -81,9 +81,12 @@ class Config:
     default_diameter: float = field(default_factory=lambda: _float("DEFAULT_DIAMETER", 1.75))
     default_density: float = field(default_factory=lambda: _float("DEFAULT_DENSITY", 1.24))
 
-    # Kamera: die Bridge holt Einzelbilder (nie den Stream - der treibt laut Rinkhals die CPU hoch) und
-    # verteilt sie an Weboberflaeche, App und spaeter die KI. Leer = aus Moonrakers Webcam-Liste.
+    # Kamera: die Bridge haelt hoechstens EINE Stream-Verbindung zum Drucker (nur solange jemand zuschaut)
+    # und verteilt die Bilder an Weboberflaeche, App, Mainsail und spaeter die KI. Leer = aus Moonrakers
+    # Webcam-Liste. CAMERA_STREAM=false: nur Einzelbilder, hoechstens eins pro CAMERA_INTERVAL_S.
     camera: bool = field(default_factory=lambda: _bool("CAMERA", True))
+    camera_stream: bool = field(default_factory=lambda: _bool("CAMERA_STREAM", True))
+    camera_stream_url: str = field(default_factory=lambda: os.environ.get("CAMERA_STREAM_URL", ""))
     camera_snapshot_url: str = field(default_factory=lambda: os.environ.get("CAMERA_SNAPSHOT_URL", ""))
     camera_interval_s: float = field(default_factory=lambda: _float("CAMERA_INTERVAL_S", 1.0))
 

@@ -14,7 +14,7 @@ from conftest import FakeMoonraker
 from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, convert_extra, copy_filament_body,
                               normalize_uid, printer_state, tag_content)
 from acebridge.ace import AceSettings
-from acebridge.auth import Devices
+from acebridge.auth import CameraKey, Devices
 from acebridge.dryer import Dryer
 from acebridge.purge import PurgeModel
 from acebridge.slots import SlotManager
@@ -220,6 +220,7 @@ class FakeBridge:
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.ace = AceSettings(self.moon, PurgeModel(), self.slots, self.sm)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
+        self.camera_key = CameraKey(cfg.data_dir)
 
     def safety_warnings(self):
         return []
@@ -278,7 +279,8 @@ def test_every_write_route_needs_a_paired_device(api):
                                ("POST", "/api/ace/flush", {"multiplier": 1.0}),
                                ("POST", "/api/ace/options", {"auto_refill": True}),
                                ("POST", "/api/dryer/schedule", {"at": 9999999999}),
-                               ("DELETE", "/api/dryer/schedule", None)):
+                               ("DELETE", "/api/dryer/schedule", None),
+                               ("POST", "/api/camera/link", None), ("GET", "/api/camera/link", None)):
         assert call(method, path, body, token=None)[0] == 401, path
         assert call(method, path, body, token="falsch")[0] == 401, path
     for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state", "/api/ace"):

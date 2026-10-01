@@ -107,8 +107,15 @@ Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
 
 Die Druckerkarte zeigt **Modell** – die Druckdatei, von der Bridge gezeichnet in den Farben deiner
 eingelegten Spulen, Gedrucktes kräftig, der Rest als Schatten, mit aktueller Schicht – und **Kamera**,
-die Druckerkamera (nur auf gekoppelten Geräten). Bild antippen für Vollbild. Die Bridge holt höchstens
-ein Kamerabild pro Sekunde vom Drucker, egal wie viele Browser und Handys zuschauen.
+die Druckerkamera live (nur auf gekoppelten Geräten), mit der Bildrate in der Ecke. Bild antippen für
+Vollbild.
+
+Die Bridge **verteilt die Kamera weiter** (Restream): Egal wie viele Browser und Handys zuschauen, der
+Drucker liefert einen einzigen Stream, und nur solange jemand zuschaut. Damit Mainsail keinen zweiten
+Stream öffnet, trag dort auch die Bridge ein: **Geräte → Kamera-Link** zeigt eine Stream- und eine
+Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeiten, Dienst
+*MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*
+ersetzt ihn (der alte funktioniert dann nicht mehr).
 
 ## ACE-Einstellungen und Spülen
 

@@ -138,7 +138,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onEmptySlot = { fillSlot = it },
                     onDryer = { dryerOpen = true },
                     fetchImage = { vm.image(it) },
-                    printInfo = { vm.printInfo() })
+                    printInfo = { vm.printInfo() },
+                    camera = { vm.cameraStream() })
             }
             composable("spool/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable

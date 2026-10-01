@@ -1,5 +1,5 @@
-// Druckansicht: Modell (von der Bridge gerechnetes Bild der Druckdatei) und Kamera (Einzelbilder ueber die
-// Bridge, nur gekoppelt). Die Bilder werden nur geholt, solange sie sichtbar sind.
+// Druckansicht: Modell (von der Bridge gerechnetes Bild der Druckdatei) und Kamera (Restream der Bridge: eine
+// Verbindung zum Drucker fuer alle Zuschauer, nur gekoppelt). Bilder laufen nur, solange sie sichtbar sind.
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, get } from "./api.js";
@@ -22,30 +22,55 @@ function useVisible(ref) {
   return vis;
 }
 
-/** Kamerabild per fetch (mit Schluessel) als Blob-URL, alle `every` ms neu. */
-export function useCamera(active, every = 1000) {
-  const [url, setUrl] = useState(null);
-  const [err, setErr] = useState(null);
+/** Kamera-Schluessel (nur gekoppelt): ein <img> kann keinen Authorization-Header schicken. */
+let camKey = null;
+export async function cameraKey(force = false) {
+  if (!camKey || force) camKey = (await get("/api/camera/link")).key;
+  return camKey;
+}
+export const cameraUrl = (key, what = "stream.mjpg") => new URL(`api/camera/${what}?key=${encodeURIComponent(key)}`, location.href).href;
+
+/** Seite im Vordergrund? Im Hintergrund wird der Stream getrennt, damit die Bridge ihn schliessen kann. */
+function usePageVisible() {
+  const [vis, setVis] = useState(!document.hidden);
   useEffect(() => {
-    if (!active) return;
-    let stop = false, last = null, timer = null;
+    const on = () => setVis(!document.hidden);
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, []);
+  return vis;
+}
+
+/** Live-Bild ueber den Restream der Bridge (MJPEG im <img>). Liefert [src, Fehler, onError, fps]. */
+export function useCamera(active) {
+  const page = usePageVisible();
+  const on = active && page;
+  const [key, setKey] = useState(camKey);
+  const [err, setErr] = useState(null);
+  const [retry, setRetry] = useState(0);
+  const [fps, setFps] = useState(null);
+  useEffect(() => {
+    if (!on) return;
+    cameraKey(retry > 0).then((k) => { setKey(k); setErr(null); }).catch((e) => setErr(e.message));
+  }, [on, retry]);
+  useEffect(() => {          // Bildrate in der Ecke: so schnell liefert der Drucker (gemessen in der Bridge)
+    if (!on) return;
+    let stop = false, timer = null;
     const tick = async () => {
-      if (stop) return;
-      if (!document.hidden) {
-        try {
-          const r = await fetch("api/camera/snapshot.jpg", { headers: { Authorization: "Bearer " + auth.key }, cache: "no-store" });
-          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Kamera ${r.status}`);
-          const u = URL.createObjectURL(await r.blob());
-          if (last) URL.revokeObjectURL(last);
-          last = u; setUrl(u); setErr(null);
-        } catch (e) { setErr(e.message); }
-      }
-      timer = setTimeout(tick, every);
+      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps); if (c.error && !c.fps) setErr(c.error); } } catch { /* egal */ }
+      if (!stop) timer = setTimeout(tick, 2000);
     };
-    tick();
-    return () => { stop = true; clearTimeout(timer); if (last) URL.revokeObjectURL(last); };
-  }, [active, every]);
-  return [url, err];
+    timer = setTimeout(tick, 1500);
+    return () => { stop = true; clearTimeout(timer); setFps(null); };
+  }, [on]);
+  const onError = () => { setErr("Kamera nicht erreichbar – neuer Versuch …"); setTimeout(() => setRetry((r) => r + 1), 5000); };
+  const src = on && key ? cameraUrl(key) + `&v=${retry}` : null;
+  return [src, err, onError, fps];
+}
+
+/** Kleine Bildrate oben rechts im Kamerabild. */
+export function Fps({ fps }) {
+  return fps == null ? null : html`<span class="media-fps m">${fps < 10 ? fps.toFixed(1) : Math.round(fps)} fps</span>`;
 }
 
 /** Gerechnetes Modellbild; neu laden, wenn sich der Druck bewegt (alle 10 s). */
@@ -71,14 +96,14 @@ export function PrintMedia({ tall }) {
   const [tab, setTab] = useState(savedTab());
   const choose = (t) => { setTab(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* egal */ } };
   const [info, stamp] = useModel(visible && tab === "model");
-  const [cam, camErr] = useCamera(visible && tab === "camera" && !!S.me);
+  const [cam, camErr, camFail, fps] = useCamera(visible && tab === "camera" && !!S.me && S.dialog?.kind !== "camera");
   const hasModel = info && (info.status === "ready" || info.thumbnail);
   const src = info?.status === "ready" ? `api/print/preview.png?t=${stamp}` : info?.thumbnail ? `api/print/thumbnail.png?t=${stamp}` : null;
 
   let body;
   if (tab === "camera") {
     if (!S.me) body = html`<div class="media-empty">Die Kamera sehen nur gekoppelte Geräte. <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>Koppeln</a></div>`;
-    else if (cam) body = html`<img src=${cam} alt="Kamera" onClick=${() => openDialog("camera")} />`;
+    else if (cam) body = html`<img src=${cam} alt="Kamera" onError=${camFail} onClick=${() => openDialog("camera")} /><${Fps} fps=${fps} />`;
     else body = html`<div class="media-empty">${camErr || "Kamera lädt …"}</div>`;
   } else if (src) {
     body = html`<img src=${src} alt="Vorschau der Druckdatei" onClick=${() => openDialog("camera", { view: "model", src })} />`;
@@ -97,13 +122,14 @@ export function PrintMedia({ tall }) {
   </div>`;
 }
 
-/** Vollbild: Kamera live (1/s) oder das Modellbild gross. */
+/** Vollbild: Kamera live (Restream) oder das Modellbild gross. */
 export function CameraDialog({ view, src }) {
-  const [cam, camErr] = useCamera(view !== "model" && !!S.me);
+  const [cam, camErr, camFail, fps] = useCamera(view !== "model" && !!S.me);
   const close = () => set({ dialog: null });
   return html`<div class="scrim viewer" onClick=${close}>
     <button class="btn icon ghost viewer-close" aria-label="Schließen" onClick=${close}><${Icon} name="close" /></button>
     ${view === "model" ? html`<img src=${src} alt="Vorschau der Druckdatei" />`
-      : cam ? html`<img src=${cam} alt="Kamera" />` : html`<div class="media-empty">${camErr || "Kamera lädt …"}</div>`}
+      : cam ? html`<div class="viewer-cam"><img src=${cam} alt="Kamera" onError=${camFail} /><${Fps} fps=${fps} /></div>`
+        : html`<div class="media-empty">${camErr || "Kamera lädt …"}</div>`}
   </div>`;
 }

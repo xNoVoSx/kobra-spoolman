@@ -28,9 +28,11 @@ import io.github.xnovosx.kobraspoolman.nfc.toAceTag
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -238,6 +240,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Bild von der Bridge holen (Kamera nur gekoppelt); null bei Fehler oder ohne Bild. */
     suspend fun image(path: String): ByteArray? = runCatching { client()?.image(path) }.getOrNull()
+
+    /** Kamera live ueber den Restream der Bridge; leer ohne Verbindung. */
+    fun cameraStream(): Flow<ByteArray> = client()?.cameraStream() ?: emptyFlow()
 
     suspend fun printInfo(): PrintInfo? = runCatching { client()?.printInfo() }.getOrNull()
 

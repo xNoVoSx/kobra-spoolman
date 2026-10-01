@@ -1,4 +1,4 @@
-"""Druckvorschau (render.py) und Kamera (camera.py): von der Bridge selbst gerechnet bzw. verteilt."""
+"""Druckvorschau (render.py): von der Bridge selbst gerechnet."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from aiohttp import web
 from aiohttp.test_utils import TestServer
 from PIL import Image
 
-from acebridge.camera import Camera, CameraError
 from acebridge.render import GcodeModel, PrintPreview, display_rgb, parse_bytes, render_png
 
 
@@ -86,13 +85,8 @@ def gcode_server():
         hits["n"] += 1
         return web.Response(body=sample_gcode())
 
-    async def camera(request):
-        hits["n"] += 1
-        return web.Response(body=b"\xff\xd8 fake jpeg", content_type="image/jpeg")
-
     app = web.Application()
     app.router.add_get("/server/files/gcodes/{name:.*}", gcode)
-    app.router.add_get("/webcam/", camera)
     return app, hits
 
 
@@ -116,20 +110,4 @@ def test_preview_loads_the_running_file(gcode_server):
             assert png.startswith(b"\x89PNG") and p.info(status)["layers"] == 2
             p.watch(status)                                            # gleiche Datei: nicht neu laden
             assert hits["n"] == 1
-    asyncio.run(go())
-
-
-def test_camera_shares_one_snapshot(gcode_server):
-    app, hits = gcode_server
-
-    async def go():
-        async with TestServer(app) as srv, aiohttp.ClientSession() as s:
-            cfg = SimpleNamespace(camera=True, camera_interval_s=60,
-                                  camera_snapshot_url=str(srv.make_url("/webcam/?action=snapshot")))
-            cam = Camera(cfg, SimpleNamespace(), s)
-            results = await asyncio.gather(*(cam.snapshot() for _ in range(5)))
-            assert {r[0] for r in results} == {b"\xff\xd8 fake jpeg"} and hits["n"] == 1   # fuenf Zuschauer, ein Abruf
-            cfg.camera = False
-            with pytest.raises(CameraError):
-                await cam.snapshot()
     asyncio.run(go())

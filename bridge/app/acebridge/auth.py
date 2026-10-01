@@ -170,3 +170,38 @@ class Devices:
     @staticmethod
     def public(d: Dict[str, Any]) -> Dict[str, Any]:
         return {k: d.get(k) for k in ("id", "name", "kind", "created", "last_seen")}
+
+
+class CameraKey:
+    """Eigener Schluessel nur fuer die Kamera, als ?key=... in der Adresse.
+
+    Mainsail und ein <img> im Browser koennen keinen Authorization-Header mitschicken. Dieser Schluessel
+    zeigt nur Kamerabilder, schreibt nichts und kann von jedem gekoppelten Geraet neu erzeugt werden
+    (der alte Link ist dann tot). Er wird im Klartext gespeichert, damit gekoppelte Geraete den Link
+    jederzeit wieder anzeigen koennen (camera.json im Datenordner).
+    """
+
+    def __init__(self, data_dir: str):
+        self.path = os.path.join(data_dir, "camera.json")
+        self.key = ""
+        try:
+            with open(self.path, encoding="utf-8") as fh:
+                self.key = json.load(fh).get("key") or ""
+        except FileNotFoundError:
+            pass
+        except Exception as e:  # noqa: BLE001
+            log.error("camera.json unlesbar (%s) - erzeuge neuen Kamera-Schluessel", e)
+        if not self.key:
+            self.rotate()
+
+    def rotate(self) -> str:
+        self.key = secrets.token_urlsafe(24)
+        tmp = self.path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"key": self.key}, fh)
+        os.replace(tmp, self.path)
+        log.info("Neuer Kamera-Schlüssel erzeugt (alte Kamera-Links gelten nicht mehr)")
+        return self.key
+
+    def check(self, key: Optional[str]) -> bool:
+        return bool(key) and hmac.compare_digest(key.encode(), self.key.encode())

@@ -157,8 +157,20 @@ contains `ace` (the settings).
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/camera` | camera state: enabled, last image time, error |
-| GET | `/api/camera/snapshot.jpg` | *(paired)* the current camera image. The bridge fetches at most one snapshot per `CAMERA_INTERVAL_S` from the printer and hands the same image to every client (never the MJPEG stream — Rinkhals warns that it spikes the printer's CPU) |
+| GET | `/api/camera` | camera state: `mode` (`stream`, `snapshot`, `idle`), `viewers`, `fps` (frame rate the printer delivers, measured by the bridge), last image time, error |
+| GET | `/api/camera/stream.mjpg` | *(paired or camera key)* live MJPEG restream. Optional `?fps=5` caps the rate for this viewer |
+| GET | `/api/camera/snapshot.jpg` | *(paired or camera key)* the current camera image, taken from the running stream if there is one |
+| GET | `/api/camera/link` | *(paired)* `{"key": "…"}` — the camera key for links |
+| POST | `/api/camera/link` | *(paired)* create a new camera key; old camera links stop working |
+
+**One connection to the printer.** The bridge opens the printer's MJPEG stream only while someone
+watches (or needs a snapshot) and closes it 20 s after the last viewer. However many viewers there
+are, the printer serves one stream. If the printer has no stream, the bridge falls back to single
+snapshots (at most one per `CAMERA_INTERVAL_S`) and tries the stream again after 5 minutes.
+
+**Camera key.** Mainsail and an `<img>` tag cannot send an `Authorization` header, so camera URLs
+also accept `?key=<camera key>`. The key only shows camera images; it is stored in `camera.json`
+in the data folder and can be replaced by any paired device.
 | GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail` |
 | GET | `/api/print/preview.png` | the print file drawn by the bridge in the ACE colours; printed part solid, the rest as a shadow, nozzle marked; refreshed at most every `RENDER_INTERVAL_S` |
 | GET | `/api/print/thumbnail.png` | the thumbnail the slicer embedded in the file |

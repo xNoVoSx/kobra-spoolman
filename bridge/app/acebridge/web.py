@@ -5,6 +5,7 @@ gekoppelten Geraets (Header "Authorization: Bearer <schluessel>", siehe auth.py)
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("web")
 STARTED = time.time()
 STATIC = os.path.join(os.path.dirname(__file__), "static")
+BOUNDARY = "kobraframe"
 
 
 @web.middleware
@@ -38,6 +40,8 @@ async def cors(request: web.Request, handler):
             resp = await handler(request)
         except web.HTTPException as e:
             resp = e
+    if getattr(resp, "prepared", False):   # Stream: Kopfzeilen sind schon raus (setzt der Handler selbst)
+        return resp
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
@@ -258,20 +262,70 @@ def build_app(bridge: "Bridge") -> web.Application:
         return await _ace_call(bridge.ace.set_options(body, confirm))
 
     # ---------------------------------------------------------------- Kamera und Druckvorschau
+    def camera_allowed(request: web.Request) -> bool:
+        """Kamera: gekoppeltes Geraet (Header) oder der Kamera-Schluessel in der Adresse (Mainsail, <img>)."""
+        return (bridge.camera_key.check(request.query.get("key"))
+                or bridge.devices.identify(request.headers.get("Authorization")) is not None)
+
+    def camera_denied() -> web.Response:
+        return _err(401, "Kamera nur für gekoppelte Geräte oder mit dem Kamera-Link")
+
     @r.get("/api/camera")
     async def camera_state(_):
         return web.json_response(bridge.camera.state())
 
-    @r.get("/api/camera/snapshot.jpg")
+    @r.get("/api/camera/link")
     @need_device
-    async def camera_snapshot(_):
-        """Nur fuer gekoppelte Geraete: es ist ein Bild aus der Wohnung."""
+    async def camera_link(_):
+        """Kamera-Schluessel fuer Links (Mainsail, Weboberflaeche). Nur gekoppelt."""
+        return web.json_response({"key": bridge.camera_key.key})
+
+    @r.post("/api/camera/link")
+    @need_device
+    async def camera_link_rotate(_):
+        """Neuen Kamera-Schluessel erzeugen; alte Links (z. B. in Mainsail) gelten danach nicht mehr."""
+        return web.json_response({"key": bridge.camera_key.rotate()})
+
+    @r.get("/api/camera/snapshot.jpg")
+    async def camera_snapshot(request: web.Request):
+        """Es ist ein Bild aus der Wohnung: nur gekoppelt oder mit Kamera-Schluessel."""
+        if not camera_allowed(request):
+            return camera_denied()
         try:
             data, taken = await bridge.camera.snapshot()
         except CameraError as e:
             return _err(503, str(e))
         return web.Response(body=data, content_type="image/jpeg",
                             headers={"Cache-Control": "no-store", "X-Taken-At": str(int(taken))})
+
+    @r.get("/api/camera/stream.mjpg")
+    async def camera_stream(request: web.Request):
+        """Weiterverteilter MJPEG-Stream: egal wie viele zuschauen, zum Drucker geht eine Verbindung.
+        ?fps=5 begrenzt die Bildrate fuer diesen Zuschauer."""
+        if not camera_allowed(request):
+            return camera_denied()
+        try:
+            max_fps = float(request.query["fps"]) if request.query.get("fps") else None
+        except ValueError:
+            return _err(400, "fps muss eine Zahl sein")
+        async with contextlib.aclosing(bridge.camera.frames(max_fps)) as frames:
+            try:
+                first = await frames.__anext__()
+            except CameraError as e:
+                return _err(503, str(e))
+            resp = web.StreamResponse(headers={
+                "Content-Type": f"multipart/x-mixed-replace; boundary={BOUNDARY}",
+                "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
+            await resp.prepare(request)
+            try:
+                frame = first
+                while True:
+                    await resp.write(b"--" + BOUNDARY.encode() + b"\r\nContent-Type: image/jpeg\r\n"
+                                     + f"Content-Length: {len(frame)}\r\n\r\n".encode() + frame + b"\r\n")
+                    frame = await frames.__anext__()
+            except (ConnectionResetError, CameraError, StopAsyncIteration):
+                pass
+            return resp
 
     @r.get("/api/print/info")
     async def print_info(_):
