@@ -14,7 +14,7 @@ from aiohttp import web
 from . import __version__
 from .config import Config
 from .moonraker import Moonraker
-from .purge import PurgeModel
+from .purge import CONFIG_REFRESH_S, PurgeModel
 from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
@@ -99,8 +99,8 @@ class Bridge:
         if not self.moon.klippy_ready or not self.purge.config_due():
             return
         now = asyncio.get_running_loop().time()
-        if now - self._flush_tried < 60:
-            return
+        if self._flush_tried and now - self._flush_tried < CONFIG_REFRESH_S:
+            return   # auch nach einem Fehlschlag (z.B. ohne ACE) nur alle 10 Minuten fragen
         self._flush_tried = now
         try:
             self.purge.set_flush_config(await self.moon.get_json("/printer/filament_hub/get_config"))
