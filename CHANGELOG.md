@@ -6,6 +6,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.9.0] – 2026-10-01
+
 ### Added
 - Web UI and app: **Meldungen & Status** on the overview — printer paused/error, slot without
   material, **spool won't last for the running print** (from the print file: what each tool still
