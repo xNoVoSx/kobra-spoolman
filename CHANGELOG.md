@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Camera: a webcam entry in Moonraker that points to the bridge's own camera link (Mainsail set up
+  with the restream) is never taken as the camera source — that would loop.
+
 ## [2.10.0] – 2026-10-01
 
 ### Added

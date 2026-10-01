@@ -166,3 +166,22 @@ def test_camera_routes_need_device_or_camera_key(printer, tmp_path):
                 assert (await client.get(f"/api/camera/snapshot.jpg?key={key}")).status == 401
             assert CameraKey(str(tmp_path)).key == bridge.camera_key.key     # bleibt nach Neustart
     asyncio.run(go())
+
+
+def test_resolve_skips_the_bridges_own_camera_link():
+    """Steht der Kamera-Link der Bridge in Moonrakers Webcam-Liste (Mainsail), darf die Bridge ihn nicht als Quelle nehmen."""
+    class Moon:
+        async def get_json(self, path):
+            return {"webcams": [
+                {"name": "Bridge", "enabled": True, "stream_url": "http://bridge:7913/api/camera/stream.mjpg?key=x",
+                 "snapshot_url": "http://bridge:7913/api/camera/snapshot.jpg?key=x"},
+                {"name": "Webcam", "enabled": True, "stream_url": "/webcam/?action=stream",
+                 "snapshot_url": "/webcam/?action=snapshot"}]}
+
+    async def go():
+        cfg = SimpleNamespace(camera=True, camera_stream=True, camera_interval_s=1, camera_stream_url="",
+                              camera_snapshot_url="", printer_base_url=lambda: "http://drucker")
+        cam = Camera(cfg, Moon(), None)
+        await cam._resolve()
+        return cam.stream_url, cam.snapshot_url
+    assert asyncio.run(go()) == ("http://drucker/webcam/?action=stream", "http://drucker/webcam/?action=snapshot")

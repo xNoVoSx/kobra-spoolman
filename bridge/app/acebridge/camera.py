@@ -34,6 +34,11 @@ class CameraError(Exception):
     pass
 
 
+def is_bridge_url(url: Optional[str]) -> bool:
+    """Zeigt die Adresse auf den Restream einer Bridge (Kamera-Link)? Dann waere es eine Schleife."""
+    return bool(url) and "/api/camera/" in url
+
+
 async def read_mjpeg(content: aiohttp.StreamReader) -> AsyncIterator[bytes]:
     """JPEG-Bilder aus einem multipart/x-mixed-replace-Strom (mjpg-streamer). Nutzt Content-Length,
     sonst die JPEG-Endmarke."""
@@ -106,7 +111,9 @@ class Camera:
         cam = None
         try:
             cams = (await self.moon.get_json("/server/webcams/list")).get("webcams") or []
-            cam = next((c for c in cams if c.get("enabled", True)), None)
+            # Eintraege, die auf den Restream der Bridge zeigen (Mainsail mit Kamera-Link), nie als Quelle nehmen
+            cam = next((c for c in cams if c.get("enabled", True) and not is_bridge_url(c.get("stream_url"))
+                        and not is_bridge_url(c.get("snapshot_url"))), None)
         except Exception as e:  # noqa: BLE001
             log.info("Webcam-Liste nicht lesbar (%s) - nehme /webcam/", e)
         base = self.cfg.printer_base_url()
