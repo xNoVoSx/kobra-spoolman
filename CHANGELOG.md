@@ -6,6 +6,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.8.1] – 2026-10-01
+
 ### Changed
 - Web UI: tidier overview — the printer card reads top to bottom (status and progress, times, image
   with printer data, active slot); dryer and ACE stacked next to it instead of leaving a gap; the
