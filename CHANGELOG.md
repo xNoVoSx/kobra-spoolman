@@ -6,6 +6,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.10.0] – 2026-10-01
+
 ### Added
 - Web UI: **Terminal** — printer responses and every command sent through the bridge with its
   source; send G-code and macros with completion and history; risky commands and moves during a
