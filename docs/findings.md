@@ -96,6 +96,9 @@ magenta slot 2), sliced in AnycubicSlicer with the flush matrix set to 100 (A) a
 | A (100 mm³) | 4062 mm | 1391 mm | 2671 mm | ≈ 205 mm |
 | B (600 mm³) | 3842 mm | 1391 mm | 2451 mm | ≈ 189 mm |
 
+(1391 mm was counted with the start sequence; the extrusion moves of the print itself are 1192 mm.
+The per-load values here are averages including the first load — see the model below.)
+
 With the header in use, B would have purged ≈ 208 mm (500 mm³) more per load. It did not.
 
 Both A and B had `flush_multiplier_calculate_by_acnext: 0` (auto-calculation switched off in the
@@ -160,30 +163,40 @@ purge only. Steady slabs (4–13) are constant to ±1 mm:
 | lavender → magenta | 271–274 mm | 205–208 mm | **66 mm** | 64.9 mm (312 mm³) |
 | magenta → lavender | 307–308 mm | 229–230 mm | **78 mm** | 79.2 mm (381 mm³) |
 
-Total: 4064 mm → 2946 mm (−28 %). Assuming equal model parts per colour (1391 mm real extrusion,
-7 magenta and 6 lavender slabs), the absolute purge per load is
+Total: 4064 mm → 2946 mm (−28 %).
 
-| change | × 1.0 | × 1.5 |
-|---|---|---|
-| lavender → magenta | ≈ 97 mm | ≈ 162 mm |
-| magenta → lavender | ≈ 126 mm | ≈ 205 mm |
+**The colour volume is Orca's own formula + 107 mm³.** Orca's `FlushVolCalculator::calc_flush_vol`
+(`src/libslic3r/FlushVolCalc.cpp`, inherited from Bambu Studio: HSV distance + luminance, 60 mm³
+floor) gives 205 / 274 mm³ for lavender ↔ magenta and 480 / 67 mm³ for black ↔ white
+(`#212721` / `#EFF0F1`); adding `flush_volume_min` = 107 gives exactly AnycubicSlicer's automatic
+values 312 / 381 and 587 / 173. (One older black/white export shows 551 / 137 — a different
+minimum was set in that slicer project.)
 
-→ **purge ≈ clamp(colour volume × flush_multiplier, 107, 800 mm³) / 2.405 − ≈ 20–32 mm** (the
-differences between runs are exact; the fixed offset depends on how the model part is split between
-the slabs, and it is in the range of the ≈ 50 mm the firmware retracts before cutting). The first load of a print is larger (from an unloaded nozzle, ≈ +90 mm).
+**Absolute values from an Orca print.** Orca writes a clean per-filament target into the G-code
+header, so *measured − target* is the firmware purge alone. The black/white print of 2026-09-24
+(`color_PLA_0.2_2h55m`, multiplier 1.5, first load green, then 1 × green → black, 17 × black →
+white, 17 × white → black):
+
+| slot | measured − target | model: Σ colour volume × 1.5 / 2.405 | difference per load |
+|---|---|---|---|
+| white (17 × black → white) | 6186 mm (363.9 per load) | 6231 mm (366.5 per load) | −2.6 mm |
+| black (17 × white → black, 1 × green → black) | 1907 mm | 1980 mm | −4.0 mm |
+| green (first load of the print) | 94.6 mm | — | — |
+
+Black → white is 882 mm³ after the multiplier and is **not** capped at 800: the firmware's limits
+apply to the colour volume *before* the multiplier. With these numbers the cube tests are
+consistent as well — test A and the direct print give the same model part per slab (lavender
+75 / 73 mm, magenta 80.3 / 80.2 mm), and the purge totals fit the real G-code extrusion (1192 mm).
+
+→ **purge per change ≈ clamp(orca_colour_volume + 107, 107, 800) × flush_multiplier / 2.405 − ≈ 3 mm,
+first load of a print ≈ 95 mm.** Colours are the ones the ACE reports for the slots (the firmware
+uses them in `ams_box_mapping`). The firmware values (`flush_multiplier`, `flush_volume_min`,
+`flush_volume_max`) are readable at `/printer/filament_hub/get_config`.
 
 Consequences:
 - The bridge's bookings were already right (it measures; purge lands on the newly loaded spool).
-- **The colour volume is Orca's own formula + 107 mm³.** Orca's `FlushVolCalculator::calc_flush_vol`
-  (`src/libslic3r/FlushVolCalc.cpp`, inherited from Bambu Studio: HSV distance + luminance, 60 mm³
-  floor) gives 205 / 274 mm³ for lavender ↔ magenta and 480 / 67 mm³ for black ↔ white
-  (`#212721` / `#EFF0F1`); adding `flush_volume_min` = 107 gives exactly AnycubicSlicer's automatic
-  values 312 / 381 and 587 / 173. (One older black/white export shows 551 / 137 — a different
-  minimum was set in that slicer project.)
-- So the purge per transition can be **computed from the two slot colours** without learning:
-  `clamp((orca_colour_volume + 107) × flush_multiplier, 107, 800) / 2.405 − ~20–32 mm`, first load
-  ≈ +90 mm. The firmware values (`flush_multiplier`, min, max) are readable at
-  `/printer/filament_hub/get_config`.
+- The usage preview can compute the purge per transition from the slot colours; the bridge can
+  refine the small offset and the first load from finished Orca prints.
 
 [Kobra-S1/ACEPRO](https://github.com/Kobra-S1/ACEPRO) (vanilla Klipper replacing the stock
 firmware — not compatible with Rinkhals) converts Orca's flush matrix into a purge length per change,
