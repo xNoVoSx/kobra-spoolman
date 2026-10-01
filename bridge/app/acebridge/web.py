@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import os
 from typing import TYPE_CHECKING
 
 from aiohttp import web
@@ -16,7 +15,7 @@ import platform
 import re
 import time
 
-from . import CHANGELOG, __app_name__, __description__, __version__
+from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
 from .camera import CameraError
 from .appapi import AppApi
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("web")
 STARTED = time.time()
-STATIC = os.path.join(os.path.dirname(__file__), "static")
 BOUNDARY = "kobraframe"
 
 
@@ -42,6 +40,8 @@ async def cors(request: web.Request, handler):
             resp = e
     if getattr(resp, "prepared", False):   # Stream: Kopfzeilen sind schon raus (setzt der Handler selbst)
         return resp
+    if request.path.startswith("/static/"):
+        resp.headers["Cache-Control"] = assets.NO_CACHE
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
@@ -65,10 +65,6 @@ def build_app(bridge: "Bridge") -> web.Application:
                 return _err(e.status, str(e))
             return await fn(request)
         return wrapped
-
-    @r.get("/")
-    async def index(_):
-        return web.FileResponse(os.path.join(STATIC, "index.html"))
 
     @r.get("/api/health")
     async def health(_):
@@ -509,6 +505,6 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.FileResponse(path, headers={"Content-Type": "application/x-ndjson"})
 
     app.add_routes(r)
-    app.router.add_static("/static", STATIC, append_version=False)
+    assets.add_routes(app)
     app.add_routes(AppApi(bridge).routes())   # Android-App (docs/android-app.md)
     return app

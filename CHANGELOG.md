@@ -6,6 +6,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Web UI: after an update the browser no longer keeps the old page (no more Ctrl+Shift+R). Files are
+  served under a fingerprint, the start page is never cached, and an open page reloads itself when
+  the bridge has a new UI (waits while a dialog or editor is open).
+
 ## [2.9.0] – 2026-10-01
 
 ### Added

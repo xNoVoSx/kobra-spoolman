@@ -50,10 +50,24 @@ export function toast(text, kind = "") {
 export const canWrite = () => !!S.me;
 
 // ------------------------------------------------------------ Laden
+// Fingerabdruck der Oberflaeche, mit der diese Seite geladen wurde (setzt die Bridge in index.html)
+const UI_TAG = document.querySelector('meta[name="ui-tag"]')?.content || null;
+
+/** Neue Oberflaeche auf der Bridge (Update)? Dann neu laden - aber nicht mitten in einem Dialog oder beim Tippen. */
+function reloadIfUpdated(st) {
+  if (!UI_TAG || !st?.ui || st.ui === UI_TAG) return;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "");
+  // offener Dialog, Tippen oder geoeffneter Editor (Spule/Sorte, evtl. ungespeichert): spaeter erneut versuchen
+  const editing = /^#\/(filament|regal|filamente)/.test(location.hash) && (S.sel != null || S.selFil != null);
+  if (S.dialog || typing || editing) return;
+  location.reload();
+}
+
 export async function loadState() {
   try {
     const st = await get("/api/app/state");
     set({ st, stErr: null });
+    reloadIfUpdated(st);
   } catch (e) {
     set({ stErr: e.message });
   }

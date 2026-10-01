@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 from aiohttp import web
 
 from . import __version__
+from .assets import TAG as UI_TAG
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
 from .slots import base_type
@@ -515,6 +516,7 @@ class AppApi:
             shelf.sort(key=lambda s: (s.get("remaining_weight") is None, -(s.get("remaining_weight") or 0)))
             return web.json_response({
                 "version": __version__,
+                "ui": UI_TAG,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,

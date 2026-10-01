@@ -82,6 +82,11 @@ back to single snapshots.
 - One code base for all widths: phone (bottom bar), desktop (side bar, list + detail), ultrawide
   ≥ 3000 px (five columns on the overview). Design tokens match the Android app's theme.
 - The key lives in `localStorage` of the browser.
+- **No stale UI after an update** (`assets.py`): at start the bridge fingerprints all files in
+  `static/`. The start page is never cached and loads everything from `assets/<fingerprint>/…`,
+  which is cached for a year — new files mean new addresses. `/api/app/state` reports the
+  fingerprint as `ui`; an open page with an older one reloads itself (not while a dialog or an editor
+  is open or you are typing).
 
 ## Consumption algorithm (`bridge/app/acebridge/usage.py`)
 
