@@ -136,7 +136,9 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onSettings = { nav.navigate("settings") },
                     onSpool = { nav.navigate("spool/$it") },
                     onEmptySlot = { fillSlot = it },
-                    onDryer = { dryerOpen = true })
+                    onDryer = { dryerOpen = true },
+                    fetchImage = { vm.image(it) },
+                    printInfo = { vm.printInfo() })
             }
             composable("spool/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable

@@ -11,6 +11,7 @@ import io.github.xnovosx.kobraspoolman.data.Connection
 import io.github.xnovosx.kobraspoolman.data.Device
 import io.github.xnovosx.kobraspoolman.data.PairingCode
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
+import io.github.xnovosx.kobraspoolman.data.PrintInfo
 import io.github.xnovosx.kobraspoolman.data.PurgePreview
 import io.github.xnovosx.kobraspoolman.data.FieldSpec
 import io.github.xnovosx.kobraspoolman.data.FilamentDraft
@@ -234,6 +235,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _messages.send("Plan gelöscht")
         refresh()
     }
+
+    /** Bild von der Bridge holen (Kamera nur gekoppelt); null bei Fehler oder ohne Bild. */
+    suspend fun image(path: String): ByteArray? = runCatching { client()?.image(path) }.getOrNull()
+
+    suspend fun printInfo(): PrintInfo? = runCatching { client()?.printInfo() }.getOrNull()
 
     fun linkTag(spoolId: Int, uid: String, done: () -> Unit) = launchSafe {
         it.linkTag(spoolId, uid)

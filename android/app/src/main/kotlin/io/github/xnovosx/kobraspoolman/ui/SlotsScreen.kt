@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.AppState
+import io.github.xnovosx.kobraspoolman.data.PrintInfo
 import io.github.xnovosx.kobraspoolman.data.Slot
 import io.github.xnovosx.kobraspoolman.data.SpoolInfo
 import io.github.xnovosx.kobraspoolman.ui.theme.K
@@ -47,6 +48,8 @@ fun SlotsScreen(
     onSpool: (Int) -> Unit,
     onEmptySlot: (Int) -> Unit,
     onDryer: () -> Unit,
+    fetchImage: suspend (String) -> ByteArray? = { null },
+    printInfo: suspend () -> PrintInfo? = { null },
 ) {
     LazyColumn(
         Modifier.fillMaxSize().background(K.Ground),
@@ -73,6 +76,7 @@ fun SlotsScreen(
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
+        if (state.printer.state != "offline") item { PrintMedia(state.canWrite, fetchImage, printInfo) }
         state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         state.slots.chunked(2).forEach { row ->
             item {

@@ -32,6 +32,12 @@
 | `DEFAULT_DIAMETER` / `DEFAULT_DENSITY` | `1.75` / `1.24` | only for estimates without a spool |
 | `SPOOLMAN_PUBLIC_URL` | – | Spoolman link in the web UI; empty = same host, port 7912 |
 | `PRINTER_UI_URL` | – | Mainsail link (*In Mainsail öffnen*); empty = printer IP, port 4409 (Rinkhals) |
+| `CAMERA` | `true` | camera images through the bridge (web UI, app) |
+| `CAMERA_SNAPSHOT_URL` | – | snapshot URL; empty = from Moonraker's webcam list (`/webcam/?action=snapshot` on the printer) |
+| `CAMERA_INTERVAL_S` | `1` | at most one image per this many seconds, shared by all viewers |
+| `RENDER` | `true` | draw the running print file (preview) |
+| `RENDER_MAX_MB` | `200` | larger files only get the slicer thumbnail |
+| `RENDER_INTERVAL_S` | `15` | redraw at most this often while printing |
 | `DRY_RUN` | `false` | log only, write nothing |
 | `DATA_DIR` | `/data` | state, journal, history, telemetry |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for more detail |

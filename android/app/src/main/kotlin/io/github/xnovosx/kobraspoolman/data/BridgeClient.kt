@@ -60,6 +60,25 @@ class BridgeClient(
             }
         }
 
+    /** Bild der Bridge (Kamera, Druckvorschau); null, wenn es gerade keins gibt (404/503). */
+    suspend fun image(path: String): ByteArray? = withContext(Dispatchers.IO) {
+        val builder = Request.Builder().url(base + path)
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        try {
+            http.newCall(builder.build()).execute().use { resp ->
+                when {
+                    resp.isSuccessful -> resp.body.bytes()
+                    resp.code == 404 || resp.code == 503 -> null
+                    else -> throw BridgeException(resp.code, "HTTP ${resp.code}")
+                }
+            }
+        } catch (e: IOException) {
+            throw BridgeException(0, "Bridge nicht erreichbar (${e.message ?: e.javaClass.simpleName})")
+        }
+    }
+
+    suspend fun printInfo(): PrintInfo = call("GET", "/api/print/info", null, PrintInfo.serializer())
+
     suspend fun health(): Health = call("GET", "/api/health", null, Health.serializer())
     suspend fun state(): AppState = call("GET", "/api/app/state", null, AppState.serializer())
     suspend fun catalog(): Catalog = call("GET", "/api/app/catalog", null, Catalog.serializer())

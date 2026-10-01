@@ -10,6 +10,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 - Bridge, web UI and app: **ACE settings** the printer display hides — purge multiplier (presets
   and any value 0.1–3.0, with the purge of every change between the loaded spools before/after),
   automatic refill and runout detection. Locked during a print until *Freischalten*.
+- Bridge, web UI and app: **print view** — the bridge downloads the running file once (throttled)
+  and draws it itself in the ACE colours, with progress, layer and nozzle; plus the slicer
+  thumbnail. **Camera** through the bridge: single snapshots only (never the CPU-heavy stream), at
+  most one per second shared by all viewers, paired devices only. Full screen on tap.
 - Dryer: **plan a start** (e.g. tonight 22:00), kept across restarts, capped like a manual start.
 
 ### Changed

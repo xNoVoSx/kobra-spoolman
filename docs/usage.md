@@ -101,6 +101,13 @@ The temperature is **never higher than the most sensitive loaded filament allows
 If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once. The
 **Trockner** page shows which slot sets the limit.
 
+## Watching a print
+
+The printer card shows **Modell** — the print file drawn by the bridge in the colours of your
+loaded spools, printed part solid, the rest as a shadow, with the current layer — and **Kamera**,
+the printer camera (only on paired devices). Tap the image for full screen. The bridge fetches at
+most one camera image per second from the printer, however many browsers and phones watch.
+
 ## ACE settings and purge
 
 The **ACE** page (app: tap the dryer card) shows what the printer display hides:

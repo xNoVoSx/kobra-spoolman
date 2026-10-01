@@ -58,6 +58,16 @@ data class AceResponse(val settings: AceSettings = AceSettings(), val purge: Pur
 @Serializable
 data class FlushChange(val multiplier: Double, @SerialName("confirm_printing") val confirmPrinting: Boolean)
 
+/** Stand der Druckvorschau (GET /api/print/info). */
+@Serializable
+data class PrintInfo(
+    val file: String? = null,
+    val status: String = "idle",
+    val layer: Int? = null,
+    val layers: Int = 0,
+    val thumbnail: Boolean = false,
+)
+
 @Serializable
 data class DrySchedule(val at: Double, val temp: Double? = null, val hours: Double? = null)
 

@@ -153,6 +153,19 @@ While a print runs, changes are refused with 409 unless `confirm_printing` is tr
 for an extra unlock first); a new multiplier applies from the next colour change. `/api/app/state`
 contains `ace` (the settings).
 
+## Camera and print preview
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/camera` | camera state: enabled, last image time, error |
+| GET | `/api/camera/snapshot.jpg` | *(paired)* the current camera image. The bridge fetches at most one snapshot per `CAMERA_INTERVAL_S` from the printer and hands the same image to every client (never the MJPEG stream — Rinkhals warns that it spikes the printer's CPU) |
+| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail` |
+| GET | `/api/print/preview.png` | the print file drawn by the bridge in the ACE colours; printed part solid, the rest as a shadow, nozzle marked; refreshed at most every `RENDER_INTERVAL_S` |
+| GET | `/api/print/thumbnail.png` | the thumbnail the slicer embedded in the file |
+
+The bridge downloads the running file once at print start through Moonraker (throttled) and
+renders it itself; progress comes from `virtual_sdcard.file_position`.
+
 ## Pairing devices
 
 The bridge issues the keys itself. Each device (app, browser, Orca plugin) gets its own

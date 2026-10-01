@@ -103,6 +103,13 @@ Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament
 Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort. Die
 Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
 
+## Einen Druck beobachten
+
+Die Druckerkarte zeigt **Modell** – die Druckdatei, von der Bridge gezeichnet in den Farben deiner
+eingelegten Spulen, Gedrucktes kräftig, der Rest als Schatten, mit aktueller Schicht – und **Kamera**,
+die Druckerkamera (nur auf gekoppelten Geräten). Bild antippen für Vollbild. Die Bridge holt höchstens
+ein Kamerabild pro Sekunde vom Drucker, egal wie viele Browser und Handys zuschauen.
+
 ## ACE-Einstellungen und Spülen
 
 Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay versteckt:
