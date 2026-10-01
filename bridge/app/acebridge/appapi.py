@@ -27,6 +27,7 @@ from .profiles import basic_info, color_hex, find_template, orca_filament_id
 from .slots import base_type
 from .auth import AuthError
 from .spoolman import extra_value
+from .status import notices
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -524,6 +525,7 @@ class AppApi:
                 "ace": b.ace.state(),
                 "usage": {"live": b.usage.live(), "open": b.usage.open},
                 "warnings": b.safety_warnings() + b.slots.warnings,
+                "notices": notices(b),
             })
 
         @r.get("/api/app/catalog")

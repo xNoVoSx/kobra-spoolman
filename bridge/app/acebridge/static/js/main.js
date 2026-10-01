@@ -5,23 +5,23 @@ import { auth, get, setUnauthorizedHandler } from "./api.js";
 import { ContextMenu, Toasts } from "./components.js";
 import { Dialogs } from "./dialogs.js";
 import { Icon } from "./icons.js";
-import { AcePage, DevicesPage, FilamentPage, JobsPage, Overview, PairPage, RegalPage, SettingsPage, Ultra } from "./pages.js";
+import { AcePage, DevicesPage, FilamentHub, JobsPage, Overview, PairPage, SettingsPage, Ultra, filamentView } from "./pages.js";
 import { useFilteredSpools } from "./spools.js";
 import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set, useStore } from "./store.js";
 import { cls, printerLook } from "./util.js";
 
 const PAGES = {
   "": { title: "Übersicht", icon: "overview", C: Overview },
-  regal: { title: "Regal", icon: "spool", C: RegalPage, fill: true },
-  filamente: { title: "Filamente", icon: "drop", C: FilamentPage, fill: true },
+  filament: { title: "Filament", icon: "spool", C: FilamentHub, fill: true },
   drucke: { title: "Drucke", icon: "clock", C: JobsPage },
   ace: { title: "ACE", icon: "dryer", C: AcePage },
   geraete: { title: "Geräte", icon: "phone", C: DevicesPage, bottom: true },
   einstellungen: { title: "Einstellungen", icon: "sliders", C: SettingsPage, bottom: true },
 };
-const PHONE_TABS = [["", "Slots", "overview"], ["regal", "Regal", "spool"], ["drucke", "Drucke", "clock"], ["mehr", "Mehr", "more"]];
+const PHONE_TABS = [["", "Übersicht", "overview"], ["filament", "Filament", "spool"], ["drucke", "Drucke", "clock"], ["mehr", "Mehr", "more"]];
 
-const ALIASES = { trockner: "ace" };
+// alte Adressen: #/regal = Spulen, #/filamente = Sorten (Unterseite liest FilamentHub)
+const ALIASES = { trockner: "ace", regal: "filament", filamente: "filament" };
 const route = () => { const r = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || ""; return ALIASES[r] || r; };
 
 function useRoute() {
@@ -46,7 +46,7 @@ function useWidth() {
 function MorePage() {
   return html`<div class="col">
     <h1 class="h1">Mehr</h1>
-    ${["filamente", "ace", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
+    ${["ace", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
   </div>`;
 }
 
@@ -67,7 +67,7 @@ function TopBar({ page, ultra }) {
   const look = printerLook(S.st?.printer);
   const onSearch = (e) => {
     set({ q: e.target.value });
-    if (!ultra && page !== "regal") location.hash = "#/regal";
+    if (!ultra && page !== "filament") location.hash = "#/filament/spulen";
   };
   return html`<header class="top">
     <h1 class="h1">${ultra && page === "" ? "Kobra Spoolman" : (PAGES[page] || { title: "Mehr" }).title}</h1>
@@ -101,13 +101,13 @@ function useKeys(page, list, ultra) {
       if (e.key === "Escape") {
         if (S.menu) return set({ menu: null });
         if (S.dialog) return set({ dialog: null });
-        if (!typing && S.sel != null && page === "regal") return set({ sel: null });
+        if (!typing && S.sel != null && page === "filament") return set({ sel: null });
         return;
       }
       if (typing || e.ctrlKey || e.metaKey || e.altKey || S.dialog) return;
       if (e.key === "/") { e.preventDefault(); document.getElementById("search")?.focus(); }
       else if (e.key === "n") { e.preventDefault(); guard(() => openDialog("newSpool"))(); }
-      else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && (page === "regal" || (ultra && page === ""))) {
+      else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && page === "filament" && filamentView() === "spulen") {
         e.preventDefault();
         if (!list.length) return;
         const i = list.findIndex((s) => s.spool_id === S.sel);

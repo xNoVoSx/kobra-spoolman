@@ -28,6 +28,18 @@ object Format {
         }
     }
 
+    /** "gerade eben", "vor 5 min", "vor 3 h", "vor 2 Tagen" (epochS = Unix-Sekunden). */
+    fun ago(epochS: Long, nowS: Long = System.currentTimeMillis() / 1000): String {
+        val d = (nowS - epochS).coerceAtLeast(0)
+        return when {
+            d < 60 -> "gerade eben"
+            d < 3600 -> "vor ${d / 60} min"
+            d < 86400 -> "vor ${d / 3600} h"
+            d < 2 * 86400 -> "vor 1 Tag"
+            else -> "vor ${d / 86400} Tagen"
+        }
+    }
+
     /** Feste Nachkommastellen mit Komma: decimal(1.0, 1) = "1,0". */
     fun decimal(v: Double?, digits: Int = 1): String =
         if (v == null) "–" else String.format(java.util.Locale.GERMANY, "%.${digits}f", v)

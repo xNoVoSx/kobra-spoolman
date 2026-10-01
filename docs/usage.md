@@ -10,11 +10,22 @@ NFC tags. Spoolman's own UI is only needed for things the bridge does not cover 
 
 | Screen width | Layout |
 |---|---|
-| Phone | bar at the bottom: *Slots*, *Regal*, *Drucke*, *Mehr* — like the app |
-| Desktop | side bar on the left, pages for overview, shelf, filaments, prints, dryer, devices, settings |
-| Ultrawide (≥ 3000 px, e.g. 5120×1440) | the overview shows everything side by side: printer, slots, shelf, spool details, prints |
+| Phone | bar at the bottom: *Übersicht*, *Filament*, *Drucke*, *Mehr* |
+| Desktop | side bar on the left: *Übersicht*, *Filament* (spools and filament types), *Drucke*, *ACE*, devices, settings |
+| Ultrawide (≥ 3000 px, e.g. 5120×1440) | the overview fits on one screen: printer with a large camera, slots with dryer and ACE, messages and status |
 
-Keyboard (desktop): `/` search, `n` new spool, `↑` `↓` select in the shelf, `Esc` close.
+The **overview** is the printer monitor: the camera (the model only while printing), print status,
+printer data, **Meldungen** and the four slots with dryer and ACE settings. Managing spools, filament
+types and the print history has its own pages.
+
+**Meldungen** lists, most important first, what needs attention: printer paused or in error, a slot
+without material at the printer, a spool that **won't last for the running print** (the bridge reads
+the print file: what each tool still prints plus the purge of the colour changes still to come,
+5 % reserve), a spool almost empty (< 100 g), bookings not yet in Spoolman, Spoolman unreachable,
+high humidity with the automation off, a print that just finished. Below it, **Status**: printer,
+Spoolman, camera (frame rate, viewers), the paired app and Orca plugin (last seen) and the bridge.
+
+Keyboard (desktop): `/` search, `n` new spool, `↑` `↓` select a spool, `Esc` close.
 Right-click on a spool → put it into a slot, back on the shelf, archive.
 
 The web UI asks for pairing once per browser ([installation](installation.md#4-pair-your-first-device)).
@@ -76,9 +87,12 @@ off, `SET_ACE_SLOT_INFO=false`) enter them at the display, otherwise the print f
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Leeren** on the slot card.
 
-## The shelf
+## Spools and filament types
 
-**Regal** lists every active spool with remaining weight, location and tag number; filter by material,
+**Filament** has two views, switched at the top: **Spulen** (spools) and **Sorten** (filament types).
+A filament type lists its spools; tapping one opens it under *Spulen*.
+
+**Spulen** lists every active spool with remaining weight, location and tag number; filter by material,
 *im ACE* or *fast leer* (< 200 g), or search. Select a spool to edit it:
 
 - **Spule**: remaining weight (after weighing), empty spool weight, net weight, price, lot, note and —

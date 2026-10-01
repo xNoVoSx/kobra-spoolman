@@ -29,8 +29,8 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 - Nach dem Slicen zeigt das Orca-Panel, **wie viel jede Spule braucht**, und warnt, wenn eine nicht reicht.
 
 <p align="center">
-  <img src="docs/images/web-overview.png" width="860" alt="Weboberfläche: Drucker, Trockner, ACE-Slots und Drucke"><br>
-  <sub>Weboberfläche: Druckerstatus, Trockner, die vier ACE-Slots mit Live-Verbrauch, letzte Drucke</sub>
+  <img src="docs/images/web-overview.png" width="860" alt="Weboberfläche: Drucker mit Kamera, Meldungen und Status, Trockner, ACE, Slots"><br>
+  <sub>Weboberfläche: der Druckermonitor – Kamera und Druckerdaten, Meldungen und Status, Trockner, ACE, die vier Slots</sub>
 </p>
 
 <table>

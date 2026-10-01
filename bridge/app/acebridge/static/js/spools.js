@@ -65,7 +65,7 @@ export function SpoolList({ wideCols }) {
   return html`
   <section class="card listcard" aria-label="Regal">
     <div class="listbar">
-      <span class="h2">Regal</span><span class="m small muted">${all.length} Spulen · ${num(total / 1000)} kg</span>
+      <span class="h2">Spulen</span><span class="m small muted">${all.length} Spulen · ${num(total / 1000)} kg</span>
       <span class="grow"></span>
       ${chip("alle", "Alle")}${materials.map((m) => chip(m, m))}
       ${chip("ace", "im ACE")}${chip("leer", "fast leer")}

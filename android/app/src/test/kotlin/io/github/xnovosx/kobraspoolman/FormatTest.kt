@@ -54,4 +54,12 @@ class FormatTest {
         assertEquals("So. ~10:50", Format.finishAt(60 * 3600L, now))   // Do. 22:50 + 60 h
         assertEquals("–", Format.finishAt(null, now))
     }
+
+    @Test
+    fun ago() {
+        assertEquals("gerade eben", Format.ago(1000, 1030))
+        assertEquals("vor 5 min", Format.ago(1000, 1000 + 5 * 60))
+        assertEquals("vor 15 h", Format.ago(0, 15 * 3600 + 5))
+        assertEquals("vor 3 Tagen", Format.ago(0, 3 * 86400))
+    }
 }

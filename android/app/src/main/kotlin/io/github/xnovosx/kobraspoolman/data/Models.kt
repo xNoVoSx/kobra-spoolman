@@ -18,7 +18,20 @@ data class AppState(
     val dryer: Dryer? = null,
     val ace: AceSettings? = null,
     val warnings: List<String> = emptyList(),
+    val notices: Notices? = null,
 )
+
+/** Meldungen (nach Wichtigkeit) und Zustand der Verbindungen - von der Bridge berechnet. */
+@Serializable
+data class Notices(val messages: List<Notice> = emptyList(), val status: List<StatusLine> = emptyList())
+
+/** level: error | warn | info */
+@Serializable
+data class Notice(val level: String, val text: String, val key: String = "")
+
+/** state: ok | warn | bad | off; seen = zuletzt gemeldet (Unix-Sekunden, nur Geraete) */
+@Serializable
+data class StatusLine(val key: String, val label: String, val state: String, val detail: String? = null, val seen: Double? = null)
 
 /** ACE-Einstellungen vom Drucker (GoKlipper filament_hub, GET /api/ace, auch in /api/app/state). */
 @Serializable

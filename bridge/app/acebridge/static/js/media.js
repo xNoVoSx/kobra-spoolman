@@ -8,7 +8,7 @@ import { S, openDialog, set } from "./store.js";
 import { cls } from "./util.js";
 
 const TAB_KEY = "kobra.mediaTab";
-function savedTab() { try { return localStorage.getItem(TAB_KEY) || "model"; } catch { return "model"; } }
+function savedTab() { try { return localStorage.getItem(TAB_KEY) || "camera"; } catch { return "camera"; } }
 
 /** Sichtbar und Fenster im Vordergrund? Dann laufen die Abfragen. */
 function useVisible(ref) {
@@ -109,8 +109,11 @@ function useModel(active) {
 export function PrintMedia({ tall }) {
   const ref = useRef(null);
   const visible = useVisible(ref);
-  const [tab, setTab] = useState(savedTab());
+  const [chosen, setTab] = useState(savedTab());
   const choose = (t) => { setTab(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* egal */ } };
+  // Kamera ist die Hauptansicht; das Modell gibt es nur, solange gedruckt wird
+  const running = ["printing", "paused"].includes(S.st?.printer?.state);
+  const tab = running ? chosen : "camera";
   const [info, stamp] = useModel(visible && tab === "model");
   const [cam, camErr, camFail, fps] = useCamera(visible && tab === "camera" && !!S.me && S.dialog?.kind !== "camera");
   const hasModel = info && (info.status === "ready" || info.thumbnail);
@@ -130,8 +133,8 @@ export function PrintMedia({ tall }) {
   return html`
   <div class=${cls("media", tall && "tall")} ref=${ref}>
     <div class="media-tabs" role="tablist">
-      <button role="tab" aria-selected=${tab === "model"} onClick=${() => choose("model")}><${Icon} name="spool" small />Modell</button>
       <button role="tab" aria-selected=${tab === "camera"} onClick=${() => choose("camera")}><${Icon} name="overview" small />Kamera</button>
+      ${running && html`<button role="tab" aria-selected=${tab === "model"} onClick=${() => choose("model")}><${Icon} name="spool" small />Modell</button>`}
       ${tab === "model" && S.st?.printer?.layer == null && info?.layer && info?.layers ? html`<span class="media-meta m">Schicht ${info.layer} / ${info.layers}</span>` : null}
     </div>
     <div class="media-body">${body}</div>

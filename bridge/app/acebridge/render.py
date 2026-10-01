@@ -31,6 +31,7 @@ log = logging.getLogger("render")
 BED_MM = 250.0                   # Kobra S1
 MAX_SEGMENTS = 600_000           # darueber wird ausgeduennt
 BACKGROUND = (16, 18, 21)
+CHECKPOINT_BYTES = 256 * 1024    # Stuetzstellen fuer den Restverbrauch
 _MOVE = re.compile(r"^G[0123](?:\s|$)")
 _AXIS = re.compile(r"([XYZEF])(-?\d*\.?\d+)")
 _TOOL = re.compile(r"^T(\d+)\s*$")
@@ -49,6 +50,12 @@ class GcodeModel:
         self.thumbnail: Optional[bytes] = None
         self._thumb_size = 0
         self.colours: List[str] = []   # aus "; filament_colour = #..;#.."
+        # Verbrauch pro Werkzeug (netto mm, Rueckzuege abgezogen) und Werkzeugwechsel - fuer "reicht die Spule?"
+        self.e_total: Dict[int, float] = {}
+        self.changes: List[Tuple[int, Optional[int], int]] = []    # (Byte-Position, von, nach); von None = erster
+        self._cp_off = array("Q")                                   # Stuetzstellen: Position -> Verbrauch bis dahin
+        self._cp_e: List[Dict[int, float]] = []
+        self._tool_seen = False
         # Zustand beim Lesen
         self._x = self._y = self._z = 0.0
         self._e = 0.0
@@ -93,8 +100,29 @@ class GcodeModel:
         else:
             m = _TOOL.match(code)
             if m:
-                self._t = min(255, int(m.group(1)))
+                t = min(255, int(m.group(1)))
+                if not self._tool_seen or t != self._t:
+                    self.changes.append((end_offset, self._t if self._tool_seen else None, t))
+                    self._checkpoint(end_offset)
+                self._t, self._tool_seen = t, True
                 self._dir = None
+        if self._cp_off and end_offset - self._cp_off[-1] >= CHECKPOINT_BYTES or not self._cp_off:
+            self._checkpoint(end_offset)
+
+    def _checkpoint(self, offset: int) -> None:
+        self._cp_off.append(offset)
+        self._cp_e.append(dict(self.e_total))
+
+    def remaining(self, offset: Optional[int]) -> Tuple[Dict[int, float], List[Tuple[Optional[int], int]]]:
+        """Noch zu druckende mm pro Werkzeug und die noch kommenden Werkzeugwechsel ab der Byte-Position.
+        Genauigkeit: eine Stuetzstelle alle CHECKPOINT_BYTES bzw. an jedem Wechsel."""
+        import bisect
+        offset = offset or 0
+        i = bisect.bisect_right(self._cp_off, offset) - 1
+        done = self._cp_e[i] if i >= 0 else {}
+        rest = {t: max(0.0, mm - done.get(t, 0.0)) for t, mm in self.e_total.items()}
+        later = [(src, dst) for off, src, dst in self.changes if off > offset]
+        return rest, later
 
     def _comment(self, line: str) -> None:
         if self._thumb is not None:
@@ -133,6 +161,7 @@ class GcodeModel:
             de = e - self._e if self._abs_e else e
             self._e = e if self._abs_e else self._e + e
             extruding = de > 0.0001
+            self.e_total[self._t] = self.e_total.get(self._t, 0.0) + de
         dx, dy = x - self._x, y - self._y
         if extruding and (dx or dy):
             if not self.layers or abs(z - self.layers[-1]) > 1e-4:

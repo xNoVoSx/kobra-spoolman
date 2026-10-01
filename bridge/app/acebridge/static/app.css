@@ -127,7 +127,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .media-tabs button[aria-selected=true] { background: var(--surface2); color: var(--text); }
 .media-meta { margin-left: auto; padding-right: 8px; font-size: 12px; color: var(--muted); }
 .media-body { aspect-ratio: 16 / 10; display: grid; place-items: center; position: relative; overflow: hidden; }
-.media-body > img { min-height: 0; min-width: 0; }
+.media-body > img { min-height: 0; min-width: 0; max-height: 100%; }
 .media-fps { position: absolute; top: 8px; right: 8px; padding: 2px 7px; border-radius: 6px; font-size: 11px;
   color: #fff; background: rgba(0,0,0,.55); pointer-events: none; }
 .viewer-cam { position: relative; }
@@ -138,7 +138,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .machine b.hot { color: var(--accent); }
 .viewer-machine { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); border-radius: 0 0 8px 8px; }
 .media.tall .media-body { aspect-ratio: 4 / 3; }
-.media:not(.tall) .media-body { max-height: 400px; }   /* breite Karte: Bild nicht ueber den Bildschirm ziehen */
+.media:not(.tall) .media-body { max-height: 62vh; }   /* breite Karte: Bild nicht ueber den Bildschirm ziehen */
 .media-body img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
 .media-empty { color: var(--muted); font-size: 14px; padding: 16px; text-align: center; }
 .viewer { background: rgba(0,0,0,.92); }
@@ -171,12 +171,20 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .status-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ------------------------------------------------------------ Uebersicht */
-.ov { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; min-height: 100%; }
-.ov-main { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-.ov-top { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ov2 { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 1fr); gap: 20px 24px; align-items: start; }
+.ov2-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ov2-slots { grid-column: 1 / -1; }
+.ov2 > *, .ov2-side > * { min-width: 0; }
+.msgs, .stat-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.msgs li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.35; }
+.msgs li .dot { transform: translateY(1px); }
+.msgs li.error { color: var(--danger-text); }
+.msgs li.warn { color: var(--accent-text); }
+.msgs li.info { color: var(--muted); }
+.stat-lines li { display: grid; grid-template-columns: 10px 96px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.stat-lines .lab { color: var(--text); }
 .sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
-.aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 .printer { display: flex; flex-direction: column; gap: 12px; }
 .printer .state { font: 700 19px var(--grotesk); }
@@ -201,6 +209,16 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .job { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .job .file { font: 600 14px var(--mono); }
 
+/* ------------------------------------------------------------ Filament: Spulen | Sorten */
+.hub { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0; }
+.hub > .split { flex: 1; height: auto; }
+.seg { display: inline-flex; align-self: flex-start; gap: 2px; padding: 3px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); }
+.seg-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 16px; border-radius: 9px;
+  font: 600 14px var(--sans); color: var(--muted); }
+.seg-btn.on { background: var(--surface2); color: var(--text); }
+.spool-link { gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunken); color: var(--text); }
+.spool-link:hover { background: var(--surface2); }
+
 /* ------------------------------------------------------------ Liste + Detail */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(560px, 0.85fr); gap: 24px; height: 100%; min-height: 0; }
 .listcard { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -223,12 +241,15 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .section-title { font: 700 16px var(--grotesk); margin: 6px 0 0; display: flex; align-items: center; gap: 10px; }
 
 /* ------------------------------------------------------------ Ultrawide: alles auf einen Blick */
-.ultra { display: grid; grid-template-columns: 480px 760px minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(360px, .8fr); gap: 20px; height: 100%; min-height: 0; }
+.ultra { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.3fr) minmax(380px, .7fr); gap: 24px; height: 100%; min-height: 0; }
 .ultra > * { min-height: 0; }
 .ucol { display: flex; flex-direction: column; gap: 18px; overflow-y: auto; min-height: 0; padding-right: 2px; }
-.ultra .slots { grid-template-columns: 1fr; gap: 16px; }
-.ultra .slot { flex-direction: row; }
-.ultra .slot .head { width: 130px; height: auto; min-height: 210px; border-bottom: 0; border-right: 1px solid var(--line); flex: none; }
+.ultra .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Druckerkarte fuellt die Spaltenhoehe, das Kamerabild nimmt den Rest (nichts faellt unten heraus) */
+.ultra .ucol:first-child > .printer { flex: 1; min-height: 0; }
+.ultra .printer .media { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ultra .printer .media-body { flex: 1; min-height: 0; aspect-ratio: auto; max-height: none; }
+.ugrid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
 
 /* ------------------------------------------------------------ Dialoge, Meldungen, Menue */
 .scrim { position: fixed; inset: 0; background: rgba(5,6,8,.72); display: grid; place-items: center; z-index: 50; padding: 16px; }
@@ -269,11 +290,6 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 @media (min-width: 3000px) {
   .content { padding: 20px 28px 24px; }
 }
-@media (max-width: 1800px) {
-  .ov { grid-template-columns: minmax(0, 1fr); }
-  .aside > .col { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-items: start; }
-  .aside > .col > a { grid-column: 1 / -1; }
-}
 @media (max-width: 1500px) {
   .split { grid-template-columns: minmax(0, 1fr) minmax(460px, 1fr); }
   .tr { grid-template-columns: 26px 46px minmax(0, 1fr) 64px 130px 96px; }
@@ -287,7 +303,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
-  .ov-top { grid-template-columns: minmax(0, 1fr); }
+  /* schmal: eine Spalte in der Reihenfolge Drucker, Meldungen, Slots, Trockner, ACE */
+  .ov2 { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .ov2-side { display: contents; }
+  .ov2-printer { order: 1; } .o-notices { order: 2; } .ov2-slots { order: 3; } .o-dryer { order: 4; } .o-ace { order: 5; } .o-open { order: 6; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .split.has-sel > .listcard { display: none; }
   .split:not(.has-sel) > .detail { display: none; }
@@ -312,9 +331,6 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .slot .body { padding: 12px 14px; gap: 6px; }
   .slot .name { font-size: 16px; }
   .slot .actions .btn { min-height: 40px; }
-  .ov { gap: 16px; }
-  .ov-main { gap: 14px; }
-  .aside > .col { display: flex; flex-direction: column; align-items: stretch; }
   .tr { grid-template-columns: 22px minmax(0, 1fr) 96px; padding: 0 12px; min-height: 56px; }
   .tr > .hide-s { display: none; }
   .tr.fil { grid-template-columns: 22px minmax(0, 1fr) 70px; }

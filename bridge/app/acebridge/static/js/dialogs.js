@@ -79,7 +79,7 @@ function NewSpool({ slot: preSlot }) {
           ${!cat && html`<div class="muted">lade …</div>`}
           ${list.map((x) => html`<button onClick=${() => setFid(x.filament_id)}><${Swatch} color=${x.color} size=${24} /><span class="grow"><b>${x.name}</b> <span class="muted">· ${x.vendor} · ${x.material}</span></span><span class="small muted">${x.spools} ${x.spools === 1 ? "Spule" : "Spulen"}</span></button>`)}
         </div>
-        <div class="small muted">Filament fehlt? Unter <a href="#/filamente" onClick=${closeDialog}>Filamente</a> anlegen.</div>`}
+        <div class="small muted">Filament fehlt? Unter <a href="#/filament/sorten" onClick=${closeDialog}>Filament → Sorten</a> anlegen.</div>`}
       ${fil && html`
         <div class="row"><${Swatch} color=${fil.color} size=${32} /><div class="grow"><b>${fil.display_name}</b><div class="small muted">${fil.material} · ${fil.orca_id}</div></div><button class="btn sm ghost" onClick=${() => setFid(null)}>Ändern</button></div>
         <div class="fgrid">

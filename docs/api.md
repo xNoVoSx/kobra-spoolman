@@ -235,6 +235,20 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
  "speed_factor": 1.0, "flow_factor": 1.0, "speed_mode": 1}
 ```
 
+`notices` holds what the overview shows under *Meldungen*:
+
+```json
+{"messages": [{"level": "warn", "key": "reach2",
+               "text": "Slot 2 reicht wohl nicht für diesen Druck: braucht noch ~38 g, auf der Spule 21 g"}],
+ "status": [{"key": "printer", "label": "Drucker", "state": "ok", "detail": "Moonraker verbunden"},
+            {"key": "app", "label": "Handy-App", "state": "ok", "detail": "Galaxy S26 Ultra", "seen": 1790875147}],
+ "reach": [{"slot": 2, "spool_id": 2, "need_mm": 12400, "need_g": 38.0, "have_g": 21.0, "enough": false}]}
+```
+
+`level`: `error`, `warn`, `info` (sorted in this order); `state`: `ok`, `warn`, `bad`, `off`. `reach`
+compares, per slot of the running print, what is still needed (the print file from the current
+position plus the purge of the colour changes still to come) with the spool's remaining weight.
+
 Temperatures, fans, speed and flow come from the bridge's single Moonraker subscription, limited to
 the fields shown (`extruder`/`heater_bed`: temperature, target, power; `fan`; `fan_generic box_fan`
 and `air_filter_fan`; `gcode_move`: speed and extrude factor, speed mode). Nothing that changes with

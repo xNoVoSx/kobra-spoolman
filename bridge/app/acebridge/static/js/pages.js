@@ -1,78 +1,110 @@
-// Seiten. Welche Seite, entscheidet die Adresse (#/regal ...); wie viel nebeneinander passt, die Breite.
+// Seiten. Welche Seite, entscheidet die Adresse (#/filament ...); wie viel nebeneinander passt, die Breite.
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, del, get, post } from "./api.js";
 import { AceCard } from "./ace.js";
-import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots } from "./components.js";
+import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
+import { NoticesCard } from "./notices.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
 import { Icon } from "./icons.js";
 import { cameraKey, cameraUrl } from "./media.js";
 import { SpoolDetail, SpoolList } from "./spools.js";
 import { S, guard, loadCatalog, loadHealth, loadJobs, openDialog, set, toast } from "./store.js";
-import { ago, cls, num, when } from "./util.js";
+import { ago, cls, grams, num, when } from "./util.js";
 
 // ------------------------------------------------------------ Uebersicht
+// Druckermonitor: Drucker (Kamera) gross, daneben Meldungen & Status, Trockner, ACE; darunter die Slots.
+// Verwalten (Spulen, Sorten, Drucke) hat eigene Tabs.
 export function Overview() {
+  const open = (S.st?.usage?.open || []).length > 0;
   return html`
-  <div class="ov">
-    <div class="ov-main">
-      <div class="ov-top"><${PrinterCard} /><div class="col" style="gap:20px"><${DryerCard} /><${AceCard} compact /></div></div>
-      ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
+  <div class="ov2">
+    <div class="ov2-printer"><${PrinterCard} /></div>
+    <div class="ov2-side">
+      <div class="o-notices"><${NoticesCard} /></div>
+      <div class="o-dryer"><${DryerCard} /></div>
+      <div class="o-ace"><${AceCard} compact /></div>
+      ${open && html`<div class="o-open"><${OpenItemsCard} /></div>`}
+    </div>
+    <div class="ov2-slots col" style="gap:14px">
       <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span>
         <span class="small muted">Zuordnen schreibt Material und Farbe auch ans Druckerdisplay (Spulen ohne Tag)</span></div>
       <${Slots} />
-      ${(S.st?.usage?.open || []).length > 0 && html`<${OpenItemsCard} />`}
     </div>
-    <aside class="aside">
-      <span class="lbl">Drucke</span>
-      <${JobsList} limit=${6} compact />
-    </aside>
   </div>`;
 }
 
-/** 5120 px und mehr: alles nebeneinander, nichts versteckt. */
+/** 5120 px und mehr: Drucker gross, Slots + ACE, Meldungen - alles auf einen Blick, ohne Verwaltung. */
 export function Ultra() {
+  const open = (S.st?.usage?.open || []).length > 0;
   return html`
   <div class="ultra">
-    <div class="ucol">
-      <span class="lbl">Drucker</span>
-      <${PrinterCard} tall />
-      ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
-      <${DryerCard} big />
-      <${AceCard} compact />
-      <${OpenItemsCard} />
-      <${OrcaCard} />
-    </div>
+    <div class="ucol"><${PrinterCard} tall /></div>
     <div class="ucol">
       <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span><span class="small muted">Zuordnen schreibt auch ans Druckerdisplay</span></div>
       <${Slots} />
+      <div class="ugrid2"><${DryerCard} /><${AceCard} compact /></div>
     </div>
-    <${SpoolList} wideCols />
-    <${SpoolDetail} id=${S.sel ?? S.st?.slots?.find((s) => s.ace?.active)?.spool?.spool_id ?? null} />
     <div class="ucol">
-      <span class="lbl">Drucke</span>
-      <${JobsList} limit=${12} compact />
+      <${NoticesCard} />
+      ${open && html`<${OpenItemsCard} />`}
     </div>
   </div>`;
 }
 
-// ------------------------------------------------------------ Regal / Filamente
-export function RegalPage() {
+// ------------------------------------------------------------ Filament: Spulen | Sorten
+/** Unterseite aus der Adresse: #/filament/sorten, alt #/filamente; sonst Spulen. */
+export function filamentView() {
+  const parts = location.hash.replace(/^#\/?/, "").split(/[/?]/);
+  if (parts[0] === "filamente" || parts[1] === "sorten") return "sorten";
+  return "spulen";
+}
+
+export function FilamentHub() {
+  const [view, setView] = useState(filamentView());
+  useEffect(() => {
+    const on = () => setView(filamentView());
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  const tab = (k, label, n) => html`<a href=${"#/filament/" + k} role="tab" aria-selected=${view === k} class=${cls("seg-btn", view === k && "on")}>${label}${n != null && html` <span class="m muted">${n}</span>`}</a>`;
+  return html`<div class="hub">
+    <div class="seg" role="tablist" aria-label="Filament">
+      ${tab("spulen", "Spulen", S.spools?.length)}${tab("sorten", "Sorten", S.catalog?.filaments?.length)}
+    </div>
+    ${view === "sorten" ? html`<${FilamentPage} />` : html`<${RegalPage} />`}
+  </div>`;
+}
+
+function RegalPage() {
   return html`<div class=${cls("split", S.sel != null && "has-sel")}>
     <${SpoolList} wideCols=${window.innerWidth > 1500} />
     <${SpoolDetail} id=${S.sel} onBack=${() => set({ sel: null })} />
   </div>`;
 }
 
-export function FilamentPage() {
+function FilamentPage() {
   useEffect(() => { loadCatalog(); }, []);
   return html`<div class=${cls("split", S.selFil != null && "has-sel")}>
     <${FilamentList} />
     <section class="card detail">
       ${S.selFil == null ? html`<div class="empty-state" style="margin:auto">Filament wählen oder neu anlegen.</div>`
         : html`<button class="btn ghost back" style="margin:12px 12px 0" onClick=${() => set({ selFil: null })}><${Icon} name="back" small />Filamente</button>
-               <${FilamentEditor} key=${S.selFil} fid=${S.selFil} />`}
+               <${FilamentEditor} key=${S.selFil} fid=${S.selFil} />
+               <${SpoolsOfFilament} fid=${S.selFil} />`}
     </section>
+  </div>`;
+}
+
+/** Querverweis Sorte -> Spulen: Tippen oeffnet die Spule unter "Spulen". */
+function SpoolsOfFilament({ fid }) {
+  const list = (S.spools || []).filter((s) => s.filament_id === fid);
+  if (fid === "neu" || !list.length) return null;
+  return html`<div class="dbody col" style="gap:8px;padding-top:0">
+    <p class="section-title">Spulen dieser Sorte</p>
+    ${list.map((s) => html`<a class="row spool-link" href="#/filament/spulen" onClick=${() => set({ sel: s.spool_id })}>
+      <${Swatch} color=${s.color} size=${18} /><span class="grow">#${s.spool_id} · ${s.slot ? `ACE ${s.slot}` : s.location || "Regal"}</span>
+      <span class="m small">${grams(s.remaining_weight)}</span></a>`)}
   </div>`;
 }
 

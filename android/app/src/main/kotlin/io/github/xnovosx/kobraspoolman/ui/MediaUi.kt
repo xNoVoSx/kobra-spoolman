@@ -159,7 +159,10 @@ fun PrintMedia(
     info: suspend () -> PrintInfo?,
     camera: () -> Flow<ByteArray>,
 ) {
-    var tab by rememberSaveable { mutableStateOf("model") }
+    // Kamera ist die Hauptansicht; das Modell gibt es nur, solange gedruckt wird
+    var chosen by rememberSaveable { mutableStateOf("camera") }
+    val running = printer.state == "printing" || printer.state == "paused"
+    val tab = if (running) chosen else "camera"
     var full by remember { mutableStateOf(false) }
     var meta by remember { mutableStateOf<PrintInfo?>(null) }
     LaunchedEffect(tab) {
@@ -176,10 +179,10 @@ fun PrintMedia(
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF0B0C0E))) {
         Row(Modifier.fillMaxWidth().background(Color(0x59000000)).padding(4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf("model" to "Modell", "camera" to "Kamera").forEach { (k, label) ->
+            (listOf("camera" to "Kamera") + if (running) listOf("model" to "Modell") else emptyList()).forEach { (k, label) ->
                 Text(label, style = MaterialTheme.typography.labelMedium, color = if (tab == k) K.Text else K.Muted,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (tab == k) K.Surface2 else Color.Transparent)
-                        .clickable(role = Role.Tab) { tab = k }.padding(horizontal = 12.dp, vertical = 8.dp))
+                        .clickable(role = Role.Tab) { chosen = k }.padding(horizontal = 12.dp, vertical = 8.dp))
             }
             Box(Modifier.weight(1f))
             val m = meta

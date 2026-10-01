@@ -11,11 +11,22 @@ abdeckt (z.B. einen Hersteller umbenennen).
 
 | Bildschirmbreite | Aufbau |
 |---|---|
-| Handy | Leiste unten: *Slots*, *Regal*, *Drucke*, *Mehr* – wie in der App |
-| Desktop | Seitenleiste links, Seiten für Übersicht, Regal, Filamente, Drucke, Trockner, Geräte, Einstellungen |
-| Ultrawide (ab 3000 px, z.B. 5120×1440) | die Übersicht zeigt alles nebeneinander: Drucker, Slots, Regal, Spulendetails, Drucke |
+| Handy | Leiste unten: *Übersicht*, *Filament*, *Drucke*, *Mehr* |
+| Desktop | Seitenleiste links: *Übersicht*, *Filament* (Spulen und Sorten), *Drucke*, *ACE*, Geräte, Einstellungen |
+| Ultrawide (ab 3000 px, z.B. 5120×1440) | die Übersicht passt auf einen Bildschirm: Drucker mit großer Kamera, Slots mit Trockner und ACE, Meldungen und Status |
 
-Tastatur (Desktop): `/` suchen, `n` neue Spule, `↑` `↓` im Regal wählen, `Esc` schließen.
+Die **Übersicht** ist der Druckermonitor: Kamera (das Modell nur während eines Drucks), Druckstatus,
+Druckerdaten, **Meldungen** und die vier Slots mit Trockner und ACE-Einstellungen. Spulen, Sorten
+und die Druckhistorie verwaltest du auf eigenen Seiten.
+
+**Meldungen** zeigt, nach Wichtigkeit, was Aufmerksamkeit braucht: Druck pausiert oder Fehler, Slot
+ohne Material am Drucker, eine Spule, die **für den laufenden Druck nicht reicht** (die Bridge liest
+die Druckdatei: was jedes Werkzeug noch druckt plus das Spülen der noch kommenden Farbwechsel, 5 %
+Reserve), Spule fast leer (< 100 g), Buchungen noch nicht in Spoolman, Spoolman nicht erreichbar,
+hohe Feuchte bei ausgeschalteter Automatik, ein gerade beendeter Druck. Darunter **Status**: Drucker,
+Spoolman, Kamera (Bildrate, Zuschauer), gekoppelte App und Orca-Plugin (zuletzt gesehen) und die Bridge.
+
+Tastatur (Desktop): `/` suchen, `n` neue Spule, `↑` `↓` Spule wählen, `Esc` schließen.
 Rechtsklick auf eine Spule → in einen Slot legen, ins Regal, archivieren.
 
 Die Weboberfläche fragt einmal pro Browser nach dem Koppeln ([Installation](installation.md#4-das-erste-gerät-koppeln)).
@@ -78,9 +89,12 @@ macht das; zum erneuten Senden die Spule nochmal zuordnen. Ohne das (Bridge aus,
 Spule herausnehmen: Meldet die ACE einen Slot eine Weile als leer, kommt die Spule automatisch ins
 Regal (während eines Drucks erst danach). Oder auf der Slot-Karte **Leeren** drücken.
 
-## Das Regal
+## Spulen und Sorten
 
-**Regal** zeigt alle aktiven Spulen mit Restgewicht, Ort und Tag-Nummer; filtern nach Material,
+**Filament** hat zwei Ansichten, oben umschaltbar: **Spulen** und **Sorten**. Eine Sorte zeigt ihre
+Spulen; Tippen öffnet die Spule unter *Spulen*.
+
+**Spulen** zeigt alle aktiven Spulen mit Restgewicht, Ort und Tag-Nummer; filtern nach Material,
 *im ACE* oder *fast leer* (< 200 g), oder suchen. Spule wählen, um sie zu bearbeiten:
 
 - **Spule**: Restgewicht (nach dem Wiegen), Leerspule, Netto neu, Preis, Charge, Notiz und – bei

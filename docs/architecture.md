@@ -53,6 +53,15 @@ only a few Moonraker clients. Browser, Android app and Orca plugin are clients o
   tag cannot send a header. A separate, view-only key (`camera.json`) is accepted as `?key=` on the
   camera URLs; any paired device can show or replace it.
 
+## Messages and status (`bridge/app/acebridge/status.py`)
+
+Computed on every `/api/app/state` from what the bridge already holds — no extra request to the
+printer. The print file parsed for the preview (`render.py`) also records the net extrusion per tool
+(retractions cancel out) with a checkpoint every 256 KB and at every tool change, plus the list of
+tool changes. From the current `file_position` the bridge gets what each tool still prints and which
+changes are still to come; the purge model adds the purge of those changes. Mapped to slots via
+`mmu.ttg_map` and compared with the assigned spool's remaining weight, this gives "spool won't last".
+
 ## Camera restream (`bridge/app/acebridge/camera.py`)
 
 Every stream a client opens on the printer costs its weak CPU. The bridge therefore holds **at most

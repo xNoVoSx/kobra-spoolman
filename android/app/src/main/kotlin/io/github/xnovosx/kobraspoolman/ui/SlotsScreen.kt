@@ -62,7 +62,7 @@ fun SlotsScreen(
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("ACE-Slots", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                Text("Übersicht", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
                 RoundIconButton(KIcons.Refresh, "Aktualisieren", onRefresh)
                 Spacer(Modifier.size(8.dp))
                 RoundIconButton(KIcons.Settings, "Einstellungen", onSettings)
@@ -74,12 +74,13 @@ fun SlotsScreen(
             if (error == null) item { Text("Lade …", color = K.Muted) }
             return@LazyColumn
         }
-        state.warnings.forEach { w -> item { Hint(w, danger = true) } }
+        if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // aeltere Bridge
         item {
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
         if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera) }
+        state.notices?.let { n -> item { NoticesCard(n, state.version) } }
         state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         state.slots.chunked(2).forEach { row ->
             item {

@@ -6,6 +6,21 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Web UI and app: **Meldungen & Status** on the overview — printer paused/error, slot without
+  material, **spool won't last for the running print** (from the print file: what each tool still
+  prints plus the purge of the changes still to come), spool almost empty, open bookings, Spoolman
+  unreachable, high humidity, print just finished; status of printer, Spoolman, camera, paired app
+  and Orca plugin, bridge.
+
+### Changed
+- Web UI: the overview is the **printer monitor** — camera as the main view (the model only while
+  printing), messages and status, slots, dryer and ACE. Shelf, spool details and print history left
+  the overview; on ultrawide everything fits on one screen.
+- Web UI: **Filament** replaces *Regal* and *Filamente* — one page with *Spulen | Sorten*; a filament
+  type lists its spools. Old links (`#/regal`, `#/filamente`) still work.
+- App: overview with messages and status, camera first, model only while printing.
+
 ## [2.8.1] – 2026-10-01
 
 ### Changed

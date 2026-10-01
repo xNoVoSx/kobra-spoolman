@@ -15,6 +15,8 @@ from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, conv
                               normalize_uid, printer_state, tag_content)
 from acebridge.ace import AceSettings
 from acebridge.auth import CameraKey, Devices
+from acebridge.camera import Camera
+from acebridge.render import PrintPreview
 from acebridge.dryer import Dryer
 from acebridge.purge import PurgeModel
 from acebridge.slots import SlotManager
@@ -238,6 +240,9 @@ class FakeBridge:
         self.ace = AceSettings(self.moon, PurgeModel(), self.slots, self.sm)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
+        self.purge = PurgeModel()
+        self.camera = Camera(cfg, self.moon, None)       # ohne Zuschauer kein Abruf
+        self.preview = PrintPreview(cfg, self.moon, None)
 
     def safety_warnings(self):
         return []

@@ -29,8 +29,8 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 - After slicing, the Orca panel shows **what each spool needs** for the plate and warns if one is too short.
 
 <p align="center">
-  <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer, dryer, ACE slots and print history"><br>
-  <sub>Web UI: printer status, dryer, the four ACE slots with live consumption, print history</sub>
+  <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer with camera, messages and status, dryer, ACE, slots"><br>
+  <sub>Web UI: the printer monitor — camera and printer data, messages and status, dryer, ACE, the four slots</sub>
 </p>
 
 <table>
