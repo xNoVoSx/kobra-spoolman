@@ -64,13 +64,15 @@ changes are still to come; the purge model adds the purge of those changes. Mapp
 
 ## Camera restream (`bridge/app/acebridge/camera.py`)
 
-Every stream a client opens on the printer costs its weak CPU. The bridge therefore holds **at most
-one** connection to the printer's MJPEG stream (Rinkhals' mjpg-streamer), opened on demand and
-closed 20 s after the last viewer, and fans the frames out: web UI, app, Mainsail (camera link) and
-later the AI service. Each viewer always gets the newest frame — a slow viewer skips frames instead
-of building up a queue. Snapshots come from the running stream. The bridge measures the frame rate
-(`/api/camera` → `fps`), the UIs show it in the corner. Without a stream on the printer it falls
-back to single snapshots.
+On the Kobra S1 a single MJPEG stream from Rinkhals' mjpg-streamer takes the whole CPU, while single
+snapshots up to ~5 per second cost nothing measurable ([findings](findings.md#camera-load-on-the-kobra-s1-2026-10-01)).
+The bridge therefore fetches snapshots one after another — only while someone watches, closed 20 s
+after the last viewer — and fans each frame out: web UI, app, Mainsail (camera link) and later the AI
+service. Each viewer always gets the newest frame; a slow viewer skips frames instead of queueing.
+The rate follows the printer's CPU from Moonraker's `notify_proc_stat_update` (pushed anyway, no extra
+request): +1 fps every 5 s while the CPU is low, halved at once when it is high (1–10 fps by
+default). The UIs show the frame rate in the corner and *gedrosselt* when the bridge holds back;
+*Status* shows the printer CPU.
 
 ## Web UI (`bridge/app/acebridge/static/`)
 

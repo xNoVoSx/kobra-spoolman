@@ -6,6 +6,14 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Changed
+- Camera: the bridge no longer holds the printer's MJPEG stream — on the Kobra S1 one stream alone
+  takes 100 % CPU (measured). It fetches single snapshots like Mainsail's *adaptive* mode and
+  restreams them; the rate (1–10 fps) follows the printer CPU that Moonraker pushes anyway
+  (`CAMERA_FPS_MIN/MAX`, `CAMERA_CPU_LOW/HIGH`; `CAMERA_STREAM=true` for the old behaviour).
+  *Status* shows the printer CPU, a message warns after a minute above 90 %, the web UI shows
+  *gedrosselt* when the camera holds back.
+
 ### Fixed
 - Camera: a webcam entry in Moonraker that points to the bridge's own camera link (Mainsail set up
   with the restream) is never taken as the camera source — that would loop.

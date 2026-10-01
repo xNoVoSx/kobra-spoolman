@@ -125,8 +125,9 @@ values with a target or a changed factor are highlighted. Tap the image for full
 progress bar: how long the print has been running, about how long it still takes and the estimated
 finish time (*~17:35*, *morgen ~02:10*), estimated from the progress so far.
 
-The bridge **restreams** the camera: however many browsers and phones watch, the printer serves one
-stream, and only while someone is watching. Point Mainsail at the bridge too, so it does not open
+The bridge **restreams** the camera: however many browsers and phones watch, it fetches single images
+from the printer only once — and only while someone is watching. The rate (up to 10 fps) adapts to the
+printer's CPU; *gedrosselt* in the corner means the bridge is holding back so the print comes first. Point Mainsail at the bridge too, so it does not open
 a second stream: **Geräte → Kamera-Link** shows a stream and a snapshot URL. In Mainsail open
 *Settings → Webcams*, edit the webcam, choose the service *MJPEG-Streamer* and paste the two URLs.
 The link only shows the camera; *Neu erzeugen* replaces it (the old one stops working).

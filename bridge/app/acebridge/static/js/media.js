@@ -57,7 +57,7 @@ export function useCamera(active) {
     if (!on) return;
     let stop = false, timer = null;
     const tick = async () => {
-      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps); if (c.error && !c.fps) setErr(c.error); } } catch { /* egal */ }
+      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps == null ? null : { fps: c.fps, throttled: !!c.throttled }); if (c.error && !c.fps) setErr(c.error); } } catch { /* egal */ }
       if (!stop) timer = setTimeout(tick, 2000);
     };
     timer = setTimeout(tick, 1500);
@@ -68,9 +68,11 @@ export function useCamera(active) {
   return [src, err, onError, fps];
 }
 
-/** Kleine Bildrate oben rechts im Kamerabild. */
+/** Kleine Bildrate oben rechts im Kamerabild; "gedrosselt", wenn die Bridge wegen der Drucker-CPU runterregelt. */
 export function Fps({ fps }) {
-  return fps == null ? null : html`<span class="media-fps m">${fps < 10 ? fps.toFixed(1) : Math.round(fps)} fps</span>`;
+  if (fps == null) return null;
+  const v = fps.fps;
+  return html`<span class="media-fps m" title=${fps.throttled ? "Die Bridge holt weniger Bilder, weil die Drucker-CPU hoch ist" : ""}>${v < 10 ? v.toFixed(1) : Math.round(v)} fps${fps.throttled ? " · gedrosselt" : ""}</span>`;
 }
 
 const temp = (h) => (h.target > 0 ? `${Math.round(h.temp)}/${Math.round(h.target)}°` : `${Math.round(h.temp)}°`);

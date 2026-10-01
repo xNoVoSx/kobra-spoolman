@@ -1,11 +1,15 @@
-"""Kamera ueber die Bridge: genau eine Stream-Verbindung zum Drucker, weiterverteilt an alle.
+"""Kamera ueber die Bridge: eine Quelle am Drucker, weiterverteilt an alle Zuschauer.
 
-Der Drucker (Rinkhals' mjpg-streamer) reicht die JPEG-Bilder der Kamera durch; teuer wird fuer den schwachen
-Drucker jeder weitere Zuschauer. Deshalb haelt die Bridge hoechstens EINE Verbindung zum Stream offen - nur
-solange jemand zuschaut oder ein Bild braucht - und verteilt die Bilder an Weboberflaeche, App, Mainsail/OctoApp
-(ueber einen Kamera-Link) und spaeter die KI. Einzelbilder kommen aus demselben Stream.
-Liefert der Drucker keinen Stream, holt die Bridge Einzelbilder (?action=snapshot), hoechstens eins pro
-CAMERA_INTERVAL_S.
+Gemessen am Kobra S1 (01.10.2026, Rinkhals' mjpg-streamer, 1280x720): schon EIN Dauerstream
+(?action=stream) treibt die Drucker-CPU auf 100 %; Einzelbilder (?action=snapshot) mit bis zu ~5 pro Sekunde
+aendern nichts gegenueber dem Leerlauf (30-50 %). Deshalb holt die Bridge Einzelbilder - wie Mainsails
+"adaptive"-Modus -, nur solange jemand zuschaut, und verteilt sie als MJPEG-Stream an Weboberflaeche, App,
+Mainsail (Kamera-Link) und spaeter die KI.
+
+Die Bildrate regelt sich nach der Drucker-CPU (notify_proc_stat_update, kommt ohnehin ueber die eine
+Moonraker-Verbindung): Start mit 2 fps; CPU-Mittel unter CAMERA_CPU_LOW -> alle 5 s +1 fps bis CAMERA_FPS_MAX;
+ueber CAMERA_CPU_HIGH -> sofort halbieren bis CAMERA_FPS_MIN. Der Druck hat immer Vorrang.
+CAMERA_STREAM=true nutzt stattdessen den Stream des Druckers (fuer Drucker, bei denen er billig ist).
 """
 
 from __future__ import annotations
@@ -28,6 +32,8 @@ IDLE_CLOSE_S = 20.0          # so lange nach dem letzten Zuschauer bleibt der St
 FIRST_FRAME_TIMEOUT_S = 6.0
 RETRY_S = 5.0                # nach einem Abbruch frühestens wieder verbinden
 NO_STREAM_RETRY_S = 300.0    # Drucker liefert gar keinen Stream: so lange Einzelbilder
+START_FPS = 2.0
+ADJUST_S = 5.0               # Regelschritt und Mittelungsfenster der CPU
 
 
 class CameraError(Exception):
@@ -102,6 +108,8 @@ class Camera:
         self._viewers = 0
         self._snap_lock = asyncio.Lock()
         self._retry_at = 0.0
+        self.target_fps = START_FPS
+        self.throttled = False       # wegen hoher Drucker-CPU unter dem Maximum
 
     # ------------------------------------------------------------ Adressen
     async def _resolve(self) -> None:
@@ -135,9 +143,61 @@ class Camera:
 
     def _want(self) -> None:
         self._wanted_until = max(self._wanted_until, self.clock() + IDLE_CLOSE_S)
-        if (self.cfg.camera_stream and self.clock() >= self._retry_at
-                and (self._reader is None or self._reader.done())):
-            self._reader = asyncio.create_task(self._run_stream())
+        if self.clock() >= self._retry_at and (self._reader is None or self._reader.done()):
+            self._reader = asyncio.create_task(self._run_stream() if self.cfg.camera_stream else self._run_pump())
+
+    def _idle(self) -> bool:
+        return self._viewers == 0 and self.clock() > self._wanted_until
+
+    def adjust(self, cpu: Optional[float]) -> None:
+        """Ein Regelschritt: hohe Drucker-CPU -> halbieren, niedrige -> +1 fps. Ohne CPU-Werte: nichts aendern."""
+        lo, hi = float(self.cfg.camera_fps_min), float(self.cfg.camera_fps_max)
+        if cpu is None:
+            return
+        if cpu > self.cfg.camera_cpu_high:
+            new = max(lo, self.target_fps / 2)
+            if new < self.target_fps:
+                log.info("Kamera: Drucker-CPU %.0f %% - %.1f -> %.1f fps", cpu, self.target_fps, new)
+            self.target_fps, self.throttled = new, True
+        elif cpu < self.cfg.camera_cpu_low and self.target_fps < hi:
+            self.target_fps = min(hi, self.target_fps + 1)
+            self.throttled = self.target_fps < hi and self.throttled
+
+    async def _run_pump(self) -> None:
+        """Einzelbilder nacheinander (nie zwei gleichzeitig), Rate nach der Drucker-CPU geregelt."""
+        await self._resolve()
+        self.mode, self.target_fps, self.throttled = "snapshots", min(START_FPS, float(self.cfg.camera_fps_max)), False
+        cpu_of = getattr(self.moon, "cpu", None)
+        next_adjust = self.clock() + ADJUST_S
+        fails = 0
+        log.info("Kamera: Einzelbilder, %.0f-%.0f fps je nach Drucker-CPU", self.cfg.camera_fps_min, self.cfg.camera_fps_max)
+        try:
+            while not self._idle():
+                started = self.clock()
+                if started >= next_adjust:
+                    self.adjust(cpu_of(ADJUST_S) if cpu_of else None)
+                    next_adjust = started + ADJUST_S
+                try:
+                    async with self.session.get(self.snapshot_url, timeout=aiohttp.ClientTimeout(total=8)) as r:
+                        r.raise_for_status()
+                        data = await r.read()
+                    if not data.startswith(b"\xff\xd8"):
+                        raise CameraError("Antwort ist kein JPEG")
+                    await self._publish(data)
+                    fails = 0
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:  # noqa: BLE001
+                    fails += 1
+                    self.error = f"Kamera nicht erreichbar: {e}"
+                    if fails >= 3:
+                        self._retry_at = self.clock() + RETRY_S
+                        log.warning("Kamera: %s - neuer Versuch in %.0f s", e, RETRY_S)
+                        return
+                await asyncio.sleep(max(0.0, 1.0 / self.target_fps - (self.clock() - started)))
+        finally:
+            self.mode = "idle"
+            log.info("Kamera: keine Zuschauer mehr - Abfrage beendet")
 
     async def _publish(self, frame: bytes) -> None:
         now = self.clock()
@@ -162,7 +222,7 @@ class Camera:
                 async for frame in read_mjpeg(r.content):
                     got += 1
                     await self._publish(frame)
-                    if self._viewers == 0 and self.clock() > self._wanted_until:
+                    if self._idle():
                         break
         except asyncio.CancelledError:
             raise
@@ -253,4 +313,7 @@ class Camera:
     def state(self) -> dict:
         return {"enabled": self.cfg.camera, "mode": self.mode, "viewers": self._viewers, "fps": self.fps(),
                 "error": self.error, "stream": bool(self.cfg.camera_stream),
+                "source": "stream" if self.cfg.camera_stream else "snapshots",
+                "target_fps": round(self.target_fps, 1) if self.mode == "snapshots" else None,
+                "throttled": self.throttled and self.mode == "snapshots",
                 "last": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.taken_wall)) if self.taken_wall else None}

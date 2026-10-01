@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import itertools
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Optional
+import time
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optional, Tuple
 
 import aiohttp
 
@@ -46,6 +48,7 @@ class Moonraker:
         self._pending: Dict[int, asyncio.Future] = {}
         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
         self.console: Optional["Console"] = None   # gesetzt von der Bridge
+        self.cpu_samples: Deque[Tuple[float, float]] = collections.deque(maxlen=180)   # (monotonic, CPU %)
         self.components: list = []   # Moonraker-Komponenten (fuer die Warnung bei aktivem [spoolman])
 
     # ------------------------------------------------------------------ HTTP
@@ -76,6 +79,12 @@ class Moonraker:
         ) as r:
             if r.status not in (200, 404):
                 r.raise_for_status()
+
+    def cpu(self, window_s: float = 5.0, now: Optional[float] = None) -> Optional[float]:
+        """Mittlere System-CPU des Druckers der letzten window_s Sekunden (None ohne frische Werte)."""
+        now = time.monotonic() if now is None else now
+        vals = [c for t, c in self.cpu_samples if now - t <= window_s]
+        return sum(vals) / len(vals) if vals else None
 
     async def get_json(self, path: str, timeout: float = 10) -> Any:
         """Lesende HTTP-Abfrage an Moonraker (z.B. GoKlippers /printer/filament_hub/get_config)."""
@@ -196,6 +205,12 @@ class Moonraker:
                     changed = self._merge(params[0])
                     if changed:
                         await self.on_status(changed, False)
+            elif method == "notify_proc_stat_update":
+                # schickt Moonraker von selbst (~1/s): Drucker-CPU ohne zusaetzliche Abfrage
+                params = data.get("params") or []
+                cpu = ((params[0] if params and isinstance(params[0], dict) else {}).get("system_cpu_usage") or {}).get("cpu")
+                if isinstance(cpu, (int, float)):
+                    self.cpu_samples.append((time.monotonic(), float(cpu)))
             elif method == "notify_gcode_response":
                 if self.console is not None:
                     for line in data.get("params") or []:

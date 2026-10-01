@@ -319,6 +319,22 @@ temperature sensor**; `motion_report` and `display_status` are empty. Temperatur
 numbers. Field lists in `objects/query`/`subscribe` are honoured, which keeps the bridge's
 subscription small.
 
+## Camera load on the Kobra S1 (2026-10-01)
+
+Measured with Moonraker's `machine/proc_stats` (system CPU, single core), Rinkhals' mjpg-streamer at
+1280×720, printer idle, nothing else watching:
+
+| Running | Printer CPU |
+|---|---|
+| nothing | 30–50 % |
+| single snapshots (`?action=snapshot`) at 1, 2, 4 and ~5 per second | 30–50 % — no difference |
+| **one** MJPEG stream (`?action=stream`, ~15 fps × ~230 KB) | **100 %**, Moonraker answers take 1–6 s |
+
+Fetching an image is cheap; the stream mode is what costs. Mainsail's default webcam on Rinkhals uses
+the *mjpegstreamer-adaptive* service, which polls snapshots — that is why Mainsail alone does not load
+the printer like this. Since bridge 2.10.1 the bridge polls snapshots too and adapts the rate to the
+printer CPU (`notify_proc_stat_update`).
+
 ## Android 17: local network protection (2026-09-30)
 
 Apps targeting Android 17 (API 37) cannot reach the local network (10.0.0.0/8, 192.168.0.0/16, …,

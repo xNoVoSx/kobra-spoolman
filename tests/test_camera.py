@@ -54,8 +54,9 @@ def printer():
     return app, hits
 
 
-def make_cfg(srv, stream=True, interval=60):
+def make_cfg(srv, stream=True, interval=60, fps_max=10.0):
     return SimpleNamespace(camera=True, camera_stream=stream, camera_interval_s=interval,
+                           camera_fps_min=1.0, camera_fps_max=fps_max, camera_cpu_low=70.0, camera_cpu_high=85.0,
                            camera_stream_url=str(srv.make_url("/webcam/?action=stream")),
                            camera_snapshot_url=str(srv.make_url("/webcam/?action=snapshot")))
 
@@ -185,3 +186,53 @@ def test_resolve_skips_the_bridges_own_camera_link():
         await cam._resolve()
         return cam.stream_url, cam.snapshot_url
     assert asyncio.run(go()) == ("http://drucker/webcam/?action=stream", "http://drucker/webcam/?action=snapshot")
+
+
+def test_default_polls_snapshots_and_never_opens_the_printer_stream(printer):
+    """Standard (Kobra S1): Einzelbilder nacheinander, verteilt an alle - der teure Drucker-Stream bleibt zu."""
+    app, hits = printer
+
+    async def go():
+        async with TestServer(app) as srv, aiohttp.ClientSession() as s:
+            cam = Camera(make_cfg(srv, stream=False, interval=0), SimpleNamespace(), s)
+
+            async def viewer(n):
+                got = []
+                async for f in cam.frames():
+                    got.append(f)
+                    if len(got) == n:
+                        break
+                return got
+
+            res = await asyncio.gather(viewer(3), viewer(3))
+            assert all(f == JPEG for r in res for f in r)
+            assert hits["stream"] == 0 and hits["snapshot"] >= 3
+            assert cam.state()["mode"] == "snapshots" and cam.state()["target_fps"] == 2.0
+            cam._wanted_until = 0
+            await asyncio.wait_for(cam._reader, 3)
+            stopped = hits["snapshot"]
+            await asyncio.sleep(0.2)
+            assert hits["snapshot"] == stopped and not cam.streaming       # ohne Zuschauer keine Abfragen mehr
+    asyncio.run(go())
+
+
+def test_rate_follows_printer_cpu():
+    cfg = SimpleNamespace(camera=True, camera_stream=False, camera_fps_min=1.0, camera_fps_max=10.0,
+                          camera_cpu_low=70.0, camera_cpu_high=85.0, camera_stream_url="x", camera_snapshot_url="y")
+    cam = Camera(cfg, SimpleNamespace(), None)
+    cam.target_fps = 2.0
+    for _ in range(20):
+        cam.adjust(40.0)                                   # Drucker hat Luft: hoch bis zum Maximum
+    assert cam.target_fps == 10.0 and not cam.throttled
+    cam.adjust(95.0)
+    assert cam.target_fps == 5.0 and cam.throttled         # zu viel: sofort halbieren
+    cam.adjust(78.0)
+    assert cam.target_fps == 5.0                           # zwischen den Schwellen: halten
+    for _ in range(5):
+        cam.adjust(99.0)
+    assert cam.target_fps == 1.0                           # nie unter das Minimum
+    cam.adjust(None)
+    assert cam.target_fps == 1.0                           # ohne CPU-Werte nichts aendern
+    for _ in range(9):
+        cam.adjust(50.0)
+    assert cam.target_fps == 10.0 and not cam.throttled

@@ -127,8 +127,10 @@ geheizte Werte und veränderte Faktoren sind hervorgehoben. Bild antippen für V
 Fortschrittsbalken: wie lange der Druck schon läuft, wie lange er noch ungefähr braucht und wann er
 etwa fertig ist (*~17:35*, *morgen ~02:10*), geschätzt aus dem bisherigen Fortschritt.
 
-Die Bridge **verteilt die Kamera weiter** (Restream): Egal wie viele Browser und Handys zuschauen, der
-Drucker liefert einen einzigen Stream, und nur solange jemand zuschaut. Damit Mainsail keinen zweiten
+Die Bridge **verteilt die Kamera weiter** (Restream): Egal wie viele Browser und Handys zuschauen, sie
+holt die Bilder nur einmal vom Drucker – und nur solange jemand zuschaut. Die Bildrate (bis 10 fps)
+richtet sich nach der Drucker-CPU; *gedrosselt* in der Ecke heißt, die Bridge hält sich zurück, damit
+der Druck Vorrang hat. Damit Mainsail keinen zweiten
 Stream öffnet, trag dort auch die Bridge ein: **Geräte → Kamera-Link** zeigt eine Stream- und eine
 Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeiten, Dienst
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*

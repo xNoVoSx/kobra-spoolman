@@ -157,16 +157,19 @@ contains `ace` (the settings).
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/camera` | camera state: `mode` (`stream`, `snapshot`, `idle`), `viewers`, `fps` (frame rate the printer delivers, measured by the bridge), last image time, error |
+| GET | `/api/camera` | camera state: `mode` (`snapshots`, `stream`, `idle`), `source`, `viewers`, `fps` (measured), `target_fps` and `throttled` (rate lowered because of the printer's CPU), last image time, error |
 | GET | `/api/camera/stream.mjpg` | *(paired or camera key)* live MJPEG restream. Optional `?fps=5` caps the rate for this viewer |
 | GET | `/api/camera/snapshot.jpg` | *(paired or camera key)* the current camera image, taken from the running stream if there is one |
 | GET | `/api/camera/link` | *(paired)* `{"key": "…"}` — the camera key for links |
 | POST | `/api/camera/link` | *(paired)* create a new camera key; old camera links stop working |
 
-**One connection to the printer.** The bridge opens the printer's MJPEG stream only while someone
-watches (or needs a snapshot) and closes it 20 s after the last viewer. However many viewers there
-are, the printer serves one stream. If the printer has no stream, the bridge falls back to single
-snapshots (at most one per `CAMERA_INTERVAL_S`) and tries the stream again after 5 minutes.
+**One source at the printer, adapted to its CPU.** While someone watches (and 20 s after the last
+viewer) the bridge fetches single snapshots one after another and hands every frame to all viewers.
+The rate starts at 2 fps and follows the printer's CPU, which Moonraker pushes about once a second
+(`notify_proc_stat_update`, no extra request): below `CAMERA_CPU_LOW` +1 fps every 5 s up to
+`CAMERA_FPS_MAX`, above `CAMERA_CPU_HIGH` halved at once down to `CAMERA_FPS_MIN`. With
+`CAMERA_STREAM=true` the bridge holds the printer's MJPEG stream instead (one connection, falls back
+to snapshots if the printer has none).
 
 **Camera key.** Mainsail and an `<img>` tag cannot send an `Authorization` header, so camera URLs
 also accept `?key=<camera key>`. The key only shows camera images; it is stored in `camera.json`

@@ -21,6 +21,9 @@ REACH_MARGIN = 1.05         # 5 % Reserve bei "reicht die Spule?"
 RECENT_S = 30 * 60          # so lange bleiben "Druck fertig" / Trockner-Ereignisse als Info stehen
 ONLINE_S = 5 * 60           # Geraet gilt als verbunden, wenn es sich so kurz vorher gemeldet hat
 LEVELS = {"error": 0, "warn": 1, "info": 2}
+CPU_WARN = 70               # Status gelb ab
+CPU_BAD = 90                # Status rot ab; Meldung, wenn so lange wie CPU_LONG_S
+CPU_LONG_S = 60
 
 
 def _msg(level: str, text: str, key: str) -> Dict[str, str]:
@@ -160,11 +163,31 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
             last.get("state"), "beendet")
         out.append(_msg("info", f"Druck {word}: {last.get('file')} (vor {round(age / 60)} min)", "done"))
 
+    busy = getattr(bridge.moon, "cpu", None)
+    if busy and moon.connected and (busy(CPU_LONG_S) or 0) >= CPU_BAD and _cpu_covered(bridge, now_m=None):
+        out.append(_msg("warn", f"Drucker-CPU seit über {CPU_LONG_S // 60} min bei {busy(CPU_LONG_S):.0f} % – "
+                                "Drucker reagiert träge (Kamera ist schon gedrosselt)", "cpu"))
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
         out.append(_msg("info", cam["error"], "camera"))
     out.sort(key=lambda m: LEVELS[m["level"]])
     return out
+
+
+# ====================================================================== Drucker-CPU
+def printer_cpu(bridge: "Bridge") -> Optional[float]:
+    """Drucker-CPU (Mittel der letzten 5 s) aus Moonrakers notify_proc_stat_update."""
+    cpu = getattr(bridge.moon, "cpu", None)
+    return cpu(5.0) if callable(cpu) else None
+
+
+def _cpu_covered(bridge: "Bridge", now_m: Optional[float]) -> bool:
+    """Liegen Werte ueber die ganze Minute vor? (Sonst warnt ein einzelner Ausreisser nach dem Start.)"""
+    samples = getattr(bridge.moon, "cpu_samples", None)
+    if not samples:
+        return False
+    now_m = time.monotonic() if now_m is None else now_m
+    return now_m - samples[0][0] >= CPU_LONG_S
 
 
 # ====================================================================== Status
@@ -187,17 +210,23 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
         lines.append({"key": "printer", "label": "Drucker", "state": "warn", "detail": "Klipper nicht bereit"})
     else:
         lines.append({"key": "printer", "label": "Drucker", "state": "ok", "detail": "Moonraker verbunden"})
+    cpu = printer_cpu(bridge)
+    if cpu is not None:
+        lines.append({"key": "cpu", "label": "Drucker-CPU", "detail": f"{cpu:.0f} %",
+                      "state": "ok" if cpu < CPU_WARN else "warn" if cpu < CPU_BAD else "bad"})
     lines.append({"key": "spoolman", "label": "Spoolman", "state": "ok" if bridge.sm.connected else "bad",
                   "detail": "verbunden" if bridge.sm.connected else "nicht erreichbar"})
     cam = bridge.camera.state()
     if not cam.get("enabled"):
         lines.append({"key": "camera", "label": "Kamera", "state": "off", "detail": "abgeschaltet"})
-    elif cam.get("error") and cam.get("mode") != "stream":
+    elif cam.get("error") and cam.get("mode") == "idle":
         lines.append({"key": "camera", "label": "Kamera", "state": "warn", "detail": cam["error"]})
-    elif cam.get("mode") == "stream":
-        detail = f"{cam['fps']:.0f} fps" if cam.get("fps") else "Stream"
+    elif cam.get("mode") in ("stream", "snapshots"):
+        detail = f"{cam['fps']:.0f} fps" if cam.get("fps") else "läuft"
+        detail += " · gedrosselt (Drucker-CPU)" if cam.get("throttled") else ""
         detail += f" · {cam['viewers']} Zuschauer" if cam.get("viewers") else ""
-        lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": detail})
+        lines.append({"key": "camera", "label": "Kamera", "state": "warn" if cam.get("throttled") else "ok",
+                      "detail": detail})
     else:
         lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": "bereit (nur wenn jemand schaut)"})
     for kind, label in (("app", "Handy-App"), ("plugin", "Orca-Plugin")):
