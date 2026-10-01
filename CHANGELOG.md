@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.7.0] – 2026-10-01
+
+Ships plugin 0.5.0. The per-change preview needs the orca-kobra build from 2026-10-01 or later.
+
 ### Added
 - Bridge: **purge model of the ACE** — the firmware's purge per colour change is computed like the
   firmware does it (Orca's colour formula on the ACE colours + `flush_volume_min`, limits, times
