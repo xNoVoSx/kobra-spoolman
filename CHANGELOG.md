@@ -6,6 +6,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.10.1] – 2026-10-01
+
 ### Changed
 - Camera: the bridge no longer holds the printer's MJPEG stream — on the Kobra S1 one stream alone
   takes 100 % CPU (measured). It fetches single snapshots like Mainsail's *adaptive* mode and
