@@ -200,10 +200,16 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     val dryer = state?.dryer
     if (dryerOpen && dryer != null) {
         ModalBottomSheet(onDismissRequest = { dryerOpen = false }, containerColor = K.Surface) {
-            DryerSheet(dryer,
+            val preview by vm.purgePreview.collectAsState()
+            DryerSheet(dryer, state?.ace, preview,
                 onStart = { t, h -> dryerOpen = false; vm.dryerStart(t, h) },
                 onStop = { dryerOpen = false; vm.dryerStop() },
-                onSaveConfig = { c -> dryerOpen = false; vm.dryerConfig(c) })
+                onSaveConfig = { c -> dryerOpen = false; vm.dryerConfig(c) },
+                onPlan = { at, t, h -> dryerOpen = false; vm.dryerSchedule(at, t, h) },
+                onClearPlan = { vm.clearDryerSchedule() },
+                onPreview = { vm.loadPurgePreview(it) },
+                onSetFlush = { v, confirm -> vm.setFlushMultiplier(v, confirm) },
+                onOption = { k, v, confirm -> vm.setAceOption(k, v, confirm) })
         }
     }
     if (scanOpen) {

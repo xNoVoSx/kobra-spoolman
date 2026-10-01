@@ -13,6 +13,13 @@ object Format {
         return if (m >= 60) "${m / 60} h ${m % 60} min" else "$m min"
     }
 
+    /** Feste Nachkommastellen mit Komma: decimal(1.0, 1) = "1,0". */
+    fun decimal(v: Double?, digits: Int = 1): String =
+        if (v == null) "–" else String.format(java.util.Locale.GERMANY, "%.${digits}f", v)
+
+    /** Eingabe "0,8" / "0.8" -> 0.8; leer oder ungueltig -> null. */
+    fun parseDecimal(t: String): Double? = t.trim().replace(',', '.').toDoubleOrNull()
+
     fun percent(p: Double?): String = if (p == null) "" else "${(p * 100).roundToInt()} %"
 
     /** Anteil Rest/Anfang fuer den Balken, 0..1. */

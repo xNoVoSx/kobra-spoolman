@@ -134,6 +134,39 @@ function DryerRules() {
     </div></${Dialog}>`;
 }
 
+function DryerPlan() {
+  const d = S.st?.dryer || {};
+  const req = d.required || {};
+  const pad = (n) => String(n).padStart(2, "0");
+  const local = (t) => `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
+  const tonight = new Date(); tonight.setHours(22, 0, 0, 0);
+  if (tonight < new Date()) tonight.setDate(tonight.getDate() + 1);
+  const [at, setAt] = useState(d.schedule ? local(new Date(d.schedule.at * 1000)) : local(tonight));
+  const [temp, setTemp] = useState(d.schedule?.temp ? String(d.schedule.temp) : "");
+  const [hours, setHours] = useState(String(d.schedule?.hours ?? d.config?.max_hours ?? 6).replace(".", ","));
+  const t = parseNum(temp), h = parseNum(hours);
+  const when_ = new Date(at);
+  const bad = Number.isNaN(when_.getTime()) || when_ <= new Date() || Number.isNaN(t) || h == null || Number.isNaN(h) || h < 0.5 || h > 24;
+  const run = () => act().then(async () => {
+    await post("/api/dryer/schedule", { at: when_.getTime() / 1000, temp: t, hours: h });
+    toast("Trocknen geplant", "ok");
+    (await import("./store.js")).loadState();
+  });
+  const remove = async () => {
+    try { await (await import("./api.js")).del("/api/dryer/schedule"); toast("Plan gelöscht", "ok"); (await import("./store.js")).loadState(); closeDialog(); }
+    catch (e) { toast(e.message, "bad"); }
+  };
+  return html`<${Dialog} title="Trocknen planen" footer=${html`${d.schedule && html`<button class="btn danger" onClick=${remove}>Plan löschen</button><span class="grow"></span>`}<${Cancel} /><${Run} label="Planen" disabled=${bad} run=${run} />`}>
+    <div class="col">
+      <div class="fgrid">
+        <${Field} id="pl-at" label="Start"><input id="pl-at" type="datetime-local" value=${at} onInput=${(e) => setAt(e.target.value)} /></${Field}>
+        <${Field} id="pl-t" label="Temperatur (°C)" hint=${`leer = automatisch, höchstens ${req.temp ?? req.ace_max ?? "?"} °C`}><input id="pl-t" inputmode="numeric" value=${temp} onInput=${(e) => setTemp(e.target.value)} /></${Field}>
+        <${Field} id="pl-h" label="Dauer (h)" hint="0,5 bis 24"><input id="pl-h" inputmode="decimal" value=${hours} onInput=${(e) => setHours(e.target.value)} /></${Field}>
+      </div>
+      <div class="small muted">Einmaliger Start, z.B. nachts. Die Temperatur richtet sich beim Start nach den dann eingelegten Spulen.</div>
+    </div></${Dialog}>`;
+}
+
 // ------------------------------------------------------------ Offenen Posten buchen
 function BookOpen({ item }) {
   const spools = S.spools || [];
@@ -206,7 +239,7 @@ function AddDevice() {
     </div></${Dialog}>`;
 }
 
-const KINDS = { confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules,
+const KINDS = { confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
   bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice };
 
 export function Dialogs() {

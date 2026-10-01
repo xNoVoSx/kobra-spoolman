@@ -28,8 +28,16 @@ class FormatTest {
     }
 
     @Test fun bridge_url_is_normalized() {
-        assertEquals("http://10.0.0.19:7913", BridgeClient.normalizeUrl(" 10.0.0.19:7913/ "))
+        assertEquals("http://192.168.1.10:7913", BridgeClient.normalizeUrl(" 192.168.1.10:7913/ "))
         assertEquals("https://bridge.example", BridgeClient.normalizeUrl("https://bridge.example"))
+    }
+
+    @Test fun decimals_are_german() {
+        assertEquals("1,0", Format.decimal(1.0, 1))
+        assertEquals("0,65", Format.decimal(0.65, 2))
+        assertEquals("–", Format.decimal(null))
+        assertEquals(0.8, Format.parseDecimal(" 0,8 ")!!, 1e-9)
+        assertEquals(null, Format.parseDecimal("viel"))
     }
 
     @Test fun virtual_uid_looks_like_ntag() {

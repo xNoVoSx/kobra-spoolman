@@ -101,6 +101,20 @@ The temperature is **never higher than the most sensitive loaded filament allows
 If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once. The
 **Trockner** page shows which slot sets the limit.
 
+## ACE settings and purge
+
+The **ACE** page (app: tap the dryer card) shows what the printer display hides:
+
+- **Purge multiplier** — how much the ACE flushes at a colour change (`× 1,0` is the firmware
+  default; Minimal 0,1 / Normal 1,0 / Maximum 3,0 or any value). Next to it the purge of every
+  change between your loaded spools, with the current and the new value, in mm and grams. Less purge
+  saves filament but can mix colours — try it on a small print.
+- **Automatisch nachladen** (backup spool when one runs out) and **Leer-Erkennung** (runout detection).
+- **Trocknen planen** — one start at a set time, e.g. tonight at 22:00.
+
+During a print the fields are locked; **Freischalten** unlocks them after a warning. A new
+multiplier applies from the next colour change.
+
 ## Slicing and printing
 
 1. In Orca press the filament **sync** button. With the orca-kobra build the `SM…` profiles are

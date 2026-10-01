@@ -2,6 +2,7 @@
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, del, get, post } from "./api.js";
+import { AceCard } from "./ace.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots } from "./components.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
 import { Icon } from "./icons.js";
@@ -14,7 +15,7 @@ export function Overview() {
   return html`
   <div class="ov">
     <div class="ov-main">
-      <div class="ov-top"><${PrinterCard} /><${DryerCard} /></div>
+      <div class="ov-top"><${PrinterCard} /><${DryerCard} /><${AceCard} compact /></div>
       ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
       <div class="row"><span class="lbl">ACE 2 Pro · Slots</span><span class="grow"></span>
         <span class="small muted">Zuordnen schreibt Material und Farbe auch ans Druckerdisplay (Spulen ohne Tag)</span></div>
@@ -37,6 +38,7 @@ export function Ultra() {
       <${PrinterCard} />
       ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
       <${DryerCard} big />
+      <${AceCard} />
       <${OpenItemsCard} />
       <${OrcaCard} />
     </div>
@@ -91,12 +93,15 @@ export function JobsPage() {
 }
 
 // ------------------------------------------------------------ Trockner
-export function DryerPage() {
+export function AcePage() {
   const d = S.st?.dryer;
   const req = d?.required || {};
-  return html`<div class="col" style="max-width:900px">
-    <h1 class="h1">Trockner</h1>
-    <${DryerCard} big />
+  return html`<div class="col" style="max-width:1100px">
+    <h1 class="h1">ACE</h1>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
+      <${DryerCard} big />
+      <${AceCard} />
+    </div>
     ${d?.present && html`<section class="card pad col">
       <h2 class="h2">Temperaturgrenze</h2>
       <div class="kv">${(req.slots || []).map((p) => html`<span>Slot ${p.slot} · ${p.name} <span class="faint">(${{ filament: "am Filament", vorlage: "aus Vorlage", standard: "Materialwert" }[p.source] || p.source})</span></span>

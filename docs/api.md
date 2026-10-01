@@ -131,9 +131,27 @@ Nothing is written to Spoolman; the commands go to the printer, so they need a p
 | POST | `/api/dryer/stop` | *(paired)* stop drying |
 | POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing` |
 
+| POST | `/api/dryer/schedule` | *(paired)* `{"at": <ISO time or epoch s>, "temp": <°C or null>, "hours": <h or null>}` — one planned start, at most a week ahead; the temperature is capped like a manual start |
+| DELETE | `/api/dryer/schedule` | *(paired)* remove the planned start |
+
 The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: GoKlipper's
 `filament_hub` object in the bridge's Moonraker subscription (the ACE reports about every 20 s);
 commands: Rinkhals' `MMU_DRYER_START` / `MMU_DRYER_STOP`.
+
+## ACE settings
+
+Settings the printer display hides, read from GoKlipper (`/printer/filament_hub/get_config`, every
+10 minutes and right after a change).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/ace?multiplier=` | `settings` (flush multiplier, `auto_refill`, `runout_detect`, presets, `printing`) and `purge`: the purge of every change between the loaded spools — with the current multiplier or the one given |
+| POST | `/api/ace/flush` | *(paired)* `{"multiplier": 0.1–3.0, "confirm_printing": false}` — via Rinkhals' `SET_ACE_FLUSH_MULTIPLIER` |
+| POST | `/api/ace/options` | *(paired)* `{"auto_refill": bool, "runout_detect": bool, "confirm_printing": false}` — via `filament_hub/set_config` |
+
+While a print runs, changes are refused with 409 unless `confirm_printing` is true (the UIs ask
+for an extra unlock first); a new multiplier applies from the next colour change. `/api/app/state`
+contains `ace` (the settings).
 
 ## Pairing devices
 

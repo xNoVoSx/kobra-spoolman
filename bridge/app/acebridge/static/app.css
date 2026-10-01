@@ -111,6 +111,15 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .search input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--text); outline: none; font: 500 15px var(--sans); }
 .search kbd { font: 500 12px var(--mono); color: var(--faint); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
 
+.toggle { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; position: relative; }
+.toggle.off { opacity: .55; cursor: default; }
+.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.toggle .knob { width: 46px; height: 26px; border-radius: 999px; background: var(--line-strong); position: relative; flex: none; transition: background .15s; }
+.toggle .knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--text); transition: transform .15s; }
+.toggle input:checked + .knob { background: var(--accent); }
+.toggle input:checked + .knob::after { transform: translateX(20px); background: var(--on-accent); }
+.toggle input:focus-visible + .knob { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* Tabs */
 .tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--line); overflow-x: auto; }
 .tabs button { min-height: 48px; padding: 0 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
@@ -139,7 +148,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 /* ------------------------------------------------------------ Uebersicht */
 .ov { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; min-height: 100%; }
 .ov-main { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-.ov-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; }
+.ov-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 

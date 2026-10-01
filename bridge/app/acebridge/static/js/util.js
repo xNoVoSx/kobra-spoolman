@@ -96,3 +96,9 @@ export function title(s) {
   const name = s.name || "", mat = s.material || "";
   return mat && !name.toUpperCase().includes(mat.toUpperCase()) ? `${mat} ${name}` : name || mat;
 }
+
+/** Feste Nachkommastellen, deutsch: fixed(1, 1) -> "1,0". */
+export function fixed(v, digits = 1) {
+  if (v == null || Number.isNaN(Number(v))) return "–";
+  return Number(v).toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}

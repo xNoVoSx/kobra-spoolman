@@ -36,6 +36,7 @@ export function PrinterCard({ compact }) {
       ${p?.file && html`<span class="m small muted ell grow">${fileName(p.file)}</span>`}
       ${!p?.file && html`<span class="grow"></span>`}
       ${p?.progress != null && html`<span class="m pct" style=${{ color: look.fg, fontSize: "19px" }}>${Math.round(p.progress * 100)} %</span>`}
+      ${ui && html`<a class="btn sm ghost" href=${ui} target="_blank" rel="noopener" title="Mainsail öffnen" style=${{ borderColor: look.line, color: look.fg }}><${Icon} name="link" small />Mainsail</a>`}
     </div>
     ${running && html`<span class="bar" style=${{ background: look.line }}><i style=${{ width: (p.progress || 0) * 100 + "%", background: look.dot }}></i></span>`}
     ${running && html`
@@ -47,7 +48,6 @@ export function PrinterCard({ compact }) {
     </div>`}
     ${p?.message && html`<div class="small" style=${{ color: look.fg }}>${p.message}</div>`}
     ${p?.state === "offline" && html`<div class="small muted">Die Bridge erreicht den Drucker gerade nicht.</div>`}
-    ${ui && html`<a class="small" href=${ui} target="_blank" rel="noopener" style=${{ color: look.fg }}>In Mainsail öffnen →</a>`}
   </section>`;
 }
 
@@ -112,6 +112,7 @@ export function DryerCard({ big }) {
   const start = guard(() => openDialog("dryerStart"));
   const stop = guard(() => import("./actions.js").then((a) => a.dryerStop()));
   const rules = guard(() => openDialog("dryerRules"));
+  const plan = guard(() => openDialog("dryerPlan"));
   return html`
   <section class="card pad col" aria-label="Trockner">
     <div class="row"><span style="color:var(--accent)"><${Icon} name="dryer" /></span><h2 class="h2">Trockner</h2><span class="grow"></span><span class=${cls("chip", kind)}>${label}</span></div>
@@ -125,10 +126,12 @@ export function DryerCard({ big }) {
       ${d.config?.enabled ? `Automatik startet ab ${num(d.config.start_above, 0)} %, stoppt unter ${num(d.config.stop_below, 0)} %, höchstens ${num(d.config.max_hours)} h.` : "Automatik ist aus."}
       ${req.temp != null ? ` Höchstens ${req.temp} °C für die eingelegten Spulen.` : ""}
     </div>
+    ${d.schedule && html`<div class="small" style="color:var(--accent-text)">Geplant: ${when(d.schedule.at_iso)}${d.schedule.temp ? ` · ${num(d.schedule.temp, 0)} °C` : ""}${d.schedule.hours ? ` · ${num(d.schedule.hours)} h` : ""}</div>`}
     ${d.last_event && html`<div class="small faint">Zuletzt: ${d.last_event.text} (${when(d.last_event.at)})</div>`}
     <div class="row wrap">
       ${d.drying ? html`<button class="btn sm" onClick=${stop}><${Icon} name="stop" small />Stoppen</button>`
                  : html`<button class="btn sm" onClick=${start}><${Icon} name="play" small />Trocknen</button>`}
+      <button class="btn sm ghost" onClick=${plan}><${Icon} name="clock" small />${d.schedule ? "Geplant" : "Planen"}</button>
       <button class="btn sm ghost" onClick=${rules}>Regeln</button>
     </div>`}
   </section>`;

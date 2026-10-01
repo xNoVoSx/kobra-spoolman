@@ -5,7 +5,7 @@ import { auth, get, setUnauthorizedHandler } from "./api.js";
 import { ContextMenu, Toasts } from "./components.js";
 import { Dialogs } from "./dialogs.js";
 import { Icon } from "./icons.js";
-import { DevicesPage, DryerPage, FilamentPage, JobsPage, Overview, PairPage, RegalPage, SettingsPage, Ultra } from "./pages.js";
+import { AcePage, DevicesPage, FilamentPage, JobsPage, Overview, PairPage, RegalPage, SettingsPage, Ultra } from "./pages.js";
 import { useFilteredSpools } from "./spools.js";
 import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set, useStore } from "./store.js";
 import { cls, printerLook } from "./util.js";
@@ -15,13 +15,14 @@ const PAGES = {
   regal: { title: "Regal", icon: "spool", C: RegalPage, fill: true },
   filamente: { title: "Filamente", icon: "drop", C: FilamentPage, fill: true },
   drucke: { title: "Drucke", icon: "clock", C: JobsPage },
-  trockner: { title: "Trockner", icon: "dryer", C: DryerPage },
+  ace: { title: "ACE", icon: "dryer", C: AcePage },
   geraete: { title: "Geräte", icon: "phone", C: DevicesPage, bottom: true },
   einstellungen: { title: "Einstellungen", icon: "sliders", C: SettingsPage, bottom: true },
 };
 const PHONE_TABS = [["", "Slots", "overview"], ["regal", "Regal", "spool"], ["drucke", "Drucke", "clock"], ["mehr", "Mehr", "more"]];
 
-const route = () => (location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || "");
+const ALIASES = { trockner: "ace" };
+const route = () => { const r = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || ""; return ALIASES[r] || r; };
 
 function useRoute() {
   const [r, setR] = useState(route());
@@ -45,7 +46,7 @@ function useWidth() {
 function MorePage() {
   return html`<div class="col">
     <h1 class="h1">Mehr</h1>
-    ${["filamente", "trockner", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
+    ${["filamente", "ace", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
   </div>`;
 }
 

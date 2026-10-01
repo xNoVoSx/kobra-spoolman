@@ -30,7 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import io.github.xnovosx.kobraspoolman.data.AceSettings
 import io.github.xnovosx.kobraspoolman.data.Dryer
+import io.github.xnovosx.kobraspoolman.data.PurgePreview
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
@@ -42,7 +44,7 @@ private fun num(v: Double?): String = v?.let { if (it % 1.0 == 0.0) it.toInt().t
 
 /** Karte auf der Startseite: Feuchte, Temperatur, Trockner-Zustand. Tippen oeffnet die Steuerung. */
 @Composable
-fun DryerCard(d: Dryer, onOpen: () -> Unit) {
+fun DryerCard(d: Dryer, onOpen: () -> Unit, flushMultiplier: Double? = null) {
     val shape = RoundedCornerShape(18.dp)
     Row(
         Modifier.fillMaxWidth().clip(shape).background(if (d.drying) DryingBg else K.Surface)
@@ -64,6 +66,7 @@ fun DryerCard(d: Dryer, onOpen: () -> Unit) {
             val sub = buildList {
                 if (d.drying && d.remainingMin != null) add("noch ${Format.duration(d.remainingMin * 60)}")
                 add(if (d.config.enabled) "Automatik ab ${num(d.config.startAbove)} %" else "Automatik aus")
+                flushMultiplier?.let { add("Spülen × ${Format.decimal(it, 1)}") }
             }.joinToString(" · ")
             Text(sub, style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
@@ -72,7 +75,12 @@ fun DryerCard(d: Dryer, onOpen: () -> Unit) {
 
 /** Inhalt des Trockner-Fensters: jetzt trocknen + Automatik. */
 @Composable
-fun DryerSheet(d: Dryer, onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, onSaveConfig: (DryerConfig) -> Unit) {
+fun DryerSheet(
+    d: Dryer, ace: AceSettings?, preview: PurgePreview?,
+    onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, onSaveConfig: (DryerConfig) -> Unit,
+    onPlan: (Double, Int?, Double?) -> Unit, onClearPlan: () -> Unit,
+    onPreview: (Double?) -> Unit, onSetFlush: (Double, Boolean) -> Unit, onOption: (String, Boolean, Boolean) -> Unit,
+) {
     var temp by remember { mutableStateOf("") }
     var hours by remember { mutableStateOf(num(d.config.maxHours)) }
     var c by remember { mutableStateOf(d.config) }
@@ -84,7 +92,7 @@ fun DryerSheet(d: Dryer, onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, o
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Trockner", style = MaterialTheme.typography.headlineSmall)
+        Text("ACE", style = MaterialTheme.typography.headlineSmall)
         Text("Feuchte ${num(d.humidity)} % · ACE ${num(d.temp)} °C" + (d.model?.let { " · $it" } ?: ""),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
 
@@ -130,6 +138,8 @@ fun DryerSheet(d: Dryer, onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, o
             ))
         }, Modifier.fillMaxWidth())
         d.lastEvent?.let { Text("Zuletzt: ${it.text}", style = MaterialTheme.typography.bodySmall, color = K.Muted) }
+        DryPlanSection(d, onPlan, onClearPlan)
+        ace?.let { AceSection(it, preview, onPreview, onSetFlush, onOption) }
         Text("Die Temperatur richtet sich immer nach dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“ in " +
             "Spoolman, sonst Startwert je Material) und geht nie über das, was die ACE kann (ACE 2 Pro: ${req.aceMax} °C).",
             style = MaterialTheme.typography.bodySmall, color = K.Faint)

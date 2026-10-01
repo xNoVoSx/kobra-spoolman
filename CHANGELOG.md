@@ -6,6 +6,16 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Bridge, web UI and app: **ACE settings** the printer display hides — purge multiplier (presets
+  and any value 0.1–3.0, with the purge of every change between the loaded spools before/after),
+  automatic refill and runout detection. Locked during a print until *Freischalten*.
+- Dryer: **plan a start** (e.g. tonight 22:00), kept across restarts, capped like a manual start.
+
+### Changed
+- Web UI: the printer card has a proper *Mainsail* button; the *Trockner* page is now *ACE*.
+- Android app: the dryer sheet is the ACE sheet (dryer, plan, purge and settings).
+
 ## [2.7.0] – 2026-10-01
 
 Ships plugin 0.5.0. The per-change preview needs the orca-kobra build from 2026-10-01 or later.

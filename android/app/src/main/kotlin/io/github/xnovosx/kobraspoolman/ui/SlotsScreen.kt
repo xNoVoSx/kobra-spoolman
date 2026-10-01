@@ -73,7 +73,7 @@ fun SlotsScreen(
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
-        state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer) } }
+        state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         state.slots.chunked(2).forEach { row ->
             item {
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

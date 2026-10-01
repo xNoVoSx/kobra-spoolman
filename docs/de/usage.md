@@ -103,6 +103,20 @@ Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament
 Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort. Die
 Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
 
+## ACE-Einstellungen und Spülen
+
+Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay versteckt:
+
+- **Spül-Multiplikator** – wie viel die ACE bei einem Farbwechsel spült (`× 1,0` ist der Standard
+  der Firmware; Minimal 0,1 / Normal 1,0 / Maximum 3,0 oder ein eigener Wert). Daneben das Spülen
+  für jeden Wechsel zwischen deinen eingelegten Spulen, mit dem aktuellen und dem neuen Wert, in mm
+  und Gramm. Weniger Spülen spart Filament, kann aber Farben vermischen – an einem kleinen Druck testen.
+- **Automatisch nachladen** (Ersatzspule, wenn eine leer ist) und **Leer-Erkennung**.
+- **Trocknen planen** – ein Start zu einer festen Zeit, z.B. heute um 22:00.
+
+Während eines Drucks sind die Felder gesperrt; **Freischalten** gibt sie nach einem Warnhinweis frei.
+Ein neuer Multiplikator gilt ab dem nächsten Farbwechsel.
+
 ## Slicen und Drucken
 
 1. In Orca den Filament-**Sync**-Knopf drücken. Mit dem orca-kobra-Build werden die `SM…`-Profile für

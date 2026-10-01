@@ -16,8 +16,50 @@ data class AppState(
     val slots: List<Slot> = emptyList(),
     val shelf: List<SpoolInfo> = emptyList(),
     val dryer: Dryer? = null,
+    val ace: AceSettings? = null,
     val warnings: List<String> = emptyList(),
 )
+
+/** ACE-Einstellungen vom Drucker (GoKlipper filament_hub, GET /api/ace, auch in /api/app/state). */
+@Serializable
+data class AceSettings(
+    val present: Boolean = false,
+    @SerialName("flush_multiplier") val flushMultiplier: Double? = null,
+    @SerialName("flush_multiplier_editable") val flushMultiplierEditable: Boolean = true,
+    @SerialName("auto_refill") val autoRefill: Boolean? = null,
+    @SerialName("runout_detect") val runoutDetect: Boolean? = null,
+    @SerialName("read_at") val readAt: String? = null,
+    val printing: Boolean = false,
+    val presets: Map<String, Double> = emptyMap(),
+)
+
+/** Spuelen pro Farbwechsel mit den eingelegten Spulen (Vorschau der Bridge). */
+@Serializable
+data class PurgePair(
+    @SerialName("from_slot") val fromSlot: Int,
+    @SerialName("to_slot") val toSlot: Int,
+    @SerialName("to_name") val toName: String = "",
+    @SerialName("from_color") val fromColor: String? = null,
+    @SerialName("to_color") val toColor: String? = null,
+    val mm: Double = 0.0,
+    val g: Double = 0.0,
+)
+
+@Serializable
+data class PurgePreview(
+    @SerialName("flush_multiplier") val flushMultiplier: Double = 1.0,
+    @SerialName("first_load_mm") val firstLoadMm: Double = 95.0,
+    val pairs: List<PurgePair> = emptyList(),
+)
+
+@Serializable
+data class AceResponse(val settings: AceSettings = AceSettings(), val purge: PurgePreview = PurgePreview())
+
+@Serializable
+data class FlushChange(val multiplier: Double, @SerialName("confirm_printing") val confirmPrinting: Boolean)
+
+@Serializable
+data class DrySchedule(val at: Double, val temp: Double? = null, val hours: Double? = null)
 
 /** ACE-Trockner (GET /api/dryer, auch in /api/app/state). */
 @Serializable
@@ -32,6 +74,7 @@ data class Dryer(
     val required: DryerRequired = DryerRequired(),
     val config: DryerConfig = DryerConfig(),
     @SerialName("last_event") val lastEvent: DryerEvent? = null,
+    val schedule: DrySchedule? = null,
 )
 
 @Serializable

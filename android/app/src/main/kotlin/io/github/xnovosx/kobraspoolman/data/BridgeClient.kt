@@ -30,7 +30,7 @@ class BridgeClient(
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
 
-        /** "10.0.0.19:7913" -> "http://10.0.0.19:7913", ohne Schraegstrich am Ende. */
+        /** "192.168.1.10:7913" -> "http://192.168.1.10:7913", ohne Schraegstrich am Ende. */
         fun normalizeUrl(input: String): String {
             val s = input.trim().trimEnd('/')
             if (s.isEmpty()) return s
@@ -108,6 +108,29 @@ class BridgeClient(
 
     suspend fun dryerConfig(c: DryerConfig) {
         call("POST", "/api/dryer/config", json.encodeToString(DryerConfig.serializer(), c), ApiError.serializer())
+    }
+
+    suspend fun dryerSchedule(atEpochS: Double, temp: Int?, hours: Double?) {
+        call("POST", "/api/dryer/schedule", json.encodeToString(DrySchedule.serializer(),
+            DrySchedule(atEpochS, temp?.toDouble(), hours)), ApiError.serializer())
+    }
+
+    suspend fun clearDryerSchedule() {
+        call("DELETE", "/api/dryer/schedule", null, ApiError.serializer())
+    }
+
+    /** ACE-Einstellungen und Spuel-Vorschau; mit multiplier fuer einen gewuenschten Wert. */
+    suspend fun ace(multiplier: Double? = null): AceResponse =
+        call("GET", "/api/ace" + (multiplier?.let { "?multiplier=$it" } ?: ""), null, AceResponse.serializer())
+
+    suspend fun setFlushMultiplier(value: Double, confirmPrinting: Boolean) {
+        call("POST", "/api/ace/flush", json.encodeToString(FlushChange.serializer(), FlushChange(value, confirmPrinting)),
+            ApiError.serializer())
+    }
+
+    suspend fun setAceOption(key: String, value: Boolean, confirmPrinting: Boolean) {
+        call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(mapOf(
+            key to JsonPrimitive(value), "confirm_printing" to JsonPrimitive(confirmPrinting)))), ApiError.serializer())
     }
 
     suspend fun issueTag(spoolId: Int): TagIssue =

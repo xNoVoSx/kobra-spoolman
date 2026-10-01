@@ -11,6 +11,7 @@ import io.github.xnovosx.kobraspoolman.data.Connection
 import io.github.xnovosx.kobraspoolman.data.Device
 import io.github.xnovosx.kobraspoolman.data.PairingCode
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
+import io.github.xnovosx.kobraspoolman.data.PurgePreview
 import io.github.xnovosx.kobraspoolman.data.FieldSpec
 import io.github.xnovosx.kobraspoolman.data.FilamentDraft
 import io.github.xnovosx.kobraspoolman.data.NewSpool
@@ -199,6 +200,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun dryerConfig(c: DryerConfig) = launchSafe {
         it.dryerConfig(c)
         _messages.send(if (c.enabled) "Automatik gespeichert: ab ${c.startAbove.toInt()} %, bis ${c.stopBelow.toInt()} %" else "Automatik aus")
+        refresh()
+    }
+
+    private val _purgePreview = MutableStateFlow<PurgePreview?>(null)
+    val purgePreview: StateFlow<PurgePreview?> = _purgePreview
+
+    /** Spuel-Vorschau fuer die eingelegten Farben laden (multiplier = gewuenschter Wert, null = aktueller). */
+    fun loadPurgePreview(multiplier: Double?) = launchSafe(showBusy = false) {
+        _purgePreview.value = it.ace(multiplier).purge
+    }
+
+    fun setFlushMultiplier(value: Double, confirmPrinting: Boolean) = launchSafe {
+        it.setFlushMultiplier(value, confirmPrinting)
+        _messages.send("Spülen am Drucker auf × ${Format.decimal(value, 1)} gesetzt")
+        refresh()
+    }
+
+    fun setAceOption(key: String, value: Boolean, confirmPrinting: Boolean) = launchSafe {
+        it.setAceOption(key, value, confirmPrinting)
+        _messages.send("Am Drucker gespeichert")
+        refresh()
+    }
+
+    fun dryerSchedule(atEpochS: Double, temp: Int?, hours: Double?) = launchSafe {
+        it.dryerSchedule(atEpochS, temp, hours)
+        _messages.send("Trocknen geplant")
+        refresh()
+    }
+
+    fun clearDryerSchedule() = launchSafe {
+        it.clearDryerSchedule()
+        _messages.send("Plan gelöscht")
         refresh()
     }
 
