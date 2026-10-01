@@ -15,6 +15,9 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 ### Fixed
 - Web UI: the overview's ACE card has the multiplier field again (with the 0.1–3.0 check), not only
   the presets.
+- Web UI: the *ACE* page shows the full ACE card again (field, purge preview per colour change,
+  automatic refill, runout detection) — it showed the compact card, so "Vorschau und weitere
+  Einstellungen" led to a page without them.
 
 ## [2.10.1] – 2026-10-01
 

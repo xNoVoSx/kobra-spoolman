@@ -133,7 +133,7 @@ export function AcePage() {
     <h1 class="h1">ACE</h1>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
       <${DryerCard} big />
-      <${AceCard} compact />
+      <${AceCard} />
     </div>
     ${d?.present && html`<section class="card pad col">
       <h2 class="h2">Temperaturgrenze</h2>
