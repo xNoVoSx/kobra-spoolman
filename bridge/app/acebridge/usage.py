@@ -13,7 +13,7 @@ inklusive des Spuelens der Firmware und trifft Orcas Modellwerte auf 1 mm. Darau
   ("Topf" = Slot + Spule). Buchung beim Slotwechsel, bei Druckende und zwischendurch
   alle BOOK_INTERVAL_S.
 - Verbrauch ohne zugeordnete Spule, oder auf eine inzwischen geloeschte Spule, wird ein
-  offener Posten und kann ueber die Slot-Seite nachgebucht werden.
+  offener Posten und kann in der Weboberflaeche nachgebucht werden.
 - Alles steht in data/usage/state.json; startet die Bridge mitten im Druck neu, geht es
   am gespeicherten Zaehlerstand weiter.
 """
@@ -593,7 +593,7 @@ class UsageTracker:
         }
 
     def live(self) -> Optional[Dict[str, Any]]:
-        """Stand des laufenden Drucks fuer die Slot-Seite."""
+        """Stand des laufenden Drucks fuer Weboberflaeche, App und Plugin."""
         job = self.job
         if not job:
             return None

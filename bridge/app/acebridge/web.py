@@ -1,4 +1,7 @@
-"""HTTP-API (fuer Orca-Plugin und Handy-Seite)."""
+"""HTTP-API (Weboberflaeche, Android-App, Orca-Plugin).
+
+Lesen ist offen. Alles, was schreibt oder am Drucker etwas ausloest, braucht den Schluessel eines
+gekoppelten Geraets (Header "Authorization: Bearer <schluessel>", siehe auth.py)."""
 
 from __future__ import annotations
 
@@ -14,6 +17,7 @@ import time
 
 from . import CHANGELOG, __app_name__, __description__, __version__
 from .appapi import AppApi
+from .auth import AuthError
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -45,6 +49,16 @@ def _err(status: int, msg: str) -> web.Response:
 def build_app(bridge: "Bridge") -> web.Application:
     app = web.Application(middlewares=[cors])
     r = web.RouteTableDef()
+
+    def need_device(fn):
+        """Nur fuer gekoppelte Geraete (Weboberflaeche, App, Plugin)."""
+        async def wrapped(request: web.Request):
+            try:
+                bridge.devices.require(request.headers.get("Authorization"))
+            except AuthError as e:
+                return _err(e.status, str(e))
+            return await fn(request)
+        return wrapped
 
     @r.get("/")
     async def index(_):
@@ -97,6 +111,7 @@ def build_app(bridge: "Bridge") -> web.Application:
                                             "open": bridge.usage.open}})
 
     @r.post("/api/slots/{slot}")
+    @need_device
     async def assign(request: web.Request):
         try:
             slot = int(request.match_info["slot"])
@@ -127,7 +142,6 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.json_response({"spools": bridge.slots.assignable_spools(slot)})
 
     # ---------------------------------------------------------------- Trockner (ACE)
-    # Wie die Slot-Zuordnung ohne Schluessel (Handy-Seite); aendert nichts in Spoolman.
     async def _dryer_call(coro):
         try:
             res = await coro
@@ -145,6 +159,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.json_response(bridge.dryer.state())
 
     @r.post("/api/dryer/start")
+    @need_device
     async def dryer_start(request: web.Request):
         try:
             body = await request.json() if request.can_read_body else {}
@@ -155,10 +170,12 @@ def build_app(bridge: "Bridge") -> web.Application:
         return await _dryer_call(bridge.dryer.start(temp, hours, source="hand"))
 
     @r.post("/api/dryer/stop")
+    @need_device
     async def dryer_stop(_):
         return await _dryer_call(bridge.dryer.stop(source="hand"))
 
     @r.post("/api/dryer/config")
+    @need_device
     async def dryer_config(request: web.Request):
         try:
             body = await request.json()
@@ -190,6 +207,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.json_response({"open": bridge.usage.open})
 
     @r.post("/api/open/{item}")
+    @need_device
     async def open_book(request: web.Request):
         try:
             body = await request.json()
@@ -207,6 +225,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.json_response({"ok": True, **res})
 
     @r.delete("/api/open/{item}")
+    @need_device
     async def open_discard(request: web.Request):
         try:
             res = await bridge.usage.resolve_open(request.match_info["item"], None)
@@ -276,6 +295,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         })
 
     @r.post("/api/orca/backsync")
+    @need_device
     async def orca_backsync(request: web.Request):
         from .orca_profiles import backsync_patch
         try:
@@ -298,6 +318,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.json_response({"ok": True, "filament_id": fil["id"], "applied": applied, "ignored": ignored})
 
     @r.post("/api/orca/reset")
+    @need_device
     async def orca_reset(request: web.Request):
         from .orca_profiles import reset_patch
         try:
@@ -331,5 +352,6 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.FileResponse(path, headers={"Content-Type": "application/x-ndjson"})
 
     app.add_routes(r)
+    app.router.add_static("/static", STATIC, append_version=False)
     app.add_routes(AppApi(bridge).routes())   # Android-App (docs/android-app.md)
     return app

@@ -380,7 +380,7 @@ class SlotManager:
                 log.warning("lane_data %s schreiben fehlgeschlagen: %s", key, e)
 
     async def _push_gate_info(self, assigned: Dict[int, Dict[str, Any]]) -> None:
-        """Material/Farbe einer auf der Slot-Seite zugeordneten Spule an die ACE geben (MMU_GATE_MAP).
+        """Material/Farbe einer in der Weboberflaeche oder App zugeordneten Spule an die ACE geben (MMU_GATE_MAP).
         Wartet, bis die Spule eingelegt ist und kein Druck laeuft; einmal pro Zuordnung. Slots mit
         RFID-Tag und Slots, fuer die die ACE schon genau diese Werte meldet, bleiben unberuehrt."""
         for gate, job in list(self._gate_info_pending.items()):

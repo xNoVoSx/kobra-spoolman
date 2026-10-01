@@ -5,11 +5,16 @@
 Base URL: `http://<docker-host>:7913`. All responses are JSON; errors are `{"error": "…"}` with a
 4xx/5xx status. CORS is open (`*`), so browser tools and the Orca panel can call it directly.
 
+**Keys:** reading is open. Everything that writes (Spoolman, slot assignment, open items) or makes
+the printer do something (dryer) needs the key of a [paired device](#pairing-devices) in
+`Authorization: Bearer <key>` — marked *(paired)* below. Without one: 401 (unknown key) or 403
+(nothing paired yet).
+
 ## Status
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/` | slot page (mobile web UI) |
+| GET | `/` | web UI (phone, desktop, ultrawide); files under `/static/` |
 | GET | `/api/health` | version, uptime, connections, settings, safety warnings, changelog |
 
 ```json
@@ -26,7 +31,7 @@ Base URL: `http://<docker-host>:7913`. All responses are JSON; errors are `{"err
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/slots` | per slot: what the ACE reports, the assigned spool, hints; plus live/last usage and open items |
-| POST | `/api/slots/{n}` | `{"spool_id": 5}` assign a spool to slot *n* (the previous one goes to the shelf), `{"spool_id": null}` unload |
+| POST | `/api/slots/{n}` | *(paired)* `{"spool_id": 5}` assign a spool to slot *n* (the previous one goes to the shelf), `{"spool_id": null}` unload |
 | GET | `/api/spools?slot=n` | assignable spools; with `slot` each entry has `match` (`material`, `color`, `full`) against the ACE |
 
 A slot entry:
@@ -48,8 +53,8 @@ A slot entry:
 | GET | `/api/usage` | running print per slot (`live`), last print per slot, open items, purge statistics |
 | GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets, overhead, warnings |
 | GET | `/api/open` | open items |
-| POST | `/api/open/{id}` | `{"spool_id": 5}` book an open item onto a spool |
-| DELETE | `/api/open/{id}` | discard an open item |
+| POST | `/api/open/{id}` | *(paired)* `{"spool_id": 5}` book an open item onto a spool |
+| DELETE | `/api/open/{id}` | *(paired)* discard an open item |
 
 A history entry:
 
@@ -73,8 +78,8 @@ A history entry:
 |---|---|---|
 | GET | `/api/orca/profiles` | Orca values per filament that has an active spool |
 | GET | `/api/orca/state` | everything the Orca panel needs (slots, usage, profile hash) at one fixed URL |
-| POST | `/api/orca/backsync` | write changed Orca values back to Spoolman |
-| POST | `/api/orca/reset` | clear filament fields so the template / base profile applies again |
+| POST | `/api/orca/backsync` | *(paired)* write changed Orca values back to Spoolman |
+| POST | `/api/orca/reset` | *(paired)* clear filament fields so the template / base profile applies again |
 
 `GET /api/orca/profiles` (one entry):
 
@@ -108,14 +113,14 @@ by the plugin inside Orca, so the values always match the installed Orca version
 
 ## Dryer (ACE)
 
-Like the slot assignment, without the app key (slot page); nothing is written to Spoolman.
+Nothing is written to Spoolman; the commands go to the printer, so they need a paired device.
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/dryer` | humidity, ACE temperature, dryer state, highest allowed temperature with reasons, automation settings, last event |
-| POST | `/api/dryer/start` | `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
-| POST | `/api/dryer/stop` | stop drying |
-| POST | `/api/dryer/config` | automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing` |
+| POST | `/api/dryer/start` | *(paired)* `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
+| POST | `/api/dryer/stop` | *(paired)* stop drying |
+| POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing` |
 
 The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: GoKlipper's
 `filament_hub` object in the bridge's Moonraker subscription (the ACE reports about every 20 s);
@@ -123,7 +128,7 @@ commands: Rinkhals' `MMU_DRYER_START` / `MMU_DRYER_STOP`.
 
 ## Pairing devices
 
-The bridge issues the keys itself. Each device (app, browser, later the Orca plugin) gets its own
+The bridge issues the keys itself. Each device (app, browser, Orca plugin) gets its own
 key; the bridge stores only its SHA-256 (`devices.json` in the data folder).
 
 | Method | Path | Purpose |
@@ -140,16 +145,16 @@ key; the bridge stores only its SHA-256 (`devices.json` in the data folder).
 - Wrong codes are throttled (5 attempts, then 60 s).
 - QR code content for the app: `kobraspoolman://pair?b=<bridge-url>&c=<code>`.
 
-## Android app
+## App and web UI
 
-For the [Android app](android-app.md). Reading is open like the rest of the API; every writing call
+For the [Android app](android-app.md) and the web UI. Reading is open like the rest of the API; every writing call
 needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401 unknown key,
 403 nothing paired yet). Errors: `{"error": "…"}` with 400 (invalid input), 404, 409 (conflict),
 429 (too many wrong codes), 502 (Spoolman).
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/app/state` | printer status, slots (with `tag_nr`/`nfc_uid`), shelf spools, `can_write` |
+| GET | `/api/app/state` | printer status, slots (with `tag_nr`/`nfc_uid`), shelf spools, dryer, `usage` (`live`, `open`), `can_write` |
 | GET | `/api/app/catalog` | vendors, templates (with their values), filaments, extra-field definitions with Orca keys, Orca base profiles |
 | GET | `/api/app/spools?q=` | all active spools, optional text filter |
 | GET | `/api/app/spool/{id}` | one spool, its filament, the last prints that used it |
@@ -158,12 +163,13 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 | POST | `/api/app/filament/{id}/copy` | new colour of a product line: `{"name", "color_hex", …}` override the copy |
 | PATCH | `/api/app/filament/{id}` | change fields; `null` clears one (back to template / Orca base profile) |
 | POST | `/api/app/spool` | `{"filament_id", "initial_weight"?, "spool_weight"?, "price"?, "lot_nr"?, "comment"?, "slot"?}` |
+| PATCH | `/api/app/spool/{id}` | `remaining_weight`, `initial_weight`, `spool_weight`, `price`, `lot_nr`, `comment`, `location` (shelf only — slots go through the assignment) |
 | POST | `/api/app/spool/{id}/location` | `{"slot": 1–4}` or `{"slot": null}` (shelf) |
 | POST | `/api/app/spool/{id}/archive` | empty spool: out of its slot, archived |
 | POST | `/api/app/tag/issue` | `{"spool_id"}` → tag number (reserved at the spool) and the tag content to write |
 | POST | `/api/app/tag/link` | `{"spool_id", "uid", "force"?}` → links a tag's UID (also original Anycubic tags) |
 | GET | `/api/app/tag/{uid}` | spool for a scanned tag |
-| POST | `/api/orca/bases` | the Orca plugin reports its filament base profile names |
+| POST | `/api/orca/bases` | *(paired)* the Orca plugin reports its filament base profile names |
 
 `GET /api/app/state` → `printer`:
 

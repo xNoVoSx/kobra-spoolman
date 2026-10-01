@@ -4,7 +4,7 @@ __version__ = "2.5.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
-# Neueste Version zuerst. Wird auf der Slot-Seite unter "Info" angezeigt.
+# Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
     ("2.5.0", "2026-10-01", [
         "ACE-Trockner: Feuchte und Temperatur, Trocknen von Hand und Automatik nach Feuchte",

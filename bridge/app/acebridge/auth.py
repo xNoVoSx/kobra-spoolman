@@ -101,6 +101,15 @@ class Devices:
                 return d
         return None
 
+    def require(self, authorization: Optional[str]) -> Dict[str, Any]:
+        """Wie identify, aber ohne gekoppeltes Geraet AuthError (fuer alles, was schreibt)."""
+        dev = self.identify(authorization)
+        if dev is not None:
+            return dev
+        if self.setup_required:
+            raise AuthError(403, "Noch kein Gerät gekoppelt – Einrichtungscode aus dem Bridge-Log eingeben")
+        raise AuthError(401, "Dieses Gerät ist nicht (mehr) gekoppelt")
+
     @property
     def setup_required(self) -> bool:
         return not self.devices and not self.legacy

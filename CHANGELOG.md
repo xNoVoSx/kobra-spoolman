@@ -13,6 +13,23 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   keeps working during the transition.
 - Android app: pair by QR scan (CameraX + ZXing) or code, device list with *Gerät hinzufügen*
   (QR + code) and *Entfernen*; detects a key the bridge no longer knows.
+- Bridge: **new web UI** replacing the slot page, same design as the app and nearly the same
+  features (everything but NFC): printer status, slots, dryer with rules, open items, shelf with
+  search/filters and spool editing, filaments with all Orca fields (create, edit, new colour),
+  print history, devices (pairing code + QR for the app), bridge info. Layouts for phones, desktops
+  and ultrawide screens (≥ 3000 px: everything side by side). Keyboard: `/` search, `n` new spool,
+  arrow keys in the shelf, right-click on a spool to move it. Asks for pairing once per browser.
+  Fonts and libraries (Preact + htm, qrcode-generator) are bundled — no internet needed.
+- Bridge: `PATCH /api/app/spool/{id}` (weights, price, lot, comment, shelf location);
+  `/api/app/state` includes open items and the running print's usage.
+- Plugin 0.4.0: **pairing** in the panel (6-digit code once, key stored next to the plugin);
+  back-sync tells you when the plugin is not paired.
+
+### Changed
+- Bridge: **everything that writes or triggers something now needs a paired device** — slot
+  assignment, dryer, open items and the Orca back-sync / base-profile report, like the app API
+  before. Reading stays open. Update the Orca plugin to 0.4.0 and pair it once, otherwise
+  back-sync is refused.
 
 ## [2.5.0] – 2026-10-01
 

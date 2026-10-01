@@ -37,7 +37,7 @@ class Config:
     spoolman_url: str = field(default_factory=lambda: os.environ.get("SPOOLMAN_URL", "http://spoolman:8000").rstrip("/"))
     spoolman_poll_s: float = field(default_factory=lambda: _float("SPOOLMAN_POLL_S", 20.0))
 
-    # Webserver fuer API und Handy-Seite
+    # Webserver fuer API und Weboberflaeche
     http_host: str = field(default_factory=lambda: os.environ.get("HTTP_HOST", "0.0.0.0"))
     http_port: int = field(default_factory=lambda: _int("HTTP_PORT", 7913))
 
@@ -85,7 +85,7 @@ class Config:
     data_dir: str = field(default_factory=lambda: os.environ.get("DATA_DIR", "/data"))
     log_level: str = field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO").upper())
 
-    # Links fuer die Slot-Seite (vom Browser aus erreichbar). Leer = automatisch.
+    # Links fuer die Weboberflaeche (vom Browser aus erreichbar). Leer = automatisch.
     spoolman_public_url: str = field(default_factory=lambda: os.environ.get("SPOOLMAN_PUBLIC_URL", "").rstrip("/"))
     printer_ui_url: str = field(default_factory=lambda: os.environ.get("PRINTER_UI_URL", "").rstrip("/"))
 

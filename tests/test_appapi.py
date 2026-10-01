@@ -201,6 +201,9 @@ class FakeUsage:
     def last_by_slot(self):
         return {}
 
+    def purge_stats(self):
+        return {"jobs": 0}
+
 
 class FakeBridge:
     def __init__(self, cfg):
@@ -259,6 +262,42 @@ def test_writes_need_the_token(api):
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"})[0] == 403
 
 
+def test_every_write_route_needs_a_paired_device(api):
+    """Slots, Trockner, offene Posten und Orca-Ruecksync: ohne Schluessel abgelehnt, Lesen bleibt offen."""
+    bridge, call = api
+    for method, path, body in (("POST", "/api/slots/1", {"spool_id": None}),
+                               ("POST", "/api/dryer/start", {}), ("POST", "/api/dryer/stop", None),
+                               ("POST", "/api/dryer/config", {"enabled": True}),
+                               ("POST", "/api/open/x", {"spool_id": 1}), ("DELETE", "/api/open/x", None),
+                               ("POST", "/api/orca/backsync", {"orca_id": "SM000020", "changes": {"a": 1}}),
+                               ("POST", "/api/orca/reset", {"orca_id": "SM000020", "keys": ["a"]}),
+                               ("PATCH", "/api/app/spool/1", {"comment": "x"})):
+        assert call(method, path, body, token=None)[0] == 401, path
+        assert call(method, path, body, token="falsch")[0] == 401, path
+    for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state"):
+        assert call("GET", path, token=None)[0] == 200, path
+    # mit Schluessel kommt die Anfrage durch (hier: Slot leeren)
+    status, res = call("POST", "/api/slots/1", {"spool_id": None})
+    assert status == 200 and res["slots"][0]["spool"] is None
+
+
+def test_spool_patch(api):
+    bridge, call = api
+    status, res = call("PATCH", "/api/app/spool/1", {"remaining_weight": "812,5".replace(",", "."), "lot_nr": "L17",
+                                                     "comment": "getrocknet"})
+    assert status == 200 and res["spool"]["remaining_weight"] == 812.5 and res["spool"]["lot_nr"] == "L17"
+    assert bridge.sm.calls[-1] == ("patch_spool", 1, {"remaining_weight": 812.5, "lot_nr": "L17",
+                                                      "comment": "getrocknet"})
+    # Spule im Slot: Lagerort nur ueber die Zuordnung; Slot-Ort nie als freier Text
+    assert call("PATCH", "/api/app/spool/1", {"location": "Regal A"})[0] == 400
+    call("POST", "/api/slots/1", {"spool_id": None})
+    assert call("PATCH", "/api/app/spool/1", {"location": "ACE Slot 2"})[0] == 400
+    status, res = call("PATCH", "/api/app/spool/1", {"location": "Regal A"})
+    assert status == 200 and res["spool"]["location"] == "Regal A"
+    assert call("PATCH", "/api/app/spool/1", {"filament_id": 5})[0] == 400
+    assert call("PATCH", "/api/app/spool/1", {"remaining_weight": -3})[0] == 400
+
+
 def test_create_vendor_filament_spool_into_slot(api):
     bridge, call = api
     status, v = call("POST", "/api/app/vendor", {"name": "Elegoo", "empty_spool_weight": "150"})
@@ -298,8 +337,9 @@ def test_tag_issue_link_lookup(api):
 
 def test_orca_bases_are_stored(api, cfg):
     bridge, call = api
-    status, res = call("POST", "/api/orca/bases", {"names": ["Generic PETG @System", "Generic PLA @System"]},
-                       token=None)
+    names = {"names": ["Generic PETG @System", "Generic PLA @System"]}
+    assert call("POST", "/api/orca/bases", names, token=None)[0] == 401      # Plugin muss gekoppelt sein
+    status, res = call("POST", "/api/orca/bases", names)
     assert status == 200 and res["count"] == 2
     assert call("GET", "/api/app/catalog", token=None)[1]["orca_bases"] == ["Generic PETG @System",
                                                                              "Generic PLA @System"]

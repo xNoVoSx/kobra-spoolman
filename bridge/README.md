@@ -29,5 +29,5 @@ app/acebridge/
   profiles.py      template / base profile resolution, Orca IDs
   telemetry.py     raw recordings per print
   web.py           HTTP API
-  static/index.html  slot page
+  static/            web UI (Preact + htm, bundled fonts, no build step)
 ```

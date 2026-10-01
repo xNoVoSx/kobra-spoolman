@@ -1,0 +1,256 @@
+// Seiten. Welche Seite, entscheidet die Adresse (#/regal ...); wie viel nebeneinander passt, die Breite.
+
+import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
+import { auth, del, get, post } from "./api.js";
+import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots } from "./components.js";
+import { FilamentEditor, FilamentList } from "./filaments.js";
+import { Icon } from "./icons.js";
+import { SpoolDetail, SpoolList } from "./spools.js";
+import { S, guard, loadCatalog, loadHealth, loadJobs, openDialog, set, toast } from "./store.js";
+import { ago, cls, num, when } from "./util.js";
+
+// ------------------------------------------------------------ Uebersicht
+export function Overview() {
+  return html`
+  <div class="ov">
+    <div class="ov-main">
+      <div class="ov-top"><${PrinterCard} /><${DryerCard} /></div>
+      ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
+      <div class="row"><span class="lbl">ACE 2 Pro · Slots</span><span class="grow"></span>
+        <span class="small muted">Zuordnen schreibt Material und Farbe auch ans Druckerdisplay (Spulen ohne Tag)</span></div>
+      <${Slots} />
+      ${(S.st?.usage?.open || []).length > 0 && html`<${OpenItemsCard} />`}
+    </div>
+    <aside class="aside">
+      <span class="lbl">Drucke</span>
+      <${JobsList} limit=${6} compact />
+    </aside>
+  </div>`;
+}
+
+/** 5120 px und mehr: alles nebeneinander, nichts versteckt. */
+export function Ultra() {
+  return html`
+  <div class="ultra">
+    <div class="ucol">
+      <span class="lbl">Drucker</span>
+      <${PrinterCard} />
+      ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
+      <${DryerCard} big />
+      <${OpenItemsCard} />
+      <${OrcaCard} />
+    </div>
+    <div class="ucol">
+      <div class="row"><span class="lbl">ACE 2 Pro · Slots</span><span class="grow"></span><span class="small muted">Zuordnen schreibt auch ans Druckerdisplay</span></div>
+      <${Slots} />
+    </div>
+    <${SpoolList} wideCols />
+    <${SpoolDetail} id=${S.sel} />
+    <div class="ucol">
+      <span class="lbl">Drucke</span>
+      <${JobsList} limit=${12} compact />
+    </div>
+  </div>`;
+}
+
+// ------------------------------------------------------------ Regal / Filamente
+export function RegalPage() {
+  return html`<div class=${cls("split", S.sel != null && "has-sel")}>
+    <${SpoolList} wideCols=${window.innerWidth > 1500} />
+    <${SpoolDetail} id=${S.sel} onBack=${() => set({ sel: null })} />
+  </div>`;
+}
+
+export function FilamentPage() {
+  useEffect(() => { loadCatalog(); }, []);
+  return html`<div class=${cls("split", S.selFil != null && "has-sel")}>
+    <${FilamentList} />
+    <section class="card detail">
+      ${S.selFil == null ? html`<div class="empty-state" style="margin:auto">Filament wählen oder neu anlegen.</div>`
+        : html`<button class="btn ghost back" style="margin:12px 12px 0" onClick=${() => set({ selFil: null })}><${Icon} name="back" small />Filamente</button>
+               <${FilamentEditor} key=${S.selFil} fid=${S.selFil} />`}
+    </section>
+  </div>`;
+}
+
+// ------------------------------------------------------------ Drucke
+export function JobsPage() {
+  useEffect(() => { loadJobs(); }, []);
+  const live = S.st?.usage?.live;
+  const jobs = S.jobs || [];
+  const totalG = jobs.reduce((a, j) => a + j.slots.reduce((b, s) => b + (s.g || 0), 0), 0);
+  return html`<div class="col" style="max-width:1600px">
+    <div class="row"><h1 class="h1">Drucke</h1><span class="m small muted">${jobs.length} aufgezeichnet · ${num(totalG / 1000)} kg</span></div>
+    ${(S.st?.usage?.open || []).length > 0 && html`<${OpenItemsCard} />`}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px">
+      ${live && html`<${JobCard} job=${live} live />`}
+      ${jobs.map((j) => html`<${JobCard} key=${j.job} job=${j} />`)}
+    </div>
+    ${!live && !jobs.length && html`<div class="empty-state">Noch keine Drucke aufgezeichnet.</div>`}
+  </div>`;
+}
+
+// ------------------------------------------------------------ Trockner
+export function DryerPage() {
+  const d = S.st?.dryer;
+  const req = d?.required || {};
+  return html`<div class="col" style="max-width:900px">
+    <h1 class="h1">Trockner</h1>
+    <${DryerCard} big />
+    ${d?.present && html`<section class="card pad col">
+      <h2 class="h2">Temperaturgrenze</h2>
+      <div class="kv">${(req.slots || []).map((p) => html`<span>Slot ${p.slot} · ${p.name} <span class="faint">(${{ filament: "am Filament", vorlage: "aus Vorlage", standard: "Materialwert" }[p.source] || p.source})</span></span>
+        <span class="m" style=${{ color: (req.limited_by || []).includes(p.slot) ? "var(--accent)" : "" }}>${p.temp} °C</span>`)}
+        <span>ACE höchstens</span><span class="m">${req.ace_max ?? "–"} °C</span></div>
+      <div class="small muted">Eigene Grenze pro Filament im Feld „Trocknen max.“ (Filamente → Temperaturen).</div>
+    </section>`}
+  </div>`;
+}
+
+// ------------------------------------------------------------ Geraete
+export function DevicesPage() {
+  const [list, setList] = useState(null);
+  const load = () => get("/api/auth/devices").then((r) => setList(r.devices)).catch((e) => toast(e.message, "bad"));
+  useEffect(() => { if (S.me) load(); }, [S.me]);
+  useEffect(() => { if (!S.dialog && S.me) load(); }, [S.dialog]);
+  const KIND = { app: ["Handy-App", "phone"], web: ["Browser", "overview"], plugin: ["Orca-Plugin", "drop"], other: ["Sonstiges", "key"] };
+  const remove = (d) => openDialog("confirm", {
+    title: d.me ? "Diesen Browser entkoppeln?" : `„${d.name}“ entfernen?`,
+    text: d.me ? "Der Browser vergisst seinen Schlüssel; zum Ändern muss er neu gekoppelt werden." : "Das Gerät kann danach nichts mehr ändern, bis es neu gekoppelt ist.",
+    ok: d.me ? "Entkoppeln" : "Entfernen", danger: true,
+    action: async () => {
+      await del(`/api/auth/devices/${d.id}`);
+      if (d.me) { auth.clear(); set({ me: null, pairing: true }); } else load();
+      toast("Entfernt", "ok");
+    },
+  });
+  if (!S.me) return html`<div class="col" style="max-width:900px"><h1 class="h1">Geräte</h1><div class="note">Dieser Browser ist nicht gekoppelt. <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>Jetzt koppeln</a></div></div>`;
+  return html`<div class="col" style="max-width:900px">
+    <div class="row"><h1 class="h1 grow">Geräte</h1><button class="btn acc" onClick=${() => openDialog("addDevice")}><${Icon} name="plus" small />Gerät hinzufügen</button></div>
+    <div class="small muted">Jedes Gerät hat einen eigenen Schlüssel. Lesen geht ohne, ändern nur gekoppelt.</div>
+    <section class="card">
+      ${list == null && html`<div class="empty-state">lade …</div>`}
+      ${(list || []).map((d, i) => html`
+        <div class="row" style=${{ padding: "14px 18px", borderTop: i ? "1px solid var(--line)" : "0" }}>
+          <span style="color:var(--muted)"><${Icon} name=${(KIND[d.kind] || KIND.other)[1]} /></span>
+          <div class="grow"><b>${d.name}</b>${d.me && html` <span class="chip on">dieser Browser</span>`}
+            <div class="small muted">${(KIND[d.kind] || KIND.other)[0]} · gekoppelt ${when(new Date(d.created * 1000).toISOString())} · zuletzt ${ago(d.last_seen)}</div></div>
+          ${d.id !== "app_token" && html`<button class="btn sm danger" onClick=${() => remove(d)}>${d.me ? "Entkoppeln" : "Entfernen"}</button>`}
+        </div>`)}
+    </section>
+  </div>`;
+}
+
+// ------------------------------------------------------------ Einstellungen / Info
+export function SettingsPage() {
+  useEffect(() => { loadHealth(); }, []);
+  const h = S.health;
+  const SET = { booking: "Verbrauch buchen", book_interval_s: "Buchen alle (s)", book_min_mm: "Buchen ab (mm)", gate_debounce_s: "Slotwechsel entprellen (s)",
+    usage_tolerance: "Toleranz Abgleich", auto_unassign_on_empty: "Leerer Slot → Regal", write_lane_data: "lane_data für Orca",
+    telemetry: "Aufzeichnung", job_history: "Drucke behalten", slot_location_prefix: "Ort-Präfix Slot", shelf_location: "Ort Regal", template_vendor: "Hersteller der Vorlagen" };
+  return html`<div class="col" style="max-width:1100px">
+    <h1 class="h1">Einstellungen</h1>
+    <section class="card pad col">
+      <h2 class="h2">Dieser Browser</h2>
+      ${S.me ? html`<div class="row"><span class="grow">Gekoppelt als <b>${S.me.name}</b></span><a class="btn sm" href="#/geraete">Geräte verwalten</a></div>`
+             : html`<div class="row"><span class="grow muted">Nicht gekoppelt – nur Ansehen.</span><button class="btn sm acc" onClick=${() => set({ pairing: true })}>Koppeln</button></div>`}
+    </section>
+    <${OrcaCard} />
+    ${h && html`
+    <section class="card pad col">
+      <h2 class="h2">Bridge ${h.version}</h2>
+      <div class="kv">
+        <span>Läuft seit</span><span>${when(h.started)}</span>
+        <span>Drucker</span><span class="m">${h.moonraker.url}</span>
+        <span>Spoolman</span><span><a href=${h.links?.spoolman || h.spoolman.url} target="_blank" rel="noopener">${h.links?.spoolman || h.spoolman.url}</a></span>
+        ${h.links?.printer_ui && html`<span>Drucker-Oberfläche</span><span><a href=${h.links.printer_ui} target="_blank" rel="noopener">${h.links.printer_ui}</a></span>`}
+        <span>Firmware-Spoolman</span><span>${h.firmware_spoolman_support ? html`<span class="chip bad">an – doppelte Buchung!</span>` : "aus"}</span>
+        ${Object.entries(SET).map(([k, l]) => html`<span>${l}</span><span class="m">${String(h.settings[k])}</span>`)}
+      </div>
+      <div class="small muted">Einstellen über Umgebungsvariablen im Stack (siehe docs/configuration.md).</div>
+    </section>
+    <section class="card pad col">
+      <h2 class="h2">Neu in der Bridge</h2>
+      ${h.changelog.map((c) => html`<div><b class="m">${c.version}</b> <span class="muted small">${c.date}</span><ul style="margin:6px 0 0;padding-left:20px">${c.items.map((i) => html`<li class="small">${i}</li>`)}</ul></div>`)}
+    </section>`}
+    <div class="small faint">Schriften: Space Grotesk, IBM Plex (SIL OFL) · Preact, htm, qrcode-generator – Lizenztexte liegen in der Bridge unter static/licenses.</div>
+  </div>`;
+}
+
+// ------------------------------------------------------------ Koppeln (erster Start)
+function deviceName() {
+  const ua = navigator.userAgent;
+  const browser = /Firefox\//.test(ua) ? "Firefox" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "";
+  return `${browser}${os ? " · " + os : ""}`;
+}
+
+export function PairPage({ reason }) {
+  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [long, setLong] = useState("");
+  const [useLong, setUseLong] = useState(false);
+  const [name, setName] = useState(deviceName());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const refs = useRef([]);
+  const code = useLong ? long.trim() : digits.join("");
+  useEffect(() => { refs.current[0]?.focus(); }, []);
+  const setAt = (i, val) => {
+    let clean = val.replace(/\D/g, "");
+    if (clean.length === 2 && digits[i]) clean = clean.replace(digits[i], "") || clean.slice(-1);   // Feld ueberschrieben
+    if (clean.length > 1) {          // eingefuegt
+      const next = clean.slice(0, 6).split("");
+      setDigits([...next, ...Array(6 - next.length).fill("")]);
+      refs.current[Math.min(5, next.length)]?.focus();
+      return;
+    }
+    const d = digits.slice(); d[i] = clean; setDigits(d);
+    if (clean && i < 5) refs.current[i + 1]?.focus();
+  };
+  const key = (i, e) => {
+    if (e.key === "Backspace" && !digits[i] && i > 0) refs.current[i - 1]?.focus();
+    if (e.key === "Enter") pair();
+  };
+  const pair = async () => {
+    if (busy || !(useLong ? code.length > 3 : code.length === 6)) return;
+    setBusy(true); setErr("");
+    try {
+      const r = await post("/api/auth/pair", { code, name: name.trim() || "Browser", kind: "web" });
+      auth.save(r.token);
+      set({ me: r.device, pairing: false, setupRequired: false });
+      toast(`Gekoppelt als „${r.device.name}“`, "ok");
+      location.hash = "#/";
+    } catch (e) {
+      setErr(e.message);
+    } finally { setBusy(false); }
+  };
+  const later = () => { auth.setViewOnly(true); set({ pairing: false }); };
+  return html`
+  <div class="pair">
+    <div class="card box">
+      <div class="row"><span class="logo"><${Icon} name="spool" /></span><span class="g" style="font-weight:700;font-size:20px">Kobra Spoolman</span></div>
+      <div><h1 class="h1" style="font-size:28px;margin-bottom:8px">Diesen Browser koppeln</h1>
+        <p class="muted" style="margin:0">${reason || "Einmalig. Danach merkt sich der Browser seinen Schlüssel und fragt nicht wieder."}</p></div>
+      ${!useLong ? html`
+        <fieldset style="border:0;margin:0;padding:0">
+          <legend class="small muted" style="margin-bottom:10px">Kopplungscode (6 Ziffern)</legend>
+          <div class="digits">${digits.map((d, i) => html`${i === 3 && html`<span class="gap"></span>`}<input ref=${(el) => (refs.current[i] = el)} aria-label=${"Ziffer " + (i + 1)}
+            inputmode="numeric" autocomplete="one-time-code" maxlength="6" value=${d} onInput=${(e) => setAt(i, e.target.value)} onKeyDown=${(e) => key(i, e)} />`)}</div>
+        </fieldset>` : html`
+        <div class="f"><label for="pair-long">Schlüssel (APP_TOKEN)</label><input id="pair-long" value=${long} onInput=${(e) => setLong(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && pair()} /></div>`}
+      <div class="f"><label for="pair-name">Name dieses Geräts</label><input id="pair-name" value=${name} onInput=${(e) => setName(e.target.value)} /></div>
+      ${err && html`<div class="note bad">${err}</div>`}
+      <button class="btn acc" style="min-height:52px" disabled=${busy} onClick=${pair}>${busy ? "…" : "Koppeln"}</button>
+      <div class="note info" style="line-height:1.55">
+        <b style="color:var(--text)">Woher kommt der Code?</b><br />
+        In der App oder einem gekoppelten Browser unter <b style="color:var(--text)">Geräte → Gerät hinzufügen</b>.<br />
+        ${S.setupRequired ? html`Noch nichts gekoppelt: Der Einrichtungscode steht im Log der Bridge (Portainer → Container → Logs).` : html`Erstes Gerät? Der Einrichtungscode steht im Log der Bridge (Portainer → Logs).`}
+      </div>
+      <div class="row wrap small">
+        <a href="#" onClick=${(e) => { e.preventDefault(); setUseLong(!useLong); setErr(""); }}>${useLong ? "Mit 6-stelligem Code koppeln" : "Mit altem APP_TOKEN koppeln"}</a>
+        <span class="grow"></span>
+        <a href="#" onClick=${(e) => { e.preventDefault(); later(); }}>Nur ansehen</a>
+      </div>
+    </div>
+  </div>`;
+}

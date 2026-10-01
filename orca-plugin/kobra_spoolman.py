@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.3.4"
+# version = "0.4.0"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -20,6 +20,9 @@ Aufgaben
   nicht zu Slot 1-4 passt.
 - Ruecksync: Speichert man ein verwaltetes Profil in Orca, fragt das Plugin, ob die
   Aenderungen nach Spoolman sollen.
+- Koppeln: Was in Spoolman schreibt (Ruecksync, Basisprofile melden), braucht einen eigenen
+  Schluessel. Das Panel fragt einmal nach einem 6-stelligen Code (App/Weboberflaeche: Geraete ->
+  Geraet hinzufuegen); der Schluessel liegt danach in kobra_device.json neben dem Plugin.
 - Verbrauchsvorschau: Nach dem Slicen zeigt das Panel pro Slot Bedarf / Rest (Orcas Zahlen wie in
   der Legende plus das Spuelen der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht
   oder ein benutzter Slot am Drucker kein Material hat (dann bricht die Firmware den Druck ab).
@@ -39,6 +42,7 @@ import json
 import os
 import queue
 import re
+import socket
 import threading
 import time
 import traceback
@@ -48,7 +52,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.3.4"
+PLUGIN_VERSION = "0.4.0"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -73,6 +77,7 @@ DEFAULT_PURGE_PER_LOAD_MM = 320.0
 DATA_DIR = Path(__file__).resolve().parents[2]      # <datenordner>/orca_plugins/<plugin>/<datei>.py
 PLUGIN_DIR = Path(__file__).resolve().parent
 STATE_FILE = PLUGIN_DIR / "kobra_state.json"
+DEVICE_FILE = PLUGIN_DIR / "kobra_device.json"       # Schluessel dieses Plugins bei der Bridge
 WRITTEN_DIR = PLUGIN_DIR / "written"                 # zuletzt geschriebene Profile (fuer den Ruecksync-Vergleich)
 
 
@@ -410,6 +415,49 @@ def read_slice_statistics(require_valid=True):
         return None
 
 
+# ====================================================================== Kopplung
+class NotPaired(Exception):
+    """Die Bridge lehnt ab: dieses Plugin ist nicht (mehr) gekoppelt."""
+
+
+class DeviceKey:
+    """Schluessel des Plugins bei der Bridge. Gilt nur fuer die Bridge-Adresse, bei der gekoppelt wurde."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        try:
+            self.data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            self.data = {}
+
+    def token(self, bridge_url):
+        if self.data.get("token") and self.data.get("bridge_url") == str(bridge_url).rstrip("/"):
+            return self.data["token"]
+        return None
+
+    def headers(self, bridge_url):
+        t = self.token(bridge_url)
+        return {"Authorization": f"Bearer {t}"} if t else {}
+
+    def save(self, bridge_url, token, device):
+        self.data = {"bridge_url": str(bridge_url).rstrip("/"), "token": token, "device": device}
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=1), encoding="utf-8")
+        os.replace(tmp, self.path)
+
+    def forget(self):
+        self.data = {}
+        self.path.unlink(missing_ok=True)
+
+
+def device_name():
+    try:
+        host = socket.gethostname()
+    except Exception:  # noqa: BLE001
+        host = ""
+    return f"Orca-Plugin ({host})" if host else "Orca-Plugin"
+
+
 # ====================================================================== Kern
 class Core:
     """Ein Exemplar pro Orca-Sitzung: Bridge-Abfragen, Profil-Sync, Zustand."""
@@ -431,6 +479,11 @@ class Core:
         self.missing_bases = set()     # Basisprofile, die im letzten Sync nicht gefunden wurden
         self.slice = None              # {"stats", "at", "from_event"} - letztes Slice-Ergebnis
         self.slice_warned = None       # Warnungen, fuer die schon ein Hinweis kam
+        self.key = DeviceKey(DEVICE_FILE)
+        self.paired = None             # None = noch nicht geprueft
+        self.paired_checked = 0.0
+        self.pair_code = None          # vom Panel, wird im Hintergrund eingeloest
+        self.pair_msg = None           # {"error": bool, "text": str}
 
     # ---------------------------------------------------------------- Zustand
     def _load_state(self):
@@ -468,12 +521,60 @@ class Core:
 
     # ---------------------------------------------------------------- HTTP
     def http(self, method, path, body=None, timeout=4):
-        url = str(self.cfg("bridge_url")).rstrip("/") + path
+        base = str(self.cfg("bridge_url")).rstrip("/")
         data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(url, data=data, method=method,
-                                     headers={"Content-Type": "application/json"} if data else {})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode("utf-8") or "null")
+        headers = dict(self.key.headers(base))
+        if data:
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(base + path, data=data, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read().decode("utf-8") or "null")
+        except urllib.error.HTTPError as e:
+            try:
+                msg = json.loads(e.read().decode("utf-8")).get("error") or str(e)
+            except Exception:  # noqa: BLE001
+                msg = str(e)
+            if e.code in (401, 403):
+                self.paired = False
+                raise NotPaired(msg) from None
+            raise RuntimeError(f"{e.code}: {msg}") from None
+
+    # ---------------------------------------------------------------- Koppeln
+    def check_pairing(self, force=False):
+        """Alle paar Minuten fragen, ob der Schluessel noch gilt (nur Bridge, nie der Drucker)."""
+        if not force and self.paired is not None and time.time() - self.paired_checked < 300:
+            return
+        self.paired_checked = time.time()
+        if not self.key.token(self.cfg("bridge_url")):
+            self.paired = False
+            return
+        try:
+            st = self.http("GET", "/api/auth/status")
+        except Exception:  # noqa: BLE001
+            return
+        self.paired = bool(st and st.get("device"))
+        if not self.paired:
+            log("Schluessel gilt nicht mehr - neu koppeln")
+            self.key.forget()
+
+    def redeem_pair_code(self):
+        code, self.pair_code = self.pair_code, None
+        base = str(self.cfg("bridge_url")).rstrip("/")
+        try:
+            res = self.http("POST", "/api/auth/pair", {"code": code, "name": device_name(), "kind": "plugin"}, timeout=6)
+        except (NotPaired, RuntimeError) as e:
+            self.pair_msg = {"error": True, "text": str(e)}
+            self.paired = False
+            return
+        except Exception as e:  # noqa: BLE001
+            self.pair_msg = {"error": True, "text": f"Bridge nicht erreichbar ({e})"}
+            return
+        self.key.save(base, res["token"], res.get("device"))
+        self.paired, self.paired_checked = True, time.time()
+        self.pair_msg = {"error": False, "text": f"Gekoppelt als „{(res.get('device') or {}).get('name', device_name())}“."}
+        self.state.pop("bases_reported", None)   # Basisprofile jetzt melden
+        log("Mit der Bridge gekoppelt")
 
     # ---------------------------------------------------------------- Hintergrund
     def start(self):
@@ -494,6 +595,10 @@ class Core:
                     self.bridge_state["profiles_outdated"] = True
             except Exception as e:  # noqa: BLE001
                 self.bridge_error = f"Bridge nicht erreichbar ({e.__class__.__name__}: {e})"
+            if self.pair_code:
+                self.redeem_pair_code()
+            if not self.bridge_error:
+                self.check_pairing()
             if self.sync_request.is_set():
                 self.sync_request.clear()
                 try:
@@ -584,10 +689,14 @@ class Core:
         digest = hashlib.sha1("\n".join(names).encode("utf-8")).hexdigest()[:12]
         if not names or self.state.get("bases_reported") == digest:
             return
+        if self.paired is False:
+            return   # meldet das Plugin nach dem Koppeln
         try:
             self.http("POST", "/api/orca/bases", {"names": names}, timeout=10)
             self.state["bases_reported"] = digest
             log(f"{len(names)} Orca-Basisprofile an die Bridge gemeldet")
+        except NotPaired:
+            log("Basisprofile melden: Plugin nicht gekoppelt")
         except Exception as e:  # noqa: BLE001
             log("Basisprofile melden fehlgeschlagen:", e)
 
@@ -638,6 +747,11 @@ class Core:
             ign = res.get("ignored") or []
             notify(f"Kobra Spoolman: nach Spoolman übernommen ({len(res.get('applied', {}))} Werte"
                    + (f", ignoriert: {', '.join(ign)}" if ign else "") + ")")
+        except NotPaired:
+            orca.host.ui.message("Übernehmen nach Spoolman geht erst, wenn das Plugin mit der Bridge gekoppelt ist.\n\n"
+                                 "Code holen: App oder Weboberfläche → Geräte → Gerät hinzufügen, dann im Panel "
+                                 "„Kobra Spoolman“ eingeben und danach das Profil noch einmal speichern.",
+                                 "Kobra Spoolman", buttons="ok", icon="warning")
         except Exception as e:  # noqa: BLE001
             orca.host.ui.message(f"Übernehmen nach Spoolman fehlgeschlagen:\n{e}", "Kobra Spoolman",
                                  buttons="ok", icon="error")
@@ -759,6 +873,13 @@ PAGE = r"""
 <h3>Kobra Spoolman</h3>
 <div id="status" class="muted">lade …</div>
 <div id="boxes"></div>
+<div id="pair" class="box" style="display:none">
+  <b>Plugin koppeln</b>
+  <div class="muted" style="margin:4px 0 6px">Nötig für den Rücksync nach Spoolman. Code: App oder Weboberfläche → Geräte → Gerät hinzufügen.</div>
+  <div style="display:flex;gap:6px"><input id="paircode" inputmode="numeric" autocomplete="off" placeholder="6-stelliger Code" style="flex:1;min-width:0">
+  <button type="button" id="pairbtn">Koppeln</button></div>
+  <div id="pairmsg" class="muted" style="margin-top:4px"></div>
+</div>
 <div id="forecast"></div>
 <div id="slots"></div>
 <div class="actions">
@@ -792,7 +913,20 @@ PAGE = r"""
     if (d) d.open = open;
     document.getElementById("usage").innerHTML = m.usage || "";
     document.getElementById("foot").innerHTML = m.foot || "";
+    // Kopplungsfeld nicht neu zeichnen (sonst ginge die Eingabe verloren), nur ein-/ausblenden
+    document.getElementById("pair").style.display = m.pair && m.pair.show ? "" : "none";
+    var pm = document.getElementById("pairmsg");
+    pm.textContent = (m.pair && m.pair.msg) || "";
+    pm.className = m.pair && m.pair.error ? "bad" : "muted";
   }
+  function pair() {
+    var c = document.getElementById("paircode").value.replace(/\s/g, "");
+    if (!c) return;
+    document.getElementById("pairmsg").textContent = "koppelt …";
+    orca.postMessage({ command: "pair", code: c });
+  }
+  document.getElementById("pairbtn").addEventListener("click", pair);
+  document.getElementById("paircode").addEventListener("keydown", function (e) { if (e.key === "Enter") pair(); });
   orca.onMessage(function (m) { if (m && m.command === "state") render(m); });
   document.getElementById("sync").addEventListener("click", function () { orca.postMessage({ command: "sync" }); });
   document.getElementById("refresh").addEventListener("click", function () { orca.postMessage({ command: "refresh" }); });
@@ -967,6 +1101,8 @@ def build_panel_message(core: Core):
         forecast = "<div class='muted'>Vorschau: Slice-Ergebnis nicht mehr aktuell – neu slicen.</div>"
     status = []
     status.append("Bridge " + ("<span class='ok'>verbunden</span>" if st and not core.bridge_error else "<span class='bad'>getrennt</span>"))
+    if st and not core.bridge_error and core.paired is not None:
+        status.append("gekoppelt" if core.paired else "<span class='warn'>nicht gekoppelt</span>")
     if st:
         status.append(f"Drucker {_esc(st.get('print_state') or '–')}")
     foot = f"Plugin {PLUGIN_VERSION} · Bridge {_esc(st.get('version', '–'))} · {len(core.managed())} Profile"
@@ -974,8 +1110,14 @@ def build_panel_message(core: Core):
         foot += " · Verbrauchsvorschau braucht orca-kobra (Patch 0003)"
     if ls.get("at"):
         foot += f" · Sync {ls['at']}: {len(ls.get('written', []))} neu/geändert, {len(ls.get('deleted', []))} entfernt"
+    pm = core.pair_msg or {}
+    pair = {"show": bool(st) and not core.bridge_error and core.paired is False,
+            "msg": pm.get("text") if pm.get("error") else None, "error": pm.get("error", False)}
+    if pm and not pm.get("error"):
+        boxes.insert(0, {"html": _esc(pm["text"])})
+        core.pair_msg = None
     return {"command": "state", "status": " · ".join(status), "boxes": boxes, "slots": slots,
-            "forecast": forecast, "usage": usage, "foot": foot}
+            "forecast": forecast, "usage": usage, "foot": foot, "pair": pair}
 
 
 # ====================================================================== Capabilities
@@ -1052,6 +1194,13 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
         if cmd == "sync":
             core.sync_request.set()
             core.wake.set()
+        elif cmd == "pair":
+            code = re.sub(r"\s", "", str((message or {}).get("code") or ""))
+            if code:
+                core.pair_msg = None
+                core.pair_code = code
+                core.start()
+                core.wake.set()
         if self.panel is not None:
             self.panel.post(build_panel_message(core))
 

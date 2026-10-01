@@ -4,3 +4,4 @@
 *.bat text eol=crlf
 *.jar binary
 *.ttf binary
+*.woff2 binary

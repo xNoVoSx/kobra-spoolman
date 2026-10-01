@@ -1,7 +1,8 @@
 """HTTP-API fuer die Android-App "Kobra Spoolman" (Stufe 1, docs/android-app.md).
 
-Die App spricht nur mit der Bridge. Lesen ist offen wie der Rest der API; alles, was in Spoolman
-schreibt, braucht den Schluessel APP_TOKEN (Header "Authorization: Bearer <token>").
+Die App (und die Weboberflaeche) spricht nur mit der Bridge. Lesen ist offen wie der Rest der API;
+alles, was in Spoolman schreibt, braucht den Schluessel eines gekoppelten Geraets
+(Header "Authorization: Bearer <schluessel>", siehe auth.py).
 
 Grundsatz Vererbung: Die App schickt nur Felder, die der Nutzer wirklich setzt. Leere Orca-Felder am
 Filament bedeuten "aus der Vorlage bzw. dem Orca-Basisprofil" - die Bridge kopiert nie Vorlagenwerte
@@ -202,6 +203,33 @@ def build_spool_body(payload: Dict[str, Any], filament: Dict[str, Any], shelf: s
     return body
 
 
+SPOOL_PATCH = {**SPOOL_NATIVE, "remaining_weight": float}
+
+
+def build_spool_patch(payload: Dict[str, Any], spool: Dict[str, Any],
+                      slot_from_location: Callable[[Optional[str]], Optional[int]]) -> Dict[str, Any]:
+    """Aenderungen an einer Spule (Gewichte, Charge, Notiz, Lagerort im Regal).
+
+    Slots laufen nie ueber den Lagerort, sondern ueber die Zuordnung (spool/{id}/location), damit
+    Bridge, ACE und Orca dieselbe Sicht behalten."""
+    body: Dict[str, Any] = {}
+    for key, value in payload.items():
+        if key in SPOOL_PATCH:
+            body[key] = convert_native(key, value, SPOOL_PATCH[key])
+        elif key == "location":
+            loc = str(value or "").strip()
+            if not loc:
+                raise AppError(400, "location darf nicht leer sein")
+            if slot_from_location(loc) or slot_from_location(spool.get("location")):
+                raise AppError(400, "Slots über die Zuordnung ändern, nicht über den Lagerort")
+            body["location"] = loc
+        else:
+            raise AppError(400, f"Feld {key} kann an der Spule nicht geändert werden")
+    if body.get("remaining_weight") is None:
+        body.pop("remaining_weight", None)
+    return body
+
+
 # ====================================================================== Tags
 def choose_tag_nr(used: Iterable[int], lo: int, hi: int, rng: random.Random) -> int:
     """Zufaellige, noch freie Tag-Nummer im Bereich lo..hi."""
@@ -309,11 +337,7 @@ class AppApi:
         return self.bridge.devices.identify(request.headers.get("Authorization"))
 
     def _check_token(self, request: web.Request) -> None:
-        if self._device(request) is not None:
-            return
-        if self.bridge.devices.setup_required:
-            raise AppError(403, "Noch kein Gerät gekoppelt – Einrichtungscode aus dem Bridge-Log eingeben")
-        raise AppError(401, "Dieses Gerät ist nicht (mehr) gekoppelt")
+        self.bridge.devices.require(request.headers.get("Authorization"))
 
     async def _json(self, request: web.Request) -> Dict[str, Any]:
         try:
@@ -361,6 +385,8 @@ class AppApi:
     def spool_view(self, sp: Dict[str, Any]) -> Dict[str, Any]:
         out = self.bridge.slots.spool_info(sp)
         out["archived"] = bool(sp.get("archived"))
+        for k in ("comment", "spool_weight", "price", "remaining_length", "first_used", "registered"):
+            out[k] = sp.get(k)
         out["tag_nr"] = extra_value(sp, "tag_nr")
         out["nfc_uid"] = extra_value(sp, "nfc_uid")
         return out
@@ -457,6 +483,7 @@ class AppApi:
                            "spool": self._with_tag(s["spool"])} for s in slots],
                 "shelf": shelf,
                 "dryer": b.dryer.state(),
+                "usage": {"live": b.usage.live(), "open": b.usage.open},
                 "warnings": b.safety_warnings() + b.slots.warnings,
             })
 
@@ -582,6 +609,18 @@ class AppApi:
             sp = b.sm.spool(res.get("id"))
             return web.json_response({"spool": self.spool_view(sp) if sp else res}, status=201)
 
+        @r.patch("/api/app/spool/{sid}")
+        @handler(write=True)
+        async def spool_update(request):
+            sp = self._spool(int(request.match_info["sid"]))
+            payload = await self._json(request)
+            data = build_spool_patch(payload, sp, b.cfg.slot_from_location)
+            if not data:
+                raise AppError(400, "nichts zu aendern")
+            await b.sm.patch_spool(sp["id"], data)
+            await b.sm.refresh()
+            return web.json_response({"spool": self.spool_view(b.sm.spool(sp["id"]) or sp)})
+
         @r.post("/api/app/spool/{sid}/location")
         @handler(write=True)
         async def spool_location(request):
@@ -655,7 +694,7 @@ class AppApi:
             return web.json_response({"spool": self.spool_view(sp)})
 
         @r.post("/api/orca/bases")
-        @handler(write=False)
+        @handler(write=True)
         async def orca_bases(request):
             """Das Orca-Plugin meldet die Namen der Orca-Filament-Basisprofile (fuer die Auswahl in der App)."""
             body = await self._json(request)
