@@ -104,7 +104,7 @@ class AceSettings:
         if self.config and not self.config.get("flush_multiplier_editable", 1):
             raise AceError(409, "Die Firmware erlaubt gerade keine Änderung des Multiplikators")
         self._check(confirm_printing)
-        await self.moon.gcode(f"SET_ACE_FLUSH_MULTIPLIER VALUE={v:g}")
+        await self.moon.gcode(f"SET_ACE_FLUSH_MULTIPLIER VALUE={v:g}", source="ACE-Karte")
         log.info("Spuel-Multiplikator auf %g gesetzt%s", v, " (waehrend des Drucks)" if self.slots.printing else "")
         await self.refresh(force=True)
         return self.state()

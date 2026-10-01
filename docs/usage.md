@@ -197,6 +197,18 @@ single value, clear that field in the filament editor (or use `POST /api/orca/re
 **Archivieren** on the spool (shelf, app or Spoolman). Filaments without any active spool lose their
 Orca profile on the next sync; profiles the plugin did not create are never touched.
 
+## Terminal and logs
+
+**Terminal** shows what the printer answers and every command sent through the bridge, with who sent
+it (a browser, the dryer, the ACE card, a slot assignment). Type G-code or a macro: `Tab` completes
+from the printer's command list, `↑` `↓` browse your history. Risky commands — emergency stop,
+`SAVE_CONFIG`, restarts, a nozzle above 260 °C, moves during a print — ask first. Sending needs a
+paired device.
+
+**Logs**: *Bridge* is the bridge's own log (filter by level, search, download — no detour through
+Portainer); *Drucker* shows the end of the printer's log files (`moonraker.log`, …; only the last
+200 KB, more on request); *Druck-Aufzeichnungen* are the raw recordings of each print for download.
+
 ## Devices
 
 **Geräte** lists every paired browser, phone and Orca plugin with the time it was last seen.

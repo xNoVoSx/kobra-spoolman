@@ -178,6 +178,28 @@ in the data folder and can be replaced by any paired device.
 The bridge downloads the running file once at print start through Moonraker (throttled) and
 renders it itself; progress comes from `virtual_sdcard.file_position`.
 
+## Console and logs
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/console?after=<id>` | console lines newer than `id`: `{id, time, kind (command/response/error), text, source}`, plus `printing` |
+| GET | `/api/console/commands` | commands with description (Moonraker `printer/gcode/help`, cached 10 min) for completion |
+| POST | `/api/console` | *(paired)* `{"script": "M115", "confirm": false}` — sends G-code; risky commands and moves while printing return **409** `{"error": reason, "confirm": true}` until sent again with `confirm: true` |
+| GET | `/api/logs?after=<id>&level=INFO` | last 2000 lines of the bridge log |
+| GET | `/api/logs.txt` | the same as a download |
+| GET | `/api/logs/printer` | log files Moonraker offers (`moonraker.log`, …) |
+| GET | `/api/logs/printer/{name}?kb=200` | the **end** of such a file (HTTP range request, 4–1024 KB) — they are many MB |
+
+The console holds the last 500 lines: printer responses (`notify_gcode_response` on the bridge's
+existing connection, no extra client), and every command sent through the bridge with its source
+(device name, *Trockner*, *ACE-Karte*, *Slot-Zuordnung*). On connect it is seeded once from
+`server.gcode_store`. Commands sent by other clients (Mainsail) show up only through their responses.
+
+Confirmation is required for: `M112`, `EMERGENCY_STOP`, `FIRMWARE_RESTART`, `RESTART`, `SAVE_CONFIG`,
+`CANCEL_PRINT`, `SDCARD_RESET_FILE`, `PID_CALIBRATE`, `SET_KINEMATIC_POSITION`, `FORCE_MOVE`, a nozzle
+target above 260 °C, and — while printing — moves and calibrations (`G0`–`G3`, `G28`, `G29`, `G92`,
+`M84`, `LEVIQ2…`, `PROBE…`, `BED_MESH_CALIBRATE`, …).
+
 ## Pairing devices
 
 The bridge issues the keys itself. Each device (app, browser, Orca plugin) gets its own

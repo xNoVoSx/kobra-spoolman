@@ -6,12 +6,15 @@ import asyncio
 import itertools
 import json
 import logging
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Optional
 
 import aiohttp
 
 from . import __version__
 from .config import Config
+
+if TYPE_CHECKING:
+    from .console import Console
 
 log = logging.getLogger("moonraker")
 
@@ -42,6 +45,7 @@ class Moonraker:
         self._ids = itertools.count(1)
         self._pending: Dict[int, asyncio.Future] = {}
         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
+        self.console: Optional["Console"] = None   # gesetzt von der Bridge
         self.components: list = []   # Moonraker-Komponenten (fuer die Warnung bei aktivem [spoolman])
 
     # ------------------------------------------------------------------ HTTP
@@ -92,14 +96,22 @@ class Moonraker:
             data = await r.json(content_type=None)
         return data.get("result", data) if isinstance(data, dict) else data
 
-    async def gcode(self, script: str, timeout: float = 15) -> None:
-        """G-Code ueber die bestehende WebSocket-Verbindung (Moonraker/Rinkhals faengt MMU_* ab)."""
+    async def gcode(self, script: str, timeout: float = 15, source: str = "Bridge") -> None:
+        """G-Code ueber die bestehende WebSocket-Verbindung (Moonraker/Rinkhals faengt MMU_* ab).
+        source: wer sendet - steht so in der Konsole."""
+        if self.console is not None:
+            self.console.add("command", script, source + (" (dry-run)" if self.cfg.dry_run else ""))
         if self.cfg.dry_run:
             log.info("[dry-run] gcode %s", script)
             return
         if self._ws is None or not self.klippy_ready:
             raise ConnectionError("Moonraker nicht bereit")
-        await self._call("printer.gcode.script", {"script": script}, timeout=timeout)
+        try:
+            await self._call("printer.gcode.script", {"script": script}, timeout=timeout)
+        except Exception as e:
+            if self.console is not None:
+                self.console.add("error", str(e) or e.__class__.__name__, source)
+            raise
 
     # ------------------------------------------------------------------ WebSocket
     def _ws_url(self) -> str:
@@ -148,6 +160,12 @@ class Moonraker:
         self._merge(snapshot)
         self.klippy_ready = True
         log.info("Abo aktiv (%s)", ", ".join(k for k in snapshot))
+        if self.console is not None and not self.console.lines:
+            try:      # Vorlauf fuer die Konsole: die letzten Zeilen, die Moonraker ohnehin speichert
+                store = await self._call("server.gcode_store", {"count": 100})
+                self.console.seed((store or {}).get("gcode_store") or [])
+            except Exception as e:  # noqa: BLE001
+                log.info("Konsolen-Verlauf nicht lesbar: %s", e)
         await self.on_status(snapshot, True)
 
     async def _reader(self) -> None:
@@ -178,6 +196,10 @@ class Moonraker:
                     changed = self._merge(params[0])
                     if changed:
                         await self.on_status(changed, False)
+            elif method == "notify_gcode_response":
+                if self.console is not None:
+                    for line in data.get("params") or []:
+                        self.console.add("response", str(line))
             elif method == "notify_klippy_ready":
                 log.info("Klippy bereit - abonniere neu")
                 asyncio.create_task(self._safe_subscribe())

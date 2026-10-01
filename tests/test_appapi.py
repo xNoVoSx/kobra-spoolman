@@ -16,6 +16,7 @@ from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, conv
 from acebridge.ace import AceSettings
 from acebridge.auth import CameraKey, Devices
 from acebridge.camera import Camera
+from acebridge.console import Console
 from acebridge.render import PrintPreview
 from acebridge.dryer import Dryer
 from acebridge.purge import PurgeModel
@@ -198,7 +199,7 @@ class MemSpoolman:
 
 
 class GMoon(FakeMoonraker):
-    async def gcode(self, script):
+    async def gcode(self, script, source="Bridge"):
         pass
 
     async def db_post(self, *a):
@@ -240,6 +241,7 @@ class FakeBridge:
         self.ace = AceSettings(self.moon, PurgeModel(), self.slots, self.sm)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
+        self.console = Console()
         self.purge = PurgeModel()
         self.camera = Camera(cfg, self.moon, None)       # ohne Zuschauer kein Abruf
         self.preview = PrintPreview(cfg, self.moon, None)
@@ -302,7 +304,8 @@ def test_every_write_route_needs_a_paired_device(api):
                                ("POST", "/api/ace/options", {"auto_refill": True}),
                                ("POST", "/api/dryer/schedule", {"at": 9999999999}),
                                ("DELETE", "/api/dryer/schedule", None),
-                               ("POST", "/api/camera/link", None), ("GET", "/api/camera/link", None)):
+                               ("POST", "/api/camera/link", None), ("GET", "/api/camera/link", None),
+                               ("POST", "/api/console", {"script": "M115"})):
         assert call(method, path, body, token=None)[0] == 401, path
         assert call(method, path, body, token="falsch")[0] == 401, path
     for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state", "/api/ace"):

@@ -213,11 +213,38 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .hub { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0; }
 .hub > .split { flex: 1; height: auto; }
 .seg { display: inline-flex; align-self: flex-start; gap: 2px; padding: 3px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); }
-.seg-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 16px; border-radius: 9px;
+.seg-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 16px; border-radius: 9px; border: 0; background: transparent; cursor: pointer;
   font: 600 14px var(--sans); color: var(--muted); }
 .seg-btn.on { background: var(--surface2); color: var(--text); }
 .spool-link { gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunken); color: var(--text); }
 .spool-link:hover { background: var(--surface2); }
+
+/* ------------------------------------------------------------ Terminal / Logs */
+.term-page { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
+.term { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.term-out { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; font-size: 13px; line-height: 1.5; background: var(--sunken); margin: 0; }
+.log-pre { white-space: pre-wrap; word-break: break-word; color: var(--text); }
+.tl { display: grid; grid-template-columns: 72px 120px minmax(0, 1fr); gap: 10px; }
+.tl .t { color: var(--faint); }
+.tl .src { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl .txt { white-space: pre-wrap; word-break: break-word; color: var(--text); }
+.tl.command .txt { color: var(--accent); }
+.tl.error .txt, .tl.lv-error .txt, .tl.lv-critical .txt { color: var(--danger-text); }
+.tl.lv-warning .txt { color: var(--accent-text); }
+.tl.lv-debug .txt { color: var(--muted); }
+.term-in { position: relative; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.term-in input { flex: 1; min-width: 0; height: 42px; border-radius: var(--r-sm); border: 1px solid var(--line-strong); background: var(--sunken); color: var(--text); padding: 0 12px; font-size: 14px; }
+.term-in input:focus { border-color: var(--accent); outline: none; }
+.term-in .prompt { color: var(--accent); font-size: 18px; }
+.sugg { position: absolute; left: 12px; right: 12px; bottom: 100%; margin-bottom: 6px; display: flex; flex-direction: column; background: var(--surface2);
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm); overflow: hidden; z-index: 5; }
+.sugg button { text-align: left; padding: 8px 12px; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.sugg button:hover { background: var(--surface); }
+.search.sm { width: 200px; min-height: 34px; }
+@media (max-width: 759px) {
+  .tl { grid-template-columns: 60px minmax(0, 1fr); }
+  .tl .src { display: none; }
+}
 
 /* ------------------------------------------------------------ Liste + Detail */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(560px, 0.85fr); gap: 24px; height: 100%; min-height: 0; }

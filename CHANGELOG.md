@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Web UI: **Terminal** — printer responses and every command sent through the bridge with its
+  source; send G-code and macros with completion and history; risky commands and moves during a
+  print ask first. **Logs** — the bridge log (levels, search, download), the end of the printer's
+  log files (range request, no multi-MB download) and the per-print recordings.
+
 ### Fixed
 - Web UI: after an update the browser no longer keeps the old page (no more Ctrl+Shift+R). Files are
   served under a fingerprint, the start page is never cached, and an open page reloads itself when

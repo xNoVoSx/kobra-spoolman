@@ -222,14 +222,14 @@ class Dryer:
         h = float(hours if hours is not None else self.config.max_hours)
         if not 0.5 <= h <= 24:
             raise ValueError("Laufzeit 0,5 bis 24 Stunden")
-        await self.moon.gcode(f"MMU_DRYER_START UNIT=0 DURATION={int(round(h * 60))} TEMP={t}")
+        await self.moon.gcode(f"MMU_DRYER_START UNIT=0 DURATION={int(round(h * 60))} TEMP={t}", source="Trockner")
         self._last_cmd_at = self.clock()
         self.auto_run = source == "auto"
         self._event(f"Start {t} °C für {h:g} h ({source})")
         return {"temp": t, "hours": h}
 
     async def stop(self, source: str = "hand") -> None:
-        await self.moon.gcode("MMU_DRYER_STOP UNIT=0")
+        await self.moon.gcode("MMU_DRYER_STOP UNIT=0", source="Trockner")
         self._last_cmd_at = self.clock()
         self.auto_run = False
         self.pause_until = self.clock() + self.config.pause_minutes * 60

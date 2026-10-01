@@ -200,6 +200,18 @@ zurückzukehren, das Feld im Filament-Editor leeren (oder `POST /api/orca/reset`
 **Archivieren** an der Spule (Regal, App oder Spoolman). Filamente ohne aktive Spule verlieren beim
 nächsten Sync ihr Orca-Profil; Profile, die das Plugin nicht selbst angelegt hat, bleiben unangetastet.
 
+## Terminal und Logs
+
+**Terminal** zeigt, was der Drucker antwortet, und jeden Befehl, der über die Bridge ging – mit
+Absender (ein Browser, der Trockner, die ACE-Karte, eine Slot-Zuordnung). Gib G-Code oder ein Makro
+ein: `Tab` ergänzt aus der Befehlsliste des Druckers, `↑` `↓` blättern im Verlauf. Riskantes –
+Not-Aus, `SAVE_CONFIG`, Neustarts, Düse über 260 °C, Bewegungen während eines Drucks – fragt vorher
+nach. Senden geht nur auf gekoppelten Geräten.
+
+**Logs**: *Bridge* ist das Log der Bridge (Filter nach Stufe, Suche, Download – kein Umweg über
+Portainer); *Drucker* zeigt das Ende der Logdateien des Druckers (`moonraker.log`, …; nur die letzten
+200 KB, auf Wunsch mehr); *Druck-Aufzeichnungen* sind die Rohdaten jedes Drucks zum Herunterladen.
+
 ## Geräte
 
 **Geräte** listet jeden gekoppelten Browser, jedes Handy und Orca-Plugin mit dem Zeitpunkt der letzten

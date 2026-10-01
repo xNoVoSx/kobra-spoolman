@@ -26,6 +26,9 @@ const P = {
   play: () => html`<path d="M7 5l12 7-12 7z"/>`,
   stop: () => html`<rect x="6" y="6" width="12" height="12" rx="2"/>`,
   refresh: () => html`<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>`,
+  terminal: () => html`<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 9l3 3-3 3M13 15h4"/>`,
+  log: () => html`<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>`,
+  download: () => html`<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>`,
 };
 
 export function Icon({ name, small, style }) {

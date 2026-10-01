@@ -18,7 +18,7 @@ class GcodeMoonraker(FakeMoonraker):
         self.sent = []
         self.fail = False
 
-    async def gcode(self, script):
+    async def gcode(self, script, source="Bridge"):
         if self.fail:
             raise ConnectionError("weg")
         self.sent.append(script)

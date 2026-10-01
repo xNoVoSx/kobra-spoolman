@@ -20,7 +20,7 @@ class Moon(FakeMoonraker):
         super().__init__()
         self.sent, self.posted, self.hub = [], [], dict(HUB)
 
-    async def gcode(self, script):
+    async def gcode(self, script, source="Bridge"):
         self.sent.append(script)
         if script.startswith("SET_ACE_FLUSH_MULTIPLIER"):       # so wie Rinkhals es weiterreicht
             self.hub["flush_multiplier"] = float(script.split("VALUE=")[1])

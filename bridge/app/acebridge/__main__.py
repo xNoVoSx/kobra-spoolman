@@ -22,6 +22,7 @@ from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
 from .auth import CameraKey, Devices
+from .console import LOG_BUFFER, Console
 from .dryer import Dryer
 from .usage import UsageTracker
 from .web import build_app
@@ -52,6 +53,8 @@ class Bridge:
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
+        self.console = Console()
+        self.moon.console = self.console
         self._print_state = ""
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:
@@ -121,6 +124,7 @@ async def amain() -> None:
     cfg = Config()
     logging.basicConfig(level=getattr(logging, cfg.log_level, logging.INFO),
                         format="%(asctime)s %(levelname)-7s %(name)-10s %(message)s", datefmt="%H:%M:%S")
+    logging.getLogger().addHandler(LOG_BUFFER)      # Seite "Logs" / App-Protokoll
     log.info("ace-lane-bridge %s", __version__)
     if not cfg.moonraker_url:
         log.error("MOONRAKER_URL fehlt - z.B. MOONRAKER_URL=http://<drucker-ip>:7125 setzen")

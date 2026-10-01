@@ -17,7 +17,7 @@ class GMoon(FakeMoonraker):
         super().__init__()
         self.sent = []
 
-    async def gcode(self, script):
+    async def gcode(self, script, source="Bridge"):
         self.sent.append(script)
 
 

@@ -404,7 +404,7 @@ class SlotManager:
                 self._gate_info_pending.pop(gate, None)
                 continue
             try:
-                await self.moon.gcode(cmd)
+                await self.moon.gcode(cmd, source="Slot-Zuordnung")
                 self._gate_info_pending.pop(gate, None)
                 log.info("Slot %d: Material/Farbe an die ACE gegeben (%s)", gate + 1, cmd)
             except Exception as e:  # noqa: BLE001
