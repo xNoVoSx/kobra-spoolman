@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.12.0] – 2026-10-01
+
+Ships app 1.0.0 — the first signed app release (APK on this release and inside the Docker image).
+
 ### Added
 - Release builds a **signed app APK** (`kobra-spoolman-app-<version>.apk` on the GitHub release) and
   puts it into the Docker image; the bridge offers it to the app as an update (`/api/app/update`).

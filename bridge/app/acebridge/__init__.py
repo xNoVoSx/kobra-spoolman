@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.11.0"
+__version__ = "2.12.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.12.0", "2026-10-01", [
+        "Android-App 1.0.0 als signierte APK im Release und in der Bridge",
+        "App-Updates kommen über die Bridge: Karte unter Mehr, ein Tipp installiert",
+    ]),
     ("2.11.0", "2026-10-01", [
         "Drucksteuerung: Pause/Weiter, Abbrechen, Not-Aus (2 s halten), Nachjustieren (Tempo, Fluss, Lüfter, Temperaturen)",
         "Feld für den Spül-Multiplikator wieder auf Übersicht und Seite ACE",
