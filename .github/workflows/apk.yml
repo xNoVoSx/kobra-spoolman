@@ -37,7 +37,7 @@ jobs:
         run: |
           ver=$(sed -n 's/^versionName=//p' android/app/version.properties)
           IFS=. read -r a b c <<< "$ver"; code=$((a * 10000 + b * 100 + c))
-          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
           dn=$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -m1 "certificate DN")
           echo "$dn"
           case "$dn" in *"Android Debug"*) echo "APK ist debug-signiert - Abbruch"; exit 1;; esac
