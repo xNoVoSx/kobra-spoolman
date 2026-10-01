@@ -106,8 +106,27 @@ Slicer Next* enabled (flag `1`, matrix still 600 by hand, identical real extrusi
 → **The firmware computes the purge itself; the header is ignored, flag or not** (test C and an Orca
 header patch are pointless). The Anycubic wiki's flushing settings apply to what AnycubicSlicer
 computes and shows; for a print started via Moonraker/Rinkhals they do not reach the firmware.
-Untested: printing directly from AnycubicSlicer (its print order might carry the values) — not
-applicable to Orca, which always prints via Moonraker.
+### Direct print from AnycubicSlicer (2026-10-01): the matrix is used
+
+The same cube, matrix 600 by hand, multiplier 1.0, sent with AnycubicSlicer's *Print* button (LAN
+mode) instead of exporting. AnycubicSlicer then uploads a **`.gcode.3mf` package** (Bambu format:
+`Metadata/plate_1.gcode`, `project_settings.config` with `flush_volumes_matrix`, `slice_info.config`)
+plus a `.acm` file (only the colour/slot mapping, the same as for Moonraker prints); the firmware
+unpacks it to `.3mf_temp/`. The G-code inside extrudes exactly as much as test A's.
+
+| slab | test A, via Moonraker (× 1.0) | direct print, matrix 600 (× 1.0) | difference | (600 − colour volume) / 2.405 |
+|---|---|---|---|---|
+| lavender (after magenta) | 229–230 mm | 318–321 mm | **+89.5 mm** | +91.1 mm |
+| magenta (after lavender) | 205–208 mm | 326–329 mm | **+120 mm** | +119.8 mm |
+
+→ **With the package the firmware uses the slicer's matrix; with a plain G-code file it ignores it**
+and computes (Orca colour formula + 107) × multiplier. The print start itself is the same MQTT
+message in both cases — Rinkhals sends Mainsail prints the same way (`mqtt_print_file` in Rinkhals'
+`kobra.py`, filename + `ams_box_mapping`, no flush fields) — so the package is the switch.
+
+Not pursued: making Orca produce and start such a package (an exported *plate sliced file*, or the
+bridge wrapping the G-code). Decision: keep the firmware's own calculation, set the multiplier to
+1.0 (≈ 28 % less purge than 1.5) and *predict* the purge per transition instead.
 
 ### The firmware's own flush setting
 
@@ -149,9 +168,9 @@ Total: 4064 mm → 2946 mm (−28 %). Assuming equal model parts per colour (139
 | lavender → magenta | ≈ 97 mm | ≈ 162 mm |
 | magenta → lavender | ≈ 126 mm | ≈ 205 mm |
 
-→ **purge ≈ clamp(colour volume × flush_multiplier, 107, 800 mm³) / 2.405 − ≈ 32 mm** (the offset
-fits both multipliers; it matches the ≈ 50 mm the firmware retracts before cutting, partly reused
-by the next purge). The first load of a print is larger (from an unloaded nozzle, ≈ +90 mm).
+→ **purge ≈ clamp(colour volume × flush_multiplier, 107, 800 mm³) / 2.405 − ≈ 20–32 mm** (the
+differences between runs are exact; the fixed offset depends on how the model part is split between
+the slabs, and it is in the range of the ≈ 50 mm the firmware retracts before cutting). The first load of a print is larger (from an unloaded nozzle, ≈ +90 mm).
 
 Consequences:
 - The bridge's bookings were already right (it measures; purge lands on the newly loaded spool).
@@ -162,7 +181,7 @@ Consequences:
   values 312 / 381 and 587 / 173. (One older black/white export shows 551 / 137 — a different
   minimum was set in that slicer project.)
 - So the purge per transition can be **computed from the two slot colours** without learning:
-  `clamp((orca_colour_volume + 107) × flush_multiplier, 107, 800) / 2.405 − ~32 mm`, first load
+  `clamp((orca_colour_volume + 107) × flush_multiplier, 107, 800) / 2.405 − ~20–32 mm`, first load
   ≈ +90 mm. The firmware values (`flush_multiplier`, min, max) are readable at
   `/printer/filament_hub/get_config`.
 
