@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,7 +39,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.github.xnovosx.kobraspoolman.data.Heater
 import io.github.xnovosx.kobraspoolman.data.PrintInfo
+import io.github.xnovosx.kobraspoolman.data.Printer
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
 import kotlinx.coroutines.CancellationException
@@ -101,6 +105,37 @@ private fun rememberCamera(active: Boolean, stream: () -> Flow<ByteArray>): Trip
     return Triple(img, fps, err)
 }
 
+/** Ein Wert der Druckerleiste: kleine Beschriftung, darunter der Wert. */
+@Composable
+private fun Stat(label: String, value: String, hot: Boolean = false) {
+    Column {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = K.Muted)
+        Text(value, fontFamily = PlexMono, style = MaterialTheme.typography.bodyMedium,
+            color = if (hot) K.Accent else K.Text)
+    }
+}
+
+private fun temp(h: Heater): String =
+    if (h.target > 0) "${h.temp.roundToInt()}/${h.target.roundToInt()}°" else "${h.temp.roundToInt()}°"
+
+private fun share(v: Double): String = if (v <= 0.0) "aus" else "${(v * 100).roundToInt()} %"
+
+/** Druckerdaten unter dem Bild: Temperaturen, Luefter, Tempo, Fluss, Schicht (nur was der Drucker meldet). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MachineBar(p: Printer) {
+    if (p.nozzle == null && p.bed == null && p.fans.isEmpty()) return
+    FlowRow(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        p.nozzle?.let { Stat("Düse", temp(it), hot = it.target > 0) }
+        p.bed?.let { Stat("Bett", temp(it), hot = it.target > 0) }
+        p.fans.forEach { Stat(it.name, share(it.speed)) }
+        p.speedFactor?.let { Stat("Tempo", "${(it * 100).roundToInt()} %", hot = it != 1.0) }
+        p.flowFactor?.let { Stat("Fluss", "${(it * 100).roundToInt()} %", hot = it != 1.0) }
+        if (p.layer != null && p.layers != null) Stat("Schicht", "${p.layer} / ${p.layers}")
+    }
+}
+
 /** Kleine Bildrate oben rechts im Kamerabild. */
 @Composable
 private fun BoxScope.FpsBadge(fps: Float?) {
@@ -118,6 +153,7 @@ private fun BoxScope.FpsBadge(fps: Float?) {
  */
 @Composable
 fun PrintMedia(
+    printer: Printer,
     canWrite: Boolean,
     fetch: suspend (String) -> ByteArray?,
     info: suspend () -> PrintInfo?,
@@ -147,7 +183,7 @@ fun PrintMedia(
             }
             Box(Modifier.weight(1f))
             val m = meta
-            if (tab == "model" && m?.layer != null && m.layers > 0) {
+            if (tab == "model" && printer.layer == null && m?.layer != null && m.layers > 0) {
                 Text("Schicht ${m.layer} / ${m.layers}", fontFamily = PlexMono, style = MaterialTheme.typography.labelSmall,
                     color = K.Muted, modifier = Modifier.padding(end = 8.dp))
             }
@@ -167,12 +203,14 @@ fun PrintMedia(
                 }, style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.padding(16.dp))
             }
         }
+        MachineBar(printer)
     }
     if (full) {
         Dialog(onDismissRequest = { full = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Box(Modifier.fillMaxSize().background(Color.Black).clickable { full = false }, contentAlignment = Alignment.Center) {
                 img?.let { Image(it, "Vollbild", Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
                 if (tab == "camera") FpsBadge(fps)
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0xB3000000))) { MachineBar(printer) }
             }
         }
     }

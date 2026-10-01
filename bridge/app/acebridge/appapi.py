@@ -312,6 +312,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         eta = int(duration * (1 - progress) / progress)
     action = str(mmu.get("action") or "")
     shows_file = running or state in ("complete", "cancelled", "error")
+    info = ps.get("info") or {}
     return {
         "state": state,
         "file": (ps.get("filename") or None) if shows_file else None,
@@ -322,6 +323,43 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         "active_slot": active_slot,
         "mmu_action": action or None,
         "changing_filament": running and action.strip().lower() not in MMU_IDLE,
+        "layer": info.get("current_layer") if running and info.get("total_layer") else None,
+        "layers": info.get("total_layer") if running and info.get("total_layer") else None,
+        **machine_state(status),
+    }
+
+
+def _heater(h: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not h or h.get("temperature") is None:
+        return None
+    return {"temp": round(float(h["temperature"]), 1), "target": round(float(h.get("target") or 0), 1),
+            "power": round(float(h.get("power") or 0), 2)}
+
+
+FANS = (("part", "Bauteil", "fan"), ("box", "Gehäuse", "fan_generic box_fan"),
+        ("filter", "Luftfilter", "fan_generic air_filter_fan"))
+
+
+def machine_state(status: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Temperaturen, Luefter, Tempo und Fluss aus dem Abo (nur was der Drucker meldet)."""
+    gm = status.get("gcode_move") or {}
+    fans = []
+    for key, name, obj in FANS:
+        f = status.get(obj)
+        if f and f.get("speed") is not None:
+            fan = {"key": key, "name": name, "speed": round(float(f["speed"]), 2)}
+            if f.get("rpm") is not None:
+                fan["rpm"] = int(f["rpm"])
+            fans.append(fan)
+    def factor(k: str) -> Optional[float]:
+        return round(float(gm[k]), 2) if gm.get(k) is not None else None
+    return {
+        "nozzle": _heater(status.get("extruder")),
+        "bed": _heater(status.get("heater_bed")),
+        "fans": fans,
+        "speed_factor": factor("speed_factor"),
+        "flow_factor": factor("extrude_factor"),
+        "speed_mode": gm.get("speed_mode"),
     }
 
 

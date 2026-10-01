@@ -130,6 +130,12 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .media-fps { position: absolute; top: 8px; right: 8px; padding: 2px 7px; border-radius: 6px; font-size: 11px;
   color: #fff; background: rgba(0,0,0,.55); pointer-events: none; }
 .viewer-cam { position: relative; }
+.machine { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px 10px; padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.06); }
+.machine div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.machine span { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.machine b { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.machine b.hot { color: var(--accent); }
+.viewer-machine { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); border-radius: 0 0 8px 8px; }
 .media.tall .media-body { aspect-ratio: 4 / 3; }
 .media-body img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
 .media-empty { color: var(--muted); font-size: 14px; padding: 16px; text-align: center; }

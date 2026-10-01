@@ -151,7 +151,22 @@ data class Printer(
     @SerialName("active_slot") val activeSlot: Int? = null,
     @SerialName("mmu_action") val mmuAction: String? = null,
     @SerialName("changing_filament") val changingFilament: Boolean = false,
+    val layer: Int? = null,
+    val layers: Int? = null,
+    val nozzle: Heater? = null,
+    val bed: Heater? = null,
+    val fans: List<Fan> = emptyList(),
+    @SerialName("speed_factor") val speedFactor: Double? = null,
+    @SerialName("flow_factor") val flowFactor: Double? = null,
 )
+
+/** Heizung: Ist, Soll (0 = aus), Leistung 0..1. */
+@Serializable
+data class Heater(val temp: Double, val target: Double = 0.0, val power: Double = 0.0)
+
+/** Luefter: part (Bauteil), box (Gehaeuse), filter (Luftfilter); speed 0..1. */
+@Serializable
+data class Fan(val key: String, val name: String, val speed: Double, val rpm: Int? = null)
 
 @Serializable
 data class Slot(

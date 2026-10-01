@@ -227,8 +227,18 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 
 ```json
 {"state": "printing", "file": "test-A-100.gcode", "progress": 0.42, "print_duration_s": 1260, "eta_s": 1740,
- "message": null, "active_slot": 1, "mmu_action": "Idle", "changing_filament": false}
+ "message": null, "active_slot": 1, "mmu_action": "Idle", "changing_filament": false,
+ "layer": 29, "layers": 65,
+ "nozzle": {"temp": 239.6, "target": 240, "power": 0.45}, "bed": {"temp": 75, "target": 75, "power": 0.22},
+ "fans": [{"key": "part", "name": "Bauteil", "speed": 0.6, "rpm": 5400},
+          {"key": "box", "name": "Gehäuse", "speed": 0.3}, {"key": "filter", "name": "Luftfilter", "speed": 0}],
+ "speed_factor": 1.0, "flow_factor": 1.0, "speed_mode": 1}
 ```
+
+Temperatures, fans, speed and flow come from the bridge's single Moonraker subscription, limited to
+the fields shown (`extruder`/`heater_bed`: temperature, target, power; `fan`; `fan_generic box_fan`
+and `air_filter_fan`; `gcode_move`: speed and extrude factor, speed mode). Nothing that changes with
+every move (position, live velocity) is subscribed. Missing objects are left out (`null` / empty).
 
 `state` is Moonraker's `print_stats.state` (`standby`, `printing`, `paused`, `complete`, `cancelled`,
 `error`) or `offline` when the printer is not reachable. `changing_filament` is derived from

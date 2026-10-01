@@ -15,9 +15,15 @@ from .config import Config
 
 log = logging.getLogger("moonraker")
 
-SUBSCRIBE_OBJECTS = {"mmu": None, "print_stats": None, "virtual_sdcard": None}
-# GoKlippers ACE-Rohdaten (Trockner, Feuchte); fehlt ohne ACE -> dann ohne abonnieren
-OPTIONAL_OBJECTS = {"filament_hub": None}
+# Druckerdaten fuer Karte/App: nur einzelne Felder, nichts was sich bei jeder Bewegung aendert
+# (Position, aktuelle Geschwindigkeit) - jede Aenderung kostet den schwachen Drucker etwas.
+SUBSCRIBE_OBJECTS = {"mmu": None, "print_stats": None, "virtual_sdcard": None,
+                     "extruder": ["temperature", "target", "power"],
+                     "heater_bed": ["temperature", "target", "power"],
+                     "fan": ["speed", "rpm"],
+                     "gcode_move": ["speed_factor", "extrude_factor", "speed_mode"]}
+# GoKlippers ACE-Rohdaten (Trockner, Feuchte) und die Zusatzluefter des S1; fehlen sie, ohne abonnieren
+OPTIONAL_OBJECTS = {"filament_hub": None, "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
 
 StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
 

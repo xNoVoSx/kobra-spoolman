@@ -73,6 +73,22 @@ export function Fps({ fps }) {
   return fps == null ? null : html`<span class="media-fps m">${fps < 10 ? fps.toFixed(1) : Math.round(fps)} fps</span>`;
 }
 
+const temp = (h) => (h.target > 0 ? `${Math.round(h.temp)}/${Math.round(h.target)}°` : `${Math.round(h.temp)}°`);
+const share = (v) => (v > 0 ? `${Math.round(v * 100)} %` : "aus");
+
+/** Druckerdaten unter dem Bild: Temperaturen, Luefter, Tempo, Fluss, Schicht (nur was der Drucker meldet). */
+export function MachineBar({ p }) {
+  if (!p || (!p.nozzle && !p.bed && !(p.fans || []).length)) return null;
+  const items = [];
+  if (p.nozzle) items.push(["Düse", temp(p.nozzle), p.nozzle.target > 0]);
+  if (p.bed) items.push(["Bett", temp(p.bed), p.bed.target > 0]);
+  for (const f of p.fans || []) items.push([f.name, share(f.speed)]);
+  if (p.speed_factor != null) items.push(["Tempo", `${Math.round(p.speed_factor * 100)} %`, p.speed_factor !== 1]);
+  if (p.flow_factor != null) items.push(["Fluss", `${Math.round(p.flow_factor * 100)} %`, p.flow_factor !== 1]);
+  if (p.layer != null && p.layers) items.push(["Schicht", `${p.layer} / ${p.layers}`]);
+  return html`<div class="machine">${items.map(([l, v, hot]) => html`<div><span>${l}</span><b class=${cls("m", hot && "hot")}>${v}</b></div>`)}</div>`;
+}
+
 /** Gerechnetes Modellbild; neu laden, wenn sich der Druck bewegt (alle 10 s). */
 function useModel(active) {
   const [info, setInfo] = useState(null);
@@ -116,9 +132,10 @@ export function PrintMedia({ tall }) {
     <div class="media-tabs" role="tablist">
       <button role="tab" aria-selected=${tab === "model"} onClick=${() => choose("model")}><${Icon} name="spool" small />Modell</button>
       <button role="tab" aria-selected=${tab === "camera"} onClick=${() => choose("camera")}><${Icon} name="overview" small />Kamera</button>
-      ${tab === "model" && info?.layer && info?.layers ? html`<span class="media-meta m">Schicht ${info.layer} / ${info.layers}</span>` : null}
+      ${tab === "model" && S.st?.printer?.layer == null && info?.layer && info?.layers ? html`<span class="media-meta m">Schicht ${info.layer} / ${info.layers}</span>` : null}
     </div>
     <div class="media-body">${body}</div>
+    <${MachineBar} p=${S.st?.printer} />
   </div>`;
 }
 
@@ -129,7 +146,8 @@ export function CameraDialog({ view, src }) {
   return html`<div class="scrim viewer" onClick=${close}>
     <button class="btn icon ghost viewer-close" aria-label="Schließen" onClick=${close}><${Icon} name="close" /></button>
     ${view === "model" ? html`<img src=${src} alt="Vorschau der Druckdatei" />`
-      : cam ? html`<div class="viewer-cam"><img src=${cam} alt="Kamera" onError=${camFail} /><${Fps} fps=${fps} /></div>`
+      : cam ? html`<div class="viewer-cam"><img src=${cam} alt="Kamera" onError=${camFail} /><${Fps} fps=${fps} />
+          <div class="viewer-machine"><${MachineBar} p=${S.st?.printer} /></div></div>`
         : html`<div class="media-empty">${camErr || "Kamera lädt …"}</div>`}
   </div>`;
 }

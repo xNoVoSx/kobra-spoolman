@@ -309,6 +309,16 @@ GoKlipper's object `filament_hub` (queryable/subscribable via Moonraker, not lis
 - Dryer commands (Rinkhals): `MMU_DRYER_START UNIT=0 DURATION=<min> TEMP=<°C> [FAN_SPEED=…]`,
   `MMU_DRYER_STOP UNIT=0`. ACE 2 Pro dries up to 65 °C (Anycubic), the first ACE Pro up to 55 °C.
 
+## Printer objects on the Kobra S1 (GoKlipper, 2026-10-01)
+
+`printer/objects/list` offers `extruder`, `heater_bed`, `fan` (part cooling, with `rpm`),
+`fan_generic box_fan`, `fan_generic air_filter_fan`, `gcode_move` (with an extra `speed_mode`,
+Anycubic's speed preset — values not yet mapped), `toolhead`, `print_stats` (`info.current_layer`/
+`total_layer`), `pause_resume`, `idle_timeout`, `exclude_object`, `bed_mesh`. There is **no chamber
+temperature sensor**; `motion_report` and `display_status` are empty. Temperatures come as whole
+numbers. Field lists in `objects/query`/`subscribe` are honoured, which keeps the bridge's
+subscription small.
+
 ## Android 17: local network protection (2026-09-30)
 
 Apps targeting Android 17 (API 37) cannot reach the local network (10.0.0.0/8, 192.168.0.0/16, …,

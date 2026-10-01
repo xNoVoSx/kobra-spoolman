@@ -107,8 +107,9 @@ Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
 
 Die Druckerkarte zeigt **Modell** – die Druckdatei, von der Bridge gezeichnet in den Farben deiner
 eingelegten Spulen, Gedrucktes kräftig, der Rest als Schatten, mit aktueller Schicht – und **Kamera**,
-die Druckerkamera live (nur auf gekoppelten Geräten), mit der Bildrate in der Ecke. Bild antippen für
-Vollbild.
+die Druckerkamera live (nur auf gekoppelten Geräten), mit der Bildrate in der Ecke. Unter dem Bild:
+Düse und Bett (ist/soll), Bauteil-, Gehäuse- und Luftfilterlüfter, Tempo und Fluss, Schicht –
+geheizte Werte und veränderte Faktoren sind hervorgehoben. Bild antippen für Vollbild.
 
 Die Bridge **verteilt die Kamera weiter** (Restream): Egal wie viele Browser und Handys zuschauen, der
 Drucker liefert einen einzigen Stream, und nur solange jemand zuschaut. Damit Mainsail keinen zweiten

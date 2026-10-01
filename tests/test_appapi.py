@@ -106,6 +106,23 @@ def test_printer_state():
     assert printer_state(st, False, False, None)["state"] == "offline"
     idle = printer_state({"print_stats": {"state": "standby", "filename": "a.gcode"}}, True, True, None)
     assert idle["state"] == "standby" and idle["file"] is None and idle["progress"] is None
+    assert idle["nozzle"] is None and idle["fans"] == []          # Drucker meldet nichts -> nichts anzeigen
+
+
+def test_printer_state_machine_values():
+    """Werte wie GoKlipper am S1 sie meldet (objects/query vom 01.10.)."""
+    st = {"print_stats": {"state": "printing", "info": {"current_layer": 29, "total_layer": 65}},
+          "extruder": {"temperature": 219.6, "target": 220, "power": 0.41},
+          "heater_bed": {"temperature": 70, "target": 70, "power": 0.2},
+          "fan": {"speed": 0.8, "rpm": 6120}, "fan_generic box_fan": {"name": "box_fan", "speed": 0.4},
+          "fan_generic air_filter_fan": {"name": "air_filter_fan", "speed": 0},
+          "gcode_move": {"speed_factor": 1.5, "extrude_factor": 0.95, "speed_mode": 2}}
+    p = printer_state(st, True, True, 1)
+    assert p["nozzle"] == {"temp": 219.6, "target": 220, "power": 0.41} and p["bed"]["target"] == 70
+    assert [(f["key"], f["speed"]) for f in p["fans"]] == [("part", 0.8), ("box", 0.4), ("filter", 0)]
+    assert p["fans"][0]["rpm"] == 6120 and "rpm" not in p["fans"][1]
+    assert (p["speed_factor"], p["flow_factor"], p["speed_mode"]) == (1.5, 0.95, 2)
+    assert (p["layer"], p["layers"]) == (29, 65)
 
 
 # ====================================================================== HTTP-Routen

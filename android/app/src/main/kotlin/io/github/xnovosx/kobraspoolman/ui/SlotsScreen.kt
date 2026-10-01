@@ -79,7 +79,7 @@ fun SlotsScreen(
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
         }
-        if (state.printer.state != "offline") item { PrintMedia(state.canWrite, fetchImage, printInfo, camera) }
+        if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera) }
         state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
         state.slots.chunked(2).forEach { row ->
             item {

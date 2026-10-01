@@ -16,6 +16,9 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   (only while someone watches, closed 20 s after the last viewer) and hands the frames to every
   viewer — web UI, app and, through a view-only *camera link*, Mainsail or any MJPEG client. Live
   frame rate in the corner of the image. Paired devices or camera link only. Full screen on tap.
+- Web UI and app: **printer data below the image** — nozzle and bed temperature (actual/target),
+  part, enclosure and air filter fans, speed and flow factor, layer. The bridge subscribes only these
+  fields over its existing Moonraker connection.
 - Dryer: **plan a start** (e.g. tonight 22:00), kept across restarts, capped like a manual start.
 
 ### Changed
