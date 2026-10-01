@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Changed
+- Web UI: tidier overview — the printer card reads top to bottom (status and progress, times, image
+  with printer data, active slot); dryer and ACE stacked next to it instead of leaving a gap; the
+  image no longer grows taller than 400 px on wide screens; on phones the times stay in one row and
+  the print list uses the full width.
+
 ## [2.8.0] – 2026-10-01
 
 New dependency: Pillow (in the image). After the update, point Mainsail's webcam at the bridge's

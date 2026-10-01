@@ -16,9 +16,9 @@ export function Overview() {
   return html`
   <div class="ov">
     <div class="ov-main">
-      <div class="ov-top"><${PrinterCard} /><${DryerCard} /><${AceCard} compact /></div>
+      <div class="ov-top"><${PrinterCard} /><div class="col" style="gap:20px"><${DryerCard} /><${AceCard} compact /></div></div>
       ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
-      <div class="row"><span class="lbl">ACE 2 Pro · Slots</span><span class="grow"></span>
+      <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span>
         <span class="small muted">Zuordnen schreibt Material und Farbe auch ans Druckerdisplay (Spulen ohne Tag)</span></div>
       <${Slots} />
       ${(S.st?.usage?.open || []).length > 0 && html`<${OpenItemsCard} />`}
@@ -39,12 +39,12 @@ export function Ultra() {
       <${PrinterCard} tall />
       ${(S.st?.warnings || []).map((w) => html`<div class="note bad">${w}</div>`)}
       <${DryerCard} big />
-      <${AceCard} />
+      <${AceCard} compact />
       <${OpenItemsCard} />
       <${OrcaCard} />
     </div>
     <div class="ucol">
-      <div class="row"><span class="lbl">ACE 2 Pro · Slots</span><span class="grow"></span><span class="small muted">Zuordnen schreibt auch ans Druckerdisplay</span></div>
+      <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span><span class="small muted">Zuordnen schreibt auch ans Druckerdisplay</span></div>
       <${Slots} />
     </div>
     <${SpoolList} wideCols />
@@ -101,7 +101,7 @@ export function AcePage() {
     <h1 class="h1">ACE</h1>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
       <${DryerCard} big />
-      <${AceCard} />
+      <${AceCard} compact />
     </div>
     ${d?.present && html`<section class="card pad col">
       <h2 class="h2">Temperaturgrenze</h2>

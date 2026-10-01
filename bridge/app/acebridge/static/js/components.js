@@ -29,28 +29,31 @@ export function PrinterCard({ compact, tall }) {
   const live = S.st?.usage?.live;
   const active = p?.active_slot ? S.st.slots.find((s) => s.slot === p.active_slot) : null;
   const ui = S.health?.links?.printer_ui;
+  const pct = p?.progress != null ? Math.round(p.progress * 100) : null;
   return html`
   <section class="card pad printer" style=${{ background: look.bg, borderColor: look.line }} aria-label="Drucker">
-    <${PrintMedia} tall=${tall} />
     <div class="row">
       <span class="dot" style=${{ background: look.dot }}></span>
       <span class="state" style=${{ color: look.fg }}>${look.label}</span>
-      ${p?.file && html`<span class="m small muted ell grow">${fileName(p.file)}</span>`}
-      ${!p?.file && html`<span class="grow"></span>`}
-      ${p?.progress != null && html`<span class="m pct" style=${{ color: look.fg, fontSize: "19px" }}>${Math.round(p.progress * 100)} %</span>`}
+      <span class="m small muted ell grow" title=${p?.file || ""}>${p?.file ? fileName(p.file) : ""}</span>
+      ${pct != null && html`<span class="m pct" style=${{ color: look.fg }}>${pct} %</span>`}
       ${ui && html`<a class="btn sm ghost" href=${ui} target="_blank" rel="noopener" title="Mainsail öffnen" style=${{ borderColor: look.line, color: look.fg }}><${Icon} name="link" small />Mainsail</a>`}
     </div>
     ${running && html`<span class="bar" style=${{ background: look.line }}><i style=${{ width: (p.progress || 0) * 100 + "%", background: look.dot }}></i></span>`}
     ${running && html`
-    <div class=${cls("row wrap", "small")} style=${{ gap: compact ? "16px" : "24px" }}>
-      <span class="muted">Läuft <b class="m" style="color:var(--text)">${duration(p.print_duration_s)}</b></span>
-      <span class="muted">Noch ca. <b class="m" style="color:var(--text)">${duration(p.eta_s)}</b></span>
-      <span class="muted">Fertig <b class="m" style="color:var(--text)">${finishAt(p.eta_s)}</b></span>
-      ${active && html`<span class="muted row" style="gap:6px">Aktiv <${Swatch} color=${active.spool?.color} size=${12} /> <b style="color:var(--text)">Slot ${active.slot}</b></span>`}
-      ${live && html`<span class="muted">bisher <b class="m" style="color:var(--text)">${grams(live.slots.reduce((a, s) => a + s.g, 0))}</b> · ${live.changes} Wechsel</span>`}
+    <div class="times">
+      <div><span>Läuft</span><b class="m">${duration(p.print_duration_s)}</b></div>
+      <div><span>Noch ca.</span><b class="m">${duration(p.eta_s)}</b></div>
+      <div><span>Fertig</span><b class="m">${finishAt(p.eta_s)}</b></div>
     </div>`}
     ${p?.message && html`<div class="small" style=${{ color: look.fg }}>${p.message}</div>`}
     ${p?.state === "offline" && html`<div class="small muted">Die Bridge erreicht den Drucker gerade nicht.</div>`}
+    ${p?.state !== "offline" && html`<${PrintMedia} tall=${tall} />`}
+    ${running && (active || live) && html`
+    <div class="row wrap small" style="gap:6px 18px">
+      ${active && html`<span class="muted row" style="gap:6px">Aktiv <${Swatch} color=${active.spool?.color} size=${12} /> <b style="color:var(--text)">Slot ${active.slot}</b></span>`}
+      ${live && html`<span class="muted">bisher <b class="m" style="color:var(--text)">${grams(live.slots.reduce((a, s) => a + s.g, 0))}</b> · ${live.changes} Wechsel</span>`}
+    </div>`}
   </section>`;
 }
 

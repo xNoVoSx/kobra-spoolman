@@ -126,7 +126,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   background: transparent; color: var(--muted); font: 600 13px var(--sans); cursor: pointer; }
 .media-tabs button[aria-selected=true] { background: var(--surface2); color: var(--text); }
 .media-meta { margin-left: auto; padding-right: 8px; font-size: 12px; color: var(--muted); }
-.media-body { aspect-ratio: 16 / 10; display: grid; place-items: center; position: relative; }
+.media-body { aspect-ratio: 16 / 10; display: grid; place-items: center; position: relative; overflow: hidden; }
+.media-body > img { min-height: 0; min-width: 0; }
 .media-fps { position: absolute; top: 8px; right: 8px; padding: 2px 7px; border-radius: 6px; font-size: 11px;
   color: #fff; background: rgba(0,0,0,.55); pointer-events: none; }
 .viewer-cam { position: relative; }
@@ -137,6 +138,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .machine b.hot { color: var(--accent); }
 .viewer-machine { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); border-radius: 0 0 8px 8px; }
 .media.tall .media-body { aspect-ratio: 4 / 3; }
+.media:not(.tall) .media-body { max-height: 400px; }   /* breite Karte: Bild nicht ueber den Bildschirm ziehen */
 .media-body img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
 .media-empty { color: var(--muted); font-size: 14px; padding: 16px; text-align: center; }
 .viewer { background: rgba(0,0,0,.92); }
@@ -171,14 +173,19 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 /* ------------------------------------------------------------ Uebersicht */
 .ov { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; min-height: 100%; }
 .ov-main { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-.ov-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ov-top { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 .printer { display: flex; flex-direction: column; gap: 12px; }
 .printer .state { font: 700 19px var(--grotesk); }
 .printer .bar { flex: none; }
-.printer .pct { white-space: nowrap; }
+.printer .pct { white-space: nowrap; font-size: 19px; }
+.times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.times div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.times span { font-size: 12px; color: var(--muted); }
+.times b { font-size: 15px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .slot { display: flex; flex-direction: column; overflow: hidden; }
 .slot.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -278,9 +285,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .rail a { padding: 0; justify-content: center; width: 56px; position: relative; }
   .rail .badge { position: absolute; top: 4px; right: 2px; }
   .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ov-top { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 1100px) {
+  .ov-top { grid-template-columns: minmax(0, 1fr); }
   .split { grid-template-columns: minmax(0, 1fr); }
   .split.has-sel > .listcard { display: none; }
   .split:not(.has-sel) > .detail { display: none; }
@@ -307,7 +314,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .slot .actions .btn { min-height: 40px; }
   .ov { gap: 16px; }
   .ov-main { gap: 14px; }
-  .aside > .col { display: flex; }
+  .aside > .col { display: flex; flex-direction: column; align-items: stretch; }
   .tr { grid-template-columns: 22px minmax(0, 1fr) 96px; padding: 0 12px; min-height: 56px; }
   .tr > .hide-s { display: none; }
   .tr.fil { grid-template-columns: 22px minmax(0, 1fr) 70px; }
