@@ -67,7 +67,7 @@ fun SpoolScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoundIconButton(KIcons.Back, "Zurück", onBack, bg = K.Ground.copy(alpha = 0.4f))
-                Text("Spule #${sp.spoolId}" + (sp.nfcUid?.let { " · Tag" } ?: ""), style = MaterialTheme.typography.labelMedium,
+                Text("Spule #${sp.spoolId}" + (sp.nfcUid?.let { " · NFC-Tag verknüpft" } ?: ""), style = MaterialTheme.typography.labelMedium,
                     color = K.Text, modifier = Modifier.padding(start = 12.dp))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -115,7 +115,7 @@ fun SpoolScreen(
             }
             SecondaryButton("Leer · archivieren", { confirmArchive = true }, Modifier.fillMaxWidth(),
                 enabled = canWrite && !busy, danger = true)
-            if (!canWrite) Hint("Ändern braucht den App-Schlüssel (Einstellungen).")
+            if (!canWrite) Hint("Ändern geht erst, wenn die App gekoppelt ist (Einstellungen).")
 
             SectionLabel("Letzte Drucke", Modifier.padding(top = 12.dp))
             if (detail.jobs.isEmpty()) Text("Noch keine Drucke mit dieser Spule.", style = MaterialTheme.typography.bodySmall, color = K.Muted)

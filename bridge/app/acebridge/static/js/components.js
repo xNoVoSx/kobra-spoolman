@@ -35,7 +35,7 @@ export function PrinterCard({ compact }) {
       <span class="state" style=${{ color: look.fg }}>${look.label}</span>
       ${p?.file && html`<span class="m small muted ell grow">${fileName(p.file)}</span>`}
       ${!p?.file && html`<span class="grow"></span>`}
-      ${p?.progress != null && html`<span class="m" style=${{ color: look.fg, fontSize: "19px" }}>${Math.round(p.progress * 100)} %</span>`}
+      ${p?.progress != null && html`<span class="m pct" style=${{ color: look.fg, fontSize: "19px" }}>${Math.round(p.progress * 100)} %</span>`}
     </div>
     ${running && html`<span class="bar" style=${{ background: look.line }}><i style=${{ width: (p.progress || 0) * 100 + "%", background: look.dot }}></i></span>`}
     ${running && html`
@@ -182,7 +182,7 @@ export function JobCard({ job, live }) {
   <article class="card job">
     <div class="row"><span class="file ell grow">${fileName(job.file)}</span><span class=${cls("chip", kind)}>${label}</span></div>
     <div class="small muted">${live ? `seit ${when(job.started)} · bisher ${grams(total)} · ${job.changes} Wechsel`
-                                    : `${when(job.ended)} · ${grams(total)} · ${job.loads ?? "–"} Ladevorgänge`}</div>
+                                    : `${when(job.ended)} · ${grams(total)} · ${job.loads ?? "–"} ${job.loads === 1 ? "Ladevorgang" : "Ladevorgänge"}`}</div>
     <div class="row wrap" style="gap:6px">
       ${parts.map((p) => html`<span class="chip" style="color:var(--text)" title=${"Slot " + p.slot}><${Swatch} color=${colorFor(p)} size=${10} />${grams(p.g)}</span>`)}
     </div>

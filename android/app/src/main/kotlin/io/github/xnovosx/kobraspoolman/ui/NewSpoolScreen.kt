@@ -133,7 +133,7 @@ fun NewSpoolScreen(
                 },
                 modifier = Modifier.fillMaxWidth(), enabled = canWrite && !busy && selected != null,
             )
-            if (!canWrite) Hint("Anlegen braucht den App-Schlüssel (Einstellungen).")
+            if (!canWrite) Hint("Anlegen geht erst, wenn die App gekoppelt ist (Einstellungen).")
         }
     }
 }

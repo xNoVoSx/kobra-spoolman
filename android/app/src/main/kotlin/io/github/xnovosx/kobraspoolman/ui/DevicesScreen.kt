@@ -34,8 +34,9 @@ import io.github.xnovosx.kobraspoolman.data.PairLink
 import io.github.xnovosx.kobraspoolman.data.PairingCode
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
-import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 private val KIND = mapOf("app" to "App", "web" to "Browser", "plugin" to "Orca-Plugin", "other" to "Sonstiges")
 
@@ -84,7 +85,7 @@ fun DevicesScreen(
                 .padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(d.name + if (d.me) "  (dieses Gerät)" else "", style = MaterialTheme.typography.bodyLarge)
-                    Text(KIND[d.kind].orEmpty() + (d.lastSeen?.let { " · zuletzt " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                    Text(KIND[d.kind].orEmpty() + (d.lastSeen?.let { " · zuletzt " + SimpleDateFormat("dd.MM.yy HH:mm", Locale.GERMANY)
                         .format(Date((it * 1000).toLong())) } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Muted)
                 }
                 TextButton(onClick = { confirm = d }) { Text("Entfernen", color = K.DangerText) }

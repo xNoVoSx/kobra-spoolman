@@ -25,6 +25,11 @@ from .web import build_app
 log = logging.getLogger("bridge")
 
 
+
+def spoolman_support_off(value) -> bool:
+    """Rinkhals meldet "off"; False/0/"false" (andere Staende) gelten ebenso als aus."""
+    return value is None or value is False or str(value).strip().lower() in ("off", "false", "0", "disabled", "")
+
 class Bridge:
     def __init__(self, cfg: Config, session: aiohttp.ClientSession):
         self.cfg = cfg
@@ -69,7 +74,7 @@ class Bridge:
             out.append("Moonraker hat [spoolman] aktiv - Verbrauch wuerde doppelt gebucht. "
                        "Abschnitt [spoolman] in moonraker.conf entfernen.")
         support = (self.moon.status.get("mmu", {}) or {}).get("spoolman_support")
-        if support not in (None, "off"):
+        if not spoolman_support_off(support):
             out.append(f"Drucker-Firmware meldet spoolman_support={support} - Verbrauch wuerde doppelt gebucht.")
         return out
 

@@ -92,7 +92,7 @@ fun SlotsScreen(
             items(state.shelf, key = { it.spoolId }) { ShelfRow(it) { onSpool(it.spoolId) } }
         }
         if (!state.canWrite) item {
-            Hint("Nur lesen: In der Bridge ist kein App-Schlüssel (APP_TOKEN) gesetzt oder er fehlt in den Einstellungen.")
+            Hint("Nur lesen: Die App ist nicht gekoppelt. Koppeln unter Einstellungen.")
         }
     }
 }
