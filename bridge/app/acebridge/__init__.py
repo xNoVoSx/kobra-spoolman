@@ -1,11 +1,19 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.7.0"
+__version__ = "2.8.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.8.0", "2026-10-01", [
+        "ACE-Karte: Spül-Multiplikator, Nachfüllen und Ausgangserkennung; im Druck erst nach „Freischalten“",
+        "Druckansicht: Bridge zeichnet die Druckdatei selbst in den ACE-Farben, dazu Kamera",
+        "Kamera-Restream: eine Stream-Verbindung zum Drucker für alle, Kamera-Link für Mainsail, FPS-Anzeige",
+        "Druckerdaten unter dem Bild: Düse, Bett, Lüfter, Tempo, Fluss, Schicht",
+        "Druckzeit: läuft seit, noch ca., fertig um (z. B. ~17:35)",
+        "Trocknen planen (z. B. heute 22:00)",
+    ]),
     ("2.7.0", "2026-10-01", [
         "Spül-Modell der ACE: Spülen pro Farbwechsel wie die Firmware, Multiplikator vom Drucker gelesen",
         "Orca-Plugin 0.5.0: Verbrauchsvorschau rechnet das Spülen pro Farbwechsel aus den Slot-Farben",

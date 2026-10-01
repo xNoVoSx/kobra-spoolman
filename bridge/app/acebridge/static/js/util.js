@@ -17,8 +17,19 @@ export function meters(mm) {
 }
 export function duration(s) {
   if (s == null) return "–";
-  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  const t = Math.round(s / 60), h = Math.floor(t / 60), m = t % 60;   // erst runden, sonst "1 h 60 min"
   return h ? `${h} h ${m} min` : `${m} min`;
+}
+/** Ungefaehre Fertig-Uhrzeit: "~14:35", "morgen ~02:10", sonst mit Wochentag. */
+export function finishAt(etaS, now = new Date()) {
+  if (etaS == null || etaS < 0) return "–";
+  const end = new Date(now.getTime() + etaS * 1000);
+  const time = "~" + end.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((day(end) - day(now)) / 86400000);
+  if (days === 0) return time;
+  if (days === 1) return "morgen " + time;
+  return end.toLocaleDateString("de-DE", { weekday: "short" }) + " " + time;
 }
 export function minutes(min) { return min == null ? "–" : duration(min * 60); }
 export function when(iso) {

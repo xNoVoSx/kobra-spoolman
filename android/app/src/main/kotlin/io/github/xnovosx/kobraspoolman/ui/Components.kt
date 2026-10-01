@@ -122,11 +122,23 @@ fun StatusCard(p: Printer, activeName: String?) {
             p.state == "offline" -> "Drucker nicht erreichbar"
             else -> "Kein Slot aktiv"
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(left, style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1,
-                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            if (p.etaS != null) Text("noch ${Format.duration(p.etaS)}", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+        Text(left, style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1,
+            overflow = TextOverflow.Ellipsis)
+        if (p.printDurationS != null || p.etaS != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TimeStat("Läuft", Format.duration(p.printDurationS))
+                TimeStat("Noch ca.", Format.duration(p.etaS))
+                TimeStat("Fertig", Format.finishAt(p.etaS))
+            }
         }
+    }
+}
+
+@Composable
+private fun TimeStat(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = K.Muted)
+        Text(value, fontFamily = PlexMono, style = MaterialTheme.typography.bodyMedium, color = K.Text)
     }
 }
 

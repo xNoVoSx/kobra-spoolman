@@ -6,6 +6,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.8.0] – 2026-10-01
+
+New dependency: Pillow (in the image). After the update, point Mainsail's webcam at the bridge's
+*camera link* (*Geräte → Kamera-Link*) so the printer serves only one camera stream.
+
 ### Added
 - Bridge, web UI and app: **ACE settings** the printer display hides — purge multiplier (presets
   and any value 0.1–3.0, with the purge of every change between the loaded spools before/after),
@@ -19,6 +24,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 - Web UI and app: **printer data below the image** — nozzle and bed temperature (actual/target),
   part, enclosure and air filter fans, speed and flow factor, layer. The bridge subscribes only these
   fields over its existing Moonraker connection.
+- Web UI and app: print time — running for, about how long still and the **estimated finish
+  time** (e.g. *~17:35*, *morgen ~02:10*).
 - Dryer: **plan a start** (e.g. tonight 22:00), kept across restarts, capped like a manual start.
 
 ### Changed

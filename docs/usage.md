@@ -107,7 +107,9 @@ The printer card shows **Modell** — the print file drawn by the bridge in the 
 loaded spools, printed part solid, the rest as a shadow, with the current layer — and **Kamera**,
 the printer camera live (only on paired devices), with the frame rate in the corner. Below the image:
 nozzle and bed (actual/target), part, enclosure and air filter fans, speed and flow factor, layer —
-values with a target or a changed factor are highlighted. Tap the image for full screen.
+values with a target or a changed factor are highlighted. Tap the image for full screen. Below the
+progress bar: how long the print has been running, about how long it still takes and the estimated
+finish time (*~17:35*, *morgen ~02:10*), estimated from the progress so far.
 
 The bridge **restreams** the camera: however many browsers and phones watch, the printer serves one
 stream, and only while someone is watching. Point Mainsail at the bridge too, so it does not open

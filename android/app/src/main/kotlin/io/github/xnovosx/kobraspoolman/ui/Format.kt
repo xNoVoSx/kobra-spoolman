@@ -13,6 +13,21 @@ object Format {
         return if (m >= 60) "${m / 60} h ${m % 60} min" else "$m min"
     }
 
+    /**
+     * Ungefaehre Uhrzeit, wann der Druck fertig ist: "~14:35", "morgen ~02:10", sonst mit Wochentag "Fr. ~09:00".
+     */
+    fun finishAt(etaS: Long?, now: java.time.ZonedDateTime = java.time.ZonedDateTime.now()): String {
+        if (etaS == null || etaS < 0) return "–"
+        val end = now.plusSeconds(etaS)
+        val time = "~%02d:%02d".format(end.hour, end.minute)
+        val days = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), end.toLocalDate())
+        return when (days) {
+            0L -> time
+            1L -> "morgen $time"
+            else -> end.format(java.time.format.DateTimeFormatter.ofPattern("EE", java.util.Locale.GERMANY)) + " $time"
+        }
+    }
+
     /** Feste Nachkommastellen mit Komma: decimal(1.0, 1) = "1,0". */
     fun decimal(v: Double?, digits: Int = 1): String =
         if (v == null) "–" else String.format(java.util.Locale.GERMANY, "%.${digits}f", v)

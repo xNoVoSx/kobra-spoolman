@@ -4,7 +4,7 @@ import { html, useEffect, useRef } from "../vendor/preact-htm.module.js";
 import { Icon } from "./icons.js";
 import { PrintMedia } from "./media.js";
 import { S, set, closeDialog, guard, openDialog, spoolById } from "./store.js";
-import { JOB_STATE, cls, duration, fileName, grams, hex, minutes, num, printerLook, tint, title, when } from "./util.js";
+import { JOB_STATE, cls, duration, fileName, finishAt, grams, hex, minutes, num, printerLook, tint, title, when } from "./util.js";
 
 export function Spool({ color, size = 56, empty }) {
   const c = hex(color);
@@ -43,8 +43,9 @@ export function PrinterCard({ compact, tall }) {
     ${running && html`<span class="bar" style=${{ background: look.line }}><i style=${{ width: (p.progress || 0) * 100 + "%", background: look.dot }}></i></span>`}
     ${running && html`
     <div class=${cls("row wrap", "small")} style=${{ gap: compact ? "16px" : "24px" }}>
-      <span class="muted">Rest <b class="m" style="color:var(--text)">${duration(p.eta_s)}</b></span>
       <span class="muted">Läuft <b class="m" style="color:var(--text)">${duration(p.print_duration_s)}</b></span>
+      <span class="muted">Noch ca. <b class="m" style="color:var(--text)">${duration(p.eta_s)}</b></span>
+      <span class="muted">Fertig <b class="m" style="color:var(--text)">${finishAt(p.eta_s)}</b></span>
       ${active && html`<span class="muted row" style="gap:6px">Aktiv <${Swatch} color=${active.spool?.color} size=${12} /> <b style="color:var(--text)">Slot ${active.slot}</b></span>`}
       ${live && html`<span class="muted">bisher <b class="m" style="color:var(--text)">${grams(live.slots.reduce((a, s) => a + s.g, 0))}</b> · ${live.changes} Wechsel</span>`}
     </div>`}

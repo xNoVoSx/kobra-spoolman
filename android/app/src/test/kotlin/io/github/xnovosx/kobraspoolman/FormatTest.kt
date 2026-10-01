@@ -45,4 +45,13 @@ class FormatTest {
         assertEquals(14, uid.length)
         assertTrue(uid.startsWith("04"))
     }
+
+    @Test
+    fun finishAt() {
+        val now = java.time.ZonedDateTime.of(2026, 10, 1, 22, 50, 0, 0, java.time.ZoneId.of("Europe/Berlin"))
+        assertEquals("~23:35", Format.finishAt(45 * 60L, now))
+        assertEquals("morgen ~02:10", Format.finishAt(200 * 60L, now))
+        assertEquals("So. ~10:50", Format.finishAt(60 * 3600L, now))   // Do. 22:50 + 60 h
+        assertEquals("–", Format.finishAt(null, now))
+    }
 }
