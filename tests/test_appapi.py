@@ -369,6 +369,27 @@ def test_tag_issue_link_lookup(api):
     assert call("GET", "/api/app/tag/0000000000", token=None)[0] == 404
 
 
+def test_two_tags_per_spool(api):
+    """ACE 2 Pro: ein Tag pro Spulenseite. Zweiter Tag kommt dazu (reset=false), beide finden die Spule."""
+    bridge, call = api
+    call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04A1B2C3D4E5F6", "reset": True})
+    status, res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04FFEEDDCCBBAA", "reset": False})
+    assert status == 200 and res["spool"]["nfc_uids"] == ["04A1B2C3D4E5F6", "04FFEEDDCCBBAA"]
+    assert res["spool"]["nfc_uid"] == "04A1B2C3D4E5F6"                    # aeltere Apps: erste Kennung
+    for uid in ("04a1b2c3d4e5f6", "04ffeeddccbbaa"):
+        assert call("GET", f"/api/app/tag/{uid}", token=None)[1]["spool"]["spool_id"] == 1
+    # derselbe Tag noch einmal: keine Dublette
+    res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04FFEEDDCCBBAA", "reset": False})[1]
+    assert res["spool"]["nfc_uids"] == ["04A1B2C3D4E5F6", "04FFEEDDCCBBAA"]
+    # ein dritter: hoechstens zwei, der aelteste faellt raus
+    res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04111111111111", "reset": False})[1]
+    assert res["spool"]["nfc_uids"] == ["04FFEEDDCCBBAA", "04111111111111"]
+    # neu schreiben (Standard wie aeltere Apps): ersetzt beide
+    res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04222222222222"})[1]
+    assert res["spool"]["nfc_uids"] == ["04222222222222"]
+    assert call("GET", "/api/app/tag/04ffeeddccbbaa", token=None)[0] == 404
+
+
 def test_orca_bases_are_stored(api, cfg):
     bridge, call = api
     names = {"names": ["Generic PETG @System", "Generic PLA @System"]}

@@ -68,7 +68,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Zuletzt in der App angelegtes Filament - "Neue Spule" waehlt es vor. */
     val createdFilament: StateFlow<Int?> = _createdFilament
     /** Tag, der gerade geschrieben werden soll (Spule + Inhalt), null = kein Schreibauftrag. */
-    data class TagJob(val spoolId: Int, val content: TagContent, val ace: AceTag)
+    /** side 1/2: ACE 2 Pro braucht einen Tag pro Spulenseite, beide mit demselben Inhalt. */
+    data class TagJob(val spoolId: Int, val content: TagContent, val ace: AceTag, val side: Int = 1, val firstUid: String? = null)
     private val _tagJob = MutableStateFlow<TagJob?>(null)
     val tagJob: StateFlow<TagJob?> = _tagJob
     private val _me = MutableStateFlow<Device?>(null)
@@ -162,7 +163,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Tag-Nummer holen und den naechsten aufgelegten Tag damit beschreiben lassen. */
-    fun prepareTag(spoolId: Int, scanner: TagScanner) = launchSafe {
+    /** side 2 = nur den Tag fuer die zweite Spulenseite schreiben (der erste ist schon verknuepft). */
+    fun prepareTag(spoolId: Int, scanner: TagScanner, side: Int = 1) = launchSafe {
         _tagJob.value = null
         val issue = it.issueTag(spoolId)
         val ace = try { issue.tag.toAceTag() } catch (e: IllegalStateException) {
@@ -171,7 +173,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _messages.send(e.message ?: "Tag-Inhalt unvollständig"); return@launchSafe
         }
         scanner.armWrite(ace.encode())
-        _tagJob.value = TagJob(spoolId, issue.tag, ace)
+        val first = if (side == 2) state.value?.let { s -> (s.slots.mapNotNull { it.spool } + s.shelf)
+            .firstOrNull { it.spoolId == spoolId }?.nfcUids?.firstOrNull() } else null
+        _tagJob.value = TagJob(spoolId, issue.tag, ace, side, first)
     }
 
     fun cancelTag(scanner: TagScanner) {
@@ -179,17 +183,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _tagJob.value = null
     }
 
-    /** Tag ist beschrieben: Seriennummer mit der Spule verknuepfen. */
-    fun onTagWritten(r: WriteResult, done: (Int) -> Unit) = launchSafe {
+    /**
+     * Tag ist beschrieben: Kennung mit der Spule verknuepfen. Nach dem ersten Tag geht es gleich mit dem
+     * zweiten weiter (gleicher Inhalt, andere Spulenseite); derselbe Sticker zaehlt nicht als zweiter.
+     */
+    fun onTagWritten(r: WriteResult, scanner: TagScanner, done: (Int) -> Unit) = launchSafe {
         val job = _tagJob.value ?: return@launchSafe
         when (r) {
             is WriteResult.Failed -> _messages.send(r.message)
-            is WriteResult.Written -> {
-                it.linkTag(job.spoolId, r.uid, force = true)
-                _tagJob.value = null
-                _messages.send("Tag ${job.content.sku} geschrieben und mit Spule #${job.spoolId} verknüpft")
-                refresh()
-                done(job.spoolId)
+            is WriteResult.Written -> when {
+                job.side == 1 -> {
+                    it.linkTag(job.spoolId, r.uid, force = true, reset = true)
+                    scanner.armWrite(job.ace.encode())
+                    _tagJob.value = job.copy(side = 2, firstUid = r.uid)
+                    _messages.send("Tag 1 geschrieben – jetzt den zweiten Sticker für die andere Spulenseite")
+                }
+                r.uid == job.firstUid -> {
+                    scanner.armWrite(job.ace.encode())
+                    _messages.send("Das ist derselbe Sticker – bitte den zweiten ans Handy halten")
+                }
+                else -> {
+                    it.linkTag(job.spoolId, r.uid, force = true, reset = false)
+                    _tagJob.value = null
+                    _messages.send("Beide Tags ${job.content.sku} geschrieben und mit Spule #${job.spoolId} verknüpft")
+                    refresh()
+                    done(job.spoolId)
+                }
             }
         }
     }

@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.SpoolDetail
+import io.github.xnovosx.kobraspoolman.data.SpoolInfo
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
 import io.github.xnovosx.kobraspoolman.ui.theme.headerTint
@@ -47,7 +48,7 @@ fun SpoolScreen(
     onBack: () -> Unit,
     onMove: (Int?) -> Unit,
     onArchive: () -> Unit,
-    onWriteTag: () -> Unit,
+    onWriteTag: (side: Int) -> Unit,
 ) {
     var confirmArchive by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(K.Ground).verticalScroll(rememberScrollState())) {
@@ -67,7 +68,7 @@ fun SpoolScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoundIconButton(KIcons.Back, "Zurück", onBack, bg = K.Ground.copy(alpha = 0.4f))
-                Text("Spule #${sp.spoolId}" + (sp.nfcUid?.let { " · NFC-Tag verknüpft" } ?: ""), style = MaterialTheme.typography.labelMedium,
+                Text("Spule #${sp.spoolId}" + tagsLabel(sp), style = MaterialTheme.typography.labelMedium,
                     color = K.Text, modifier = Modifier.padding(start = 12.dp))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -110,8 +111,10 @@ fun SpoolScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SecondaryButton("Ins Regal", { onMove(null) }, Modifier.weight(1f), enabled = canWrite && !busy && sp.slot != null)
-                SecondaryButton(if (sp.nfcUid != null) "Tag neu schreiben" else "Tag schreiben", onWriteTag, Modifier.weight(1f),
-                    enabled = canWrite && !busy)
+                val tags = tagCount(sp)
+                // ACE 2 Pro: ein Tag pro Spulenseite. Fehlt der zweite, nur den nachschreiben.
+                SecondaryButton(when (tags) { 0 -> "Tags schreiben"; 1 -> "2. Tag schreiben"; else -> "Tags neu schreiben" },
+                    { onWriteTag(if (tags == 1) 2 else 1) }, Modifier.weight(1f), enabled = canWrite && !busy)
             }
             SecondaryButton("Leer · archivieren", { confirmArchive = true }, Modifier.fillMaxWidth(),
                 enabled = canWrite && !busy, danger = true)
@@ -153,3 +156,11 @@ private fun Chip(text: String, muted: Boolean = false) {
 
 @Composable
 private fun Spacer(height: androidx.compose.ui.unit.Dp) = androidx.compose.foundation.layout.Spacer(Modifier.height(height))
+
+private fun tagCount(sp: SpoolInfo): Int = sp.nfcUids.size.takeIf { it > 0 } ?: if (sp.nfcUid != null) 1 else 0
+
+private fun tagsLabel(sp: SpoolInfo): String = when (tagCount(sp)) {
+    0 -> ""
+    1 -> " · 1 NFC-Tag (zweite Seite fehlt)"
+    else -> " · 2 NFC-Tags"
+}

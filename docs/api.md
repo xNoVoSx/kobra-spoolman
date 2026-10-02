@@ -245,7 +245,7 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/app/state` | printer status, slots (with `tag_nr`/`nfc_uid`), shelf spools, dryer, `usage` (`live`, `open`), `can_write` |
+| GET | `/api/app/state` | printer status, slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write` |
 | GET | `/api/app/catalog` | vendors, templates (with their values), filaments, extra-field definitions with Orca keys, Orca base profiles |
 | GET | `/api/app/spools?q=` | all active spools, optional text filter |
 | GET | `/api/app/spool/{id}` | one spool, its filament, the last prints that used it |
@@ -258,7 +258,7 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 | POST | `/api/app/spool/{id}/location` | `{"slot": 1–4}` or `{"slot": null}` (shelf) |
 | POST | `/api/app/spool/{id}/archive` | empty spool: out of its slot, archived |
 | POST | `/api/app/tag/issue` | `{"spool_id"}` → tag number (reserved at the spool) and the tag content to write |
-| POST | `/api/app/tag/link` | `{"spool_id", "uid", "force"?}` → links a tag's UID (also original Anycubic tags) |
+| POST | `/api/app/tag/link` | `{"spool_id", "uid", "force"?, "reset"?}` → links a tag's UID (also original Anycubic tags). `reset` (default `true`) replaces all IDs; `false` adds a second one (other spool side), at most two |
 | GET | `/api/app/tag/{uid}` | spool for a scanned tag |
 | POST | `/api/orca/bases` | *(paired)* the Orca plugin reports its filament base profile names |
 

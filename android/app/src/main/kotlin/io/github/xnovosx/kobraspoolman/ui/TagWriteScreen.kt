@@ -49,7 +49,7 @@ fun TagWriteScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RoundIconButton(KIcons.Back, "Zurück", onCancel)
-            Text("Tag schreiben", style = MaterialTheme.typography.headlineSmall)
+            Text(if (job?.side == 2) "Tag 2 von 2" else "Tag 1 von 2", style = MaterialTheme.typography.headlineSmall)
         }
         Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
             Box(Modifier.size(232.dp).clip(CircleShape).border(1.dp, K.AccentSoft, CircleShape), contentAlignment = Alignment.Center) {
@@ -62,7 +62,11 @@ fun TagWriteScreen(
                 }
             }
         }
-        Text(if (job == null) "Tag-Inhalt wird vorbereitet …" else "Leeren Tag ans Handy halten",
+        Text(when {
+            job == null -> "Tag-Inhalt wird vorbereitet …"
+            job.side == 2 -> "Zweiten Sticker ans Handy halten"
+            else -> "Ersten Sticker ans Handy halten"
+        },
             style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Text(when {
             !scanner.nfcAvailable -> "Dieses Gerät hat kein NFC."
@@ -85,14 +89,16 @@ fun TagWriteScreen(
                 InfoRow("Bett", "${a.bedMin}–${a.bedMax} °C")
                 InfoRow("Menge", "${a.weightG} g · ${a.lengthM} m", last = true)
             }
-            Hint("Original-Anycubic-Tags sind schreibgeschützt – dafür leere NTAG213/215/216-Sticker nehmen.")
+            Hint(if (job.side == 2) "Für die andere Spulenseite: Die ACE 2 Pro liest nur die Seite zum Leser. Beide Sticker bekommen denselben Inhalt."
+                 else "Die ACE 2 Pro braucht einen Sticker pro Spulenseite – gleich danach kommt der zweite. " +
+                     "Original-Anycubic-Tags sind schreibgeschützt – dafür leere NTAG213/215/216-Sticker nehmen.")
             if (BuildConfig.DEBUG) {
                 TextButton(onClick = { scanner.simulate(TagScanner.randomUid()) }, modifier = Modifier.fillMaxWidth()) {
                     Text("Virtuellen Tag beschreiben (Test ohne NFC)", color = K.Accent)
                 }
             }
         }
-        SecondaryButton("Später schreiben", onCancel, Modifier.fillMaxWidth())
+        SecondaryButton(if (job?.side == 2) "Fertig – nur ein Tag" else "Später schreiben", onCancel, Modifier.fillMaxWidth())
     }
 }
 

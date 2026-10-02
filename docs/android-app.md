@@ -41,6 +41,9 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   never stored; *Werte übernehmen von …* copies a product line for a new colour.
 - **Write ACE tags** — the bridge reserves a tag number per spool; the app writes pages 4–31 in the
   ACE layout (verified byte for byte against original tags), reads them back and links the UID.
+  The ACE 2 Pro reads only the spool side facing its reader, so the app writes **two stickers with the
+  same content**, one per side (*Tag 1 von 2*, *Tag 2 von 2*); both IDs are linked, a scan of either
+  finds the spool. *2. Tag schreiben* adds a missing second one.
   Tag format: [findings](findings.md#anycubic-rfid-tags).
 - **ACE dryer** — humidity/temperature card; start, stop and the automation rules.
 - **Pairing and devices** — scan the QR code from *Geräte → Gerät hinzufügen* (web UI or another

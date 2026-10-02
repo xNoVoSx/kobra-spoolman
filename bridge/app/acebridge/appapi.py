@@ -251,6 +251,20 @@ def normalize_uid(uid: Any) -> str:
     return s if re.fullmatch(r"[0-9A-F]{8,20}", s) else ""
 
 
+MAX_TAGS = 2      # ACE 2 Pro: ein Tag pro Spulenseite, beide mit demselben Inhalt
+
+
+def uids_of(spool: Dict[str, Any]) -> List[str]:
+    """NFC-Kennungen einer Spule (Feld nfc_uid, mehrere durch Komma getrennt; alte Eintraege: eine)."""
+    raw = extra_value(spool, "nfc_uid") or ""
+    out: List[str] = []
+    for part in str(raw).split(","):
+        u = normalize_uid(part)
+        if u and u not in out:
+            out.append(u)
+    return out
+
+
 def tag_content(spool: Dict[str, Any], templates: List[Dict[str, Any]], tag_nr: int, prefix: str) -> Dict[str, Any]:
     """Was die App im ACE-Format auf den Tag schreibt (Kodierung macht die App).
 
@@ -429,7 +443,9 @@ class AppApi:
         for k in ("comment", "spool_weight", "price", "remaining_length", "first_used", "registered"):
             out[k] = sp.get(k)
         out["tag_nr"] = extra_value(sp, "tag_nr")
-        out["nfc_uid"] = extra_value(sp, "nfc_uid")
+        uids = uids_of(sp)
+        out["nfc_uid"] = uids[0] if uids else None       # aeltere Apps kennen nur eine Kennung
+        out["nfc_uids"] = uids
         return out
 
     def _with_tag(self, info: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -437,7 +453,8 @@ class AppApi:
         if not info:
             return info
         raw = self.bridge.sm.spool(info["spool_id"]) or {}
-        return {**info, "tag_nr": extra_value(raw, "tag_nr"), "nfc_uid": extra_value(raw, "nfc_uid")}
+        uids = uids_of(raw)
+        return {**info, "tag_nr": extra_value(raw, "tag_nr"), "nfc_uid": uids[0] if uids else None, "nfc_uids": uids}
 
     async def _ensure_spool_fields(self) -> None:
         sm = self.bridge.sm
@@ -730,14 +747,17 @@ class AppApi:
             uid = normalize_uid(body.get("uid"))
             if not uid:
                 raise AppError(400, "uid fehlt oder ist keine NFC-Kennung (Hex)")
-            other = next((s for s in b.sm.spools if s["id"] != sp["id"]
-                          and normalize_uid(extra_value(s, "nfc_uid")) == uid), None)
+            other = next((s for s in b.sm.spools if s["id"] != sp["id"] and uid in uids_of(s)), None)
             if other and not body.get("force"):
                 raise AppError(409, f"Dieser Tag gehoert schon zu Spule #{other['id']}")
             if other:
-                await self._patch_spool_extra(other["id"], {"nfc_uid": None})
-            await self._patch_spool_extra(sp["id"], {"nfc_uid": json.dumps(uid)})
-            log.info("Spule #%s: NFC-Tag %s verknuepft", sp["id"], uid)
+                rest = [u for u in uids_of(other) if u != uid]
+                await self._patch_spool_extra(other["id"], {"nfc_uid": json.dumps(",".join(rest)) if rest else None})
+            # reset (Standard, wie aeltere Apps): diese Kennung ersetzt alle; sonst als weiterer Tag dazu
+            # (zweite Spulenseite), hoechstens MAX_TAGS - die aelteste faellt raus
+            uids = [uid] if body.get("reset", True) else ([u for u in uids_of(sp) if u != uid] + [uid])[-MAX_TAGS:]
+            await self._patch_spool_extra(sp["id"], {"nfc_uid": json.dumps(",".join(uids))})
+            log.info("Spule #%s: NFC-Tag %s verknuepft (%d von %d)", sp["id"], uid, len(uids), MAX_TAGS)
             return web.json_response({"spool": self.spool_view(b.sm.spool(sp["id"]) or sp)})
 
         @r.get("/api/app/tag/{uid}")
@@ -746,7 +766,7 @@ class AppApi:
             uid = normalize_uid(request.match_info["uid"])
             if not uid:
                 raise AppError(400, "keine NFC-Kennung")
-            sp = next((s for s in b.sm.spools if normalize_uid(extra_value(s, "nfc_uid")) == uid), None)
+            sp = next((s for s in b.sm.spools if uid in uids_of(s)), None)
             if not sp:
                 raise AppError(404, "Unbekannter Tag")
             return web.json_response({"spool": self.spool_view(sp)})

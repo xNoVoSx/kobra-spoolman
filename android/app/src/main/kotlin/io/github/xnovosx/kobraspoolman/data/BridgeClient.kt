@@ -227,7 +227,7 @@ class BridgeClient(
         call("POST", "/api/app/tag/issue", json.encodeToString(SpoolIdBody.serializer(), SpoolIdBody(spoolId)),
             TagIssue.serializer())
 
-    suspend fun linkTag(spoolId: Int, uid: String, force: Boolean = false): SpoolInfo =
-        call("POST", "/api/app/tag/link", json.encodeToString(TagLink.serializer(), TagLink(spoolId, uid, force)),
+    suspend fun linkTag(spoolId: Int, uid: String, force: Boolean = false, reset: Boolean = true): SpoolInfo =
+        call("POST", "/api/app/tag/link", json.encodeToString(TagLink.serializer(), TagLink(spoolId, uid, force, reset)),
             SpoolResponse.serializer()).spool
 }

@@ -6,6 +6,16 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- Two NFC tags per spool (ACE 2 Pro reads only the side facing its reader): the bridge keeps up to two
+  tag IDs per spool (`nfc_uids`; `nfc_uid` stays the first for older apps), a scan finds the spool by
+  either; `POST /api/app/tag/link` takes `reset: false` to add the second. Web UI shows the tag count.
+
+## app 1.1.0 – 2026-10-02
+
+- Tags schreiben in zwei Schritten: beide Sticker bekommen denselben Inhalt, je einer pro Spulenseite
+- Derselbe Sticker zählt nicht als zweiter; „2. Tag schreiben“, wenn bei einer Spule nur einer fehlt
+
 ## [2.12.0] – 2026-10-01
 
 Ships app 1.0.0 — the first signed app release (APK on this release and inside the Docker image).

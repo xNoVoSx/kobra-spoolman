@@ -105,7 +105,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     LaunchedEffect(Unit) { scanner.tags.collect { vm.onTag(it) } }
     LaunchedEffect(Unit) {
         scanner.writes.collect { r ->
-            vm.onTagWritten(r) { id -> nav.navigate("spool/$id") { popUpTo("slots") } }
+            vm.onTagWritten(r, scanner) { id -> nav.navigate("spool/$id") { popUpTo("slots") } }
         }
     }
     val tagJob by vm.tagJob.collectAsState()
@@ -178,7 +178,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onBack = { nav.popBackStack() },
                     onMove = { vm.moveSpool(id, it) },
                     onArchive = { vm.archiveSpool(id) { nav.popBackStack() } },
-                    onWriteTag = { nav.navigate("tag/$id") })
+                    onWriteTag = { side -> nav.navigate("tag/$id?side=$side") })
             }
             composable("new?uid={uid}", arguments = listOf(navArgument("uid") { nullable = true; defaultValue = null })) { entry ->
                 val uid = entry.arguments?.getString("uid")
@@ -194,10 +194,12 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                         }
                     })
             }
-            composable("tag/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
+            composable("tag/{id}?side={side}", arguments = listOf(navArgument("id") { type = NavType.IntType },
+                navArgument("side") { type = NavType.IntType; defaultValue = 1 })) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable
+                val side = entry.arguments?.getInt("side") ?: 1
                 TagWriteScreen(id, tagJob?.takeIf { it.spoolId == id }, scanner, padding,
-                    onPrepare = { vm.prepareTag(id, scanner) },
+                    onPrepare = { vm.prepareTag(id, scanner, side) },
                     onCancel = {
                         vm.cancelTag(scanner)
                         nav.navigate("spool/$id") { popUpTo("slots") }

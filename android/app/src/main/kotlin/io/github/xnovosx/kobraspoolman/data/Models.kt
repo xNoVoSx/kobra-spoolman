@@ -219,6 +219,8 @@ data class SpoolInfo(
     val template: String? = null,
     @SerialName("tag_nr") val tagNr: Long? = null,
     @SerialName("nfc_uid") val nfcUid: String? = null,
+    /** ACE 2 Pro: ein Tag pro Spulenseite - bis zu zwei Kennungen. */
+    @SerialName("nfc_uids") val nfcUids: List<String> = emptyList(),
 )
 
 @Serializable
@@ -342,7 +344,13 @@ data class NewSpool(
 data class LocationChange(val slot: Int?)
 
 @Serializable
-data class TagLink(@SerialName("spool_id") val spoolId: Int, val uid: String, val force: Boolean = false)
+data class TagLink(
+    @SerialName("spool_id") val spoolId: Int,
+    val uid: String,
+    val force: Boolean = false,
+    /** true: diese Kennung ersetzt alle; false: zweiter Tag (andere Spulenseite) kommt dazu */
+    val reset: Boolean = true,
+)
 
 /** Druck aus der Historie (GET /api/jobs). */
 @Serializable

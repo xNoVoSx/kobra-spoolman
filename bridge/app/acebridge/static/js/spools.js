@@ -35,6 +35,12 @@ function confirmArchive(sp) {
   });
 }
 
+/** "· 2 NFC-Tags" bzw. Hinweis, wenn fuer die ACE 2 Pro der Tag der zweiten Spulenseite fehlt. */
+function tagsText(sp) {
+  const n = (sp.nfc_uids || (sp.nfc_uid ? [sp.nfc_uid] : [])).length;
+  return n >= 2 ? " · 2 NFC-Tags" : n === 1 ? " · 1 NFC-Tag (zweite Seite fehlt)" : "";
+}
+
 /** Spulen nach Suche und Filter. */
 export function useFilteredSpools() {
   const all = S.spools || [];
@@ -171,7 +177,7 @@ export function SpoolDetail({ id, onBack }) {
       <div class="grow">
         <div class="m small muted">SPULE #${sp.spool_id} · ${sp.slot ? `IM ACE, SLOT ${sp.slot}` : (sp.location || "ohne Ort").toUpperCase()}</div>
         <div class="g ell" style="font-weight:700;font-size:24px">${title(sp)}</div>
-        <div class="muted small">${sp.vendor}${sp.tag_nr ? ` · Tag ${sp.tag_nr}` : ""}${sp.nfc_uid ? " · NFC verknüpft" : ""}</div>
+        <div class="muted small">${sp.vendor}${sp.tag_nr ? ` · Tag ${sp.tag_nr}` : ""}${tagsText(sp)}</div>
       </div>
       <button class="btn" onClick=${(e) => { e.stopPropagation(); menu(e); }}>${sp.slot ? "Slot ändern" : "In Slot legen"}</button>
     </div>
