@@ -306,6 +306,9 @@ GoKlipper's object `filament_hub` (queryable/subscribable via Moonraker, not lis
 - `rfid` per slot: 1 = no tag, 2 = tag (more reliable than `gate_spool_id > 0`).
 - Rinkhals' `mmu` view reports `dryer_humidity`/`dryer_remaining` as 0: it reads `humidity` inside
   `dryer_status` and `remaining_time` instead of the hub's `humidity` and `remain_time`.
+- `dryer_status.duration` is in **minutes**, `remain_time` in **seconds** (2026-10-02: `duration 360`,
+  `remain_time 21540` right after the start). `temp` is the current air temperature in the ACE,
+  `target_temp` the set point.
 - Dryer commands (Rinkhals): `MMU_DRYER_START UNIT=0 DURATION=<min> TEMP=<°C> [FAN_SPEED=…]`,
   `MMU_DRYER_STOP UNIT=0`. ACE 2 Pro dries up to 65 °C (Anycubic), the first ACE Pro up to 55 °C.
 

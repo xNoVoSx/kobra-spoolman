@@ -69,8 +69,8 @@ def run(c):
 
 
 def test_hub_state_and_ace_limits():
-    h = hub_state(hub(humidity=24, drying=True, target=55, remain=200))
-    assert h["humidity"] == 24 and h["drying"] and h["target_temp"] == 55 and h["remaining_min"] == 200
+    h = hub_state(hub(humidity=24, drying=True, target=55, remain=12000))
+    assert h["humidity"] == 24 and h["drying"] and h["target_temp"] == 55 and h["remaining_min"] == 200   # ACE meldet Sekunden
     assert hub_state({})["present"] is False
     assert ace_max_temp("Anycubic Color Engine Pro 2.0") == 65 and ace_max_temp("Anycubic Color Engine Pro") == 55
 
@@ -101,10 +101,10 @@ def test_automation_starts_above_and_stops_below(make, cfg):
     run(d.evaluate())
     assert len(moon.sent) == 1                                    # ACE hat noch nicht gemeldet
     clock.t += COMMAND_SETTLE_S + 1
-    moon.merge(hub(humidity=12, drying=True, target=60, remain=300))
+    moon.merge(hub(humidity=12, drying=True, target=60, remain=18000))
     run(d.evaluate())
     assert len(moon.sent) == 1                                    # 12 % > 10 %: weiter
-    moon.merge(hub(humidity=9, drying=True, target=60, remain=250))
+    moon.merge(hub(humidity=9, drying=True, target=60, remain=15000))
     run(d.evaluate())
     assert moon.sent[-1] == "MMU_DRYER_STOP UNIT=0" and not d.auto_run
     clock.t += COMMAND_SETTLE_S + 1
@@ -117,7 +117,7 @@ def test_automation_starts_above_and_stops_below(make, cfg):
 
 
 def test_sensitive_spool_lowers_a_running_manual_drying(make):
-    d, moon, clock = make([spool(1, 1, "PETG"), spool(2, 2, "PLA")], hub(drying=True, target=60, remain=120))
+    d, moon, clock = make([spool(1, 1, "PETG"), spool(2, 2, "PLA")], hub(drying=True, target=60, remain=7200))
     run(d.evaluate())
     assert moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=120 TEMP=55"]
     assert "gesenkt" in d.last_event["text"]
@@ -160,7 +160,7 @@ def test_planned_drying_starts_once_and_survives_restart(make, cfg):
 
 
 def test_planned_drying_when_already_drying_is_dropped(make):
-    d, moon, clock = make([spool(1, 1, "PETG")], hub(drying=True, target=60, remain=100))
+    d, moon, clock = make([spool(1, 1, "PETG")], hub(drying=True, target=60, remain=6000))
     d.set_schedule(clock.t + 10)
     clock.t += 11
     run(d.evaluate())

@@ -127,7 +127,7 @@ export function DryerCard({ big }) {
     ${d.present && html`
     <div class="row wrap" style="gap:28px;align-items:flex-end">
       <div><div class="m" style=${{ fontSize: big ? "44px" : "32px", fontWeight: 600, lineHeight: 1 }}>${num(d.humidity, 0)}<span class="muted" style="font-size:.5em"> %</span></div><div class="small muted">Feuchte${d.config?.enabled ? ` · Ziel unter ${num(d.config.stop_below, 0)} %` : ""}</div></div>
-      <div><div class="m" style=${{ fontSize: big ? "44px" : "32px", fontWeight: 600, lineHeight: 1 }}>${num(d.drying ? d.target_temp : d.temp, 0)}<span class="muted" style="font-size:.5em"> °C</span></div><div class="small muted">${d.drying ? "Soll" : "im ACE"}${limited.length ? ` · Grenze ${limited[0].name}` : ""}</div></div>
+      <div><div class="m" style=${{ fontSize: big ? "44px" : "32px", fontWeight: 600, lineHeight: 1 }}>${num(d.temp, 0)}<span class="muted" style="font-size:.5em"> °C</span></div><div class="small muted">im ACE${d.drying ? ` · Soll ${num(d.target_temp, 0)} °C` : ""}${limited.length ? ` · Grenze ${limited[0].name}` : ""}</div></div>
     </div>
     <div class="small muted">
       ${d.drying ? `Noch ${minutes(d.remaining_min)}. ` : ""}

@@ -54,6 +54,7 @@ def hub_state(status: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     hubs = ((status.get("filament_hub") or {}).get("filament_hubs")) or []
     h = hubs[0] if hubs and isinstance(hubs[0], dict) else {}
     ds = h.get("dryer_status") or {}
+    remain_s = ds.get("remain_time") or 0          # Sekunden (duration dagegen in Minuten)
     return {
         "present": bool(h),
         "model": h.get("filament_model"),
@@ -63,7 +64,7 @@ def hub_state(status: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         "drying": (ds.get("status") or "stop") == "drying",
         "target_temp": ds.get("target_temp") or None,
         "duration_min": ds.get("duration") or None,
-        "remaining_min": ds.get("remain_time") or None,
+        "remaining_min": round(remain_s / 60) if remain_s else None,
     }
 
 
