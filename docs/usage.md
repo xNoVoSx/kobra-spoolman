@@ -119,7 +119,7 @@ pause; optionally also while printing.
 
 The temperature is **never higher than the most sensitive loaded filament allows** — the field
 *Trocknen max.* on the filament, else on its template, else a cautious default per material
-(PLA 45 °C, PETG 60 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C).
+(PLA 55 °C, PETG 60 °C, TPU 55 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C).
 If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once. The
 **Trockner** page shows which slot sets the limit.
 

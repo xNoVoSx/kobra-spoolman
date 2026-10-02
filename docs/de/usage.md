@@ -122,7 +122,7 @@ Pause; wahlweise auch während eines Drucks.
 
 Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament verträgt** – Feld
 *Trocknen max.* am Filament, sonst an der Vorlage, sonst ein vorsichtiger Wert pro Material
-(PLA 45 °C, PETG 60 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C).
+(PLA 55 °C, PETG 60 °C, TPU 55 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C).
 Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort. Die
 Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
 

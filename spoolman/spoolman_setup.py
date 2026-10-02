@@ -80,7 +80,7 @@ TEMPLATES = [
         "settings_extruder_temp": 220,
         "settings_bed_temp": 55,
         "extra": {
-            "dry_temp": 45,
+            "dry_temp": 55,
             "orca_basis": "Generic PLA @System",
             "nozzle_temp_first_layer": 220,
             "bed_temp_first_layer": 55,
@@ -106,7 +106,7 @@ TEMPLATES = [
         "settings_extruder_temp": 220,
         "settings_bed_temp": 55,
         "extra": {
-            "dry_temp": 45,
+            "dry_temp": 55,
             "orca_basis": "Generic PLA Silk @System",
             "nozzle_temp_first_layer": 220,
             "bed_temp_first_layer": 55,
@@ -183,7 +183,7 @@ TEMPLATES = [
         "settings_extruder_temp": 240,
         "settings_bed_temp": 35,
         "extra": {
-            "dry_temp": 50,
+            "dry_temp": 55,
             "orca_basis": "Generic TPU @System",
             "nozzle_temp_first_layer": 240,
             "bed_temp_first_layer": 35,
@@ -210,7 +210,7 @@ TEMPLATES = [
         "settings_extruder_temp": 220,
         "settings_bed_temp": 55,
         "extra": {
-            "dry_temp": 50,
+            "dry_temp": 55,
             "orca_basis": "Generic PLA-CF @System",
             "nozzle_temp_first_layer": 220,
             "bed_temp_first_layer": 55,

@@ -29,14 +29,16 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("dryer")
 
-# Vorsichtige Startwerte (unterhalb der Erweichung); in Spoolman je Material/Filament aenderbar
+# Startwerte nach Herstellerangaben fuer Trockner (Bambu, Sunlu, Polymaker), etwas unter deren Obergrenze;
+# PETG bleibt bei 60, weil Sunlu-PETG bei 65 degC ueber Stunden auf der Spule verkleben kann.
+# In Spoolman je Material/Filament aenderbar (Zusatzfeld dry_temp)
 DEFAULT_DRY_TEMP = {
-    "PLA": 45, "PLA-CF": 50, "TPU": 50, "PEBA": 50, "PVA": 45, "BVOH": 45,
+    "PLA": 55, "PLA-CF": 55, "TPU": 55, "PEBA": 55, "PVA": 50, "BVOH": 50,
     "PETG": 60, "PET": 60, "PCTG": 60, "HIPS": 60,
     "PETG-CF": 65, "PET-CF": 65, "ABS": 65, "ABS-GF": 65, "ASA": 65, "ASA-CF": 65,
     "PA": 65, "PA-CF": 65, "PA6-CF": 65, "PC": 65, "PPS": 65,
 }
-FALLBACK_DRY_TEMP = 45          # unbekanntes Material: wie PLA
+FALLBACK_DRY_TEMP = 50          # unbekanntes Material: vorsichtiger als PLA
 # Die ACE meldet ihren Zustand nur etwa alle 20 s: nach einem Befehl so lange nichts neu entscheiden
 COMMAND_SETTLE_S = 90
 

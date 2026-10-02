@@ -6,6 +6,18 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.15.1] – 2026-10-02
+
+### Changed
+- Dryer: default maximum temperatures raised to what dryer makers recommend (Bambu, Sunlu, Polymaker):
+  PLA, PLA-CF, TPU and PEBA 45/50 → 55 °C, PVA/BVOH 45 → 50 °C, unknown material 45 → 50 °C. PETG
+  stays at 60 °C (Sunlu PETG can fuse on the spool at 65 °C over hours). The Spoolman setup templates
+  follow; a value in the filament's *Trocknen max.* field still wins.
+
+### Fixed
+- Web: the camera image stuck to the left on wide, low windows (the 16:10 box shrank its width under
+  the height cap); it is centred now.
+
 ## [2.15.0] – 2026-10-02
 
 Ships app 1.3.0 (print notifications on the phone).

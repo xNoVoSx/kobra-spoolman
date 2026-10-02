@@ -78,7 +78,7 @@ def test_hub_state_and_ace_limits():
 def test_required_temp_is_the_most_sensitive_filament(make):
     d, _, _ = make([spool(1, 1, "PETG"), spool(2, 2, "PLA"), spool(3, 3, "PETG", dry_temp=70)], hub())
     r = d.required_temp()
-    assert r["temp"] == 45 and r["limited_by"] == [2]             # PLA bestimmt
+    assert r["temp"] == 55 and r["limited_by"] == [2]             # PLA bestimmt
     d, _, _ = make([spool(1, 1, "PETG"), spool(3, 3, "ABS", dry_temp=70)], hub())
     assert d.required_temp()["temp"] == 60                        # PETG; ABS 70 > 65 ist ohnehin gedeckelt
     d, _, _ = make([spool(3, 3, "ABS", dry_temp=70)], hub(model="Anycubic Color Engine Pro"))
@@ -88,7 +88,7 @@ def test_required_temp_is_the_most_sensitive_filament(make):
 def test_manual_start_is_capped(make):
     d, moon, _ = make([spool(1, 1, "PLA")], hub())
     res = run(d.start(70, 4))
-    assert res["temp"] == 45 and moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=240 TEMP=45"]
+    assert res["temp"] == 55 and moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=240 TEMP=55"]
 
 
 def test_automation_starts_above_and_stops_below(make, cfg):
@@ -119,7 +119,7 @@ def test_automation_starts_above_and_stops_below(make, cfg):
 def test_sensitive_spool_lowers_a_running_manual_drying(make):
     d, moon, clock = make([spool(1, 1, "PETG"), spool(2, 2, "PLA")], hub(drying=True, target=60, remain=120))
     run(d.evaluate())
-    assert moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=120 TEMP=45"]
+    assert moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=120 TEMP=55"]
     assert "gesenkt" in d.last_event["text"]
 
 
@@ -152,7 +152,7 @@ def test_planned_drying_starts_once_and_survives_restart(make, cfg):
     assert moon.sent == []                                         # noch nicht faellig
     clock.t += 3601
     run(d.evaluate())
-    assert moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=240 TEMP=45"]   # auf PLA gedeckelt
+    assert moon.sent == ["MMU_DRYER_START UNIT=0 DURATION=240 TEMP=55"]   # auf PLA gedeckelt
     assert d.schedule is None and d.state()["schedule"] is None
     d.set_schedule(clock.t + 60)
     d.clear_schedule()
