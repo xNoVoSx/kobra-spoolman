@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.14.1"
+__version__ = "2.15.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.15.0", "2026-10-02", [
+        "App 1.3.0: Druck-Benachrichtigungen aufs Handy (ersetzt den OctoApp-Companion)",
+        "Kamera wird im Druck nicht mehr unnötig gedrosselt (Schwellen 90/97 %, sanfte Schritte)",
+    ]),
     ("2.14.1", "2026-10-02", [
         "RFID automatisch: wartet beim Start auf Spoolman und prüft unbekannte Tags erneut",
     ]),

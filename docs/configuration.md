@@ -36,7 +36,7 @@
 | `CAMERA` | `true` | camera through the bridge (web UI, app, Mainsail via camera link) |
 | `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the printer's MJPEG stream instead — on the Kobra S1 that alone costs 100 % CPU |
 | `CAMERA_FPS_MIN` / `CAMERA_FPS_MAX` | `1` / `10` | range of the snapshot rate |
-| `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `70` / `85` | printer CPU (%, mean over 5 s): below LOW the rate goes up by 1 fps every 5 s, above HIGH it is halved at once |
+| `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | printer CPU (%, mean over 10 s): below LOW the rate goes up by 1 fps every 5 s, above HIGH down by 1 fps every 5 s. During a print the S1 sits at 75–89 % from GoKlipper alone; snapshots cost next to nothing |
 | `CAMERA_STREAM_URL` | – | stream URL; empty = from Moonraker's webcam list (`/webcam/?action=stream` on the printer) |
 | `CAMERA_SNAPSHOT_URL` | – | snapshot URL; empty = from Moonraker's webcam list (`/webcam/?action=snapshot` on the printer) |
 | `CAMERA_INTERVAL_S` | `1` | a single `snapshot.jpg` request reuses an image younger than this |

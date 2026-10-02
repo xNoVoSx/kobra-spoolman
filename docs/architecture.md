@@ -70,8 +70,9 @@ The bridge therefore fetches snapshots one after another — only while someone 
 after the last viewer — and fans each frame out: web UI, app, Mainsail (camera link) and later the AI
 service. Each viewer always gets the newest frame; a slow viewer skips frames instead of queueing.
 The rate follows the printer's CPU from Moonraker's `notify_proc_stat_update` (pushed anyway, no extra
-request): +1 fps every 5 s while the CPU is low, halved at once when it is high (1–10 fps by
-default). The UIs show the frame rate in the corner and *gedrosselt* when the bridge holds back;
+request, mean over 10 s): +1 fps every 5 s below 90 %, −1 fps every 5 s above 97 % (1–10 fps by
+default). The thresholds are high on purpose: during a print GoKlipper alone keeps the S1 at 75–89 %,
+and snapshots cost next to nothing, so the camera should only give way when the printer is saturated. The UIs show the frame rate in the corner and *gedrosselt* when the bridge holds back;
 *Status* shows the printer CPU.
 
 ## Web UI (`bridge/app/acebridge/static/`)

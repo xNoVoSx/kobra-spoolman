@@ -8,7 +8,7 @@ Mainsail (Kamera-Link) und spaeter die KI.
 
 Die Bildrate regelt sich nach der Drucker-CPU (notify_proc_stat_update, kommt ohnehin ueber die eine
 Moonraker-Verbindung): Start mit 2 fps; CPU-Mittel unter CAMERA_CPU_LOW -> alle 5 s +1 fps bis CAMERA_FPS_MAX;
-ueber CAMERA_CPU_HIGH -> sofort halbieren bis CAMERA_FPS_MIN. Der Druck hat immer Vorrang.
+ueber CAMERA_CPU_HIGH -> alle 5 s 1 fps weniger bis CAMERA_FPS_MIN. Der Druck hat immer Vorrang.
 CAMERA_STREAM=true nutzt stattdessen den Stream des Druckers (fuer Drucker, bei denen er billig ist).
 """
 
@@ -33,7 +33,8 @@ FIRST_FRAME_TIMEOUT_S = 6.0
 RETRY_S = 5.0                # nach einem Abbruch frühestens wieder verbinden
 NO_STREAM_RETRY_S = 300.0    # Drucker liefert gar keinen Stream: so lange Einzelbilder
 START_FPS = 2.0
-ADJUST_S = 5.0               # Regelschritt und Mittelungsfenster der CPU
+ADJUST_S = 5.0               # Regelschritt
+CPU_WINDOW_S = 10.0          # Mittelungsfenster der Drucker-CPU (kurze Spitzen im Druck zaehlen weniger)
 
 
 class CameraError(Exception):
@@ -150,12 +151,14 @@ class Camera:
         return self._viewers == 0 and self.clock() > self._wanted_until
 
     def adjust(self, cpu: Optional[float]) -> None:
-        """Ein Regelschritt: hohe Drucker-CPU -> halbieren, niedrige -> +1 fps. Ohne CPU-Werte: nichts aendern."""
+        """Ein Regelschritt: Drucker-CPU ueber CAMERA_CPU_HIGH -> 1 fps weniger, unter CAMERA_CPU_LOW -> 1 fps mehr.
+        Die Last im Druck kommt fast ganz von GoKlipper, Einzelbilder kosten kaum etwas (findings) - darum hohe
+        Schwellen und kleine Schritte: eine einzelne Spitze soll die Kamera nicht abwuergen. Ohne CPU-Werte: nichts."""
         lo, hi = float(self.cfg.camera_fps_min), float(self.cfg.camera_fps_max)
         if cpu is None:
             return
         if cpu > self.cfg.camera_cpu_high:
-            new = max(lo, self.target_fps / 2)
+            new = max(lo, self.target_fps - 1)
             if new < self.target_fps:
                 log.info("Kamera: Drucker-CPU %.0f %% - %.1f -> %.1f fps", cpu, self.target_fps, new)
             self.target_fps, self.throttled = new, True
@@ -175,7 +178,7 @@ class Camera:
             while not self._idle():
                 started = self.clock()
                 if started >= next_adjust:
-                    self.adjust(cpu_of(ADJUST_S) if cpu_of else None)
+                    self.adjust(cpu_of(CPU_WINDOW_S) if cpu_of else None)
                     next_adjust = started + ADJUST_S
                 try:
                     async with self.session.get(self.snapshot_url, timeout=aiohttp.ClientTimeout(total=8)) as r:

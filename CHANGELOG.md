@@ -6,6 +6,15 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.15.0] – 2026-10-02
+
+Ships app 1.3.0 (print notifications on the phone).
+
+### Changed
+- Camera: the CPU regulation no longer chokes the camera during a print. GoKlipper alone keeps the S1 at
+  75–89 % while printing and snapshots cost next to nothing, so the defaults are now 90 % (go up) and
+  97 % (go down), steps of 1 fps instead of halving, CPU averaged over 10 s.
+
 ## app 1.3.0 – 2026-10-02
 
 - Druck im Hintergrund überwachen (ersetzt den OctoApp-Companion, der auf dem Drucker 64 % CPU brauchte):

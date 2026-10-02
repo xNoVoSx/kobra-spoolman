@@ -166,8 +166,8 @@ contains `ace` (the settings).
 **One source at the printer, adapted to its CPU.** While someone watches (and 20 s after the last
 viewer) the bridge fetches single snapshots one after another and hands every frame to all viewers.
 The rate starts at 2 fps and follows the printer's CPU, which Moonraker pushes about once a second
-(`notify_proc_stat_update`, no extra request): below `CAMERA_CPU_LOW` +1 fps every 5 s up to
-`CAMERA_FPS_MAX`, above `CAMERA_CPU_HIGH` halved at once down to `CAMERA_FPS_MIN`. With
+(`notify_proc_stat_update`, no extra request; mean over 10 s): below `CAMERA_CPU_LOW` +1 fps every 5 s up
+to `CAMERA_FPS_MAX`, above `CAMERA_CPU_HIGH` −1 fps every 5 s down to `CAMERA_FPS_MIN`. With
 `CAMERA_STREAM=true` the bridge holds the printer's MJPEG stream instead (one connection, falls back
 to snapshots if the printer has none).
 

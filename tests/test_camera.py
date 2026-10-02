@@ -217,26 +217,26 @@ def test_default_polls_snapshots_and_never_opens_the_printer_stream(printer):
 
 
 def test_rate_follows_printer_cpu():
+    """Hohe Schwellen, kleine Schritte: die Last im Druck (75-89 %) kommt von GoKlipper, nicht von der Kamera."""
     cfg = SimpleNamespace(camera=True, camera_stream=False, camera_fps_min=1.0, camera_fps_max=10.0,
-                          camera_cpu_low=70.0, camera_cpu_high=85.0, camera_stream_url="x", camera_snapshot_url="y")
+                          camera_cpu_low=90.0, camera_cpu_high=97.0, camera_stream_url="x", camera_snapshot_url="y")
     cam = Camera(cfg, SimpleNamespace(), None)
     cam.target_fps = 2.0
     for _ in range(20):
-        cam.adjust(40.0)                                   # Drucker hat Luft: hoch bis zum Maximum
+        cam.adjust(80.0)                                   # normaler Druck: hoch bis zum Maximum
     assert cam.target_fps == 10.0 and not cam.throttled
-    cam.adjust(95.0)
-    assert cam.target_fps == 5.0 and cam.throttled         # zu viel: sofort halbieren
-    cam.adjust(78.0)
-    assert cam.target_fps == 5.0                           # zwischen den Schwellen: halten
-    for _ in range(5):
-        cam.adjust(99.0)
+    cam.adjust(92.0)
+    assert cam.target_fps == 10.0                          # zwischen den Schwellen: halten
+    cam.adjust(99.0)
+    assert cam.target_fps == 9.0 and cam.throttled         # am Anschlag: nur 1 fps weniger, nicht halbieren
+    for _ in range(20):
+        cam.adjust(100.0)
     assert cam.target_fps == 1.0                           # nie unter das Minimum
     cam.adjust(None)
     assert cam.target_fps == 1.0                           # ohne CPU-Werte nichts aendern
     for _ in range(9):
-        cam.adjust(50.0)
+        cam.adjust(60.0)
     assert cam.target_fps == 10.0 and not cam.throttled
-
 
 
 def test_viewer_disconnect_is_not_an_error():
