@@ -1,9 +1,10 @@
 package io.github.xnovosx.kobraspoolman.monitor
 
 import io.github.xnovosx.kobraspoolman.data.AppState
+import kotlin.math.abs
 
-/** Art einer Benachrichtigung - je Art ein eigener Android-Kanal (laut/leise einzeln einstellbar). */
-enum class EventKind { PRINT, ALARM, HINT }
+/** Art einer Benachrichtigung - je Art ein eigener Android-Kanal mit eigenem Ton (einzeln einstellbar). */
+enum class EventKind { START, LAYER, DONE, ALARM, HINT }
 
 /** Ein Ereignis fuer eine Benachrichtigung. key: dieselbe Meldung ersetzt sich selbst statt zu stapeln. */
 data class PrintEvent(val kind: EventKind, val title: String, val text: String, val key: String)
@@ -17,6 +18,8 @@ class EventDetector(
     private val tempDropMs: Long = 30_000L,
     private val tempDropK: Double = 15.0,
     private val goneMs: Long = 60_000L,
+    private val spoolmanMs: Long = 5 * 60_000L,
+    private val ownActionMs: Long = 120_000L,
 ) {
     private var prevState: String? = null
     private var firstLayerFile: String? = null
@@ -29,6 +32,7 @@ class EventDetector(
     private var printerGoneSince: Long? = null
     private var printerAlarmed = false
     private var wasPrinting = false
+    private var spoolmanSince: Long? = null
     private val noticeKeys = mutableSetOf<String>()
 
     /** Diese Meldungen der Bridge deckt der Druckzustand schon ab (sonst doppelt). */
@@ -59,25 +63,27 @@ class EventDetector(
             prevState = st
             wasPrinting = printing
             if (printing && (p.layer ?: 0) >= 2) firstLayerFile = file
-            noticeKeys += state.notices?.messages.orEmpty().map { it.key + "|" + it.text }
+            noticeKeys += state.notices?.messages.orEmpty().map { it.key }
             return out
         }
 
         // ---- Druckzustand
         if (prev != st) {
             val was = prev == "printing" || prev == "paused"
+            // Pause/Abbruch ueber Web oder App kam von dir - kein Alarm (die Live-Leiste zeigt "Pausiert")
+            val lc = state.lastControl
+            fun own(action: String) = lc != null && lc.action == action && abs(now - (lc.at * 1000).toLong()) < ownActionMs
             when {
-                st == "printing" && prev == "paused" ->
-                    out += PrintEvent(EventKind.PRINT, "Druck läuft weiter", file, "state")
                 st == "printing" && !was -> {
                     firstLayerFile = null
-                    out += PrintEvent(EventKind.PRINT, "Druck gestartet", file, "state")
+                    out += PrintEvent(EventKind.START, "Druck gestartet", file, "state")
                 }
-                st == "paused" -> out += PrintEvent(EventKind.ALARM, "Druck pausiert",
+                st == "paused" && !own("pause") -> out += PrintEvent(EventKind.ALARM, "Druck pausiert",
                     listOfNotNull(file, p.message).joinToString(" – "), "state")
-                st == "complete" && was -> out += PrintEvent(EventKind.PRINT, "Druck fertig",
+                st == "complete" && was -> out += PrintEvent(EventKind.DONE, "Druck fertig",
                     file + (p.printDurationS?.let { " · ${formatDuration(it)}" } ?: ""), "state")
-                st == "cancelled" && was -> out += PrintEvent(EventKind.ALARM, "Druck abgebrochen", file, "state")
+                st == "cancelled" && was && !own("cancel") ->
+                    out += PrintEvent(EventKind.ALARM, "Druck abgebrochen", file, "state")
                 st == "error" -> out += PrintEvent(EventKind.ALARM, "Druckerfehler",
                     p.message ?: "Der Drucker meldet einen Fehler.", "state")
             }
@@ -102,7 +108,7 @@ class EventDetector(
         val layer = p.layer
         if (st == "printing" && layer != null && layer >= 2 && firstLayerFile != file) {
             firstLayerFile = file
-            out += PrintEvent(EventKind.PRINT, "Erste Schicht fertig", "$file – jetzt kurz aufs Bett schauen", "layer")
+            out += PrintEvent(EventKind.LAYER, "Erste Schicht fertig", "$file – jetzt kurz aufs Bett schauen", "layer")
         }
 
         // ---- Farbwechsel haengt
@@ -132,14 +138,19 @@ class EventDetector(
             coldAlarmed = false
         }
 
-        // ---- Meldungen der Bridge: neue rote -> Alarm, gelbe -> Hinweis ("reicht nicht" ist ein Alarm)
-        val current = state.notices?.messages.orEmpty().filter { it.key !in ownKeys && it.level != "info" }
-        val keys = current.map { it.key + "|" + it.text }.toSet()
-        noticeKeys.retainAll(keys)
+        // ---- Meldungen der Bridge: nur, was man tun kann. Rot und "reicht nicht" -> Alarm; unbekannter Tag und
+        // Spoolman laenger weg -> Hinweis; alles andere (fast leer, offene Buchung, Feuchte ...) bleibt in der App.
+        // Gleiche Meldung = gleicher key (der Text aendert sich, z. B. "braucht noch 12 g" -> "11 g").
+        val messages = state.notices?.messages.orEmpty()
+        spoolmanSince = if (messages.any { it.key == "spoolman" }) spoolmanSince ?: now else null
+        val current = messages.filter { m ->
+            m.key !in ownKeys && (m.level == "error" || m.key.startsWith("reach") || m.key.startsWith("tag") ||
+                (m.key == "spoolman" && now - (spoolmanSince ?: now) >= spoolmanMs))
+        }
+        noticeKeys.retainAll(current.map { it.key }.toSet())
         for (m in current) {
-            val id = m.key + "|" + m.text
-            if (id in noticeKeys) continue
-            noticeKeys += id
+            if (m.key in noticeKeys) continue
+            noticeKeys += m.key
             val alarm = m.level == "error" || m.key.startsWith("reach")
             out += PrintEvent(if (alarm) EventKind.ALARM else EventKind.HINT,
                 if (alarm) "Achtung" else "Hinweis", m.text, "notice-" + m.key)

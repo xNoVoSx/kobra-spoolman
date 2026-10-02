@@ -21,9 +21,10 @@ REACH_MARGIN = 1.05         # 5 % Reserve bei "reicht die Spule?"
 RECENT_S = 30 * 60          # so lange bleiben "Druck fertig" / Trockner-Ereignisse als Info stehen
 ONLINE_S = 5 * 60           # Geraet gilt als verbunden, wenn es sich so kurz vorher gemeldet hat
 LEVELS = {"error": 0, "warn": 1, "info": 2}
-CPU_WARN = 70               # Status gelb ab
-CPU_BAD = 90                # Status rot ab; Meldung, wenn so lange wie CPU_LONG_S
-CPU_LONG_S = 60
+# Im Druck liegt der S1 allein durch GoKlipper bei 75-89 % - erst darueber ist es auffaellig. Keine Meldung:
+# daran laesst sich im Druck nichts aendern; haengt der Drucker wirklich, meldet sich "Drucker nicht erreichbar".
+CPU_WARN = 90               # Status gelb ab
+CPU_BAD = 97                # Status rot ab (wie CAMERA_CPU_HIGH)
 
 
 def _msg(level: str, text: str, key: str) -> Dict[str, str]:
@@ -171,10 +172,6 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
             last.get("state"), "beendet")
         out.append(_msg("info", f"Druck {word}: {last.get('file')} (vor {round(age / 60)} min)", "done"))
 
-    busy = getattr(bridge.moon, "cpu", None)
-    if busy and moon.connected and (busy(CPU_LONG_S) or 0) >= CPU_BAD and _cpu_covered(bridge, now_m=None):
-        out.append(_msg("warn", f"Drucker-CPU seit über {CPU_LONG_S // 60} min bei {busy(CPU_LONG_S):.0f} % – "
-                                "Drucker reagiert träge (Kamera ist schon gedrosselt)", "cpu"))
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
         out.append(_msg("info", cam["error"], "camera"))
@@ -187,15 +184,6 @@ def printer_cpu(bridge: "Bridge") -> Optional[float]:
     """Drucker-CPU (Mittel der letzten 5 s) aus Moonrakers notify_proc_stat_update."""
     cpu = getattr(bridge.moon, "cpu", None)
     return cpu(5.0) if callable(cpu) else None
-
-
-def _cpu_covered(bridge: "Bridge", now_m: Optional[float]) -> bool:
-    """Liegen Werte ueber die ganze Minute vor? (Sonst warnt ein einzelner Ausreisser nach dem Start.)"""
-    samples = getattr(bridge.moon, "cpu_samples", None)
-    if not samples:
-        return False
-    now_m = time.monotonic() if now_m is None else now_m
-    return now_m - samples[0][0] >= CPU_LONG_S
 
 
 # ====================================================================== Status

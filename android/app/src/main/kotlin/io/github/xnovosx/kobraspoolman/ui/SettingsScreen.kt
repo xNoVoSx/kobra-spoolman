@@ -86,13 +86,13 @@ fun SettingsScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Drucker im Hintergrund überwachen", style = MaterialTheme.typography.bodyLarge)
-                    Text("Fortschritt in der Leiste, Ton bei Start, erster Schicht und Ende, Alarm bei Pause, Fehler, " +
-                        "hängendem Farbwechsel oder wenn Drucker/Bridge weg sind. Fragt nur die Bridge ab – am Drucker " +
-                        "kostet das nichts. Laut/leise je Art in den Android-Einstellungen der App.",
+                    Text("Im Druck immer oben in der Leiste (Live-Update), eigene Töne für Start, erste Schicht, " +
+                        "fertig, Alarm und Hinweis. Fragt nur die Bridge ab – am Drucker kostet das nichts.",
                         style = MaterialTheme.typography.bodySmall, color = K.Muted)
                 }
                 Switch(monitor, onMonitor)
             }
+            SoundsSection()
         } else {
             if (invalid) Hint("Die Bridge kennt dieses Gerät nicht mehr (entfernt oder neu eingerichtet) – bitte neu koppeln.",
                 danger = true)

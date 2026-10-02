@@ -2,6 +2,7 @@ package io.github.xnovosx.kobraspoolman
 
 import io.github.xnovosx.kobraspoolman.data.AppState
 import io.github.xnovosx.kobraspoolman.data.Heater
+import io.github.xnovosx.kobraspoolman.data.LastControl
 import io.github.xnovosx.kobraspoolman.data.Notice
 import io.github.xnovosx.kobraspoolman.data.Notices
 import io.github.xnovosx.kobraspoolman.data.Printer
@@ -13,9 +14,10 @@ import org.junit.Test
 
 class EventDetectorTest {
     private fun st(state: String, layer: Int? = null, changing: Boolean = false, nozzle: Heater? = null,
-                   notices: List<Notice> = emptyList(), message: String? = null) =
+                   notices: List<Notice> = emptyList(), message: String? = null, control: LastControl? = null) =
         AppState(printer = Printer(state = state, file = "drybox.gcode", layer = layer, layers = 100,
-            changingFilament = changing, nozzle = nozzle, message = message), notices = Notices(notices))
+            changingFilament = changing, nozzle = nozzle, message = message), notices = Notices(notices),
+            lastControl = control)
 
     private fun titles(d: EventDetector, s: AppState?, t: Long) = d.update(s, t).map { it.title }
 
@@ -23,15 +25,17 @@ class EventDetectorTest {
     fun printLifecycle() {
         val d = EventDetector()
         assertEquals(emptyList<String>(), titles(d, st("standby"), 0))
-        assertEquals(listOf("Druck gestartet"), titles(d, st("printing", layer = 1), 1_000))
+        val start = d.update(st("printing", layer = 1), 1_000)
+        assertEquals(listOf("Druck gestartet"), start.map { it.title })
+        assertEquals(EventKind.START, start.single().kind)
         assertEquals(emptyList<String>(), titles(d, st("printing", layer = 1), 2_000))
-        assertEquals(listOf("Erste Schicht fertig"), titles(d, st("printing", layer = 2), 3_000))
+        assertEquals(listOf(EventKind.LAYER), d.update(st("printing", layer = 2), 3_000).map { it.kind })
         assertEquals(emptyList<String>(), titles(d, st("printing", layer = 3), 4_000))   // nur einmal
         val paused = d.update(st("paused", layer = 3, message = "Filament leer"), 5_000)
         assertEquals(EventKind.ALARM, paused.single().kind)
         assertTrue(paused.single().text.contains("Filament leer"))
-        assertEquals(listOf("Druck läuft weiter"), titles(d, st("printing", layer = 3), 6_000))
-        assertEquals(listOf("Druck fertig"), titles(d, st("complete"), 7_000))
+        assertEquals(emptyList<String>(), titles(d, st("printing", layer = 3), 6_000))   // weiter: steht in der Leiste
+        assertEquals(listOf(EventKind.DONE), d.update(st("complete"), 7_000).map { it.kind })
     }
 
     @Test
@@ -71,14 +75,43 @@ class EventDetectorTest {
     }
 
     @Test
-    fun bridgeNoticesBecomeAlarmsOrHints() {
+    fun ownPauseAndCancelAreNoAlarm() {
         val d = EventDetector()
         d.update(st("printing", layer = 3), 0)
-        val reach = Notice("warn", "Slot 2 reicht wohl nicht", "reach2")
+        val mine = LastControl("pause", "Handy", at = 99.0)                        // vor 1 s ueber die Bridge
+        assertEquals(emptyList<String>(), titles(d, st("paused", layer = 3, control = mine), 100_000))
+        d.update(st("printing", layer = 3), 105_000)
+        // spaeter pausiert der Drucker selbst (z. B. Filament leer) - die alte eigene Pause zaehlt nicht mehr
+        assertEquals(listOf(EventKind.ALARM), d.update(st("paused", layer = 4, control = mine), 400_000).map { it.kind })
+        d.update(st("printing", layer = 4), 405_000)
+        val cancel = LastControl("cancel", "Firefox", at = 409.0)
+        assertEquals(emptyList<String>(), titles(d, st("cancelled", control = cancel), 410_000))
+    }
+
+    @Test
+    fun onlyActionableBridgeNoticesReachThePhone() {
+        val d = EventDetector()
+        d.update(st("printing", layer = 3), 0)
+        val reach = Notice("warn", "Slot 2 reicht wohl nicht: braucht noch ~12 g", "reach2")
+        val tag = Notice("warn", "Slot 3: unbekannter Tag 4711", "tag3")
         val low = Notice("warn", "Slot 1 fast leer", "low1")
+        val open = Notice("warn", "1 Buchung noch nicht in Spoolman", "open")
+        val cpu = Notice("warn", "Drucker-CPU bei 94 %", "cpu")
         val info = Notice("info", "Trockner fertig", "dryer")
-        val ev = d.update(st("printing", layer = 3, notices = listOf(reach, low, info)), 5_000)
+        val ev = d.update(st("printing", layer = 3, notices = listOf(reach, tag, low, open, cpu, info)), 5_000)
         assertEquals(listOf(EventKind.ALARM, EventKind.HINT), ev.map { it.kind })
-        assertEquals(emptyList<String>(), titles(d, st("printing", layer = 3, notices = listOf(reach, low)), 10_000))
+        // gleiche Meldung mit neuem Text (weniger Gramm) kommt nicht noch einmal
+        val reach2 = reach.copy(text = "Slot 2 reicht wohl nicht: braucht noch ~11 g")
+        assertEquals(emptyList<String>(), titles(d, st("printing", layer = 3, notices = listOf(reach2, tag)), 10_000))
+    }
+
+    @Test
+    fun spoolmanGoneOnlyAfterFiveMinutes() {
+        val d = EventDetector()
+        d.update(st("standby"), 0)
+        val sm = listOf(Notice("warn", "Spoolman nicht erreichbar", "spoolman"))
+        assertEquals(emptyList<String>(), titles(d, st("standby", notices = sm), 1_000))
+        assertEquals(emptyList<String>(), titles(d, st("standby", notices = sm), 200_000))
+        assertEquals(listOf(EventKind.HINT), d.update(st("standby", notices = sm), 302_000).map { it.kind })
     }
 }

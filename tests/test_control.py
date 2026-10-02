@@ -71,6 +71,7 @@ def test_routes(api):
     assert call("/api/print/tune", {"speed": 120}, token=None)[0] == 401
     bridge.moon.merge({"print_stats": {"state": "printing"}})
     assert call("/api/print/pause")[0] == 200
+    assert bridge.last_control["action"] == "pause"          # die App meldet eigene Pausen nicht als Alarm
     status, res = call("/api/print/cancel")
     assert status == 409 and res["confirm"] is True
     assert call("/api/print/cancel", {"confirm": True})[0] == 200

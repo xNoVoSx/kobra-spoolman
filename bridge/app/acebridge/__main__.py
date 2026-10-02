@@ -6,7 +6,7 @@ import asyncio
 import logging
 import signal
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import aiohttp
 from aiohttp import web
@@ -56,6 +56,8 @@ class Bridge:
         self.console = Console()
         self.moon.console = self.console
         self._print_state = ""
+        # zuletzt ueber die Bridge ausgeloeste Druckaktion - die App meldet eigene Pausen nicht als Alarm
+        self.last_control: Optional[Dict[str, Any]] = None
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:
         if full:

@@ -37,8 +37,8 @@ jobs:
       # SDK mit angenommenen Lizenzen; fehlende Plattformen laedt das Android-Gradle-Plugin selbst
       - uses: android-actions/setup-android@v4
       - uses: gradle/actions/setup-gradle@v6
-      - name: Tests und Debug-APK
-        run: ./gradlew testDebugUnitTest assembleDebug
+      - name: Tests, Lint und Debug-APK
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug
       - name: Debug-APK hochladen
         uses: actions/upload-artifact@v7
         with:

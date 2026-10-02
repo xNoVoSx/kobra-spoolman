@@ -558,6 +558,7 @@ class AppApi:
                 "usage": {"live": b.usage.live(), "open": b.usage.open},
                 "warnings": b.safety_warnings() + b.slots.warnings,
                 "notices": notices(b),
+                "last_control": getattr(b, "last_control", None),
             })
 
         @r.get("/api/app/catalog")

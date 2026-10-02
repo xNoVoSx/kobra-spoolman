@@ -102,20 +102,18 @@ def test_recent_print_and_humidity_info(bridge):
     assert msgs["humidity"]["level"] == "info"
 
 
-def test_printer_cpu_line_and_long_load_warning(bridge):
+def test_printer_cpu_is_a_status_line_never_a_message(bridge):
     import collections
 
     from acebridge.moonraker import Moonraker
     now = time.monotonic()
     m = Moonraker.__new__(Moonraker)                      # nur die CPU-Hilfen, ohne Verbindung
-    m.cpu_samples = collections.deque([(now - 70 + i, 97.0) for i in range(70)])
+    m.cpu_samples = collections.deque([(now - 70 + i, 98.0) for i in range(70)])
     bridge.moon.cpu, bridge.moon.cpu_samples = m.cpu, m.cpu_samples
     n = notices(bridge)
     st = {s["key"]: s for s in n["status"]}
-    assert st["cpu"]["state"] == "bad" and st["cpu"]["detail"] == "97 %"
-    assert any(x["key"] == "cpu" for x in n["messages"])
+    assert st["cpu"]["state"] == "bad" and st["cpu"]["detail"] == "98 %"
+    assert not any(x["key"] == "cpu" for x in n["messages"])   # im Druck laesst sich daran nichts aendern
     m.cpu_samples.clear()
-    m.cpu_samples.extend([(now - 3, 40.0), (now - 1, 44.0)])
-    n = notices(bridge)
-    assert {s["key"]: s for s in n["status"]}["cpu"]["state"] == "ok"
-    assert not any(x["key"] == "cpu" for x in n["messages"])
+    m.cpu_samples.extend([(now - 3, 85.0), (now - 1, 87.0)])     # normal im Druck
+    assert {s["key"]: s for s in notices(bridge)["status"]}["cpu"]["state"] == "ok"

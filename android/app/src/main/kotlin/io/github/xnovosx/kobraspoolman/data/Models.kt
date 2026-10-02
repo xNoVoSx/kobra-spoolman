@@ -19,7 +19,12 @@ data class AppState(
     val ace: AceSettings? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
+    @SerialName("last_control") val lastControl: LastControl? = null,
 )
+
+/** Zuletzt ueber die Bridge ausgeloeste Druckaktion (pause, resume, cancel ...); at = Unix-Sekunden. */
+@Serializable
+data class LastControl(val action: String, val source: String = "", val at: Double = 0.0)
 
 /** Meldungen (nach Wichtigkeit) und Zustand der Verbindungen - von der Bridge berechnet. */
 @Serializable

@@ -179,7 +179,7 @@ fun MoreScreen(
         item { MoreRow(KIcons.Clock, "Drucke", "Verbrauch pro Druck und Spule", onJobs) }
         item { MoreRow(KIcons.Terminal, "Protokoll", "Gesendete Befehle, Antworten, was die Bridge macht", onProtocol) }
         item { MoreRow(KIcons.Phone, "Geräte", "Gekoppelte Geräte, Gerät hinzufügen", onDevices) }
-        item { MoreRow(KIcons.Settings, "Einstellungen", "Bridge-Adresse, Kopplung", onSettings) }
+        item { MoreRow(KIcons.Settings, "Einstellungen", "Kopplung, Benachrichtigungen, Töne", onSettings) }
         item {
             Text("App ${BuildConfig.VERSION_NAME} · nach Updates suchen", style = MaterialTheme.typography.bodySmall,
                 color = K.Muted, modifier = Modifier.clickable(onClick = onCheckUpdate).padding(vertical = 8.dp))

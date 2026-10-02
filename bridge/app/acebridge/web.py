@@ -560,6 +560,8 @@ def build_app(bridge: "Bridge") -> web.Application:
             await bridge.moon.action(method, label, source=dev.get("name") or "Weboberfläche")
         except Exception as e:  # noqa: BLE001
             return _err(400 if isinstance(e, RuntimeError) else 503, str(e) or "Aktion fehlgeschlagen")
+        bridge.last_control = {"action": request.match_info["action"], "source": dev.get("name") or "",
+                               "at": round(time.time(), 1)}
         return web.json_response({"ok": True})
 
     # ---------------------------------------------------------------- Konsole und Logs

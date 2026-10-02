@@ -53,9 +53,16 @@ class MonitorService : Service() {
             val client = BridgeClient(c.url, c.token)
             val state = runCatching { client.state() }.getOrNull()
             val now = System.currentTimeMillis()
-            detector.update(state, now).forEach { Notifier.event(this, it) }
             val p = state?.printer
             val running = p != null && (p.state == "printing" || p.state == "paused")
+            val events = detector.update(state, now)
+            // Alarm mit frischem Kamerabild: man sieht sofort, was los ist
+            if (events.any { it.kind == EventKind.ALARM } && state?.canWrite == true) {
+                camera = runCatching { client.image("/api/camera/snapshot.jpg") }.getOrNull()
+                    ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) } ?: camera
+                lastCamera = now
+            }
+            events.forEach { Notifier.event(this, it, if (it.kind == EventKind.ALARM) camera else null) }
             // Kamerabild fuer die Leiste: hoechstens einmal pro Minute (die Bridge holt es ohnehin nur einmal)
             if (running && state.canWrite && now - lastCamera > 60_000) {
                 lastCamera = now
