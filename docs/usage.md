@@ -214,6 +214,15 @@ the nozzle/bed target, also without a print (e.g. to preheat) — and **Not-Aus*
 seconds, then confirm. After an emergency stop the printer has to be switched off and on again;
 Rinkhals blocks a firmware restart because GoKlipper would hang.
 
+## Notifications on the phone
+
+The app watches the printer in the background and replaces the OctoApp companion (which on the Kobra S1
+took about two thirds of the printer's CPU). It only asks the bridge, so the printer does not notice.
+While printing, the notification bar shows progress, remaining and finish time and a camera picture;
+you get a sound for start, first layer done and finished, and an alarm for pause, cancel, error, a
+stuck colour change, a falling nozzle temperature, the printer or bridge gone, or a spool that won't
+last. Switch it off under *Einstellungen*; set each kind loud or quiet in Android's app settings.
+
 ## Terminal and logs
 
 **Terminal** shows what the printer answers and every command sent through the bridge, with who sent

@@ -6,6 +6,14 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## app 1.3.0 – 2026-10-02
+
+- Druck im Hintergrund überwachen (ersetzt den OctoApp-Companion, der auf dem Drucker 64 % CPU brauchte):
+  Fortschritt mit Kamerabild in der Leiste, Ton bei Start, erster Schicht und Ende, Alarm bei Pause, Abbruch,
+  Fehler, hängendem Farbwechsel, fallender Düsentemperatur, Drucker/Bridge weg, Spule reicht nicht
+- Fragt nur die Bridge ab (5 s im Druck, sonst 30 s); Schalter in den Einstellungen; startet nach einem
+  Neustart des Handys wieder; Kanäle Fortschritt/Druck/Alarm/Hinweise einzeln einstellbar
+
 ### Fixed
 - Camera: a viewer closing the stream (aiohttp "Connection lost", broken pipe) was logged as an error
   with a traceback every time; it is normal and now only logged at debug level.

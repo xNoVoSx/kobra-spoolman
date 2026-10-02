@@ -12,6 +12,11 @@
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <!-- App-Updates von der Bridge installieren (Android fragt vor jeder Installation nach) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Druck-Ueberwachung im Hintergrund: Benachrichtigungen, Dienst im Vordergrund, nach Neustart wieder an -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Die Bridge laeuft im Heimnetz ohne TLS (http://<docker-host>:7913) -->
     <application
@@ -32,5 +37,18 @@
             </intent-filter>
         </activity>
         <receiver android:name=".update.InstallReceiver" android:exported="false" />
+        <service
+            android:name=".monitor.MonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Überwachung eines laufenden 3D-Drucks im Heimnetz: Fortschritt in der Leiste und Alarm bei Fehlern" />
+        </service>
+        <receiver android:name=".monitor.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

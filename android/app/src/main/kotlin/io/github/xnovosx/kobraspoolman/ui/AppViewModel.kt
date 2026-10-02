@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.xnovosx.kobraspoolman.BuildConfig
 import io.github.xnovosx.kobraspoolman.data.AppState
 import io.github.xnovosx.kobraspoolman.data.AppUpdate
+import io.github.xnovosx.kobraspoolman.monitor.MonitorService
 import io.github.xnovosx.kobraspoolman.update.Installer
 import io.github.xnovosx.kobraspoolman.data.ConsoleLines
 import io.github.xnovosx.kobraspoolman.data.PrintJob
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -277,6 +279,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         it.tune(body)
         _messages.send("Übernommen")
         refresh()
+    }
+
+    // ------------------------------------------------ Druck-Ueberwachung im Hintergrund
+    val monitor: StateFlow<Boolean> = settings.monitor.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    fun setMonitor(on: Boolean) = viewModelScope.launch {
+        settings.setMonitor(on)
+        val ctx = getApplication<Application>()
+        if (on) MonitorService.start(ctx) else MonitorService.stop(ctx)
+    }
+
+    /** Beim App-Start: Ueberwachung starten, wenn eingeschaltet und eingerichtet. */
+    fun ensureMonitor() = viewModelScope.launch {
+        if (settings.monitor.first() && settings.connection.first().configured) MonitorService.start(getApplication())
     }
 
     // ------------------------------------------------ App-Update von der Bridge

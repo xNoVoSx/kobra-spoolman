@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +44,8 @@ fun SettingsScreen(
     contentPadding: PaddingValues,
     lanMissing: Boolean,
     onGrantLan: () -> Unit,
+    monitor: Boolean,
+    onMonitor: (Boolean) -> Unit,
     canGoBack: Boolean,
     onBack: () -> Unit,
     onLoadMe: () -> Unit,
@@ -79,6 +82,17 @@ fun SettingsScreen(
             SecondaryButton("Kopplung hier vergessen", onForget, Modifier.fillMaxWidth())
             Text("„Vergessen“ löscht den Schlüssel nur auf diesem Handy. Ganz entfernen: unter „Geräte verwalten“.",
                 style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            SectionLabel("Benachrichtigungen", Modifier.padding(top = 8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Drucker im Hintergrund überwachen", style = MaterialTheme.typography.bodyLarge)
+                    Text("Fortschritt in der Leiste, Ton bei Start, erster Schicht und Ende, Alarm bei Pause, Fehler, " +
+                        "hängendem Farbwechsel oder wenn Drucker/Bridge weg sind. Fragt nur die Bridge ab – am Drucker " +
+                        "kostet das nichts. Laut/leise je Art in den Android-Einstellungen der App.",
+                        style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                }
+                Switch(monitor, onMonitor)
+            }
         } else {
             if (invalid) Hint("Die Bridge kennt dieses Gerät nicht mehr (entfernt oder neu eingerichtet) – bitte neu koppeln.",
                 danger = true)

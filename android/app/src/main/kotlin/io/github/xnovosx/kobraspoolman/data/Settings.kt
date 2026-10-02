@@ -1,6 +1,7 @@
 package io.github.xnovosx.kobraspoolman.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -17,6 +18,14 @@ private val Context.store by preferencesDataStore(name = "settings")
 class Settings(private val context: Context) {
     private val urlKey = stringPreferencesKey("bridge_url")
     private val tokenKey = stringPreferencesKey("app_token")
+    private val monitorKey = booleanPreferencesKey("monitor")
+
+    /** Druck-Ueberwachung im Hintergrund (Benachrichtigungen), Standard an. */
+    val monitor: Flow<Boolean> = context.store.data.map { it[monitorKey] ?: true }
+
+    suspend fun setMonitor(on: Boolean) {
+        context.store.edit { it[monitorKey] = on }
+    }
 
     val connection: Flow<Connection> = context.store.data.map {
         Connection(it[urlKey].orEmpty(), it[tokenKey].orEmpty())

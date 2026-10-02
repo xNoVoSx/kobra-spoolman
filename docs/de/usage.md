@@ -219,6 +219,15 @@ die drei Lüfter und die Solltemperatur von Düse und Bett, auch ohne Druck (z. 
 **Not-Aus**: zwei Sekunden gedrückt halten, dann bestätigen. Nach einem Not-Aus muss der Drucker aus-
 und wieder eingeschaltet werden; Rinkhals sperrt den Firmware-Neustart, weil GoKlipper sonst hängt.
 
+## Benachrichtigungen aufs Handy
+
+Die App überwacht den Drucker im Hintergrund und ersetzt den OctoApp-Companion (der am Kobra S1 etwa zwei
+Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt davon nichts. Während eines
+Drucks zeigt die Leiste Fortschritt, Restzeit, Fertig-Uhrzeit und ein Kamerabild; es gibt einen Ton bei
+Start, erster Schicht und Ende und einen Alarm bei Pause, Abbruch, Fehler, hängendem Farbwechsel, fallender
+Düsentemperatur, wenn Drucker oder Bridge weg sind oder eine Spule nicht reicht. Abschalten unter
+*Einstellungen*; laut/leise je Art in den Android-Einstellungen der App.
+
 ## Terminal und Logs
 
 **Terminal** zeigt, was der Drucker antwortet, und jeden Befehl, der über die Bridge ging – mit

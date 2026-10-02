@@ -89,6 +89,14 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     var lanGranted by remember { mutableStateOf(LocalNetwork.granted(context)) }
     val lanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { lanGranted = it }
     LaunchedEffect(Unit) { if (!lanGranted) lanLauncher.launch(LocalNetwork.PERMISSION) }
+    // Benachrichtigungen (Druck-Ueberwachung) brauchen ab Android 13 eine Erlaubnis - nach der fuers Heimnetz fragen
+    val notifyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.ensureMonitor() }
+    LaunchedEffect(lanGranted, connection?.configured) {
+        if (connection?.configured != true || !lanGranted) return@LaunchedEffect
+        if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            notifyLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        else vm.ensureMonitor()
+    }
     val askLan = { lanLauncher.launch(LocalNetwork.PERMISSION) }
 
     // Nur im Vordergrund die Bridge abfragen
@@ -214,7 +222,9 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onCreate = { draft, specs -> vm.createFilament(draft, specs) { nav.popBackStack() } })
             }
             composable("settings") {
+                val monitorOn by vm.monitor.collectAsState()
                 SettingsScreen(c, me, meChecked, busy, padding, lanMissing = !lanGranted, onGrantLan = askLan,
+                    monitor = monitorOn, onMonitor = { vm.setMonitor(it) },
                     canGoBack = c.configured, onBack = { nav.popBackStack() },
                     onLoadMe = { vm.loadMe() },
                     onPair = { url, code, name ->

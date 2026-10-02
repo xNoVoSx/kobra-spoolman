@@ -29,6 +29,14 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   errors, yellow for warnings).
 - **Filament** — *Spulen* (all spools, in the ACE and on the shelf) and *Sorten* (filament types
   with their number of spools; tapping one lists its spools); *+* adds a spool or a filament type.
+- **Notifications** (replaces the OctoApp companion, which took 64 % of the printer's CPU) — a
+  background service asks only the bridge (every 5 s while printing, 30 s otherwise) and shows the
+  print in the notification bar (progress, remaining and finish time, layer, camera picture). Sounds
+  for start, first layer done and finished; an **alarm** for pause, cancel, error, a colour change
+  that hangs (> 3 min), a falling nozzle temperature, printer or bridge gone (> 1 min, only during a
+  print) and a spool that won't last; quiet hints for the bridge's yellow messages. Four channels
+  (*Druckfortschritt*, *Druck*, *Alarm*, *Hinweise*) can be set loud/quiet in Android's settings;
+  switch it off under *Einstellungen*. It restarts after the phone reboots.
 - **Mehr** — ACE & dryer, print history, **Protokoll** (read-only: commands sent through the bridge
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.
