@@ -139,6 +139,14 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
             out.append(_msg("warn", f"Slot {r['slot']} wird noch gebraucht, hat aber keine Spule zugeordnet",
                             f"reach{r['slot']}"))
 
+    slots = bridge.slots
+    for gate, nr in sorted(getattr(slots, "unknown_tags", {}).items()):
+        out.append(_msg("warn", f"Slot {gate + 1}: unbekannter Tag {nr} – Spule zuordnen, die Nummer wird gemerkt",
+                        f"tag{gate + 1}"))
+    for ev in getattr(slots, "tag_events", []):
+        if now - ev["at"] < RECENT_S and "unbekannter Tag" not in ev["text"]:
+            out.append(_msg("info", ev["text"], "rfid"))
+
     n_open = len(bridge.usage.open or [])
     if n_open:
         out.append(_msg("warn", f"{n_open} Buchung{'en' if n_open > 1 else ''} noch nicht in Spoolman", "open"))

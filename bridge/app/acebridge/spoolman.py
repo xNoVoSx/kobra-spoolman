@@ -14,6 +14,11 @@ from .config import Config
 log = logging.getLogger("spoolman")
 
 
+# Zusatzfelder an der Spule, die die Bridge selbst pflegt
+TAG_NR_FIELD = {"name": "Tag-Nummer", "field_type": "integer", "order": 11}
+NFC_UID_FIELD = {"name": "NFC-Kennung", "field_type": "text", "order": 10}
+
+
 def extra_value(obj: Dict[str, Any], key: str) -> Any:
     """Spoolman speichert Zusatzfelder als JSON-Strings. None = nicht gesetzt."""
     raw = (obj.get("extra") or {}).get(key)

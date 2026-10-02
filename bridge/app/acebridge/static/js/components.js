@@ -86,7 +86,7 @@ export function SlotCard({ slot }) {
       <div class="small muted ell">${sp ? `${sp.vendor} · #${sp.spool_id}` : slot.ace?.present ? `ACE meldet ${slot.ace.material || "Spule ohne Material"}` : "Spule einlegen und hier zuordnen"}</div>
       ${sp && html`<div class="row"><${Bar} value=${sp.remaining_weight} max=${sp.initial_weight || 1000} /><span class="m small" style="min-width:64px;text-align:right">${grams(sp.remaining_weight)}</span></div>`}
       <div class="row wrap" style="gap:6px">
-        ${tag && html`<span class="chip">${tag}</span>`}
+        ${tag && html`<span class=${cls("chip", slot.by_tag && "ok")} title=${slot.by_tag ? "Automatisch zugeordnet: die ACE hat den Tag gelesen" : ""}>${slot.by_tag ? `RFID · ${tag}` : tag}</span>`}
         ${sp?.nozzle_temp && html`<span class="chip">${sp.nozzle_temp} °C</span>`}
         ${live && html`<span class="chip ok">dieser Druck ${grams(live.g)}</span>`}
       </div>

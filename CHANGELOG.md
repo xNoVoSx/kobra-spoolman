@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Added
+- **RFID automatic:** a spool with one of our tags in a slot is assigned automatically (old spool to the
+  shelf, also during a print; also at bridge start for spools already loaded). Unknown numbers show
+  as a message and are remembered when you assign by hand. Original Anycubic tags (< 1000) stay
+  manual. Slot cards show *RFID*. `AUTO_ASSIGN_BY_TAG` (default on).
+
 ## app 1.2.0 – 2026-10-02
 
 - Leerer Sticker gescannt: die App bietet „Neue Spule“ oder „Vorhandene Spule“ an und beschreibt ihn

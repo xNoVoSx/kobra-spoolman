@@ -15,6 +15,7 @@
 | `SHELF_LOCATION` | `Regal` | location of unloaded spools |
 | `TEMPLATE_VENDOR` | `Vorlage` | vendor name of the material templates |
 | `AUTO_UNASSIGN_ON_EMPTY` | `true` | move the spool to the shelf when the ACE reports its slot empty |
+| `AUTO_ASSIGN_BY_TAG` | `true` | a spool with one of our tags (number ≥ `TAG_NR_MIN`) in a slot is assigned to it automatically |
 | `EMPTY_DEBOUNCE_S` | `15` | …after the slot stayed empty this long (during a print: after it ends) |
 | `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd |
 | `LANE_NAMESPACE` | `lane_data` | Moonraker database namespace |

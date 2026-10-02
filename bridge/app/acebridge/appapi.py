@@ -27,7 +27,7 @@ from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
 from .slots import base_type
 from .auth import AuthError
-from .spoolman import extra_value
+from .spoolman import NFC_UID_FIELD, TAG_NR_FIELD, extra_value
 from .status import notices
 
 if TYPE_CHECKING:
@@ -47,8 +47,6 @@ SPOOL_NATIVE: Dict[str, Callable[[Any], Any]] = {
 }
 # Zusatzfelder, die die Bridge selbst verwaltet (nie direkt aus der App)
 SPOOL_MANAGED_EXTRA = {"nfc_uid", "tag_nr"}
-TAG_NR_FIELD = {"name": "Tag-Nummer", "field_type": "integer", "order": 11}
-NFC_UID_FIELD = {"name": "NFC-Kennung", "field_type": "text", "order": 10}
 
 # Orca-Schluessel je Spoolman-Feld (fuer die Beschriftung in der App)
 ORCA_KEY = {src.split(":", 1)[1]: orca for src, orca, _ in FIELD_MAP}
@@ -552,7 +550,7 @@ class AppApi:
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,
-                "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"],
+                "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"], "by_tag": s.get("by_tag", False),
                            "spool": self._with_tag(s["spool"])} for s in slots],
                 "shelf": shelf,
                 "dryer": b.dryer.state(),

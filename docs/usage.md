@@ -87,6 +87,14 @@ off, `SET_ACE_SLOT_INFO=false`) enter them at the display, otherwise the print f
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Leeren** on the slot card.
 
+**Spools with our tags are assigned automatically.** When the ACE reads one of our stickers
+(`AHPEBK-<number>`, number ≥ 1000) in a slot, the bridge assigns the spool with that tag number — the
+previous spool goes to the shelf, also during a print (consumption continues on the new spool). A
+spool already loaded when the bridge starts is recognised too. The slot card then says *RFID*.
+An unknown number shows up under *Meldungen*; assign the spool by hand once and the bridge remembers
+the number on it (if it has none yet). Original Anycubic tags (102, 107, …) name a filament type, not a
+spool — those stay manual. A manual assignment is not overridden until the tag in the slot changes.
+
 ## Spools and filament types
 
 **Filament** has two views, switched at the top: **Spulen** (spools) and **Sorten** (filament types).

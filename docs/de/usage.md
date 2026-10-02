@@ -89,6 +89,15 @@ macht das; zum erneuten Senden die Spule nochmal zuordnen. Ohne das (Bridge aus,
 Spule herausnehmen: Meldet die ACE einen Slot eine Weile als leer, kommt die Spule automatisch ins
 Regal (während eines Drucks erst danach). Oder auf der Slot-Karte **Leeren** drücken.
 
+**Spulen mit unseren Tags werden automatisch zugeordnet.** Liest die ACE einen unserer Sticker
+(`AHPEBK-<nummer>`, Nummer ab 1000) in einem Slot, ordnet die Bridge die Spule mit dieser Tag-Nummer
+zu – die bisherige kommt ins Regal, auch während eines Drucks (der Verbrauch läuft dann auf der neuen
+Spule weiter). Auch eine Spule, die beim Start der Bridge schon steckt, wird erkannt. Die Slot-Karte
+zeigt dann *RFID*. Eine unbekannte Nummer erscheint unter *Meldungen*; einmal von Hand zuordnen, und
+die Bridge merkt sich die Nummer an der Spule (wenn sie noch keine hat). Original-Anycubic-Tags (102,
+107, …) stehen für eine Sorte, nicht für eine Spule – die bleiben manuell. Eine Handzuordnung wird erst
+überschrieben, wenn sich der Tag im Slot ändert.
+
 ## Spulen und Sorten
 
 **Filament** hat zwei Ansichten, oben umschaltbar: **Spulen** und **Sorten**. Eine Sorte zeigt ihre

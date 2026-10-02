@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .config import Config
 from .moonraker import Moonraker
 from .profiles import basic_info
-from .spoolman import Spoolman
+from .spoolman import TAG_NR_FIELD, Spoolman, extra_value
 
 log = logging.getLogger("slots")
 
@@ -127,6 +127,14 @@ class SlotManager:
         self._lanes_written: Dict[str, Any] = {}
         self._gate_info_pending: Dict[int, Dict[str, int]] = {}   # Gate -> {spool_id, tries}, aus assign()
         self.warnings: List[str] = []
+        # RFID automatisch: zuletzt behandelte Tag-Nummer je Gate, wartende (Nummer, seit), unbekannte Nummern,
+        # Gates, deren Zuordnung vom Tag kam, und Ereignisse fuer die Meldungen
+        self._tag_seen: Dict[int, int] = {}
+        self._tag_pending: Dict[int, Tuple[int, float]] = {}
+        self._auto_lock = asyncio.Lock()
+        self.unknown_tags: Dict[int, int] = {}
+        self.by_tag: Dict[int, int] = {}
+        self.tag_events: List[Dict[str, Any]] = []
 
     # ------------------------------------------------------------ Zustand lesen
     @property
@@ -227,7 +235,8 @@ class SlotManager:
                 hints.append("ACE meldet den Slot als leer")
             if gate in self._pending_unassign:
                 hints.append("wird nach Druckende ins Regal gebucht")
-            out.append({"slot": slot, "gate": gate, "ace": ace, "spool": info, "hints": hints})
+            out.append({"slot": slot, "gate": gate, "ace": ace, "spool": info, "hints": hints,
+                        "by_tag": self.by_tag.get(gate) is not None and info is not None})
         return out
 
     def assignable_spools(self, slot: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -243,8 +252,95 @@ class SlotManager:
             out.append(info)
         return out
 
+    # ------------------------------------------------------------ RFID automatisch
+    def tag_of_gate(self, gate: int) -> Optional[int]:
+        """Unsere Tag-Nummer im Gate (>= TAG_NR_MIN), sonst None - kleinere sind Original-Anycubic-Sorten."""
+        try:
+            n = int(self.ace_gate(gate)["tag_id"] or 0)
+        except (TypeError, ValueError):
+            return None
+        return n if n >= self.cfg.tag_nr_min else None
+
+    def spool_by_tag(self, nr: int) -> Optional[Dict[str, Any]]:
+        for s in self.sm.spools:
+            try:
+                if int(extra_value(s, "tag_nr") or 0) == nr:
+                    return s
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    def _event(self, text: str, now: float) -> None:
+        self.tag_events = [e for e in self.tag_events if now - e["at"] < 1800][-9:] + [{"at": now, "text": text}]
+        log.info(text)
+
+    async def auto_by_tag(self, now: Optional[float] = None) -> None:
+        """Spule mit unserem Tag im Slot -> automatisch zuordnen. Reagiert, wenn sich die Nummer im Gate aendert
+        (auch beim Start: dann ist jede Nummer neu) - eine bewusste Handzuordnung wird nicht staendig ueberschrieben."""
+        if not self.cfg.auto_assign_by_tag or not self.moon.klippy_ready or "gate_spool_id" not in self.mmu:
+            return
+        if self._auto_lock.locked():
+            return
+        async with self._auto_lock:
+            now = time.time() if now is None else now
+            for gate in range(self.num_gates()):
+                slot = gate + 1
+                ace = self.ace_gate(gate)
+                nr = self.tag_of_gate(gate) if ace["present"] else None
+                if nr is None:
+                    self._tag_pending.pop(gate, None)
+                    self.unknown_tags.pop(gate, None)
+                    if not ace["present"]:
+                        self._tag_seen.pop(gate, None)     # wieder eingelegt = neu
+                        self.by_tag.pop(gate, None)
+                    continue
+                if self._tag_seen.get(gate) == nr:
+                    continue
+                pending = self._tag_pending.get(gate)
+                if pending is None or pending[0] != nr:
+                    self._tag_pending[gate] = (nr, now)          # Laden flackert: erst nach der Entprellung
+                    continue
+                if now - pending[1] < self.cfg.gate_debounce_s:
+                    continue
+                self._tag_pending.pop(gate, None)
+                self._tag_seen[gate] = nr
+                spool = self.spool_by_tag(nr)
+                if spool is None:
+                    self.unknown_tags[gate] = nr
+                    self._event(f"Slot {slot}: unbekannter Tag {nr} – Spule zuordnen, die Nummer wird gemerkt", now)
+                    continue
+                self.unknown_tags.pop(gate, None)
+                assigned, _ = self.assignments()
+                current = assigned.get(slot)
+                self.by_tag[gate] = nr
+                if current and current.get("id") == spool["id"]:
+                    continue
+                name = ((spool.get("filament") or {}).get("name") or f"#{spool['id']}")
+                try:
+                    await self.assign(slot, spool["id"], learn=False)
+                    self._event(f"Slot {slot}: {name} per RFID erkannt (Tag {nr})", now)
+                except Exception as e:  # noqa: BLE001
+                    self._tag_seen.pop(gate, None)           # naechster Durchlauf versucht es wieder
+                    log.warning("Slot %d: RFID-Zuordnung fehlgeschlagen: %s", slot, e)
+
+    async def _learn_tag(self, slot: int, spool_id: int) -> None:
+        """Handzuordnung in einen Slot mit unbekanntem Tag: Nummer an der Spule merken (wenn sie noch keine hat)."""
+        gate = slot - 1
+        nr = self.tag_of_gate(gate)
+        if nr is None or self.spool_by_tag(nr) is not None:
+            return
+        spool = self.sm.spool(spool_id) or {}
+        if extra_value(spool, "tag_nr"):
+            return
+        await self.sm.ensure_field("spool", "tag_nr", TAG_NR_FIELD)
+        await self.sm.patch_spool(spool_id, {"extra": {"tag_nr": str(nr)}})
+        self.unknown_tags.pop(gate, None)
+        self._tag_seen[gate] = nr
+        self.by_tag[gate] = nr
+        self._event(f"Slot {slot}: Tag {nr} an Spule #{spool_id} gemerkt", time.time())
+
     # ------------------------------------------------------------ Zuordnen
-    async def assign(self, slot: int, spool_id: Optional[int]) -> None:
+    async def assign(self, slot: int, spool_id: Optional[int], learn: bool = True) -> None:
         if not 1 <= slot <= self.num_gates():
             raise ValueError(f"Slot {slot} gibt es nicht")
         async with self._lock:
@@ -270,11 +366,19 @@ class SlotManager:
             self._gate_info_pending.pop(slot - 1, None)
             if spool_id is not None and self.cfg.set_ace_slot_info:
                 self._gate_info_pending[slot - 1] = {"spool_id": spool_id, "tries": 0}
+            if spool_id is None or (learn and self.by_tag.get(slot - 1) is not None):
+                self.by_tag.pop(slot - 1, None)          # Handzuordnung: Kennzeichen "per RFID" weg
+            if learn and spool_id is not None and self.cfg.auto_assign_by_tag:
+                try:
+                    await self._learn_tag(slot, spool_id)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("Tag-Nummer merken fehlgeschlagen: %s", e)
             await self.sm.refresh()
         await self.evaluate()
 
     # ------------------------------------------------------------ Kernlogik
     async def evaluate(self) -> None:
+        await self.auto_by_tag()
         async with self._lock:
             assigned, self.warnings = self.assignments()
             now = time.time()

@@ -48,6 +48,8 @@ class Config:
 
     # Spule automatisch ins Regal, wenn die ACE einen Slot laenger leer meldet
     auto_unassign_on_empty: bool = field(default_factory=lambda: _bool("AUTO_UNASSIGN_ON_EMPTY", True))
+    # RFID: Spule mit eigenem Tag (Nummer >= TAG_NR_MIN) im Slot -> automatisch zuordnen
+    auto_assign_by_tag: bool = field(default_factory=lambda: _bool("AUTO_ASSIGN_BY_TAG", True))
     empty_debounce_s: float = field(default_factory=lambda: _float("EMPTY_DEBOUNCE_S", 15.0))
 
     # lane_data fuer Orca/Mainsail/Fluidd
