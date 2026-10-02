@@ -243,6 +243,19 @@ Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt d
 und *Nicht stören*). Abschalten unter *Einstellungen*; jede Art ist ein eigener Kanal in den
 Android-Einstellungen der App.
 
+## KI-Fehldruck-Erkennung
+
+Läuft [kobra-vision](../vision.md) (englisch), schickt die Bridge im Druck alle 10 s ein Kamerabild an die
+KI und verfolgt den Wert über den Druck. Wird ein Druck zu Spaghetti, kommt die rote Meldung
+**KI: wahrscheinlich Fehldruck** – in der Weboberfläche mit **Fehlalarm** / **Stimmt**, am Handy als Alarm
+mit Kamerabild und **Pausieren** / **Fehlalarm**. Im Kamerabild stehen die Fundstellen als Rahmen.
+*Fehlalarm* schaltet die KI für den Rest des Drucks still. Die ersten ~5 Minuten eines Drucks melden nie.
+Standardmäßig warnt die KI nur; selbst pausieren kann sie, sobald du ihr traust (`VISION_ACTION=pause`).
+Die Bilder werden gesammelt (bis 5 GB), damit die nächsten Stufen lernen können: Platte prüfen und
+umgefallene Teile.
+
+<p align="center"><img src="../images/app-ai-alarm.png" width="360" alt="KI-Alarm am Handy"></p>
+
 ## Terminal und Logs
 
 **Terminal** zeigt, was der Drucker antwortet, und jeden Befehl, der über die Bridge ging – mit

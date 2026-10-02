@@ -6,6 +6,31 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.17.0] – 2026-10-03
+
+Ships app 1.5.0. New optional service **kobra-vision** 0.1.0 (`ghcr.io/xnovosx/kobra-vision`).
+
+### Added
+- **AI print-failure detection** ([docs/vision.md](docs/vision.md)): while printing the bridge sends a
+  camera picture every 10 s (`VISION_INTERVAL_S`) to kobra-vision — Obico's failure model on ONNX
+  Runtime, ~50 ms per picture on the CPU, unloaded when idle — and judges the result over time like
+  Obico (safe start, EWM against a baseline). Messages `ai-warn` / `ai-fail` with the app alarm, boxes
+  over the camera image, *Fehlalarm* / *Stimmt* in the web UI, status line *KI*. Only warns by default;
+  `VISION_ACTION=pause` pauses on a clear failure. The printer does not notice: the AI reuses the
+  newest frame or fetches one single snapshot.
+- Picture collection for the next stages (plate check, knocked-over parts): start, every minute,
+  suspicious pictures, alarms and end of every print with scores and your feedback, up to 5 GB
+  (`VISION_DATASET_GB`), oldest prints deleted first.
+- API: `GET /api/vision`, `GET /api/vision/event/{id}.jpg`, `POST /api/vision/feedback`; `vision` in
+  `/api/app/state`.
+- CI runs the kobra-vision tests; the Docker workflow builds `kobra-vision` (amd64, arm64) and checks
+  the model's SHA-256 while building.
+
+## app 1.5.0 – 2026-10-03
+
+- KI-Alarm mit Kamerabild und den Knöpfen „Pausieren“ und „Fehlalarm“ direkt in der Benachrichtigung
+- „Wahrscheinlich Fehldruck“ ersetzt die vorige „verdächtig“-Benachrichtigung statt sich darunter zu stapeln
+
 ## [2.16.0] – 2026-10-03
 
 Ships app 1.4.0 (reworked notifications with own sounds).

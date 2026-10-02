@@ -30,6 +30,8 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 - Die Bridge ist auch ein **Druckermonitor, der OctoApp ersetzt**: Kamera-Restream, der die
   Drucker-CPU schont, Pause/Abbrechen/Nachjustieren, Terminal und Logs, Benachrichtigungen aufs
   Handy – und Spulen mit unseren NFC-Tags werden beim Einlegen **von selbst ihrem Slot zugeordnet**.
+- Eine optionale **KI** beobachtet laufende Drucke und schlägt mit Kamerabild Alarm, wenn ein Druck zu
+  Spaghetti wird – auf der CPU, ohne Last am Drucker ([vision.md](docs/vision.md), englisch).
 
 <p align="center">
   <img src="docs/images/web-overview.png" width="860" alt="Weboberfläche: Drucker mit Kamera, Meldungen und Status, Trockner, ACE, Slots"><br>
@@ -78,6 +80,7 @@ Moonraker-Clients); Browser, App und Orca-Plugin reden alle mit der Bridge.
 | **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman. Weboberfläche, Slot-Zuordnung (automatisch per NFC-Tag), `lane_data` für Orca, Verbrauch messen und pro Spule buchen, offene Posten, Druckhistorie, Spülen pro Farbwechsel, Trockner-Automatik und ACE-Einstellungen, Kamera-Restream, Drucksteuerung, Terminal und Logs, Meldungen, Geräte koppeln, Schnittstelle für App und Plugin, liefert das App-Update aus. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca-Plugin) | Ein Orca-Filamentprofil pro Spoolman-Filament (`SM000010` …), Seitenpanel mit Slots und Profilprüfung, Verbrauchsvorschau nach dem Slicen, Rücksync von Profiländerungen nach Spoolman. |
 | **[Android-App](android/)** | Drucker mit Kamera und Steuerung, Benachrichtigungen im Hintergrund, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner und -Einstellungen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), Koppeln per QR-Code, Updates über die Bridge. |
+| **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | KI-Fehldruck-Erkennung: Obicos Fehldruck-Modell mit ONNX Runtime (CPU, ~50 ms pro Bild), die Bridge bewertet die Ergebnisse über die Zeit. |
 | **[spoolman_setup.py](spoolman/)** | Legt einmalig die Spoolman-Zusatzfelder (alle Orca-Filamentwerte) und Materialvorlagen an. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit drei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), eine Korrektur der Plugin-Sandbox unter Linux und Slice-Statistik für Plugins. Aktualisiert sich selbst. |
 
@@ -176,6 +179,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | [Konfiguration](docs/configuration.md) | Alle Umgebungsvariablen der Bridge und Plugin-Einstellungen (englisch) |
 | [API](docs/api.md) | HTTP-Schnittstelle der Bridge (englisch) |
 | [Architektur](docs/architecture.md) | Datenfluss, Verbrauchsmessung, Profilauflösung, Koppeln (englisch) |
+| [KI-Erkennung](docs/vision.md) | kobra-vision: wie Fehldrucke erkannt werden, Einrichtung, Bildersammlung, nächste Stufen (englisch) |
 | [Android-App](docs/android-app.md) | Was die App kann, NFC-Tags, bauen (englisch) |
 | [Befunde](docs/findings.md) | Was wir über Rinkhals, die ACE und Orcas Plugin-API gemessen haben (englisch) |
 | [Changelog](CHANGELOG.md) | Versionsgeschichte (englisch) |
@@ -189,7 +193,8 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | 3 | Orca-Profile aus Spoolman, Seitenpanel, Rücksync, gepatchter Orca-Build, Verbrauchsvorschau nach dem Slicen | ✅ fertig (Profile ohne Neustart nachladen ist zurückgestellt, siehe [Befunde](docs/findings.md)) |
 | 4 | Weboberfläche, Android-App, Koppeln, ACE-Trockner, NFC-Tags, Spulen beim Einlegen am Tag erkennen | ✅ fertig |
 | – | Spülen pro Farbwechsel: wie die Firmware für jeden Übergang gerechnet, Konstanten bei jedem Druck nachgeschärft | ✅ fertig |
-| – | Druckermonitor (ersetzt OctoApp): Kamera-Restream, Drucksteuerung, Terminal, Logs, Benachrichtigungen aufs Handy | ✅ fertig · 🔜 Widget, Prüfung beim Druckstart, KI-Fehlererkennung |
+| – | Druckermonitor (ersetzt OctoApp): Kamera-Restream, Drucksteuerung, Terminal, Logs, Benachrichtigungen aufs Handy | ✅ fertig · 🔜 Widget, Prüfung beim Druckstart |
+| – | KI-Fehldruck-Erkennung: Spaghetti (Stufe 1), Platte prüfen (2), umgefallene Teile (3) | ✅ Stufe 1 · 🔜 2 und 3 aus den gesammelten Bildern |
 | 5 | Home Assistant über MQTT (Slots, Restgewicht, Meldungen) | 🔜 geplant |
 
 ## Dank
@@ -207,5 +212,6 @@ Schriften [Space Grotesk](https://github.com/floriankarsten/space-grotesk) und [
 ## Lizenz
 
 [MIT](LICENSE). Mitgelieferte Fremddateien behalten ihre Lizenzen (`bridge/app/acebridge/static/licenses`, `android/licenses`).
+[`vision/`](vision) (kobra-vision) steht unter AGPL-3.0, weil es Obicos Modell und Nachverarbeitung nutzt; die Bridge spricht nur per HTTP mit ihm.
 Die OrcaSlicer-Patches liegen in [orca-kobra](https://github.com/xNoVoSx/orca-kobra) unter AGPL-3.0, wie OrcaSlicer selbst.
 Kein offizielles Projekt von Anycubic, OrcaSlicer oder Spoolman.

@@ -76,6 +76,14 @@ and snapshots cost next to nothing, so the camera should only give way when the 
 *Status* shows the printer CPU (yellow from 90 %, red from 97 %); it is never a message — nothing can
 be done about it during a print, and a printer that really hangs shows up as unreachable.
 
+## AI print-failure detection (`vision.py`, `vision/`)
+
+A separate container (kobra-vision, AGPL-3.0, Obico's failure model on ONNX Runtime) does the image
+recognition; the bridge sends it one picture every 10 s while printing (newest restream frame or one
+single snapshot — it never starts the camera pump for this), judges the result over time like Obico
+(EWM against a baseline, safe start, warn/fail thresholds), raises messages, stores frames and labels.
+Details: [vision.md](vision.md).
+
 ## Web UI (`bridge/app/acebridge/static/`)
 
 - Served by the bridge itself at `/`; no build step: [Preact](https://preactjs.com/) with

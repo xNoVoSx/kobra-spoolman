@@ -409,3 +409,19 @@ that tag byte for byte (`AceTagTest`).
 - Fallback if nothing passes through: scan the tag with the phone (UID) right before loading;
   the bridge assigns the spool to the slot that gets occupied next, with the ACE's material and
   colour as a cross-check.
+
+## AI print-failure detection (2026-10-03)
+
+- Obico's failure model as ONNX (192 MB, input 416×416, outputs boxes `[1, 845, 1, 4]` and
+  confidences `[1, 845, 1]`) needs **~50 ms per picture with 2 threads** on the CPU (Ryzen 7 9800X3D,
+  ONNX Runtime 1.30; 19 ms with all cores). At one picture every 10 s a GPU is not needed.
+- A clean Kobra S1 camera frame gives no box at all (sum 0.00); real spaghetti photos 1.35–5.23,
+  spaghetti composited into a Kobra frame 1.97 — Obico's "definitely failing" threshold is 0.78.
+  Spaghetti drawn as flat coloured lines gives only 0.25: the model reacts to real 3-D tangles.
+- With Obico's judging (EWM against a baseline, 30 safe pictures) a sudden failure after a clean start
+  is *verdächtig* after 2 and *Fehldruck* after 4 pictures; a constant pattern never alarms.
+- `camera.snapshot()` keeps the restream pump running for 20 s at up to 10 fps — the AI therefore uses
+  `camera.still()`: newest frame or one single snapshot.
+- Android sets a notification channel's `USAGE_ALARM` back to `USAGE_NOTIFICATION` (checked on the
+  Android 17 emulator), so alarm notifications follow the notification volume.
+

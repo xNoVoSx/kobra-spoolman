@@ -184,6 +184,12 @@ Then: **Einstellungen → QR-Code scannen** and scan the QR code from
 *Geräte → Gerät hinzufügen* in the web UI. Android 17 asks for *Nearby devices* (local network) —
 allow it, otherwise the app cannot reach the bridge. More: [android-app.md](android-app.md).
 
+## 7b. AI print-failure detection (optional)
+
+Add the `kobra-vision` service to the same stack and set `VISION_URL: "http://kobra-vision:7917"` on
+the bridge — the [compose example](../bridge/compose.yaml) has both commented out. It runs on the CPU
+(~50 ms per picture); a GPU is optional. Details: [vision.md](vision.md).
+
 ## 8. Check that everything works
 
 - [ ] Web UI: printer and Spoolman connected (*Einstellungen*), all four slots assigned, no warnings.

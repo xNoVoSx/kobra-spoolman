@@ -46,6 +46,9 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   sound and sends a test notification. The sounds are synthesised by
   [`android/tools/make_sounds.py`](../android/tools/make_sounds.py) (no third-party samples, MIT like
   the rest). It restarts after the phone reboots.
+- **AI alarm** — when the bridge's [AI](vision.md) sees a failed print, the alarm carries the camera
+  picture and two buttons: **Pausieren** (pauses through the bridge and labels the picture as a real
+  failure) and **Fehlalarm** (silences the AI for this print, labels the picture as a false alarm).
 - **Mehr** — ACE & dryer, print history, **Protokoll** (read-only: commands sent through the bridge
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.

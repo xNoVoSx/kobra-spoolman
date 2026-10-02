@@ -43,12 +43,23 @@
 | `RENDER` | `true` | draw the running print file (preview) |
 | `RENDER_MAX_MB` | `200` | larger files only get the slicer thumbnail |
 | `RENDER_INTERVAL_S` | `15` | redraw at most this often while printing |
+| `VISION_URL` | – | AI print-failure detection: address of [kobra-vision](vision.md), e.g. `http://kobra-vision:7917`; empty = off |
+| `VISION_TOKEN` | – | shared key if kobra-vision has `VISION_TOKEN` set |
+| `VISION_INTERVAL_S` | `10` | one camera picture to the AI every … s, only while printing (the judging is tuned to ~10 s) |
+| `VISION_SENSITIVITY` | `1.0` | multiplies the score; 1.5 = more sensitive, 0.7 = calmer |
+| `VISION_ACTION` | `warn` | `warn`: message and app alarm only; `pause`: also pause the print on *Fehldruck* |
+| `VISION_DATASET_GB` | `5` | keep collected pictures (for later stages) up to this size, oldest prints deleted first; `0` = collect nothing |
+| `VISION_SAVE_EVERY_S` | `60` | collect one picture this often during a print (plus every suspicious one) |
 | `DRY_RUN` | `false` | log only, write nothing |
 | `DATA_DIR` | `/data` | state, journal, history, telemetry |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for more detail |
 
 The dryer automation (on/off, thresholds, max. time, pause, while printing) is set in the web UI or
 app (*Trockner → Regeln*) and stored in `dryer.json`, not in the environment.
+
+### AI print-failure detection
+
+Settings of the kobra-vision container itself (threads, unloading, GPU) are in [vision.md](vision.md#kobra-vision-settings).
 
 ### Docker user
 

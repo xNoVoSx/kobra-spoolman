@@ -30,6 +30,8 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 - The bridge is also a **printer monitor that replaces OctoApp**: camera restream that spares the
   printer's CPU, pause/cancel/fine-tuning, terminal and logs, notifications on the phone — and
   spools with our NFC tags are **assigned to their slot by themselves** when loaded.
+- An optional **AI** watches running prints and raises an alarm with a camera picture when a print
+  turns into spaghetti — on the CPU, without any load on the printer ([vision.md](docs/vision.md)).
 
 <p align="center">
   <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer with camera, messages and status, dryer, ACE, slots"><br>
@@ -78,6 +80,7 @@ for Moonraker clients); the browser, the app and the Orca plugin all talk to the
 | **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Web UI, slot ↔ spool assignment (automatic by NFC tag), writes `lane_data` for Orca, measures and books consumption per spool, open items, print history, purge per colour change, ACE dryer automation and ACE settings, camera restream, print control, terminal and logs, messages, device pairing, API for app and plugin, ships the app update. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | One Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, usage preview after slicing, back-sync of profile edits to Spoolman. |
 | **[Android app](android/)** | Printer with camera and controls, notifications in the background, slots, spool card, new spools and filaments, ACE dryer and settings, writes ACE-compatible NFC tags (two per spool), pairing by QR code, updates through the bridge. |
+| **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | AI print-failure detection: Obico's failure model on ONNX Runtime (CPU, ~50 ms per picture), the bridge judges the results over time. |
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with three small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), a Linux plugin-sandbox fix and read-only slice statistics for plugins. Updates itself. |
 
@@ -178,6 +181,7 @@ Keep the bridge inside your home network; it has no TLS.
 | [Configuration](docs/configuration.md) | All bridge environment variables and plugin settings |
 | [API](docs/api.md) | HTTP API of the bridge |
 | [Architecture](docs/architecture.md) | Data flow, consumption algorithm, profile resolution, pairing, design decisions |
+| [AI detection](docs/vision.md) | kobra-vision: how failures are detected, setup, data collection, next stages |
 | [Android app](docs/android-app.md) | What the app does, NFC tags, building it |
 | [Findings](docs/findings.md) | What we measured and learned about Rinkhals, the ACE and Orca's plugin API |
 | [Changelog](CHANGELOG.md) | Version history |
@@ -191,7 +195,8 @@ Keep the bridge inside your home network; it has no TLS.
 | 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build, usage preview after slicing | ✅ done (reloading profiles without a restart is deferred, see [findings](docs/findings.md)) |
 | 4 | Web UI, Android app, pairing, ACE dryer, NFC tags, spools recognised by their tag when loaded | ✅ done |
 | — | Purge per colour change: computed like the firmware for every transition, constants refined on every print | ✅ done |
-| — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done · 🔜 home-screen widget, check at print start, AI print-failure detection |
+| — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done · 🔜 home-screen widget, check at print start |
+| — | AI print-failure detection: spaghetti (stage 1), plate check (2), knocked-over parts (3) | ✅ stage 1 · 🔜 2 and 3 from the collected pictures |
 | 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
 
 ## Credits
@@ -209,5 +214,6 @@ fonts [Space Grotesk](https://github.com/floriankarsten/space-grotesk) and [IBM 
 ## License
 
 [MIT](LICENSE). Bundled third-party files keep their licences (`bridge/app/acebridge/static/licenses`, `android/licenses`).
+[`vision/`](vision) (kobra-vision) is AGPL-3.0, because it runs Obico's model and post-processing; the bridge talks to it over HTTP only.
 The OrcaSlicer patches live in [orca-kobra](https://github.com/xNoVoSx/orca-kobra) under AGPL-3.0, like OrcaSlicer itself.
 Not affiliated with Anycubic, OrcaSlicer or Spoolman.

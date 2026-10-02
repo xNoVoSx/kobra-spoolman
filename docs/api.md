@@ -181,6 +181,20 @@ in the data folder and can be replaced by any paired device.
 The bridge downloads the running file once at print start through Moonraker (throttled) and
 renders it itself; progress comes from `virtual_sdcard.file_position`.
 
+## AI print-failure detection
+
+See [vision.md](vision.md). Off when `VISION_URL` is empty.
+
+| Method | Path | Meaning |
+|---|---|---|
+| GET | `/api/vision` | state: `enabled`, `level` (`ok`, `warn`, `fail`), `score` (0–1), `muted`, `detections` of the last picture (`[label, confidence, [x-centre, y-centre, width, height]]`, relative 0–1) with `size`, open `event`, `error`, `health` of the service, `prediction`, `history` (`[time, p, score]`), last `events` with `verdict`, `dataset` (prints, pictures, MB) |
+| GET | `/api/vision/event/{id}.jpg` | *(paired, like the camera)* picture of an event |
+| POST | `/api/vision/feedback` | *(paired)* `{"id": <event>, "verdict": "false_alarm" \| "confirmed"}` — a false alarm silences the AI for the rest of the print; both label the picture in the dataset |
+
+`/api/app/state` carries the short form as `vision` (`enabled`, `level`, `score`, `muted`,
+`detections`, `size`, `event`). Messages: `ai-warn`, `ai-fail` (red), `ai-down` (service unreachable
+during a print, yellow); status line `ai`.
+
 ## Print control
 
 | Method | Path | Purpose |
@@ -245,7 +259,7 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/app/state` | printer status, slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write`, `notices`, `last_control` (`action`, `source`, `at` in Unix seconds — last pause/resume/cancel/emergency stop sent through the bridge, `null` before the first) |
+| GET | `/api/app/state` | printer status, slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write`, `notices`, `last_control` (`action`, `source`, `at` in Unix seconds — last pause/resume/cancel/emergency stop sent through the bridge, `null` before the first), `vision` (AI, see above) |
 | GET | `/api/app/catalog` | vendors, templates (with their values), filaments, extra-field definitions with Orca keys, Orca base profiles |
 | GET | `/api/app/spools?q=` | all active spools, optional text filter |
 | GET | `/api/app/spool/{id}` | one spool, its filament, the last prints that used it |

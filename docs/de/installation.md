@@ -187,6 +187,12 @@ und den QR-Code aus *Geräte → Gerät hinzufügen* der Weboberfläche scannen.
 *Geräte in der Nähe* (lokales Netz) – erlauben, sonst erreicht die App die Bridge nicht.
 Mehr: [android-app.md](../android-app.md) (englisch).
 
+## 7b. KI-Fehldruck-Erkennung (optional)
+
+Den Dienst `kobra-vision` in denselben Stack aufnehmen und bei der Bridge `VISION_URL: "http://kobra-vision:7917"`
+setzen – das [Compose-Beispiel](../../bridge/compose.yaml) enthält beides auskommentiert. Läuft auf der CPU
+(~50 ms pro Bild); eine Grafikkarte ist nicht nötig. Details: [vision.md](../vision.md) (englisch).
+
 ## 8. Prüfen, ob alles läuft
 
 - [ ] Weboberfläche: Drucker und Spoolman verbunden (*Einstellungen*), alle vier Slots zugeordnet, keine Warnungen.
