@@ -6,6 +6,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.15.3] – 2026-10-03
+
+### Fixed
+- Web: on a phone the finish time ("morgen ~01:37") was cut off; the print times now wrap instead.
+
 ## [2.15.2] – 2026-10-03
 
 ### Fixed

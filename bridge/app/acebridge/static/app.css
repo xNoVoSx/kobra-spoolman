@@ -193,7 +193,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .times div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .times span { font-size: 12px; color: var(--muted); }
-.times b { font-size: 15px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.times b { font-size: 15px; color: var(--text); overflow-wrap: anywhere; }   /* schmal: "morgen ~01:37" bricht um statt abgeschnitten */
 
 .slot { display: flex; flex-direction: column; overflow: hidden; }
 .slot.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
