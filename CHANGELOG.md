@@ -15,6 +15,10 @@ Ships app 1.3.0 (print notifications on the phone).
   75–89 % while printing and snapshots cost next to nothing, so the defaults are now 90 % (go up) and
   97 % (go down), steps of 1 fps instead of halving, CPU averaged over 10 s.
 
+### Fixed
+- Camera: a viewer closing the stream (aiohttp "Connection lost", broken pipe) was logged as an error
+  with a traceback every time; it is normal and now only logged at debug level.
+
 ## app 1.3.0 – 2026-10-02
 
 - Druck im Hintergrund überwachen (ersetzt den OctoApp-Companion, der auf dem Drucker 64 % CPU brauchte):
@@ -22,10 +26,6 @@ Ships app 1.3.0 (print notifications on the phone).
   Fehler, hängendem Farbwechsel, fallender Düsentemperatur, Drucker/Bridge weg, Spule reicht nicht
 - Fragt nur die Bridge ab (5 s im Druck, sonst 30 s); Schalter in den Einstellungen; startet nach einem
   Neustart des Handys wieder; Kanäle Fortschritt/Druck/Alarm/Hinweise einzeln einstellbar
-
-### Fixed
-- Camera: a viewer closing the stream (aiohttp "Connection lost", broken pipe) was logged as an error
-  with a traceback every time; it is normal and now only logged at debug level.
 
 ## [2.14.1] – 2026-10-02
 
