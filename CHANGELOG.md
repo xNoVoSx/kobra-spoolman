@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Camera: a viewer closing the stream (aiohttp "Connection lost", broken pipe) was logged as an error
+  with a traceback every time; it is normal and now only logged at debug level.
+
 ## [2.14.1] – 2026-10-02
 
 ### Fixed

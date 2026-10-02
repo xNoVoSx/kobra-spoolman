@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import aiohttp
 from aiohttp import web
@@ -53,6 +53,19 @@ async def cors(request: web.Request, handler):
 
 def _err(status: int, msg: str) -> web.Response:
     return web.json_response({"error": msg}, status=status)
+
+
+async def send_mjpeg(resp: web.StreamResponse, first: bytes, frames, who: Optional[str] = None) -> None:
+    """Bilder als multipart/x-mixed-replace schreiben, bis der Zuschauer geht. Trennen (Reset, Broken pipe,
+    aiohttp "Connection lost") ist normal und kein Fehler - sonst stuende jedes Schliessen als Traceback im Log."""
+    frame = first
+    try:
+        while True:
+            await resp.write(b"--" + BOUNDARY.encode() + b"\r\nContent-Type: image/jpeg\r\n"
+                             + f"Content-Length: {len(frame)}\r\n\r\n".encode() + frame + b"\r\n")
+            frame = await frames.__anext__()
+    except (ConnectionError, CameraError, StopAsyncIteration):
+        log.debug("Kamera-Zuschauer %s getrennt", who)
 
 
 def build_app(bridge: "Bridge") -> web.Application:
@@ -316,14 +329,7 @@ def build_app(bridge: "Bridge") -> web.Application:
                 "Content-Type": f"multipart/x-mixed-replace; boundary={BOUNDARY}",
                 "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
             await resp.prepare(request)
-            try:
-                frame = first
-                while True:
-                    await resp.write(b"--" + BOUNDARY.encode() + b"\r\nContent-Type: image/jpeg\r\n"
-                                     + f"Content-Length: {len(frame)}\r\n\r\n".encode() + frame + b"\r\n")
-                    frame = await frames.__anext__()
-            except (ConnectionResetError, CameraError, StopAsyncIteration):
-                pass
+            await send_mjpeg(resp, first, frames, request.remote)
             return resp
 
     @r.get("/api/print/info")

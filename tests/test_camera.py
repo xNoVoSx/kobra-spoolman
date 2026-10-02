@@ -12,7 +12,7 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from acebridge.auth import CameraKey, Devices
 from acebridge.camera import Camera, CameraError, read_mjpeg
-from acebridge.web import build_app
+from acebridge.web import build_app, send_mjpeg
 
 JPEG = b"\xff\xd8 fake jpeg \xff\xd9"
 
@@ -236,3 +236,26 @@ def test_rate_follows_printer_cpu():
     for _ in range(9):
         cam.adjust(50.0)
     assert cam.target_fps == 10.0 and not cam.throttled
+
+
+
+def test_viewer_disconnect_is_not_an_error():
+    """aiohttp meldet einen weggegangenen Zuschauer als ConnectionError("Connection lost") - normal, kein Fehler
+    (am echten Geraet stand das alle 10 s als Traceback im Log)."""
+    class Gone:
+        writes = 0
+
+        async def write(self, data):
+            self.writes += 1
+            if self.writes == 2:
+                raise ConnectionError("Connection lost")
+
+    async def frames():
+        while True:
+            yield JPEG
+
+    async def go():
+        resp, gen = Gone(), frames()
+        await send_mjpeg(resp, JPEG, gen, "10.0.0.x")
+        return resp.writes
+    assert asyncio.run(go()) == 2                       # endet still nach dem Trennen
