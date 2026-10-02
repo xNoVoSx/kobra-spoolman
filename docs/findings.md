@@ -335,6 +335,21 @@ the *mjpegstreamer-adaptive* service, which polls snapshots — that is why Main
 the printer like this. Since bridge 2.10.1 the bridge polls snapshots too and adapts the rate to the
 printer CPU (`notify_proc_stat_update`).
 
+## What loads the printer CPU (2026-10-02)
+
+`top` on the Kobra S1 during a print (single core, load average 13, 8 MB free memory):
+
+| Process | CPU |
+|---|---|
+| `moonraker_octoapp` (OctoApp companion, a Rinkhals app) | **64 %** |
+| `gklib` (GoKlipper, the print itself) | 21 % |
+| Moonraker, mjpg-streamer, display, VNC, bridge requests | ≈ 0 % |
+
+After disabling the companion at the printer display (Rinkhals → Apps) the CPU dropped from 100 % to
+40–55 % during the same print, free memory rose from 72 to 85 MB. Per the Rinkhals FAQ the
+companion is not needed for OctoApp itself — it only provides live notifications. The bridge's camera
+(snapshot polling, adapted to the CPU) did not show up in `top` at all.
+
 ## Print control on GoKlipper (2026-10-01)
 
 Checked on the idle printer (each set and reset): `M220 S…` → `gcode_move.speed_factor`, `M221 S…` →
