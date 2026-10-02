@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.14.0] – 2026-10-02
+
+Ships app 1.2.0.
+
 ### Added
 - **RFID automatic:** a spool with one of our tags in a slot is assigned automatically (old spool to the
   shelf, also during a print; also at bridge start for spools already loaded). Unknown numbers show
