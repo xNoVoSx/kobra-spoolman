@@ -1,11 +1,14 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.14.0"
+__version__ = "2.14.1"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.14.1", "2026-10-02", [
+        "RFID automatisch: wartet beim Start auf Spoolman und prüft unbekannte Tags erneut",
+    ]),
     ("2.14.0", "2026-10-02", [
         "RFID automatisch: Spule mit eigenem Tag im Slot wird zugeordnet, unbekannte Nummern gemerkt",
         "App 1.2.0: leerer Sticker wird beim Scannen gleich beschrieben",

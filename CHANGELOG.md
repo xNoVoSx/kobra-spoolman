@@ -6,6 +6,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.14.1] – 2026-10-02
+
 ### Fixed
 - RFID automatic: at bridge start a loaded spool was reported as "unknown tag" because the spool list
   from Spoolman was not loaded yet, and was never checked again. The bridge now waits for Spoolman and
