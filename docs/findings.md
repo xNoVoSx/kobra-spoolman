@@ -378,13 +378,14 @@ that tag byte for byte (`AceTagTest`).
 - Pure black is written as `010101` (as ACE-RFID does); `000000` probably reads as "no colour".
 - The app writes pages 4–31 (all others zero), reads them back to verify, then links the tag's UID
   to the spool. The tag number comes from the bridge (`POST /api/app/tag/issue`).
-- Open question for stage 4: which field (if any) the ACE passes through unchanged, so a custom ID
-  written into a tag can be recognised. Planned test with an empty Anycubic spool:
-  1. Read the tag with the ACE-RFID app and save the values.
-  2. Change only the brand to `TEST42` and write it (a write error means the tag is locked).
-  3. Load it and query `mmu`: where does `TEST42` show up, do material and colour stay?
-  4. Then change the SKU slightly and watch `gate_spool_id` (careful: the ACE validates the SKU).
-     Concretely: write SKU `AHPEBK-4711` to a sticker tag and check whether `gate_spool_id` becomes 4711.
+- **Confirmed 2026-10-02 (ACE 2 Pro):** a blank NTAG215 sticker written by the app with SKU
+  `AHPEBK-34532` (PETG, `#685BC7`, 250 °C) is read by the ACE: `mmu.gate_spool_id` = **34532**,
+  material, colour (byte order correct) and nozzle temperature come from the tag. About 45 s after
+  inserting, the gate first reports empty data while loading, then the tag values. The ACE reports
+  the vendor as `Anycubic` although the tag says `Sunlu` — the brand field is not passed through. So
+  the tag number is a usable spool ID: the bridge can recognise a spool by `gate_spool_id`.
+- The ACE 2 Pro reads only the spool side facing its reader, so each spool gets two stickers with the
+  same content (one per side).
 - Original Anycubic tags are write-protected; the ACE-RFID app can read but not rewrite them.
 - Colour is stored as ARGB on the tag; the ACE reports it as RGBA. Brand code `AC` = Anycubic.
 - Fallback if nothing passes through: scan the tag with the phone (UID) right before loading;
