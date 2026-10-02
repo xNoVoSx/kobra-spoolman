@@ -1,11 +1,14 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.15.1"
+__version__ = "2.15.2"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.15.2", "2026-10-03", [
+        "Trockner: Restzeit richtig (die ACE meldet Sekunden), Ist-Temperatur auch beim Trocknen",
+    ]),
     ("2.15.1", "2026-10-02", [
         "Trockner: Standardwerte nach Herstellerangaben – PLA/TPU 55 °C statt 45/50, PETG bleibt 60",
         "Kamerabild auf breiten Bildschirmen mittig",

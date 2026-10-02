@@ -27,6 +27,9 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
   und steuerst den **ACE-Trockner** – ohne Spoolmans eigene Oberfläche.
 - Änderst du ein Profil in Orca, landet die Änderung nach Rückfrage **in Spoolman**.
 - Nach dem Slicen zeigt das Orca-Panel, **wie viel jede Spule braucht**, und warnt, wenn eine nicht reicht.
+- Die Bridge ist auch ein **Druckermonitor, der OctoApp ersetzt**: Kamera-Restream, der die
+  Drucker-CPU schont, Pause/Abbrechen/Nachjustieren, Terminal und Logs, Benachrichtigungen aufs
+  Handy – und Spulen mit unseren NFC-Tags werden beim Einlegen **von selbst ihrem Slot zugeordnet**.
 
 <p align="center">
   <img src="docs/images/web-overview.png" width="860" alt="Weboberfläche: Drucker mit Kamera, Meldungen und Status, Trockner, ACE, Slots"><br>
@@ -36,7 +39,7 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 <table>
   <tr>
     <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Weboberfläche auf dem Handy"><br><sub>Weboberfläche auf dem Handy</sub></td>
-    <td align="center"><img src="docs/images/app-slots.png" width="230" alt="Android-App"><br><sub>Android-App</sub></td>
+    <td align="center"><img src="docs/images/app-start.png" width="230" alt="Android-App"><br><sub>Android-App</sub></td>
     <td align="center"><img src="docs/images/orca-panel.png" width="230" alt="Orca-Seitenpanel"><br><sub>Orca-Seitenpanel</sub></td>
   </tr>
 </table>
@@ -72,9 +75,9 @@ Moonraker-Clients); Browser, App und Orca-Plugin reden alle mit der Bridge.
 
 | Baustein | Aufgabe |
 |---|---|
-| **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman. Weboberfläche, Slot-Zuordnung, `lane_data` für Orca, Verbrauch messen und pro Spule buchen, offene Posten, Druckhistorie, Trockner-Automatik, Geräte koppeln, Schnittstelle für App und Plugin. |
+| **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman. Weboberfläche, Slot-Zuordnung (automatisch per NFC-Tag), `lane_data` für Orca, Verbrauch messen und pro Spule buchen, offene Posten, Druckhistorie, Spülen pro Farbwechsel, Trockner-Automatik und ACE-Einstellungen, Kamera-Restream, Drucksteuerung, Terminal und Logs, Meldungen, Geräte koppeln, Schnittstelle für App und Plugin, liefert das App-Update aus. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca-Plugin) | Ein Orca-Filamentprofil pro Spoolman-Filament (`SM000010` …), Seitenpanel mit Slots und Profilprüfung, Verbrauchsvorschau nach dem Slicen, Rücksync von Profiländerungen nach Spoolman. |
-| **[Android-App](android/)** (Vorschau) | Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner, schreibt ACE-taugliche NFC-Tags, Koppeln per QR-Code. |
+| **[Android-App](android/)** | Drucker mit Kamera und Steuerung, Benachrichtigungen im Hintergrund, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner und -Einstellungen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), Koppeln per QR-Code, Updates über die Bridge. |
 | **[spoolman_setup.py](spoolman/)** | Legt einmalig die Spoolman-Zusatzfelder (alle Orca-Filamentwerte) und Materialvorlagen an. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit drei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), eine Korrektur der Plugin-Sandbox unter Linux und Slice-Statistik für Plugins. Aktualisiert sich selbst. |
 
@@ -107,8 +110,9 @@ Ausführlich: **[docs/de/installation.md](docs/de/installation.md)**.
 
 1. Neues Filament → in der Weboberfläche oder App anlegen (oder in Spoolman): Vorlage oder
    Orca-Basisprofil, dazu nur, was du abweichend willst.
-2. Spule einlegen → in der Weboberfläche oder App dem Slot zuordnen; Spulen, die zu dem passen, was
-   die ACE meldet, stehen oben. Bei Spulen ohne Anycubic-Tag gehen Material und Farbe ans Druckerdisplay.
+2. Spule einlegen → mit unseren NFC-Tags ordnet die Bridge sie selbst zu; sonst in der Weboberfläche
+   oder App dem Slot zuordnen (Spulen, die zu dem passen, was die ACE meldet, stehen oben). Bei Spulen
+   ohne Tag gehen Material und Farbe ans Druckerdisplay.
 3. In Orca den Filament-**Sync**-Knopf drücken → die `SM…`-Profile landen in Slot 1–4.
 4. Drucken → der Verbrauch wird pro Spule gebucht, live in der Weboberfläche und in Spoolman.
 5. Profil in Orca anpassen und speichern → bestätigen → die Änderung steht in Spoolman.
@@ -126,9 +130,17 @@ Mehr: **[docs/de/usage.md](docs/de/usage.md)**.
     <td align="center"><img src="docs/images/web-dryer.png" width="420" alt="Trockner-Automatik"><br><sub>ACE-Trockner: Automatik nach Feuchte, nie heißer als die empfindlichste Spule</sub></td>
     <td align="center"><img src="docs/images/web-devices.png" width="420" alt="Gerät koppeln"><br><sub>Geräte: ein Schlüssel pro Gerät, Koppeln per Code oder QR</sub></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/images/web-ace.png" width="420" alt="ACE-Seite"><br><sub>ACE: Spül-Multiplikator mit der Spülmenge jedes Farbwechsels, Nachladen, Leer-Erkennung, Temperaturgrenze</sub></td>
+    <td align="center"><img src="docs/images/web-terminal.png" width="420" alt="Terminal"><br><sub>Terminal: Antworten des Druckers und jeder Befehl mit Absender, Riskantes fragt nach</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/web-logs.png" width="420" alt="Logs"><br><sub>Logs: Bridge-Log, Logdateien des Druckers, Rohdaten jedes Drucks</sub></td>
+    <td align="center"><img src="docs/images/app-notification.png" width="420" alt="Druck-Benachrichtigung"><br><sub>App: der laufende Druck in der Benachrichtigungsleiste</sub></td>
+  </tr>
 </table>
 
-Auf einem 5120×1440-Ultrawide steht alles nebeneinander – Drucker, Slots, Regal, Spulendetails und Drucke:
+Auf einem 5120×1440-Ultrawide passt die ganze Übersicht auf einen Bildschirm – Drucker mit großer Kamera, Slots, Trockner, ACE, Meldungen:
 
 <p align="center"><img src="docs/images/web-ultrawide.png" width="100%" alt="Weboberfläche auf einem Ultrawide-Bildschirm"></p>
 
@@ -175,8 +187,9 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | 1 | Moonraker- und Spoolman-Anbindung, Slot-Zuordnung, `lane_data`, Telemetrie | ✅ fertig |
 | 2 | Verbrauch pro Spule, Journal, offene Posten, Soll-Abgleich, Historie | ✅ fertig |
 | 3 | Orca-Profile aus Spoolman, Seitenpanel, Rücksync, gepatchter Orca-Build, Verbrauchsvorschau nach dem Slicen | ✅ fertig (Profile ohne Neustart nachladen ist zurückgestellt, siehe [Befunde](docs/findings.md)) |
-| 4 | Weboberfläche, Android-App, Koppeln, ACE-Trockner, NFC-Tags | ✅ Weboberfläche, Koppeln, Trockner · 🧪 App (Vorschau) · 🔜 Spulen beim Einlegen am Tag erkennen |
-| – | Spülen pro Farbwechsel: Spülmenge der Firmware pro Übergang lernen, für genaue Buchung und Vorschau | 🔜 geplant |
+| 4 | Weboberfläche, Android-App, Koppeln, ACE-Trockner, NFC-Tags, Spulen beim Einlegen am Tag erkennen | ✅ fertig |
+| – | Spülen pro Farbwechsel: wie die Firmware für jeden Übergang gerechnet, Konstanten bei jedem Druck nachgeschärft | ✅ fertig |
+| – | Druckermonitor (ersetzt OctoApp): Kamera-Restream, Drucksteuerung, Terminal, Logs, Benachrichtigungen aufs Handy | ✅ fertig · 🔜 Widget, Prüfung beim Druckstart, KI-Fehlererkennung |
 | 5 | Home Assistant über MQTT (Slots, Restgewicht, Meldungen) | 🔜 geplant |
 
 ## Dank

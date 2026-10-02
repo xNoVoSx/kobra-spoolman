@@ -6,6 +6,20 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.15.2] – 2026-10-03
+
+### Fixed
+- Dryer: the ACE reports the remaining time in **seconds**, the bridge read it as minutes — the web UI
+  showed e.g. "Noch 278 h" for 4.6 h, and when the bridge lowered a running drying for a more
+  sensitive spool it restarted it for up to 24 h instead of the time left.
+- Web: the dryer card shows the ACE's current temperature while drying too, next to set point and limit
+  (before only the set point).
+
+### Docs
+- New screenshots of the web UI (overview, ACE, terminal, logs …) and the app (start, slots, spool
+  card, notification); README, usage and app pages brought up to date (app released, print control,
+  RFID automatic, purge per colour change done).
+
 ## [2.15.1] – 2026-10-02
 
 ### Changed

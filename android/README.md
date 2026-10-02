@@ -1,6 +1,6 @@
 # Kobra Spoolman — Android app
 
-Status: **preview** — see [docs/android-app.md](../docs/android-app.md). Not released yet; CI attaches a debug APK to every run.
+Status: **released** — see [docs/android-app.md](../docs/android-app.md). Every release carries the signed APK; the bridge offers it to the app as an update. CI attaches a debug APK to every run.
 
 The app talks only to the [ace-lane-bridge](../bridge) (`/api/app/…`, [API](../docs/api.md#app-and-web-ui)).
 UI texts are German, like the plugin and the web UI.

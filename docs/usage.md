@@ -11,7 +11,7 @@ NFC tags. Spoolman's own UI is only needed for things the bridge does not cover 
 | Screen width | Layout |
 |---|---|
 | Phone | bar at the bottom: *Übersicht*, *Filament*, *Drucke*, *Mehr* |
-| Desktop | side bar on the left: *Übersicht*, *Filament* (spools and filament types), *Drucke*, *ACE*, devices, settings |
+| Desktop | side bar on the left: *Übersicht*, *Filament* (spools and filament types), *Drucke*, *ACE*, *Terminal*, *Logs*, devices, settings |
 | Ultrawide (≥ 3000 px, e.g. 5120×1440) | the overview fits on one screen: printer with a large camera, slots with dryer and ACE, messages and status |
 
 The **overview** is the printer monitor: the camera (the model only while printing), print status,
@@ -112,7 +112,8 @@ A filament type lists its spools; tapping one opens it under *Spulen*.
 
 ## Drying (ACE dryer)
 
-The dryer card shows the ACE's humidity and temperature and the dryer state. **Trocknen** /
+The dryer card shows the ACE's humidity and its current temperature; while drying also the set point,
+the filament that limits it and the time left. **Trocknen** /
 **Stoppen** works by hand; **Regeln** sets the automation: start when the humidity rises above a
 threshold (default 20 %), stop below a second one (default 10 %) or after a maximum time, then a
 pause; optionally also while printing.
@@ -120,8 +121,8 @@ pause; optionally also while printing.
 The temperature is **never higher than the most sensitive loaded filament allows** — the field
 *Trocknen max.* on the filament, else on its template, else a cautious default per material
 (PLA 55 °C, PETG 60 °C, TPU 55 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C).
-If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once. The
-**Trockner** page shows which slot sets the limit.
+If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once and keeps
+the remaining time. The **ACE** page lists the limit of every slot.
 
 ## Watching a print
 
@@ -167,8 +168,8 @@ multiplier applies from the next colour change.
    (*dieser Druck*). The bridge books into Spoolman at every colour change, every 5 minutes and at
    the end. Finished prints appear under **Drucke** with grams per spool.
 
-The web UI only *shows* the printer — pause, cancel and everything else stay in Mainsail/Fluidd
-(*In Mainsail öffnen* on the printer card).
+Pause, cancel and fine-tuning work from the printer card ([below](#controlling-a-print)); files,
+macros and starting a print stay in Mainsail/Fluidd (*Mainsail* on the printer card).
 
 ### How the usage preview is calculated
 
@@ -216,6 +217,8 @@ Rinkhals blocks a firmware restart because GoKlipper would hang.
 
 ## Notifications on the phone
 
+<p align="center"><img src="images/app-notification.png" width="420" alt="Print notification"></p>
+
 The app watches the printer in the background and replaces the OctoApp companion (which on the Kobra S1
 took about two thirds of the printer's CPU). It only asks the bridge, so the printer does not notice.
 While printing, the notification bar shows progress, remaining and finish time and a camera picture;
@@ -234,6 +237,8 @@ paired device.
 **Logs**: *Bridge* is the bridge's own log (filter by level, search, download — no detour through
 Portainer); *Drucker* shows the end of the printer's log files (`moonraker.log`, …; only the last
 200 KB, more on request); *Druck-Aufzeichnungen* are the raw recordings of each print for download.
+
+<p align="center"><img src="images/web-terminal.png" width="760" alt="Terminal"></p>
 
 ## Devices
 

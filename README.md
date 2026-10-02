@@ -27,6 +27,9 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
   control the **ACE dryer** — without touching Spoolman's own UI.
 - Changes you make to a profile in Orca are **written back to Spoolman** after you confirm.
 - After slicing, the Orca panel shows **what each spool needs** for the plate and warns if one is too short.
+- The bridge is also a **printer monitor that replaces OctoApp**: camera restream that spares the
+  printer's CPU, pause/cancel/fine-tuning, terminal and logs, notifications on the phone — and
+  spools with our NFC tags are **assigned to their slot by themselves** when loaded.
 
 <p align="center">
   <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer with camera, messages and status, dryer, ACE, slots"><br>
@@ -36,7 +39,7 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 <table>
   <tr>
     <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Web UI on a phone"><br><sub>Web UI on the phone</sub></td>
-    <td align="center"><img src="docs/images/app-slots.png" width="230" alt="Android app"><br><sub>Android app</sub></td>
+    <td align="center"><img src="docs/images/app-start.png" width="230" alt="Android app"><br><sub>Android app</sub></td>
     <td align="center"><img src="docs/images/orca-panel.png" width="230" alt="Orca side panel"><br><sub>Orca side panel</sub></td>
   </tr>
 </table>
@@ -72,9 +75,9 @@ for Moonraker clients); the browser, the app and the Orca plugin all talk to the
 
 | Component | What it does |
 |---|---|
-| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Web UI, slot ↔ spool assignment, writes `lane_data` for Orca, measures and books consumption per spool, open items, print history, ACE dryer automation, device pairing, API for app and plugin. |
+| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Web UI, slot ↔ spool assignment (automatic by NFC tag), writes `lane_data` for Orca, measures and books consumption per spool, open items, print history, purge per colour change, ACE dryer automation and ACE settings, camera restream, print control, terminal and logs, messages, device pairing, API for app and plugin, ships the app update. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | One Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, usage preview after slicing, back-sync of profile edits to Spoolman. |
-| **[Android app](android/)** (preview) | Slots, spool card, new spools and filaments, ACE dryer, writes ACE-compatible NFC tags, pairing by QR code. |
+| **[Android app](android/)** | Printer with camera and controls, notifications in the background, slots, spool card, new spools and filaments, ACE dryer and settings, writes ACE-compatible NFC tags (two per spool), pairing by QR code, updates through the bridge. |
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with three small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), a Linux plugin-sandbox fix and read-only slice statistics for plugins. Updates itself. |
 
@@ -109,9 +112,9 @@ Full guide: **[docs/installation.md](docs/installation.md)**.
 
 1. New filament → create it in the web UI or the app (or in Spoolman): template or Orca base
    profile, plus whatever you want to override.
-2. Load the spool → assign it to its slot in the web UI or the app; spools that match what the ACE
-   reports come first. Spools without an Anycubic tag get their material and colour passed to the
-   printer display.
+2. Load the spool → with our NFC tags it is assigned to its slot by itself; otherwise assign it in
+   the web UI or the app (spools that match what the ACE reports come first). Spools without a tag get
+   their material and colour passed to the printer display.
 3. In Orca press the filament **sync** button → the `SM…` profiles land in slots 1–4.
 4. Print → consumption is booked per spool, visible live in the web UI and in Spoolman.
 5. Tweak a profile in Orca and save → confirm → the change is stored in Spoolman.
@@ -129,9 +132,17 @@ Details: **[docs/usage.md](docs/usage.md)**.
     <td align="center"><img src="docs/images/web-dryer.png" width="420" alt="Dryer automation"><br><sub>ACE dryer: automation by humidity, never hotter than the most sensitive spool</sub></td>
     <td align="center"><img src="docs/images/web-devices.png" width="420" alt="Pairing a device"><br><sub>Devices: one key per device, pairing by code or QR</sub></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/images/web-ace.png" width="420" alt="ACE page"><br><sub>ACE: purge multiplier with the purge of every colour change, refill, runout detection, temperature limit</sub></td>
+    <td align="center"><img src="docs/images/web-terminal.png" width="420" alt="Terminal"><br><sub>Terminal: printer answers and every command with its sender, risky ones ask first</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/web-logs.png" width="420" alt="Logs"><br><sub>Logs: bridge log, the printer's log files, raw print recordings</sub></td>
+    <td align="center"><img src="docs/images/app-notification.png" width="420" alt="Print notification"><br><sub>App: the running print in the notification bar</sub></td>
+  </tr>
 </table>
 
-On a 5120×1440 ultrawide everything sits side by side — printer, slots, shelf, spool details and prints:
+On a 5120×1440 ultrawide the whole overview fits on one screen — printer with a large camera, slots, dryer, ACE, messages:
 
 <p align="center"><img src="docs/images/web-ultrawide.png" width="100%" alt="Web UI on an ultrawide screen"></p>
 
@@ -178,8 +189,9 @@ Keep the bridge inside your home network; it has no TLS.
 | 1 | Moonraker + Spoolman connection, slot assignment, `lane_data`, telemetry | ✅ done |
 | 2 | Consumption per spool, journal, open items, target comparison, history | ✅ done |
 | 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build, usage preview after slicing | ✅ done (reloading profiles without a restart is deferred, see [findings](docs/findings.md)) |
-| 4 | Web UI, Android app, pairing, ACE dryer, NFC tags | ✅ web UI, pairing, dryer · 🧪 app (preview) · 🔜 recognise spools by their tag when loaded |
-| — | Purge per colour change: learn the firmware's purge per transition for exact bookings and previews | 🔜 planned |
+| 4 | Web UI, Android app, pairing, ACE dryer, NFC tags, spools recognised by their tag when loaded | ✅ done |
+| — | Purge per colour change: computed like the firmware for every transition, constants refined on every print | ✅ done |
+| — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done · 🔜 home-screen widget, check at print start, AI print-failure detection |
 | 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
 
 ## Credits

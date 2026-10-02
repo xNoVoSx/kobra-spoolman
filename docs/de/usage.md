@@ -12,7 +12,7 @@ abdeckt (z.B. einen Hersteller umbenennen).
 | Bildschirmbreite | Aufbau |
 |---|---|
 | Handy | Leiste unten: *Übersicht*, *Filament*, *Drucke*, *Mehr* |
-| Desktop | Seitenleiste links: *Übersicht*, *Filament* (Spulen und Sorten), *Drucke*, *ACE*, Geräte, Einstellungen |
+| Desktop | Seitenleiste links: *Übersicht*, *Filament* (Spulen und Sorten), *Drucke*, *ACE*, *Terminal*, *Logs*, Geräte, Einstellungen |
 | Ultrawide (ab 3000 px, z.B. 5120×1440) | die Übersicht passt auf einen Bildschirm: Drucker mit großer Kamera, Slots mit Trockner und ACE, Meldungen und Status |
 
 Die **Übersicht** ist der Druckermonitor: Kamera (das Modell nur während eines Drucks), Druckstatus,
@@ -115,7 +115,8 @@ Spulen; Tippen öffnet die Spule unter *Spulen*.
 
 ## Trocknen (ACE-Trockner)
 
-Die Trockner-Karte zeigt Feuchte und Temperatur der ACE und den Zustand. **Trocknen** / **Stoppen**
+Die Trockner-Karte zeigt Feuchte und aktuelle Temperatur der ACE; beim Trocknen dazu das Soll, das
+Filament, das die Grenze setzt, und die Restzeit. **Trocknen** / **Stoppen**
 geht von Hand; **Regeln** stellt die Automatik ein: Start, wenn die Feuchte über eine Schwelle steigt
 (Standard 20 %), Stopp unter einer zweiten (Standard 10 %) oder nach einer Höchstdauer, danach eine
 Pause; wahlweise auch während eines Drucks.
@@ -123,8 +124,8 @@ Pause; wahlweise auch während eines Drucks.
 Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament verträgt** – Feld
 *Trocknen max.* am Filament, sonst an der Vorlage, sonst ein vorsichtiger Wert pro Material
 (PLA 55 °C, PETG 60 °C, TPU 55 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C).
-Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort. Die
-Seite **Trockner** zeigt, welcher Slot die Grenze setzt.
+Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort und
+behält die Restzeit. Die Seite **ACE** listet die Grenze jedes Slots.
 
 ## Einen Druck beobachten
 
@@ -172,8 +173,8 @@ Ein neuer Multiplikator gilt ab dem nächsten Farbwechsel.
    Die Bridge bucht bei jedem Farbwechsel, alle 5 Minuten und am Ende in Spoolman. Fertige Drucke
    stehen unter **Drucke** mit Gramm pro Spule.
 
-Die Weboberfläche *zeigt* den Drucker nur an – Pause, Abbrechen und alles andere bleiben in
-Mainsail/Fluidd (*In Mainsail öffnen* auf der Druckerkarte).
+Pause, Abbrechen und Nachjustieren gehen auf der Druckerkarte ([unten](#einen-druck-steuern));
+Dateien, Makros und Druck starten bleiben in Mainsail/Fluidd (*Mainsail* auf der Druckerkarte).
 
 ### So wird die Verbrauchsvorschau berechnet
 
@@ -221,6 +222,8 @@ und wieder eingeschaltet werden; Rinkhals sperrt den Firmware-Neustart, weil GoK
 
 ## Benachrichtigungen aufs Handy
 
+<p align="center"><img src="../images/app-notification.png" width="420" alt="Druck-Benachrichtigung"></p>
+
 Die App überwacht den Drucker im Hintergrund und ersetzt den OctoApp-Companion (der am Kobra S1 etwa zwei
 Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt davon nichts. Während eines
 Drucks zeigt die Leiste Fortschritt, Restzeit, Fertig-Uhrzeit und ein Kamerabild; es gibt einen Ton bei
@@ -239,6 +242,8 @@ nach. Senden geht nur auf gekoppelten Geräten.
 **Logs**: *Bridge* ist das Log der Bridge (Filter nach Stufe, Suche, Download – kein Umweg über
 Portainer); *Drucker* zeigt das Ende der Logdateien des Druckers (`moonraker.log`, …; nur die letzten
 200 KB, auf Wunsch mehr); *Druck-Aufzeichnungen* sind die Rohdaten jedes Drucks zum Herunterladen.
+
+<p align="center"><img src="../images/web-terminal.png" width="760" alt="Terminal"></p>
 
 ## Geräte
 

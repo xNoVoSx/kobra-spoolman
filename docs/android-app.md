@@ -2,16 +2,20 @@
 
 [Back to README](../README.md)
 
-Status: **preview** — feature-complete for daily use, tested on the emulator; not yet signed or
-released, real NFC stickers still to be tested on the phone. Code: [`android/`](../android).
+Status: **released** — signed APK on every GitHub release, updates through the bridge; in daily use
+on a Galaxy S26 Ultra, NFC tags and automatic slot assignment tested on the real printer.
+Code: [`android/`](../android).
 
 <table>
   <tr>
-    <td align="center"><img src="images/app-slots.png" width="230" alt="Slots"><br><sub>Slots, printer, dryer, shelf</sub></td>
-    <td align="center"><img src="images/app-spool.png" width="230" alt="Spool card"><br><sub>Spool card: slot, shelf, tag, archive</sub></td>
-    <td align="center"><img src="images/app-adddevice.png" width="230" alt="Devices"><br><sub>Devices: QR code for the next device</sub></td>
+    <td align="center"><img src="images/app-start.png" width="230" alt="Start"><br><sub>Start: camera, print, printer data, controls</sub></td>
+    <td align="center"><img src="images/app-slots.png" width="230" alt="Slots"><br><sub>The four ACE slots and the dryer</sub></td>
+    <td align="center"><img src="images/app-spool.png" width="230" alt="Spool card"><br><sub>Spool card: slot, shelf, tags, archive</sub></td>
   </tr>
 </table>
+
+<p align="center"><img src="images/app-notification.png" width="420" alt="Print notification"><br>
+<sub>The print in the notification bar: progress, remaining and finish time, layer, camera picture</sub></p>
 
 ## What it does
 
@@ -41,7 +45,7 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.
 - **Spool card** — remaining weight, temperatures, template, last prints; *In Slot 1–4*,
-  *Ins Regal*, *Tag neu schreiben*, *Leer · archivieren*.
+  *Ins Regal*, *Tags schreiben*, *Leer · archivieren*.
 - **Scan** — hold a spool to the phone: known tag → spool card; an unknown **blank** sticker → write it
   for a new or an existing spool (then the second sticker); an unknown tag **with content** (e.g. an
   original Anycubic tag, write-protected) → new spool or link its UID to an existing one.
@@ -118,8 +122,6 @@ builds and tests the app on every push and attaches the debug APK.
 
 ## Next
 
-- Test with real NTAG215 stickers: does the ACE report our tag number (`AHPEBK-4711` →
-  `gate_spool_id` 4711)? If yes, the bridge assigns a spool to its slot by itself when it is loaded —
-  also during a print, so consumption continues on the new spool at once.
-- Signed release APK attached to the GitHub release (keystore as repository secret), own version in
-  the changelog.
+- Home-screen widget with progress and camera picture.
+- Spool swap during a print and the ACE's backup spool (*Automatisch nachladen*) still to be checked on
+  a real print: consumption has to continue on the spool of the new slot.
