@@ -53,4 +53,6 @@ export async function bookOpen(itemId, spoolId) {
   await after(post(`/api/open/${itemId}`, { spool_id: spoolId }), `Auf Spule #${spoolId} gebucht`);
   loadJobs();
 }
+export const visionFeedback = (id, verdict) =>
+  after(post("/api/vision/feedback", { id, verdict }), verdict === "false_alarm" ? "Als Fehlalarm gemerkt – KI für diesen Druck still" : "Danke – als Fehldruck gemerkt");
 export const discardOpen = (itemId) => after(del(`/api/open/${itemId}`), "Posten verworfen");

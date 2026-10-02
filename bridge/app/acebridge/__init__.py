@@ -1,11 +1,16 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.16.0"
+__version__ = "2.17.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.17.0", "2026-10-03", [
+        "KI-Fehldruck-Erkennung (kobra-vision): Alarm mit Kamerabild, Rahmen im Bild, Fehlalarm/Stimmt",
+        "Bildersammlung für die nächsten KI-Stufen (bis 5 GB)",
+        "App 1.5.0: KI-Alarm mit „Pausieren“ und „Fehlalarm“",
+    ]),
     ("2.16.0", "2026-10-03", [
         "App 1.4.0: Druck als Live-Update immer oben, eigene Töne, Töne testen in den Einstellungen",
         "Drucker-CPU ist keine Meldung mehr, nur noch Status (gelb ab 90 %, rot ab 97 %)",

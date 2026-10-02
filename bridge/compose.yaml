@@ -24,5 +24,17 @@ services:
       MOONRAKER_URL: "http://192.168.1.50:7125"   # <- IP deines Druckers (Rinkhals/Moonraker)
       SPOOLMAN_URL: "http://spoolman:8000"       # im selben Stack ueber den Servicenamen
       TZ: Europe/Berlin
+      # KI-Fehldruck-Erkennung (optional, Dienst unten):
+      # VISION_URL: "http://kobra-vision:7917"
     depends_on:
       - spoolman
+
+  # Optional: KI-Fehldruck-Erkennung (Obicos Modell, laeuft auf der CPU, ~50 ms pro Bild).
+  # Die Bridge schickt ihr im Druck alle 10 s ein Kamerabild; der Drucker merkt davon nichts.
+  # kobra-vision:
+  #   image: ghcr.io/xnovosx/kobra-vision:latest
+  #   container_name: kobra-vision
+  #   restart: unless-stopped
+  #   environment:
+  #     THREADS: "2"            # CPU-Kerne fuer die Erkennung
+  #     UNLOAD_AFTER_S: "600"   # Modell nach 10 min ohne Druck entladen (Speicher frei)

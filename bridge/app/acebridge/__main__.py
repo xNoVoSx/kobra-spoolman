@@ -25,6 +25,7 @@ from .auth import CameraKey, Devices
 from .console import LOG_BUFFER, Console
 from .dryer import Dryer
 from .usage import UsageTracker
+from .vision import Vision
 from .web import build_app
 
 log = logging.getLogger("bridge")
@@ -49,6 +50,7 @@ class Bridge:
         self.purge.learn(self.usage.history)
         self.ace = AceSettings(self.moon, self.purge, self.slots, self.sm)
         self.camera = Camera(cfg, self.moon, session)
+        self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
@@ -151,7 +153,8 @@ async def amain() -> None:
         await runner.setup()
         await web.TCPSite(runner, cfg.http_host, cfg.http_port).start()
 
-        tasks = [asyncio.create_task(c) for c in (bridge.moon.run(), bridge.spoolman_loop(), bridge.ticker())]
+        tasks = [asyncio.create_task(c) for c in (bridge.moon.run(), bridge.spoolman_loop(), bridge.ticker(),
+                                                         bridge.vision.run())]
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):

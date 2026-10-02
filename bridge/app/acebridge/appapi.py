@@ -559,6 +559,7 @@ class AppApi:
                 "warnings": b.safety_warnings() + b.slots.warnings,
                 "notices": notices(b),
                 "last_control": getattr(b, "last_control", None),
+                "vision": b.vision.summary() if getattr(b, "vision", None) else None,
             })
 
         @r.get("/api/app/catalog")

@@ -175,6 +175,9 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
         out.append(_msg("info", cam["error"], "camera"))
+    vision = getattr(bridge, "vision", None)
+    if vision is not None:
+        out.extend(vision.messages())
     out.sort(key=lambda m: LEVELS[m["level"]])
     return out
 
@@ -225,6 +228,9 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
                       "detail": detail})
     else:
         lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": "bereit (nur wenn jemand schaut)"})
+    vision = getattr(bridge, "vision", None)
+    if vision is not None:
+        lines.append(vision.status_line())
     for kind, label in (("app", "Handy-App"), ("plugin", "Orca-Plugin")):
         d = _device_status(bridge, kind, label, now)
         if d:

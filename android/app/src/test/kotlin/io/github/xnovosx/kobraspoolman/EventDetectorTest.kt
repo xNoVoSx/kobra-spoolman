@@ -6,6 +6,8 @@ import io.github.xnovosx.kobraspoolman.data.LastControl
 import io.github.xnovosx.kobraspoolman.data.Notice
 import io.github.xnovosx.kobraspoolman.data.Notices
 import io.github.xnovosx.kobraspoolman.data.Printer
+import io.github.xnovosx.kobraspoolman.data.VisionEvent
+import io.github.xnovosx.kobraspoolman.data.VisionInfo
 import io.github.xnovosx.kobraspoolman.monitor.EventDetector
 import io.github.xnovosx.kobraspoolman.monitor.EventKind
 import org.junit.Assert.assertEquals
@@ -113,5 +115,21 @@ class EventDetectorTest {
         assertEquals(emptyList<String>(), titles(d, st("standby", notices = sm), 1_000))
         assertEquals(emptyList<String>(), titles(d, st("standby", notices = sm), 200_000))
         assertEquals(listOf(EventKind.HINT), d.update(st("standby", notices = sm), 302_000).map { it.kind })
+    }
+
+    @Test
+    fun aiAlarmCarriesTheEventForTheButtons() {
+        val d = EventDetector()
+        d.update(st("printing", layer = 3), 0)
+        val ai = Notice("error", "KI: wahrscheinlich Fehldruck (Spaghetti) – Kamera prüfen", "ai-fail")
+        val down = Notice("warn", "KI-Dienst nicht erreichbar", "ai-down")
+        val state = st("printing", layer = 3, notices = listOf(ai, down))
+            .copy(vision = VisionInfo(enabled = true, level = "fail", event = VisionEvent("abc123", "fail")))
+        val ev = d.update(state, 5_000)
+        assertEquals(1, ev.size)                                                   // "nicht erreichbar" bleibt in der App
+        assertEquals(EventKind.ALARM, ev[0].kind)
+        assertEquals("abc123", ev[0].aiEvent)
+        assertEquals("KI: möglicher Fehldruck", ev[0].title)
+        assertEquals("notice-ai", ev[0].key)                                       // ersetzt eine fruehere KI-Warnung
     }
 }

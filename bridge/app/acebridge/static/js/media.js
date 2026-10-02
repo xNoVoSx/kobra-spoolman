@@ -75,6 +75,22 @@ export function Fps({ fps }) {
   return html`<span class="media-fps m" title=${fps.throttled ? "Die Bridge holt weniger Bilder, weil die Drucker-CPU hoch ist" : ""}>${v < 10 ? v.toFixed(1) : Math.round(v)} fps${fps.throttled ? " · gedrosselt" : ""}</span>`;
 }
 
+/** Fundstellen der KI als Rahmen ueber dem Kamerabild. Das SVG hat das Seitenverhaeltnis des ausgewerteten
+ *  Bildes und "meet" wie object-fit: contain - die Rahmen sitzen so ohne Messen genau auf dem Bild. */
+export function AiBoxes() {
+  const v = S.st?.vision;
+  const [w, h] = v?.size || [];
+  if (!v?.detections?.length || !w || !h) return null;
+  const color = v.level === "fail" ? "var(--danger)" : "var(--accent)";
+  return html`<svg class="ai-boxes" viewBox=${`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    ${v.detections.filter((d) => d[1] >= 0.2).map(([, c, [xc, yc, bw, bh]]) => html`<g>
+      <rect x=${(xc - bw / 2) * w} y=${(yc - bh / 2) * h} width=${bw * w} height=${bh * h} fill="none" stroke=${color}
+        stroke-width=${Math.max(2, w / 400)} vector-effect="non-scaling-stroke" />
+      <text x=${(xc - bw / 2) * w + 4} y=${(yc - bh / 2) * h + Math.max(14, h / 40)} fill=${color}
+        font-size=${Math.max(12, h / 45)}>${Math.round(c * 100)} %</text></g>`)}
+  </svg>`;
+}
+
 const temp = (h) => (h.target > 0 ? `${Math.round(h.temp)}/${Math.round(h.target)}°` : `${Math.round(h.temp)}°`);
 const share = (v) => (v > 0 ? `${Math.round(v * 100)} %` : "aus");
 
@@ -124,7 +140,7 @@ export function PrintMedia({ tall }) {
   let body;
   if (tab === "camera") {
     if (!S.me) body = html`<div class="media-empty">Die Kamera sehen nur gekoppelte Geräte. <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>Koppeln</a></div>`;
-    else if (cam) body = html`<img src=${cam} alt="Kamera" onError=${camFail} onClick=${() => openDialog("camera")} /><${Fps} fps=${fps} />`;
+    else if (cam) body = html`<img src=${cam} alt="Kamera" onError=${camFail} onClick=${() => openDialog("camera")} /><${AiBoxes} /><${Fps} fps=${fps} />`;
     else body = html`<div class="media-empty">${camErr || "Kamera lädt …"}</div>`;
   } else if (src) {
     body = html`<img src=${src} alt="Vorschau der Druckdatei" onClick=${() => openDialog("camera", { view: "model", src })} />`;

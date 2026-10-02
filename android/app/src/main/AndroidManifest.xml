@@ -39,6 +39,7 @@
             </intent-filter>
         </activity>
         <receiver android:name=".update.InstallReceiver" android:exported="false" />
+        <receiver android:name=".monitor.VisionActionReceiver" android:exported="false" />
         <service
             android:name=".monitor.MonitorService"
             android:exported="false"

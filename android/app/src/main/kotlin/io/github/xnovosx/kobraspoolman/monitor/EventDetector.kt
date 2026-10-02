@@ -7,7 +7,8 @@ import kotlin.math.abs
 enum class EventKind { START, LAYER, DONE, ALARM, HINT }
 
 /** Ein Ereignis fuer eine Benachrichtigung. key: dieselbe Meldung ersetzt sich selbst statt zu stapeln. */
-data class PrintEvent(val kind: EventKind, val title: String, val text: String, val key: String)
+data class PrintEvent(val kind: EventKind, val title: String, val text: String, val key: String,
+                      val aiEvent: String? = null)
 
 /**
  * Erkennt aus aufeinanderfolgenden Abfragen der Bridge, was gemeldet werden soll (ohne Android - testbar).
@@ -152,8 +153,12 @@ class EventDetector(
             if (m.key in noticeKeys) continue
             noticeKeys += m.key
             val alarm = m.level == "error" || m.key.startsWith("reach")
+            val ai = m.key.startsWith("ai-") && m.key != "ai-down"
             out += PrintEvent(if (alarm) EventKind.ALARM else EventKind.HINT,
-                if (alarm) "Achtung" else "Hinweis", m.text, "notice-" + m.key)
+                // KI: warn und fail teilen sich eine Benachrichtigung - "Fehldruck" ersetzt "verdaechtig"
+                if (ai) "KI: möglicher Fehldruck" else if (alarm) "Achtung" else "Hinweis", m.text,
+                if (ai) "notice-ai" else "notice-" + m.key,
+                aiEvent = if (ai) state.vision?.event?.id else null)
         }
         return out
     }

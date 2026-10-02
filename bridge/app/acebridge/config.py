@@ -102,6 +102,16 @@ class Config:
     render_max_mb: float = field(default_factory=lambda: _float("RENDER_MAX_MB", 200.0))
     render_interval_s: float = field(default_factory=lambda: _float("RENDER_INTERVAL_S", 15.0))
 
+    # KI (kobra-vision): leer = aus. Im Druck alle VISION_INTERVAL_S ein Bild an den Dienst; warn = nur melden,
+    # pause = bei sicherem Fehldruck pausieren. Bilder fuer spaeteres Training: hoechstens VISION_DATASET_GB.
+    vision_url: str = field(default_factory=lambda: os.environ.get("VISION_URL", "").rstrip("/"))
+    vision_token: str = field(default_factory=lambda: os.environ.get("VISION_TOKEN", ""))
+    vision_interval_s: float = field(default_factory=lambda: _float("VISION_INTERVAL_S", 10.0))
+    vision_sensitivity: float = field(default_factory=lambda: _float("VISION_SENSITIVITY", 1.0))
+    vision_action: str = field(default_factory=lambda: os.environ.get("VISION_ACTION", "warn").strip().lower())
+    vision_dataset_gb: float = field(default_factory=lambda: _float("VISION_DATASET_GB", 5.0))
+    vision_save_every_s: float = field(default_factory=lambda: _float("VISION_SAVE_EVERY_S", 60.0))
+
     dry_run: bool = field(default_factory=lambda: _bool("DRY_RUN", False))
     data_dir: str = field(default_factory=lambda: os.environ.get("DATA_DIR", "/data"))
     log_level: str = field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO").upper())

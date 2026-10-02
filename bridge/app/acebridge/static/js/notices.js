@@ -2,7 +2,8 @@
 // (GET /api/app/state -> notices). Meldungen nach Wichtigkeit, darunter der Zustand aller Verbindungen.
 
 import { html } from "../vendor/preact-htm.module.js";
-import { S } from "./store.js";
+import { visionFeedback } from "./actions.js";
+import { S, guard } from "./store.js";
 import { ago, cls } from "./util.js";
 
 const LEVEL = { error: "var(--danger)", warn: "var(--accent)", info: "var(--muted)" };
@@ -18,7 +19,10 @@ export function NoticesCard() {
       ${msgs.length ? html`<span class=${cls("chip", worst === "error" ? "bad" : worst === "warn" ? "warn" : "")}>${msgs.length}</span>`
                     : html`<span class="chip ok">alles gut</span>`}</div>
     ${msgs.length > 0 && html`<ul class="msgs">
-      ${msgs.map((m) => html`<li class=${m.level}><span class="dot" style=${{ background: LEVEL[m.level] }}></span><span>${m.text}</span></li>`)}
+      ${msgs.map((m) => html`<li class=${m.level}><span class="dot" style=${{ background: LEVEL[m.level] }}></span><span class="grow">${m.text}
+        ${m.key?.startsWith("ai-") && m.key !== "ai-down" && S.st?.vision?.event && html`<span class="ai-acts">
+          <button class="btn sm" onClick=${guard(() => visionFeedback(S.st.vision.event.id, "false_alarm"))}>Fehlalarm</button>
+          <button class="btn sm" onClick=${guard(() => visionFeedback(S.st.vision.event.id, "confirmed"))}>Stimmt</button></span>`}</span></li>`)}
     </ul>`}
     <div class="lbl" style="margin-top:4px">Status</div>
     <ul class="stat-lines">

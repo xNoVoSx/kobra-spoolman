@@ -9,6 +9,8 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -181,6 +183,12 @@ class BridgeClient(
     /** pause, resume, cancel, emergency_stop - die App hat vorher selbst nachgefragt (confirm). */
     suspend fun printAction(action: String) {
         call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
+    }
+
+    /** KI-Ereignis bewerten: false_alarm (KI fuer den Rest des Drucks still) oder confirmed. */
+    suspend fun visionFeedback(eventId: String, verdict: String) {
+        call("POST", "/api/vision/feedback", buildJsonObject { put("id", eventId); put("verdict", verdict) }.toString(),
+            ApiError.serializer())
     }
 
     /** Nachjustieren: {speed, flow, fans: {part, box, filter}, nozzle, bed}. */

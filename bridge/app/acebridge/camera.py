@@ -257,6 +257,13 @@ class Camera:
                 pass
         return await self._single()
 
+    async def still(self) -> Tuple[bytes, float]:
+        """Ein Bild fuer die KI: das aktuelle, wenn jemand zuschaut, sonst genau ein Einzelabruf - startet die
+        Bildpumpe nicht (snapshot() haelt sie IDLE_CLOSE_S lang mit bis zu CAMERA_FPS_MAX am Laufen)."""
+        if not self.cfg.camera:
+            raise CameraError("Kamera ist abgeschaltet (CAMERA=false)")
+        return await self._single()
+
     async def _single(self) -> Tuple[bytes, float]:
         async with self._snap_lock:
             if self.image is not None and self.clock() - self.taken_at < self.cfg.camera_interval_s:

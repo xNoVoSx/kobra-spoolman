@@ -1,4 +1,5 @@
-# Baut das Docker-Image der Bridge und veroeffentlicht es unter ghcr.io/<owner>/ace-lane-bridge.
+# Baut die Docker-Images der Bridge (ghcr.io/<owner>/ace-lane-bridge) und des KI-Dienstes
+# (ghcr.io/<owner>/kobra-vision, CPU; Modell wird beim Bauen geladen und geprueft).
 #   - Push auf main     -> Tag "edge"
 #   - Tag vX.Y.Z        -> Tags "X.Y.Z", "X.Y", "latest" - mit der signierten App-APK im Image
 #                          (die Bridge bietet sie der App als Update an, /api/app/update)
@@ -10,6 +11,7 @@ on:
     tags: ["v*"]
     paths:
       - "bridge/**"
+      - "vision/**"
       - ".github/workflows/docker.yml"
   workflow_dispatch:
 
@@ -64,3 +66,31 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  vision:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/kobra-vision
+          tags: |
+            type=edge,branch=main
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: vision
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=vision
+          cache-to: type=gha,mode=max,scope=vision

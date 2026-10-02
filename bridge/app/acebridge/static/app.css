@@ -181,6 +181,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .msgs li.error { color: var(--danger-text); }
 .msgs li.warn { color: var(--accent-text); }
 .msgs li.info { color: var(--muted); }
+.ai-acts { display: inline-flex; gap: 6px; margin-left: 8px; vertical-align: middle; }
+.ai-boxes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ai-boxes text { font-family: var(--mono, monospace); font-weight: 600; paint-order: stroke; stroke: rgba(0,0,0,.6); stroke-width: 3px; }
 .stat-lines li { display: grid; grid-template-columns: 10px 96px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
 .stat-lines .lab { color: var(--text); }
 .sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }

@@ -23,6 +23,21 @@ jobs:
       - name: Tests
         run: pytest -q
 
+  vision:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: vision
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Abhaengigkeiten
+        run: pip install -r requirements.txt pytest
+      - name: Tests (ohne das 200-MB-Modell)
+        run: pytest -q
+
   android:
     runs-on: ubuntu-24.04
     defaults:

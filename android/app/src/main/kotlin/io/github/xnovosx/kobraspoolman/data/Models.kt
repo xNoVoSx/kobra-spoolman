@@ -20,7 +20,21 @@ data class AppState(
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
+    val vision: VisionInfo? = null,
 )
+
+/** KI-Fehldruck-Erkennung (kobra-vision ueber die Bridge). level: ok | warn | fail; event: offenes Ereignis. */
+@Serializable
+data class VisionInfo(
+    val enabled: Boolean = false,
+    val level: String = "ok",
+    val muted: Boolean = false,
+    val score: Double? = null,
+    val event: VisionEvent? = null,
+)
+
+@Serializable
+data class VisionEvent(val id: String, val level: String = "warn", val at: Double = 0.0, val score: Double? = null)
 
 /** Zuletzt ueber die Bridge ausgeloeste Druckaktion (pause, resume, cancel ...); at = Unix-Sekunden. */
 @Serializable

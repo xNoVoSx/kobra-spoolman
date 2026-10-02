@@ -160,7 +160,17 @@ object Notifier {
             b.setStyle(Notification.BigTextStyle().bigText(e.text))
         }
         // gleiche Meldung (key) ersetzt die vorige statt sich zu stapeln
-        context.getSystemService(NotificationManager::class.java).notify(1000 + (e.key.hashCode() and 0xffff), b.build())
+        val id = 1000 + (e.key.hashCode() and 0xffff)
+        e.aiEvent?.let { ev ->
+            // KI-Alarm: direkt aus der Benachrichtigung pausieren oder als Fehlalarm melden
+            fun action(what: String, label: String, req: Int) = Notification.Action.Builder(null, label,
+                PendingIntent.getBroadcast(context, req, Intent(context, VisionActionReceiver::class.java).setAction(what)
+                    .putExtra(VisionActionReceiver.EXTRA_EVENT, ev).putExtra(VisionActionReceiver.EXTRA_NOTIFICATION, id),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build()
+            b.addAction(action(VisionActionReceiver.ACTION_PAUSE, "Pausieren", id * 2))
+            b.addAction(action(VisionActionReceiver.ACTION_FALSE_ALARM, "Fehlalarm", id * 2 + 1))
+        }
+        context.getSystemService(NotificationManager::class.java).notify(id, b.build())
     }
 
     /** Probe-Benachrichtigung aus den Einstellungen: prueft Ton, Lautstaerke und "Nicht stoeren" des Kanals. */

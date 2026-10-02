@@ -310,6 +310,37 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.Response(body=data, content_type="image/jpeg",
                             headers={"Cache-Control": "no-store", "X-Taken-At": str(int(taken))})
 
+    # ---------------------------------------------------------------- KI (kobra-vision)
+    @r.get("/api/vision")
+    async def vision_state(_: web.Request):
+        return web.json_response(bridge.vision.state())
+
+    @r.get("/api/vision/event/{event_id}.jpg")
+    async def vision_frame(request: web.Request):
+        """Bild eines KI-Ereignisses - wie die Kamera nur gekoppelt."""
+        if not camera_allowed(request):
+            return camera_denied()
+        path = bridge.vision.frame_path(request.match_info["event_id"])
+        if not path:
+            return _err(404, "Kein Bild zu diesem Ereignis")
+        return web.FileResponse(path, headers={"Cache-Control": "no-store"})
+
+    @r.post("/api/vision/feedback")
+    async def vision_feedback(request: web.Request):
+        """{"id": <ereignis>, "verdict": "false_alarm" | "confirmed"} - Fehlalarm schaltet die KI fuer den Druck still."""
+        try:
+            bridge.devices.require(request.headers.get("Authorization"))
+        except AuthError as e:
+            return _err(e.status, str(e))
+        body = await _body(request)
+        try:
+            ev = bridge.vision.feedback(str(body.get("id") or ""), str(body.get("verdict") or ""))
+        except KeyError:
+            return _err(404, "Unbekanntes Ereignis")
+        except ValueError as e:
+            return _err(400, str(e))
+        return web.json_response({"ok": True, "event": ev})
+
     @r.get("/api/camera/stream.mjpg")
     async def camera_stream(request: web.Request):
         """Weiterverteilter MJPEG-Stream: egal wie viele zuschauen, zum Drucker geht eine Verbindung.
