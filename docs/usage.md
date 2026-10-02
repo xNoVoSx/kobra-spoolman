@@ -221,10 +221,23 @@ Rinkhals blocks a firmware restart because GoKlipper would hang.
 
 The app watches the printer in the background and replaces the OctoApp companion (which on the Kobra S1
 took about two thirds of the printer's CPU). It only asks the bridge, so the printer does not notice.
-While printing, the notification bar shows progress, remaining and finish time and a camera picture;
-you get a sound for start, first layer done and finished, and an alarm for pause, cancel, error, a
-stuck colour change, a falling nozzle temperature, the printer or bridge gone, or a spool that won't
-last. Switch it off under *Einstellungen*; set each kind loud or quiet in Android's app settings.
+
+- **While printing** the print is a *Live Update* (Android 16+): always at the top of the shade, on
+  the lock screen and as *48 %* in the status bar, with progress, remaining and finish time and layer.
+  Android allows no picture there; on older phones, or if you switch Live Updates off for the app, it
+  is a normal notification with a camera picture.
+- **Own sounds**, so you can tell them from other apps: print started, first layer done, print
+  finished, alarm, hint.
+- **Alarm** (with a camera picture): printer error, a pause or cancel you did not make yourself (a
+  pause from the web UI or the app is no alarm), a stuck colour change, a falling nozzle temperature,
+  printer or bridge gone during a print, a spool that won't last.
+- **Hint**: only what you can act on — an unknown tag in a slot, a slot without material, Spoolman
+  unreachable for more than 5 minutes. Printer CPU, *fast leer*, open bookings and humidity stay in
+  the app's *Meldungen*.
+
+*Einstellungen → Töne* plays every sound and sends a test notification per kind (checks volume and
+*Do not disturb*). Switch monitoring off under *Einstellungen*; each kind is a separate channel in
+Android's notification settings.
 
 ## Terminal and logs
 

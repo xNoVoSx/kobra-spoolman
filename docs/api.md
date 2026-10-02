@@ -245,7 +245,7 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/app/state` | printer status, slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write` |
+| GET | `/api/app/state` | printer status, slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write`, `notices`, `last_control` (`action`, `source`, `at` in Unix seconds — last pause/resume/cancel/emergency stop sent through the bridge, `null` before the first) |
 | GET | `/api/app/catalog` | vendors, templates (with their values), filaments, extra-field definitions with Orca keys, Orca base profiles |
 | GET | `/api/app/spools?q=` | all active spools, optional text filter |
 | GET | `/api/app/spool/{id}` | one spool, its filament, the last prints that used it |

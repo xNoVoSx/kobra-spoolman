@@ -225,11 +225,23 @@ und wieder eingeschaltet werden; Rinkhals sperrt den Firmware-Neustart, weil GoK
 <p align="center"><img src="../images/app-notification.png" width="420" alt="Druck-Benachrichtigung"></p>
 
 Die App überwacht den Drucker im Hintergrund und ersetzt den OctoApp-Companion (der am Kobra S1 etwa zwei
-Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt davon nichts. Während eines
-Drucks zeigt die Leiste Fortschritt, Restzeit, Fertig-Uhrzeit und ein Kamerabild; es gibt einen Ton bei
-Start, erster Schicht und Ende und einen Alarm bei Pause, Abbruch, Fehler, hängendem Farbwechsel, fallender
-Düsentemperatur, wenn Drucker oder Bridge weg sind oder eine Spule nicht reicht. Abschalten unter
-*Einstellungen*; laut/leise je Art in den Android-Einstellungen der App.
+Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt davon nichts.
+
+- **Während eines Drucks** ist der Druck ein *Live-Update* (ab Android 16): immer ganz oben, auf dem
+  Sperrbildschirm und als *48 %* in der Statusleiste, mit Fortschritt, Restzeit, Fertig-Uhrzeit und Schicht.
+  Ein Bild erlaubt Android dort nicht; auf älteren Handys oder wenn du Live-Updates für die App abschaltest,
+  ist es eine normale Benachrichtigung mit Kamerabild.
+- **Eigene Töne**, damit du sie von anderen Apps unterscheidest: Druck gestartet, erste Schicht fertig,
+  Druck fertig, Alarm, Hinweis.
+- **Alarm** (mit Kamerabild): Druckerfehler, Pause oder Abbruch, die nicht von dir kamen (eine Pause aus
+  Weboberfläche oder App ist kein Alarm), hängender Farbwechsel, fallende Düsentemperatur, Drucker oder
+  Bridge weg im Druck, Spule reicht nicht.
+- **Hinweis**: nur, was du tun kannst – unbekannter Tag im Slot, Slot ohne Material, Spoolman länger als
+  5 Minuten weg. Drucker-CPU, *fast leer*, offene Buchungen und Feuchte bleiben unter *Meldungen* in der App.
+
+*Einstellungen → Töne* spielt jeden Ton ab und schickt pro Art eine Probe-Benachrichtigung (prüft Lautstärke
+und *Nicht stören*). Abschalten unter *Einstellungen*; jede Art ist ein eigener Kanal in den
+Android-Einstellungen der App.
 
 ## Terminal und Logs
 

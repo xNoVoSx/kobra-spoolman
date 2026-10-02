@@ -15,7 +15,7 @@ Code: [`android/`](../android).
 </table>
 
 <p align="center"><img src="images/app-notification.png" width="420" alt="Print notification"><br>
-<sub>The print in the notification bar: progress, remaining and finish time, layer, camera picture</sub></p>
+<sub>The running print as a Live Update: always on top, progress, remaining and finish time, layer</sub></p>
 
 ## What it does
 
@@ -34,13 +34,18 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
 - **Filament** — *Spulen* (all spools, in the ACE and on the shelf) and *Sorten* (filament types
   with their number of spools; tapping one lists its spools); *+* adds a spool or a filament type.
 - **Notifications** (replaces the OctoApp companion, which took 64 % of the printer's CPU) — a
-  background service asks only the bridge (every 5 s while printing, 30 s otherwise) and shows the
-  print in the notification bar (progress, remaining and finish time, layer, camera picture). Sounds
-  for start, first layer done and finished; an **alarm** for pause, cancel, error, a colour change
-  that hangs (> 3 min), a falling nozzle temperature, printer or bridge gone (> 1 min, only during a
-  print) and a spool that won't last; quiet hints for the bridge's yellow messages. Four channels
-  (*Druckfortschritt*, *Druck*, *Alarm*, *Hinweise*) can be set loud/quiet in Android's settings;
-  switch it off under *Einstellungen*. It restarts after the phone reboots.
+  background service asks only the bridge (every 5 s while printing, 30 s otherwise). The running print
+  is a **Live Update** on Android 16+ (`ProgressStyle`, promoted ongoing: top of the shade, lock
+  screen, *48 %* chip in the status bar; no picture allowed there) and a normal notification with a
+  camera picture otherwise. Channels with **own sounds**: *Druck gestartet*, *Erste Schicht fertig*,
+  *Druck fertig* (group *Druck*), *Alarm* (with a fresh camera picture: error, cancel or pause not sent
+  through the bridge — `last_control` —, colour change > 3 min, nozzle falling, printer or bridge gone
+  during a print, spool won't last) and *Hinweise* (unknown tag, slot without material, Spoolman gone
+  > 5 min); *Überwachung* is the silent service notification without a print. Bridge messages are told
+  apart by their key, so a changing number does not notify again. *Einstellungen → Töne* plays each
+  sound and sends a test notification. The sounds are synthesised by
+  [`android/tools/make_sounds.py`](../android/tools/make_sounds.py) (no third-party samples, MIT like
+  the rest). It restarts after the phone reboots.
 - **Mehr** — ACE & dryer, print history, **Protokoll** (read-only: commands sent through the bridge
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.

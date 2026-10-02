@@ -73,7 +73,8 @@ The rate follows the printer's CPU from Moonraker's `notify_proc_stat_update` (p
 request, mean over 10 s): +1 fps every 5 s below 90 %, −1 fps every 5 s above 97 % (1–10 fps by
 default). The thresholds are high on purpose: during a print GoKlipper alone keeps the S1 at 75–89 %,
 and snapshots cost next to nothing, so the camera should only give way when the printer is saturated. The UIs show the frame rate in the corner and *gedrosselt* when the bridge holds back;
-*Status* shows the printer CPU.
+*Status* shows the printer CPU (yellow from 90 %, red from 97 %); it is never a message — nothing can
+be done about it during a print, and a printer that really hangs shows up as unreachable.
 
 ## Web UI (`bridge/app/acebridge/static/`)
 

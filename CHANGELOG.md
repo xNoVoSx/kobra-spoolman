@@ -6,6 +6,32 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.16.0] – 2026-10-03
+
+Ships app 1.4.0 (reworked notifications with own sounds).
+
+### Changed
+- Messages: the printer CPU is no longer a message (nothing to do about it during a print; a printer
+  that really hangs shows up as "Drucker nicht erreichbar"). It stays a status line, now yellow from
+  90 % and red from 97 % — during a print the S1 sits at 75–89 % from GoKlipper alone.
+
+### Added
+- `/api/app/state` has `last_control` (`action`, `source`, `at`): the last pause/resume/cancel sent
+  through the bridge, so the app does not raise an alarm for a pause you made yourself.
+
+## app 1.4.0 – 2026-10-03
+
+- Druck läuft: ab Android 16 als Live-Update – immer ganz oben, auf dem Sperrbildschirm und als „48 %“ in der
+  Statusleiste (vorher rutschte er unter „Weitere Benachrichtigungen“)
+- Eigene Töne: Druck gestartet, erste Schicht, Druck fertig, Alarm und Hinweis klingen unterschiedlich – und
+  anders als andere Apps
+- Einstellungen → Töne: jeden Ton anhören und eine Probe-Benachrichtigung schicken
+- Alarme kommen mit Kamerabild; deine eigene Pause oder dein Abbruch (Web/App) ist kein Alarm mehr
+- Nur noch, was man tun kann: CPU, fast leer, offene Buchung und Feuchte kommen nicht mehr aufs Handy;
+  unbekannter Tag, Slot ohne Material, Spoolman länger als 5 min weg schon
+- Dieselbe Meldung kommt nicht mehr bei jeder neuen Zahl erneut
+- Update-Installation auf Android 10–12 abgesichert
+
 ## [2.15.3] – 2026-10-03
 
 ### Fixed
