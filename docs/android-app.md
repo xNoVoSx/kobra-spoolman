@@ -34,8 +34,9 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   terminal), devices, settings.
 - **Spool card** — remaining weight, temperatures, template, last prints; *In Slot 1–4*,
   *Ins Regal*, *Tag neu schreiben*, *Leer · archivieren*.
-- **Scan** — hold a spool to the phone: known tag → spool card; unknown tag → new spool or link to an
-  existing one. Original Anycubic tags are linked by their UID (they are write-protected).
+- **Scan** — hold a spool to the phone: known tag → spool card; an unknown **blank** sticker → write it
+  for a new or an existing spool (then the second sticker); an unknown tag **with content** (e.g. an
+  original Anycubic tag, write-protected) → new spool or link its UID to an existing one.
 - **New spool** from an existing filament, optionally straight into a slot.
 - **New filament** — a 7-step wizard with every Orca field; template values are placeholders and
   never stored; *Werte übernehmen von …* copies a product line for a new colour.

@@ -74,6 +74,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     val snackbar = remember { SnackbarHostState() }
     var scanOpen by remember { mutableStateOf(false) }
     var unknownTag by remember { mutableStateOf<String?>(null) }
+    var blankTag by remember { mutableStateOf<String?>(null) }
+    var writeFor by remember { mutableStateOf(false) }
     var linkTagUid by remember { mutableStateOf<String?>(null) }
     var fillSlot by remember { mutableStateOf<Int?>(null) }
     var dryerOpen by remember { mutableStateOf(false) }
@@ -114,7 +116,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             scanOpen = false
             when (r) {
                 is ScanResult.Known -> nav.navigate("spool/${r.spoolId}") { launchSingleTop = true }
-                is ScanResult.Unknown -> unknownTag = r.uid
+                is ScanResult.Unknown -> if (r.blank) blankTag = r.uid else unknownTag = r.uid
             }
         }
     }
@@ -262,7 +264,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
         AlertDialog(
             onDismissRequest = { unknownTag = null },
             title = { Text("Unbekannter Tag") },
-            text = { Text("Dieser Tag ($uid) gehört noch zu keiner Spule.") },
+            text = { Text("Dieser Tag ($uid) ist beschrieben, gehört aber noch zu keiner Spule – z. B. ein Original-Anycubic-Tag.") },
             confirmButton = {
                 TextButton(onClick = { unknownTag = null; nav.navigate("new?uid=$uid") }) { Text("Neue Spule") }
             },
@@ -270,6 +272,36 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 TextButton(onClick = { unknownTag = null; linkTagUid = uid }) { Text("Mit vorhandener verknüpfen") }
             },
             containerColor = K.Surface,
+        )
+    }
+    // Leerer Sticker: nicht verknuepfen (er bliebe leer, die ACE koennte ihn nicht lesen), sondern beschreiben -
+    // fuer eine neue oder eine vorhandene Spule; danach fragt die App nach dem zweiten Sticker (andere Seite).
+    blankTag?.let { uid ->
+        AlertDialog(
+            onDismissRequest = { blankTag = null },
+            title = { Text("Leerer Sticker") },
+            text = { Text("Dieser Sticker ist noch leer. Für welche Spule soll er beschrieben werden? " +
+                "Danach kommt gleich der zweite Sticker für die andere Spulenseite.") },
+            confirmButton = {
+                TextButton(onClick = { blankTag = null; writeFor = true }) { Text("Vorhandene Spule") }
+            },
+            dismissButton = {
+                TextButton(onClick = { blankTag = null; nav.navigate("new") }) { Text("Neue Spule") }
+            },
+            containerColor = K.Surface,
+        )
+    }
+    if (writeFor) {
+        SpoolPicker(
+            title = "Sticker beschreiben für …",
+            spools = state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty(),
+            onDismiss = { writeFor = false },
+            onPick = { sp ->
+                writeFor = false
+                // hat die Spule schon einen Tag, ist dieser Sticker der zweite
+                val side = if (sp.nfcUids.size == 1 || (sp.nfcUids.isEmpty() && sp.nfcUid != null)) 2 else 1
+                nav.navigate("tag/${sp.spoolId}?side=$side")
+            },
         )
     }
     linkTagUid?.let { uid ->

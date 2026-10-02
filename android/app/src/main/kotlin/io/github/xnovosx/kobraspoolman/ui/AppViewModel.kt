@@ -47,7 +47,8 @@ import kotlinx.coroutines.launch
 /** Was die Oberflaeche nach einem Scan tun soll. */
 sealed interface ScanResult {
     data class Known(val spoolId: Int) : ScanResult
-    data class Unknown(val uid: String) : ScanResult
+    /** blank: der Tag hat keinen ACE-Inhalt (leerer Sticker) - dann beschreiben statt verknuepfen. */
+    data class Unknown(val uid: String, val blank: Boolean = false) : ScanResult
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -375,7 +376,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try {
             _scans.send(ScanResult.Known(it.spoolByTag(tag.uid).spoolId))
         } catch (e: BridgeException) {
-            if (e.status == 404) _scans.send(ScanResult.Unknown(tag.uid)) else throw e
+            if (e.status == 404) _scans.send(ScanResult.Unknown(tag.uid, blank = tag.ace == null)) else throw e
         }
     }
 

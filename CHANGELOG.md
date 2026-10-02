@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## app 1.2.0 – 2026-10-02
+
+- Leerer Sticker gescannt: die App bietet „Neue Spule“ oder „Vorhandene Spule“ an und beschreibt ihn
+  gleich (dann der zweite für die andere Seite) – statt ihn nur zu verknüpfen, wobei er leer blieb
+- Verknüpfen gibt es nur noch für schon beschriebene Tags (z. B. Original-Anycubic)
+
 ## [2.13.0] – 2026-10-02
 
 Ships app 1.1.0 (two tags per spool).
