@@ -114,3 +114,18 @@ def test_can_be_switched_off(make, cfg):
     cfg.auto_assign_by_tag = False
     settle(sm, 0)
     assert loc(sm, 1) == "Regal"
+
+
+def test_waits_for_spoolman_and_rechecks_unknown_numbers(make):
+    """Beim Start ist Spoolman evtl. noch nicht geladen: nicht vorschnell "unbekannt"; und eine unbekannte
+    Nummer wird zugeordnet, sobald eine Spule sie hat (am echten Drucker beim Update auf 2.14.0 passiert)."""
+    lav = spool(1, "Lavendel", 34532)
+    sm, _ = make(status([34532]), [])
+    settle(sm, 0)
+    assert sm.unknown_tags == {} and sm.tag_events == []          # ohne Spulenliste: nichts entscheiden
+    sm.sm.spools.append(spool(9, "Andere"))
+    settle(sm, 10)
+    assert sm.unknown_tags == {0: 34532}                          # Liste da, Nummer wirklich unbekannt
+    sm.sm.spools.append(lav)                                      # jetzt hat eine Spule die Nummer
+    run(sm.auto_by_tag(now=20))
+    assert loc(sm, 1) == "ACE Slot 1" and sm.unknown_tags == {}

@@ -279,6 +279,9 @@ class SlotManager:
         (auch beim Start: dann ist jede Nummer neu) - eine bewusste Handzuordnung wird nicht staendig ueberschrieben."""
         if not self.cfg.auto_assign_by_tag or not self.moon.klippy_ready or "gate_spool_id" not in self.mmu:
             return
+        # erst mit der Spulenliste aus Spoolman - sonst waere beim Start jede Nummer "unbekannt"
+        if not getattr(self.sm, "connected", True) or not self.sm.spools:
+            return
         if self._auto_lock.locked():
             return
         async with self._auto_lock:
@@ -295,7 +298,11 @@ class SlotManager:
                         self.by_tag.pop(gate, None)
                     continue
                 if self._tag_seen.get(gate) == nr:
-                    continue
+                    # unbekannte Nummer: jedes Mal neu nachsehen (Spule kann inzwischen die Nummer haben)
+                    if gate not in self.unknown_tags or self.spool_by_tag(nr) is None:
+                        continue
+                    self._tag_seen.pop(gate, None)
+                    self._tag_pending[gate] = (nr, now - self.cfg.gate_debounce_s)   # schon entprellt
                 pending = self._tag_pending.get(gate)
                 if pending is None or pending[0] != nr:
                     self._tag_pending[gate] = (nr, now)          # Laden flackert: erst nach der Entprellung
