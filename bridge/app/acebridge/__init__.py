@@ -1,11 +1,14 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.12.0"
+__version__ = "2.13.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.13.0", "2026-10-02", [
+        "Zwei NFC-Tags pro Spule (eine pro Seite für die ACE 2 Pro), App 1.1.0 schreibt beide",
+    ]),
     ("2.12.0", "2026-10-01", [
         "Android-App 1.0.0 als signierte APK im Release und in der Bridge",
         "App-Updates kommen über die Bridge: Karte unter Mehr, ein Tipp installiert",

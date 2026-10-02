@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.13.0] – 2026-10-02
+
+Ships app 1.1.0 (two tags per spool).
+
 ### Added
 - Two NFC tags per spool (ACE 2 Pro reads only the side facing its reader): the bridge keeps up to two
   tag IDs per spool (`nfc_uids`; `nfc_uid` stays the first for older apps), a scan finds the spool by
