@@ -7,6 +7,7 @@ import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slo
 import { NoticesCard } from "./notices.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
 import { Icon } from "./icons.js";
+import { capability, quality, setQuality } from "./viewer3d.js";
 import { cameraKey, cameraUrl } from "./media.js";
 import { SpoolDetail, SpoolList } from "./spools.js";
 import { S, guard, loadCatalog, loadHealth, loadJobs, openDialog, set, toast } from "./store.js";
@@ -206,6 +207,20 @@ function CameraLinkCard() {
 }
 
 // ------------------------------------------------------------ Einstellungen / Info
+/** Einstellungen, die nur in diesem Browser gelten (localStorage). */
+function DeviceCard() {
+  const [q, setQ] = useState(quality());
+  const found = { volume: "Volumen", lines: "Linien", image: "Bild" }[capability()];
+  const opts = [["auto", `Automatisch (hier: ${found})`], ["volume", "Volumen – schattierte Stränge"], ["lines", "Linien – spart Grafikleistung"], ["image", "Bild der Bridge – für schwache Geräte"]];
+  return html`<section class="card pad col">
+    <h2 class="h2">Dieses Gerät</h2>
+    <div class="row wrap"><span class="grow">3D-Modell</span>
+      <select value=${q} onChange=${(e) => { setQuality(e.target.value); setQ(e.target.value); toast("Gilt ab dem nächsten Öffnen der Modell-Ansicht", "ok"); }} aria-label="3D-Modell">
+        ${opts.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select></div>
+    <div class="small muted">Gilt nur in diesem Browser. Die App hat dieselbe Einstellung unter Einstellungen.</div>
+  </section>`;
+}
+
 export function SettingsPage() {
   useEffect(() => { loadHealth(); }, []);
   const h = S.health;
@@ -219,6 +234,7 @@ export function SettingsPage() {
       ${S.me ? html`<div class="row"><span class="grow">Gekoppelt als <b>${S.me.name}</b></span><a class="btn sm" href="#/geraete">Geräte verwalten</a></div>`
              : html`<div class="row"><span class="grow muted">Nicht gekoppelt – nur Ansehen.</span><button class="btn sm acc" onClick=${() => set({ pairing: true })}>Koppeln</button></div>`}
     </section>
+    <${DeviceCard} />
     <${OrcaCard} />
     ${h && html`
     <section class="card pad col">

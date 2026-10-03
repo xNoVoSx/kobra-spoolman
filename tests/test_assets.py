@@ -47,3 +47,12 @@ def test_fingerprint_changes_with_content(tmp_path):
     first = assets.fingerprint(str(tmp_path))
     (tmp_path / "a.js").write_text("zwei")
     assert assets.fingerprint(str(tmp_path)) != first
+
+
+def test_viewer_page_for_the_app():
+    async def fn(c):
+        r = await c.get("/viewer?q=lines")
+        return r.status, r.headers["Cache-Control"], await r.text()
+    status, cache, html = client_call(fn)
+    assert status == 200 and cache == "no-cache"
+    assert f'src="assets/{assets.TAG}/js/viewer-page.js"' in html and '"static/' not in html

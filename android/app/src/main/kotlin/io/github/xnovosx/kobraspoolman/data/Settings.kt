@@ -19,6 +19,14 @@ class Settings(private val context: Context) {
     private val urlKey = stringPreferencesKey("bridge_url")
     private val tokenKey = stringPreferencesKey("app_token")
     private val monitorKey = booleanPreferencesKey("monitor")
+    private val render3dKey = stringPreferencesKey("render3d")
+
+    /** 3D-Modell: auto | volume | lines | image (Bild der Bridge). */
+    val render3d: Flow<String> = context.store.data.map { it[render3dKey] ?: "auto" }
+
+    suspend fun setRender3d(v: String) {
+        context.store.edit { it[render3dKey] = v }
+    }
 
     /** Druck-Ueberwachung im Hintergrund (Benachrichtigungen), Standard an. */
     val monitor: Flow<Boolean> = context.store.data.map { it[monitorKey] ?: true }

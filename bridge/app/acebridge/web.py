@@ -531,6 +531,17 @@ def build_app(bridge: "Bridge") -> web.Application:
             return _err(404, "Keine Vorschau (" + bridge.preview.status + ")")
         return web.Response(body=png, content_type="image/png", headers={"Cache-Control": "no-store"})
 
+    @r.get("/api/print/geometry.bin")
+    async def print_geometry(request: web.Request):
+        """Druckbahnen fuer die 3D-Ansicht (Format: render.geometry_bin), gepackt uebertragen."""
+        data = await bridge.preview.geometry()
+        if data is None:
+            return _err(404, "Keine Druckdatei geladen (" + bridge.preview.status + ")")
+        resp = web.Response(body=data, content_type="application/octet-stream",
+                            headers={"Cache-Control": "no-store", "X-Geometry": bridge.preview.info(bridge.moon.status)["geometry"] or ""})
+        resp.enable_compression()
+        return resp
+
     @r.get("/api/print/thumbnail.png")
     async def print_thumbnail(_):
         m = bridge.preview.model

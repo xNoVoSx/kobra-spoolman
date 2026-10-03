@@ -35,8 +35,8 @@ def fingerprint(root: str = STATIC) -> str:
 TAG = fingerprint()
 
 
-def index_html(tag: str = TAG) -> str:
-    with open(os.path.join(STATIC, "index.html"), encoding="utf-8") as fh:
+def index_html(tag: str = TAG, page: str = "index.html") -> str:
+    with open(os.path.join(STATIC, page), encoding="utf-8") as fh:
         html = fh.read()
     html = html.replace('"static/', f'"assets/{tag}/')
     return html.replace("<head>", f'<head>\n<meta name="ui-tag" content="{tag}">', 1)
@@ -44,6 +44,11 @@ def index_html(tag: str = TAG) -> str:
 
 async def index(_: web.Request) -> web.Response:
     return web.Response(text=index_html(), content_type="text/html", headers={"Cache-Control": NO_CACHE})
+
+
+async def viewer(_: web.Request) -> web.Response:
+    """Nur die 3D-Ansicht der Druckdatei (App, Teilen im Heimnetz)."""
+    return web.Response(text=index_html(page="viewer.html"), content_type="text/html", headers={"Cache-Control": NO_CACHE})
 
 
 async def asset(request: web.Request) -> web.StreamResponse:
@@ -58,6 +63,7 @@ async def asset(request: web.Request) -> web.StreamResponse:
 
 def add_routes(app: web.Application) -> None:
     app.router.add_get("/", index)
+    app.router.add_get("/viewer", viewer)
     app.router.add_get("/assets/{tag}/{path:.+}", asset)
     # alte Adressen (Lizenzen, Links): weiter erreichbar, aber immer frisch pruefen
     app.router.add_static("/static", STATIC, append_version=False)

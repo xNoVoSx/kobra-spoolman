@@ -186,6 +186,13 @@ class GcodeModel:
         self.z.append(z); self.tool.append(self._t); self.offset.append(off)  # noqa: E702
         self._dir = d
 
+    def done_index(self, offset: Optional[int]) -> int:
+        """Anzahl der Strecken, die an dieser Byte-Position schon gedruckt sind (fuer die 3D-Ansicht)."""
+        if not offset or not len(self):
+            return 0
+        import bisect
+        return bisect.bisect_right(self.offset, offset)
+
     def layer_at(self, offset: int) -> int:
         """Nummer (ab 1) der Schicht, in der die Byte-Position liegt."""
         if not len(self):
@@ -200,6 +207,42 @@ class GcodeModel:
         z = self.z[lo]
         import bisect
         return bisect.bisect_left(self.layers, z - 1e-4) + 1
+
+
+GEOM_MAGIC = b"KSG1"
+MAX_GEOMETRY = 1_500_000         # mehr Strecken schickt die Bridge nicht an Browser/App (ausgeduennt)
+
+
+def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> bytes:
+    """Strecken fuer die 3D-Ansicht im Browser - kompakt, little-endian:
+
+    Kopf: "KSG1", u16 Version 1, u16 frei, u32 Strecken, u32 Schichten, u32 Schritt (Ausduennung), f32 Bett-mm,
+          f32 Z-Hoechstwert, dann f32[Schichten] (Z je Schicht)
+    Spalten je Strecke: u16 x0, y0, x1, y1 (0..65535 = 0..Bett-mm), u16 z (0..65535 = 0..Z-max), u16 Schicht,
+          u8 Werkzeug.  13 Byte je Strecke - 600 000 Strecken ~ 7,8 MB, gepackt ~ 4 MB.
+    Wer die Strecke i (in Dateireihenfolge) schon gedruckt hat, steht in /api/print/info als "done" (/ Schritt).
+    """
+    import bisect
+    import struct
+    import sys
+    n = len(model)
+    step = max(1, -(-n // max_segments)) if n else 1
+    idx = range(0, n, step)
+    layers = model.layers or [0.0]
+    zmax = max(max(layers), 0.01)
+    q = 65535.0 / BED_MM
+    qz = 65535.0 / zmax
+
+    def col(src, scale):
+        return array("H", (min(65535, max(0, int(src[i] * scale + 0.5))) for i in idx))
+    cols = [col(model.x0, q), col(model.y0, q), col(model.x1, q), col(model.y1, q), col(model.z, qz),
+            array("H", (min(65535, bisect.bisect_left(layers, model.z[i] - 1e-4)) for i in idx))]
+    tools = array("B", (model.tool[i] for i in idx))
+    if sys.byteorder != "little":
+        for c in cols:
+            c.byteswap()
+    head = GEOM_MAGIC + struct.pack("<HHIIIff", 1, 0, len(tools), len(layers), step, BED_MM, zmax)
+    return head + array("f", layers).tobytes() + b"".join(c.tobytes() for c in cols) + tools.tobytes()
 
 
 def parse_bytes(data: bytes) -> GcodeModel:
@@ -394,6 +437,17 @@ class PrintPreview:
             self.status, self.error = "error", str(e)
             log.warning("Vorschau: %s nicht ladbar: %s", name, e)
 
+    async def geometry(self) -> Optional[bytes]:
+        """Strecken fuer die 3D-Ansicht - einmal pro Druck gerechnet (im Hintergrund-Thread)."""
+        m = self.model
+        if not m or not len(m) or self.status != "ready":
+            return None
+        key = (self.file, len(m))
+        if getattr(self, "_geom_key", None) != key:
+            self._geom = await asyncio.get_running_loop().run_in_executor(None, geometry_bin, m)
+            self._geom_key = key
+        return self._geom
+
     async def _thumbnail_only(self, r: aiohttp.ClientResponse) -> None:
         model = GcodeModel()
         pos = 0
@@ -441,5 +495,9 @@ class PrintPreview:
         pos = (status.get("virtual_sdcard") or {}).get("file_position")
         return {"file": self.file, "status": self.status, "error": self.error,
                 "segments": len(m) if m else 0, "layers": len(m.layers) if m else 0,
+                "done": m.done_index(pos) if m and len(m) else 0,
+                "geometry": f"{self.file}:{len(m)}" if m and len(m) and self.status == "ready" else None,
+                # Farbe je Werkzeug fuer die 3D-Ansicht, wie im Bild der Bridge aufgehellt (dunkles Filament sichtbar)
+                "colours": ["%02x%02x%02x" % display_rgb(c) for c in self.colours(status)] if m else [],
                 "layer": m.layer_at(pos) if m and pos and len(m) else None,
                 "thumbnail": bool(m and m.thumbnail), "size": self.size, "loaded": self.loaded_bytes}

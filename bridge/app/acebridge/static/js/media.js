@@ -6,6 +6,8 @@ import { auth, get } from "./api.js";
 import { Icon } from "./icons.js";
 import { S, openDialog, set } from "./store.js";
 import { cls } from "./util.js";
+import { Model3D } from "./model3d.js";
+import { effectiveQuality } from "./viewer3d.js";
 
 const TAB_KEY = "kobra.mediaTab";
 function savedTab() { try { return localStorage.getItem(TAB_KEY) || "camera"; } catch { return "camera"; } }
@@ -116,7 +118,8 @@ function useModel(active) {
     let stop = false, timer = null;
     const tick = async () => {
       try { const i = await get("/api/print/info"); if (!stop) { setInfo(i); setStamp(Date.now()); } } catch { /* Bridge weg */ }
-      if (!stop) timer = setTimeout(tick, 10000);
+      // 3D zeigt den Fortschritt live (nur eine Zahl), das Bild der Bridge wird hoechstens alle 15 s neu gerechnet
+      if (!stop) timer = setTimeout(tick, effectiveQuality() === "image" ? 10000 : 3000);
     };
     tick();
     return () => { stop = true; clearTimeout(timer); };
@@ -143,7 +146,8 @@ export function PrintMedia({ tall }) {
     else if (cam) body = html`<img src=${cam} alt="Kamera" onError=${camFail} onClick=${() => openDialog("camera")} /><${AiBoxes} /><${Fps} fps=${fps} />`;
     else body = html`<div class="media-empty">${camErr || "Kamera lädt …"}</div>`;
   } else if (src) {
-    body = html`<img src=${src} alt="Vorschau der Druckdatei" onClick=${() => openDialog("camera", { view: "model", src })} />`;
+    const img = html`<img src=${src} alt="Vorschau der Druckdatei" onClick=${() => openDialog("camera", { view: "model", src })} />`;
+    body = info?.geometry && effectiveQuality() !== "image" ? html`<${Model3D} info=${info} fallback=${img} />` : img;
   } else {
     const msg = { loading: "Druckdatei wird geladen …", too_big: "Datei zu groß für die Vorschau", error: "Vorschau nicht möglich", off: "Vorschau ist abgeschaltet" };
     body = html`<div class="media-empty">${info ? msg[info.status] || "Kein Druck – keine Vorschau" : "lädt …"}</div>`;

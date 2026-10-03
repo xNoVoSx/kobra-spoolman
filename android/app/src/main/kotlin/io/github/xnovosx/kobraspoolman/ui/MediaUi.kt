@@ -158,6 +158,7 @@ fun PrintMedia(
     fetch: suspend (String) -> ByteArray?,
     info: suspend () -> PrintInfo?,
     camera: () -> Flow<ByteArray>,
+    viewerUrl: String? = null,
 ) {
     // Kamera ist die Hauptansicht; das Modell gibt es nur, solange gedruckt wird
     var chosen by rememberSaveable { mutableStateOf("camera") }
@@ -191,7 +192,12 @@ fun PrintMedia(
                     color = K.Muted, modifier = Modifier.padding(end = 8.dp))
             }
         }
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 10f).clickable(enabled = img != null) { full = true },
+        if (tab == "model" && viewerUrl != null) {
+            // 3D-Ansicht der Bridge (WebGL) - drehen, zoomen, Schicht-Regler; Vollbild ueber den Knopf darunter
+            ModelWebView(viewerUrl, Modifier.fillMaxWidth().aspectRatio(4f / 3.4f))
+            Text("Vollbild", style = MaterialTheme.typography.labelMedium, color = K.Accent,
+                modifier = Modifier.clickable(role = Role.Button) { full = true }.padding(12.dp))
+        } else Box(Modifier.fillMaxWidth().aspectRatio(16f / 10f).clickable(enabled = img != null) { full = true },
             contentAlignment = Alignment.Center) {
             if (img != null) {
                 Image(img, if (tab == "camera") "Kamera" else "Vorschau der Druckdatei", Modifier.fillMaxSize(),
@@ -209,6 +215,15 @@ fun PrintMedia(
     }
     if (full) {
         Dialog(onDismissRequest = { full = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            if (tab == "model" && viewerUrl != null) {
+                Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    ModelWebView(viewerUrl, Modifier.fillMaxSize())
+                    Text("Schließen", style = MaterialTheme.typography.labelLarge, color = K.Accent,
+                        modifier = Modifier.align(Alignment.TopEnd).clip(RoundedCornerShape(10.dp)).background(Color(0xCC000000))
+                            .clickable(role = Role.Button) { full = false }.padding(14.dp))
+                }
+                return@Dialog
+            }
             Box(Modifier.fillMaxSize().background(Color.Black).clickable { full = false }, contentAlignment = Alignment.Center) {
                 img?.let { Image(it, "Vollbild", Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
                 if (tab == "camera") FpsBadge(fps)
@@ -217,3 +232,30 @@ fun PrintMedia(
         }
     }
 }
+
+/**
+ * 3D-Ansicht der Druckdatei: die Seite /viewer der Bridge (WebGL im Browser des Handys). Beruehrungen gehen an
+ * die Ansicht (drehen/zoomen), nicht an die Liste dahinter.
+ */
+@android.annotation.SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
+@Composable
+fun ModelWebView(url: String, modifier: Modifier = Modifier) {
+    androidx.compose.ui.viewinterop.AndroidView(
+        factory = { ctx ->
+            android.webkit.WebView(ctx).apply {
+                // feste Groesse: ohne das misst der WebView seinen Inhalt, und eine Seite mit Hoehe 100 % faellt auf 0
+                layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT)
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                setBackgroundColor(0xFF0B0C0E.toInt())
+                setOnTouchListener { v, _ -> v.parent?.requestDisallowInterceptTouchEvent(true); false }
+                loadUrl(url)
+            }
+        },
+        update = { if (it.url != url) it.loadUrl(url) },
+        onRelease = { it.destroy() },
+        modifier = modifier,
+    )
+}
+

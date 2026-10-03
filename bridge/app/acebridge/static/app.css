@@ -412,3 +412,14 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .ai-frame { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); }
 .ai-frame .chip { font-size: 11px; padding: 2px 8px; min-height: 26px; }
 .ai-kv { grid-template-columns: max-content minmax(0, 1fr); }
+
+/* 3D-Modell */
+.m3d { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
+.m3d-canvas { flex: 1; width: 100%; min-height: 0; display: block; cursor: grab; }
+.m3d-canvas:active { cursor: grabbing; }
+.m3d-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; background: rgba(11,12,14,.85); border-top: 1px solid var(--line); }
+.m3d-bar input[type=range] { min-width: 120px; accent-color: var(--accent); }
+.m3d-bar .seg-btn { min-height: 28px; padding: 0 10px; font-size: 12px; }
+.m3d-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.m3d-loading { position: absolute; inset: 0 0 44px 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+.media-body > .m3d { align-self: stretch; justify-self: stretch; }

@@ -46,6 +46,8 @@ fun SettingsScreen(
     onGrantLan: () -> Unit,
     monitor: Boolean,
     onMonitor: (Boolean) -> Unit,
+    render3d: String = "auto",
+    onRender3d: (String) -> Unit = {},
     canGoBack: Boolean,
     onBack: () -> Unit,
     onLoadMe: () -> Unit,
@@ -93,6 +95,11 @@ fun SettingsScreen(
                 Switch(monitor, onMonitor)
             }
             SoundsSection()
+            SectionLabel("Druckvorschau", Modifier.padding(top = 8.dp))
+            Text("3D-Modell", style = MaterialTheme.typography.bodyLarge)
+            Segmented(listOf("auto" to "Automatisch", "volume" to "Volumen", "lines" to "Linien", "image" to "Bild"), render3d, onRender3d)
+            Text("Volumen: schattierte Stränge wie im Slicer. Linien: spart Akku und Grafik. Bild: das fertige Bild der Bridge. " +
+                "Automatisch wählt das Handy selbst.", style = MaterialTheme.typography.bodySmall, color = K.Muted)
         } else {
             if (invalid) Hint("Die Bridge kennt dieses Gerät nicht mehr (entfernt oder neu eingerichtet) – bitte neu koppeln.",
                 danger = true)

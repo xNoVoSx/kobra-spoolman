@@ -13,7 +13,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestServer
 from PIL import Image
 
-from acebridge.render import GcodeModel, PrintPreview, display_rgb, parse_bytes, render_png
+from acebridge.render import BED_MM, GcodeModel, PrintPreview, display_rgb, geometry_bin, parse_bytes, render_png
 
 
 def png_bytes(w=8, h=8):
@@ -51,6 +51,30 @@ def test_parser_builds_segments_layers_thumbnail_and_colours():
     assert Image.open(io.BytesIO(m.thumbnail)).size == (16, 16)     # das groesste Bild gewinnt
     assert m.colours == ["685BC7", "EC008C"]
     assert m.layer_at(0) == 1 and m.layer_at(10 ** 9) == 2
+
+
+def test_geometry_for_the_3d_view():
+    import struct
+    from array import array
+    m = parse_bytes(sample_gcode())
+    g = geometry_bin(m)
+    assert g[:4] == b"KSG1"
+    ver, _, n, nl, step, bed, zmax = struct.unpack("<HHIIIff", g[4:28])
+    assert (ver, n, nl, step, bed) == (1, 4, 2, 1, BED_MM) and zmax == pytest.approx(0.4)
+    def arr(code, raw):
+        a = array(code)
+        a.frombytes(raw)
+        return a
+    layers = arr("f", g[28:28 + 4 * nl])
+    assert list(layers) == pytest.approx([0.2, 0.4])
+    cols = g[28 + 4 * nl:]
+    x0 = arr("H", cols[:2 * n])
+    layer = arr("H", cols[10 * n:12 * n])
+    tool = arr("B", cols[12 * n:13 * n])
+    assert x0[0] == round(10 / BED_MM * 65535) and list(layer) == [0, 0, 0, 1] and list(tool) == [0, 0, 1, 1]
+    assert len(g) == 28 + 4 * nl + 13 * n
+    assert m.done_index(0) == 0 and m.done_index(10 ** 9) == 4
+    assert geometry_bin(m, max_segments=2)[16:20] == struct.pack("<I", 2)        # Schritt 2 beim Ausduennen
 
 
 def test_absolute_extrusion_and_resets():

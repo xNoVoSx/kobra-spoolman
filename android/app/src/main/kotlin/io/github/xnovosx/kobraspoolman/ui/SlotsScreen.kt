@@ -54,6 +54,7 @@ fun SlotsScreen(
     camera: () -> Flow<ByteArray> = { emptyFlow() },
     onPrintAction: (String, String) -> Unit = { _, _ -> },
     onTune: () -> Unit = {},
+    viewerUrl: String? = null,
 ) {
     LazyColumn(
         Modifier.fillMaxSize().background(K.Ground),
@@ -72,7 +73,7 @@ fun SlotsScreen(
         }
         if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // aeltere Bridge
         // Startseite: Kamera oben, darunter der Druck, dann die Slots und die ACE - der Rest steckt in den Tabs
-        if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera) }
+        if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera, viewerUrl) }
         item {
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)

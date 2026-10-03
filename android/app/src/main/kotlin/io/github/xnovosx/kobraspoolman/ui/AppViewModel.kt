@@ -276,6 +276,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    // ------------------------------------------------ 3D-Modell
+    val render3d: StateFlow<String> = settings.render3d.stateIn(viewModelScope, SharingStarted.Eagerly, "auto")
+
+    fun setRender3d(v: String) = viewModelScope.launch { settings.setRender3d(v) }
+
+    /** Adresse der 3D-Ansicht der Bridge (/viewer) - null: das Bild der Bridge zeigen. */
+    fun viewerUrl(c: Connection?, mode: String): String? =
+        if (c == null || !c.configured || mode == "image") null
+        else BridgeClient.normalizeUrl(c.url) + "/viewer?q=" + mode
+
     // ------------------------------------------------ KI
     suspend fun vision(): VisionFull? = runCatching { client()?.vision() }.getOrNull()
 

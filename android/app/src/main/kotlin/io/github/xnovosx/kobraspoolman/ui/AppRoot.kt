@@ -154,6 +154,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     fetchImage = { vm.image(it) },
                     printInfo = { vm.printInfo() },
                     camera = { vm.cameraStream() },
+                    viewerUrl = vm.viewerUrl(vm.connection.collectAsState().value, vm.render3d.collectAsState().value),
                     onPrintAction = { action, done -> vm.printAction(action, done) },
                     onTune = { tuneOpen = true })
             }
@@ -227,6 +228,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 val monitorOn by vm.monitor.collectAsState()
                 SettingsScreen(c, me, meChecked, busy, padding, lanMissing = !lanGranted, onGrantLan = askLan,
                     monitor = monitorOn, onMonitor = { vm.setMonitor(it) },
+                    render3d = vm.render3d.collectAsState().value, onRender3d = { vm.setRender3d(it) },
                     canGoBack = c.configured, onBack = { nav.popBackStack() },
                     onLoadMe = { vm.loadMe() },
                     onPair = { url, code, name ->
