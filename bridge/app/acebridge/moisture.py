@@ -131,6 +131,7 @@ class MoistureModel:
         self._in_ace: Dict[int, int] = {}            # spool_id -> slot (letzter Stand)
         self._first = True
         self.on_insert: Callable[[Dict[str, Any], Dict[str, Any]], Any] = lambda spool, info: None
+        self.room_rh_measured: Callable[[], Optional[float]] = lambda: None    # Raumsensor (mqtt.py), None = keiner
         self._load()
 
     # ------------------------------------------------------------ Speichern
@@ -169,7 +170,8 @@ class MoistureModel:
             rh = hub["humidity"] if hub.get("humidity") is not None else ACE_RH_FALLBACK
             return f"ACE Slot {slot}", float(rh), (float(hub["temp"] or hub["target_temp"] or 0) if hub.get("drying") else None)
         loc = spool.get("location") or ""
-        rh = self._locations().get(loc, getattr(self.cfg, "room_rh", 50.0))
+        room = self.room_rh_measured()
+        rh = self._locations().get(loc, room if room is not None else getattr(self.cfg, "room_rh", 50.0))
         return loc or "Regal", float(rh), None
 
     def _entry(self, sid: int) -> Dict[str, Any]:

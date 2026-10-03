@@ -62,7 +62,7 @@ SPECS: List[Spec] = [
          help="Damit Orcas Sync-Knopf die richtigen Profile in die Slots setzt"),
     # Feuchte
     Spec("room_rh", "Feuchte der Spulen", "Luftfeuchte im Lagerraum", "float", 10, 95, "%",
-         "Bis ein Raumsensor angebunden ist, rechnet die Bridge mit diesem Wert für Spulen im Regal"),
+         "Für Spulen im Regal, solange kein Raumsensor (ROOM_SENSOR_TOPIC) frische Werte liefert"),
     Spec("dry_locations", "Feuchte der Spulen", "Lagerorte mit eigener Feuchte", "text",
          help="Spoolman-Lagerort=Feuchte, getrennt mit ;  z. B.  Trockenbox=15; Vakuumbeutel=10"),
     Spec("auto_dry_on_insert", "Feuchte der Spulen", "Feuchte Spulen beim Einlegen automatisch trocknen", "bool",
@@ -90,7 +90,7 @@ BY_KEY = {s.key: s for s in SPECS}
 # nur zum Ansehen (brauchen einen Neustart der Bridge)
 READONLY = [("moonraker_url", "Drucker (Moonraker)"), ("spoolman_url", "Spoolman"),
             ("camera_snapshot_url", "Kamera-Einzelbild"), ("camera_stream_url", "Kamera-Stream"),
-            ("vision_url", "KI-Dienst"), ("data_dir", "Datenordner"), ("http_port", "HTTP-Port"), ("dry_run", "Nur Probe (DRY_RUN)")]
+            ("vision_url", "KI-Dienst"), ("mqtt_host", "MQTT-Broker"), ("room_sensor_topic", "Raumsensor (MQTT-Thema)"), ("data_dir", "Datenordner"), ("http_port", "HTTP-Port"), ("dry_run", "Nur Probe (DRY_RUN)")]
 
 
 def _path(cfg: "Config") -> str:

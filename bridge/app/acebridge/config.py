@@ -89,6 +89,15 @@ class Config:
     new_spools_dry: bool = field(default_factory=lambda: _bool("NEW_SPOOLS_DRY", True))
     wet_print_action: str = field(default_factory=lambda: os.environ.get("WET_PRINT_ACTION", "warn").strip().lower())
 
+    # Home Assistant ueber MQTT (mqtt.py). MQTT_HOST leer = aus. MQTT_DISCOVERY leer = keine HA-Discovery.
+    mqtt_host: str = field(default_factory=lambda: os.environ.get("MQTT_HOST", "").strip())
+    mqtt_port: int = field(default_factory=lambda: _int("MQTT_PORT", 1883))
+    mqtt_user: str = field(default_factory=lambda: os.environ.get("MQTT_USER", ""))
+    mqtt_password: str = field(default_factory=lambda: os.environ.get("MQTT_PASSWORD", ""))
+    mqtt_prefix: str = field(default_factory=lambda: os.environ.get("MQTT_PREFIX", "kobra-spoolman"))
+    mqtt_discovery: str = field(default_factory=lambda: os.environ.get("MQTT_DISCOVERY", "homeassistant"))
+    room_sensor_topic: str = field(default_factory=lambda: os.environ.get("ROOM_SENSOR_TOPIC", "").strip())
+
     # Meldungen
     low_spool_g: float = field(default_factory=lambda: _float("LOW_SPOOL_G", 100.0))
     reach_reserve_pct: float = field(default_factory=lambda: _float("REACH_RESERVE_PCT", 5.0))

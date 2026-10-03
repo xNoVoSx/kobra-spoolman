@@ -253,6 +253,9 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
     vision = getattr(bridge, "vision", None)
     if vision is not None:
         lines.append(vision.status_line())
+    mqtt = getattr(bridge, "mqtt", None)
+    if mqtt is not None:
+        lines.extend(mqtt.status_lines())
     for kind, label in (("app", "Handy-App"), ("plugin", "Orca-Plugin")):
         d = _device_status(bridge, kind, label, now)
         if d:
