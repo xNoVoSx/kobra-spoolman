@@ -32,6 +32,11 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
   spools with our NFC tags are **assigned to their slot by themselves** when loaded.
 - An optional **AI** watches running prints and raises an alarm with a camera picture when a print
   turns into spaghetti — on the CPU, without any load on the printer ([vision.md](docs/vision.md)).
+- The bridge **keeps track of how wet every spool is** — ACE humidity history, every drying, a
+  moisture estimate per spool from where it was — dries spools by itself when they are loaded and
+  checks at print start whether the loaded spools fit the file.
+- Live **3D view** of the running print in the spool colours, **Home Assistant** over MQTT, a
+  **home-screen widget**, and every bridge setting changeable in the web UI.
 
 <p align="center">
   <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer with camera, messages and status, dryer, ACE, slots"><br>
@@ -77,9 +82,9 @@ for Moonraker clients); the browser, the app and the Orca plugin all talk to the
 
 | Component | What it does |
 |---|---|
-| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Web UI, slot ↔ spool assignment (automatic by NFC tag), writes `lane_data` for Orca, measures and books consumption per spool, open items, print history, purge per colour change, ACE dryer automation and ACE settings, camera restream, print control, terminal and logs, messages, device pairing, API for app and plugin, ships the app update. |
+| **[ace-lane-bridge](bridge/)** (Docker) | Connects Moonraker and Spoolman. Web UI, slot ↔ spool assignment (automatic by NFC tag), writes `lane_data` for Orca, measures and books consumption per spool, open items, print history, purge per colour change, ACE dryer automation and ACE settings, humidity history and spool moisture estimate, print start check, camera restream, 3D print view, print control, terminal and logs, messages, runtime settings, Home Assistant via MQTT, device pairing, API for app and plugin, ships the app update. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca plugin) | One Orca filament profile per Spoolman filament (`SM000010` …), side panel with slots and profile check, usage preview after slicing, back-sync of profile edits to Spoolman. |
-| **[Android app](android/)** | Printer with camera and controls, notifications in the background, slots, spool card, new spools and filaments, ACE dryer and settings, writes ACE-compatible NFC tags (two per spool), pairing by QR code, updates through the bridge. |
+| **[Android app](android/)** | Printer with camera, 3D view and controls, notifications in the background, home-screen widget, slots, spool card, new spools and filaments, ACE dryer with humidity history and settings, spool moisture, writes ACE-compatible NFC tags (two per spool), pairing by QR code, updates through the bridge. |
 | **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | AI print-failure detection: Obico's failure model on ONNX Runtime (CPU, ~50 ms per picture), the bridge judges the results over time. |
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with three small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), a Linux plugin-sandbox fix and read-only slice statistics for plugins. Updates itself. |
@@ -195,9 +200,10 @@ Keep the bridge inside your home network; it has no TLS.
 | 3 | Orca profiles from Spoolman, side panel, back-sync, patched Orca build, usage preview after slicing | ✅ done (reloading profiles without a restart is deferred, see [findings](docs/findings.md)) |
 | 4 | Web UI, Android app, pairing, ACE dryer, NFC tags, spools recognised by their tag when loaded | ✅ done |
 | — | Purge per colour change: computed like the firmware for every transition, constants refined on every print | ✅ done |
-| — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done · 🔜 home-screen widget, check at print start |
+| — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done (incl. home-screen widget, print start check, 3D view) |
 | — | AI print-failure detection: spaghetti (stage 1), plate check (2), knocked-over parts (3) | ✅ stage 1 · 🔜 2 and 3 from the collected pictures |
-| 5 | Home Assistant via MQTT (slots, remaining weight, notifications) | 🔜 planned |
+| — | Spool moisture: ACE humidity history, drying log, estimate per spool, automatic drying when loaded, room sensor | ✅ done |
+| 5 | Home Assistant via MQTT (printer, slots, remaining weight, moisture, messages), room humidity sensor | ✅ done |
 
 ## Credits
 

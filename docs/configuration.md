@@ -43,6 +43,20 @@
 | `RENDER` | `true` | draw the running print file (preview) |
 | `RENDER_MAX_MB` | `200` | larger files only get the slicer thumbnail |
 | `RENDER_INTERVAL_S` | `15` | redraw at most this often while printing |
+| `GEOMETRY_MAX_SEGMENTS` | `1500000` | detail of the 3D view: more toolpath segments are thinned out (1.5 M ≈ 20 MB transfer) |
+| `HUMIDITY_DAYS` | `30` | days of ACE humidity history kept (`DATA_DIR/humidity/`) |
+| `ROOM_RH` | `50` | humidity (%) of the storage room for the spool moisture estimate, used while no room sensor delivers fresh values |
+| `DRY_LOCATIONS` | – | Spoolman locations with their own humidity, e.g. `Trockenbox=15; Vakuumbeutel=10` |
+| `AUTO_DRY_ON_INSERT` | `true` | start the ACE dryer when a spool that needs drying is loaded (temperature of the most sensitive loaded spool, time of the wettest) |
+| `NEW_SPOOLS_DRY` | `true` | spools without history count as *needs drying* when first loaded |
+| `WET_PRINT_ACTION` | `warn` | print start with a spool that needs drying: `warn` or `pause` (pauses once, within the first 10 min) |
+| `LOW_SPOOL_G` | `100` | notice *Spule fast leer* below this |
+| `REACH_RESERVE_PCT` | `5` | reserve for the notice *Spule reicht nicht* |
+| `MQTT_HOST` | – | [Home Assistant over MQTT](#home-assistant-mqtt): broker address; empty = off |
+| `MQTT_PORT` / `MQTT_USER` / `MQTT_PASSWORD` | `1883` / – / – | broker login |
+| `MQTT_PREFIX` | `kobra-spoolman` | topic prefix of the bridge |
+| `MQTT_DISCOVERY` | `homeassistant` | Home Assistant discovery prefix; empty = no discovery (topics only) |
+| `ROOM_SENSOR_TOPIC` | – | MQTT topic of a humidity sensor in the storage room, e.g. `zigbee2mqtt/Filamentlager` |
 | `VISION_URL` | – | AI print-failure detection: address of [kobra-vision](vision.md), e.g. `http://kobra-vision:7917`; empty = off |
 | `VISION_TOKEN` | – | shared key if kobra-vision has `VISION_TOKEN` set |
 | `VISION_INTERVAL_S` / `VISION_SENSITIVITY` / `VISION_ACTION` / `VISION_DATASET_GB` / `VISION_SAVE_EVERY_S` | `10` / `1.0` / `warn` / `5` / `60` | **start values only** — once anything is saved in the [KI tab](vision.md#the-ki-tab) (`DATA_DIR/vision/settings.json`), that wins |
@@ -52,6 +66,35 @@
 
 The dryer automation (on/off, thresholds, max. time, pause, while printing) is set in the web UI or
 app (*Trockner → Regeln*) and stored in `dryer.json`, not in the environment.
+
+### Changing settings at runtime
+
+Most values above can be changed in the web UI (*Einstellungen*, one card per group) without a restart: camera,
+print preview, slots and RFID, spool moisture, notices, consumption and data. The environment only gives
+the start values; a changed value is stored in `DATA_DIR/settings.json` and wins from then on (*zurücksetzen*
+next to a value restores the start value). Addresses (printer, Spoolman, camera, AI service, MQTT) need
+a restart and are only shown there.
+
+### Home Assistant (MQTT)
+
+With `MQTT_HOST` set, the bridge publishes what it knows anyway — the printer gets no extra client:
+
+| Topic (retained JSON) | Content |
+|---|---|
+| `<prefix>/status` | `online` / `offline` (last will) |
+| `<prefix>/printer` | state, progress, ETA, finish time, file, layer, nozzle/bed, active slot, printer CPU |
+| `<prefix>/ace` | humidity, temperature, drying, target, remaining time |
+| `<prefix>/slot/<n>` | spool, material, colour, remaining weight, moisture estimate, needs drying |
+| `<prefix>/notices` | count, errors, warnings, most important text |
+| `<prefix>/vision` | AI level and score (only with `VISION_URL`) |
+
+Values are sent on change, at most every 5 s. With `MQTT_DISCOVERY` Home Assistant creates the device
+*Kobra S1 (ace-lane-bridge)* with all sensors by itself.
+
+**Room sensor:** `ROOM_SENSOR_TOPIC` is subscribed; a JSON payload with `humidity` (and `temperature`),
+as Zigbee2MQTT sends it, or a plain number. While the last value is younger than 2 h it replaces
+`ROOM_RH` in the moisture estimate of spools on the shelf (locations from `DRY_LOCATIONS` keep their
+own value). The status shows *Raumsensor* with the last value.
 
 ### AI print-failure detection
 
@@ -68,6 +111,9 @@ run the container as root with `user: "0:0"` in the service.
 data/
   devices.json          paired devices (name, kind, SHA-256 of the key — never the key itself)
   dryer.json            dryer automation settings
+  settings.json         settings changed in the web UI (wins over the environment)
+  humidity/             ACE humidity, one point per minute (<day>.jsonl), and drying sessions (sessions.json)
+  moisture.json         moisture estimate and history per spool
   orca_bases.json       Orca base profile names reported by the plugin
   usage/state.json      running print + open items (restart-safe)
   usage/jobs.json       print history

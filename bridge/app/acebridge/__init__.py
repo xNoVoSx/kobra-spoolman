@@ -1,11 +1,19 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.18.0"
+__version__ = "2.19.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.19.0", "2026-10-03", [
+        "3D-Ansicht des laufenden Drucks (Volumen, Linien oder Bild – je nach Gerät einstellbar)",
+        "Einstellungen der Bridge im Betrieb ändern, ohne Neustart",
+        "Feuchte-Verlauf der ACE mit allen Trocknungen, Feuchte-Schätzung pro Spule, Trocknen beim Einlegen",
+        "Prüfung beim Druckstart: Material, Farbe, Spule und Feuchte gegen die Druckdatei",
+        "Home Assistant über MQTT, Raumsensor für die Feuchte im Lager",
+        "App 1.7.0: 3D-Ansicht, Feuchte-Verlauf, Feuchte auf der Spulenkarte, Widget",
+    ]),
     ("2.18.0", "2026-10-03", [
         "KI-Tab: Einstellungen, ignorierte Bereiche, Gedächtnis, Bildersammlung mit Kennzeichnen und ZIP",
         "KI gewöhnt sich nicht mehr an einen lange unbemerkten Fehldruck",

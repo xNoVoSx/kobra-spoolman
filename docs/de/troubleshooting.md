@@ -52,6 +52,10 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | Panel: *Filament N ist „…“ – erwartet „…“* | Orcas Sync-Knopf drücken oder das Profil von Hand wählen. |
 | Kein *Geplanter Verbrauch* im Panel | Dem Orca-Build fehlt Patch 0003 (steht in der Fußzeile) – über den orca-kobra-Starter aktualisieren. Sonst neu slicen; die Vorschau verschwindet, wenn das Slice-Ergebnis veraltet ist. |
 | Vorschau sagt *reicht nicht*, die Spule ist aber voll | Restgewicht in Spoolman stimmt nicht. Spule wiegen und *Restgewicht* im Regal korrigieren. |
+| Status *MQTT / HA* gelb | Broker nicht erreichbar oder Anmeldung abgelehnt – die Zeile nennt den Grund; `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`/`MQTT_PASSWORD` prüfen. Die Bridge versucht es alle 15 s neu. |
+| Home Assistant zeigt kein Gerät *Kobra S1* | MQTT-Integration in Home Assistant eingerichtet, Discovery-Präfix `homeassistant` (bzw. gleich `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` darf nicht leer sein. |
+| Status *Raumsensor* gelb | Seit 2 h kein Wert auf `ROOM_SENSOR_TOPIC` – Themenname (z. B. in Zigbee2MQTT) prüfen und ob die Nachricht `humidity` enthält. Bis dahin rechnet die Bridge mit `ROOM_RH`. |
+| Spule sagt *trocknen empfohlen*, ist aber trocken | Die Schätzung weiß nicht, wie die Spule vorher gelagert war. Einmal trocknen (oder *Außerhalb getrocknet …* auf der Spulenkarte); neue Spulen gelten nur als feucht, wenn *Neue Spulen zuerst trocknen* an ist. |
 
 ## Nützliche Befehle
 

@@ -47,6 +47,11 @@ Mapping in code: `FIELD_MAP` in [`bridge/app/acebridge/orca_profiles.py`](../bri
 | Z-Hop | `filament_z_hop` | mm |
 | Orca-Overrides | *any Orca key* | one `key = value` per line |
 | Trocknen max. | *(ACE dryer, not Orca)* | °C — highest drying temperature for this material |
+| Trocknen Dauer | *(ACE dryer)* | h — minimum drying time at *Trocknen max.* (empty = value of the material) |
+| Offen bis Trocknen | *(moisture estimate)* | days at 50 % RH until *trocknen empfohlen* (empty = value of the material) |
+| Feuchte-Schätzung *(spool)* | — | % — 100 = drying recommended (set by the bridge) |
+| Zuletzt im ACE *(spool)* | — | when it was taken out of the ACE (set by the bridge) |
+| Zuletzt getrocknet *(spool)* / … mit | — | last drying and its temperature (set by the bridge) |
 | NFC-Kennung *(spool)* | — | UID of the spool's NFC tag (set by the app) |
 | Tag-Nummer *(spool)* | — | number in the SKU of a self-written tag (set by the bridge) |
 

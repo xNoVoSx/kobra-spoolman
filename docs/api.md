@@ -130,13 +130,38 @@ Nothing is written to Spoolman; the commands go to the printer, so they need a p
 | POST | `/api/dryer/start` | *(paired)* `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
 | POST | `/api/dryer/stop` | *(paired)* stop drying |
 | POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing` |
-
 | POST | `/api/dryer/schedule` | *(paired)* `{"at": <ISO time or epoch s>, "temp": <°C or null>, "hours": <h or null>}` — one planned start, at most a week ahead; the temperature is capped like a manual start |
 | DELETE | `/api/dryer/schedule` | *(paired)* remove the planned start |
 
 The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: GoKlipper's
 `filament_hub` object in the bridge's Moonraker subscription (the ACE reports about every 20 s);
 commands: Rinkhals' `MMU_DRYER_START` / `MMU_DRYER_STOP`.
+
+## Humidity and spool moisture
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/humidity?hours=24` | ACE history (at most `HUMIDITY_DAYS`): `points` (`[time, humidity, temp, target, drying]`, one per minute, thinned to ≤ 1500), `sessions` (every drying: start/end, target temperatures, `source` (`auto`, `hand`, `plan`, `spule`, `drucker`, `unbekannt`), `reason`, `end_reason`, humidity before/after, loaded spools), `prints` (bands from the history), `automation` thresholds |
+| GET | `/api/spool/{id}/moisture` | moisture estimate of a spool: `score` (100 = drying recommended), `state` (`ok`, `soon`, `wet`, `unknown`), `needs_drying`, `where`, `last_dried`, `params` (material, `dry_temp`, `dry_hours`, `open_days`), `hours_needed`, `history` (inserted, removed, dried) |
+| POST | `/api/spool/{id}/dried` | *(paired)* dried outside the ACE: `{"temp": 55, "minutes": 360}` |
+
+The estimate is a model, not a measurement: a spool takes up water with the humidity around it
+(ACE sensor while loaded, room sensor or `ROOM_RH` on the shelf, `DRY_LOCATIONS`) and loses it while
+drying, faster the closer the temperature is to the material's maximum. `/api/app/state` carries the
+short form per spool as `moisture`. When the Spoolman fields exist, the bridge also writes
+*Feuchte-Schätzung*, *Zuletzt im ACE* and *Zuletzt getrocknet*.
+
+**Print start check.** At the start of a print the bridge compares each tool of the file with its slot
+(empty, material, colour, no spool, needs drying) and shows the result as messages
+`check<slot><kind>`; with `WET_PRINT_ACTION=pause` a spool that needs drying pauses the print once.
+
+## Settings
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/settings` | `groups` (`name`, `items` with `key`, `label`, `kind` (`bool`, `float`, `int`, `text`, `choice`), `min`/`max`, `unit`, `help`, `options`, `value`, `default`, `changed`) and `readonly` (addresses that need a restart) |
+| POST | `/api/settings` | *(paired)* `{"<key>": value, …}` — only the keys sent; on any invalid value nothing is changed (400 with a German message) |
+| POST | `/api/settings/reset` | *(paired)* `{"key": "<key>"}` — back to the start value from the environment |
 
 ## ACE settings
 
@@ -174,12 +199,18 @@ to snapshots if the printer has none).
 **Camera key.** Mainsail and an `<img>` tag cannot send an `Authorization` header, so camera URLs
 also accept `?key=<camera key>`. The key only shows camera images; it is stored in `camera.json`
 in the data folder and can be replaced by any paired device.
-| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail` |
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail`, `done` (printed toolpath segments), `geometry` (key of the current 3D data, `null` = none), `colours` (per tool, as the ACE shows them) |
+| GET | `/api/print/geometry.bin` | toolpaths for the 3D view, binary (gzip): header `KSG1`, version, segment count, layers, step, bed size, max. Z, layer heights, then per segment `x0 y0 x1 y1 z layer` (uint16) and the tool (uint8). At most `GEOMETRY_MAX_SEGMENTS`, longer files are thinned evenly |
 | GET | `/api/print/preview.png` | the print file drawn by the bridge in the ACE colours; printed part solid, the rest as a shadow, nozzle marked; refreshed at most every `RENDER_INTERVAL_S` |
 | GET | `/api/print/thumbnail.png` | the thumbnail the slicer embedded in the file |
 
 The bridge downloads the running file once at print start through Moonraker (throttled) and
-renders it itself; progress comes from `virtual_sdcard.file_position`.
+renders it itself; progress comes from `virtual_sdcard.file_position`. The web UI draws the toolpaths
+with WebGL2; `/viewer` is the same 3D view as a page of its own (used by the app's WebView; `?q=auto`, `volume`,
+`lines` or `image` fixes the rendering).
 
 ## AI print-failure detection
 

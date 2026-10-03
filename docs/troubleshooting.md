@@ -52,6 +52,10 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | Panel: *Filament N ist „…“ – erwartet „…“* | Press Orca's sync button, or select the profile manually. |
 | No *Geplanter Verbrauch* in the panel | The Orca build lacks patch 0003 (footer says so) — update via the orca-kobra launcher. Otherwise slice again; the preview hides when the slice result is outdated. |
 | Preview says *reicht nicht* but the spool is full | Remaining weight in Spoolman is wrong. Weigh the spool and correct *Restgewicht* in the shelf. |
+| Status *MQTT / HA* yellow | The broker is unreachable or refuses the login — the line shows the reason; check `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`/`MQTT_PASSWORD`. The bridge retries every 15 s. |
+| Home Assistant shows no *Kobra S1* device | MQTT integration in Home Assistant set up, discovery prefix `homeassistant` (or the same as `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` must not be empty. |
+| Status *Raumsensor* yellow | No value for 2 h on `ROOM_SENSOR_TOPIC` — check the topic name (e.g. in Zigbee2MQTT) and that the payload has `humidity`. Until then the bridge uses `ROOM_RH`. |
+| A spool says *trocknen empfohlen* but it is dry | The estimate cannot know how the spool was stored before. Dry it once (or *Außerhalb getrocknet …* on the spool card); new spools count as wet only if *Neue Spulen zuerst trocknen* is on. |
 
 ## Useful commands
 

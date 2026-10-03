@@ -26,6 +26,11 @@ services:
       TZ: Europe/Berlin
       # KI-Fehldruck-Erkennung (optional, Dienst unten):
       # VISION_URL: "http://kobra-vision:7917"
+      # Home Assistant ueber MQTT (optional; Geraet erscheint per Discovery von selbst):
+      # MQTT_HOST: "192.168.1.10"
+      # MQTT_USER: "kobra"
+      # MQTT_PASSWORD: "..."
+      # ROOM_SENSOR_TOPIC: "zigbee2mqtt/Filamentlager"   # Feuchte im Lagerraum fuer die Spulen-Schaetzung
     depends_on:
       - spoolman
 

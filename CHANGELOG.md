@@ -6,6 +6,40 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.19.0] – 2026-10-03
+
+Ships app 1.7.0. Run `spoolman_setup.py` once more for the new Spoolman fields (see below).
+
+### Added
+- **3D view** of the running print: the bridge sends the toolpaths (`/api/print/geometry.bin`, compact
+  binary, gzip) and the web UI draws them with its own WebGL2 renderer — printed part solid, the rest
+  faint, live nozzle position, layer slider, *3D*/*Oben*/*Vorne*. Rendering per device: *Volumen*,
+  *Linien*, *Bild der Bridge* or *Automatisch* (by what the device can do). `/viewer` serves the view as
+  a page of its own for the app. `GEOMETRY_MAX_SEGMENTS` limits the detail.
+- **Settings at runtime**: the web UI's *Einstellungen* changes camera, preview, slots and RFID,
+  moisture, notices, consumption and data settings without a restart (`/api/settings`, stored in
+  `settings.json`; the environment gives the start values).
+- **Humidity history** of the ACE (one point per minute, `HUMIDITY_DAYS`, default 30) with every drying:
+  who started it and why, set points, humidity before and after (`/api/humidity`).
+- **Spool moisture estimate** from where each spool was (ACE, storage room, dry box locations) and how
+  it was dried, with per-material absorption and drying times (Spoolman fields *Offen bis Trocknen*,
+  *Trocknen Dauer*). Spools that need drying — and new spools — start the ACE dryer when loaded
+  (`AUTO_DRY_ON_INSERT`, `NEW_SPOOLS_DRY`). The bridge writes *Feuchte-Schätzung*, *Zuletzt im ACE*,
+  *Zuletzt getrocknet* to Spoolman. `/api/spool/{id}/moisture`, `/api/spool/{id}/dried`.
+- **Print start check**: every tool of the file against its slot (empty, material, colour, no spool,
+  needs drying) as messages; `WET_PRINT_ACTION=pause` pauses once for a wet spool.
+- **Home Assistant via MQTT** (`MQTT_HOST` …): retained topics for printer, ACE, slots, messages and AI,
+  discovery as the device *Kobra S1 (ace-lane-bridge)*, availability with last will. **Room sensor**
+  (`ROOM_SENSOR_TOPIC`, e.g. Zigbee2MQTT) replaces `ROOM_RH` in the moisture estimate while it is fresh.
+- Settings `LOW_SPOOL_G` and `REACH_RESERVE_PCT` for the *fast leer* and *reicht nicht* messages.
+
+## app 1.7.0 – 2026-10-03
+
+- 3D-Ansicht des laufenden Drucks (drehen, Schicht-Regler, Vollbild); Darstellung unter Einstellungen → 3D-Modell
+- Trockner-Fenster: Feuchte-Verlauf mit Soll beim Trocknen und Liste aller Trocknungen
+- Spulenkarte: Feuchte-Schätzung, letzte Trocknung, „Außerhalb getrocknet …“
+- Widget für den Startbildschirm: Kamerabild, Fortschritt, Rest- und Fertig-Zeit
+
 ## [2.18.0] – 2026-10-03
 
 Ships app 1.6.0.

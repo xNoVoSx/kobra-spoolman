@@ -27,7 +27,9 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   it the print (*Bereit*, *Druckt* with file, progress, running/remaining/finish time, *Pausiert*,
   *Fehler*, *Offline*) with nozzle, bed, fans, speed and flow, then the four ACE slots and the ACE
   line (humidity, dryer, purge). Below the print: pause/resume, cancel, *Nachjustieren* (speed,
-  flow, fans, temperatures) and an emergency stop you hold for two seconds. All from the bridge's existing Moonraker subscription — the app
+  flow, fans, temperatures) and an emergency stop you hold for two seconds. During a print the model
+  is the bridge's [3D view](usage.md#watching-a-print-in-3d) in a WebView (`/viewer`; rotate, layer
+  slider, full screen); *Einstellungen → 3D-Modell* picks the rendering for this phone. All from the bridge's existing Moonraker subscription — the app
   adds no load on the printer.
 - **Meldungen** — the same messages and status as the web UI; the tab shows a counter (red for
   errors, yellow for warnings).
@@ -60,7 +62,8 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
 - **Mehr** — ACE & dryer, print history, **Protokoll** (read-only: commands sent through the bridge
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.
-- **Spool card** — remaining weight, temperatures, template, last prints; *In Slot 1–4*,
+- **Spool card** — remaining weight, temperatures, template, last prints, **Feuchte** (estimate,
+  where it is, last drying, *Außerhalb getrocknet …*); *In Slot 1–4*,
   *Ins Regal*, *Tags schreiben*, *Leer · archivieren*.
 - **Scan** — hold a spool to the phone: known tag → spool card; an unknown **blank** sticker → write it
   for a new or an existing spool (then the second sticker); an unknown tag **with content** (e.g. an
@@ -74,7 +77,11 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   same content**, one per side (*Tag 1 von 2*, *Tag 2 von 2*); both IDs are linked, a scan of either
   finds the spool. *2. Tag schreiben* adds a missing second one.
   Tag format: [findings](findings.md#anycubic-rfid-tags).
-- **ACE dryer** — humidity/temperature card; start, stop and the automation rules.
+- **ACE dryer** — humidity/temperature card; start, stop and the automation rules; the humidity
+  history (6 h – 30 days, set point while drying, prints and dryings as bands) and the list of dryings
+  with who started them and why.
+- **Widget** — *Einstellungen → Widget auf den Startbildschirm*: camera picture, progress, remaining and
+  finish time, refreshed by the monitoring service (no extra requests).
 - **Pairing and devices** — scan the QR code from *Geräte → Gerät hinzufügen* (web UI or another
   phone); list and remove devices; show a QR code for the next one.
 
@@ -138,6 +145,5 @@ builds and tests the app on every push and attaches the debug APK.
 
 ## Next
 
-- Home-screen widget with progress and camera picture.
 - Spool swap during a print and the ACE's backup spool (*Automatisch nachladen*) still to be checked on
   a real print: consumption has to continue on the spool of the new slot.

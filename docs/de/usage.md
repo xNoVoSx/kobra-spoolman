@@ -127,6 +127,50 @@ Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament
 Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort und
 behält die Restzeit. Die Seite **ACE** listet die Grenze jedes Slots.
 
+**Feuchte-Verlauf** (Seite ACE, in der App im Trockner-Fenster) zeigt die Feuchte der ACE über 6 h bis
+30 Tage, die ACE-Temperatur, beim Trocknen das Soll, die Schwellen der Automatik gestrichelt und jeden
+Druck und jede Trocknung als Fläche. Darunter jede Trocknung: wer sie gestartet hat (Automatik, von Hand,
+geplant, Spule eingelegt, Display/Mainsail) und warum, ihre Temperaturen und die Feuchte vorher und nachher.
+
+<p align="center"><img src="../images/web-humidity.png" width="760" alt="Feuchte-Verlauf mit Trocknungen"></p>
+
+## Feuchte der Spulen
+
+Wie feucht eine Spule wirklich ist, kann niemand messen – aber die Bridge weiß, wo sie war. Jede Spule
+bekommt eine **Feuchte-Schätzung**: Sie steigt mit der Luftfeuchte um die Spule (ACE-Sensor, solange sie
+eingelegt ist, sonst der Lagerraum) und sinkt beim Trocknen. 100 % heißt *trocknen empfohlen*. Wie schnell
+ein Material Wasser zieht und wie lange es trocknen muss, kommt vom Material (offen bei 50 % rF: PLA ~14 Tage,
+PETG ~5, ABS/ASA ~21, TPU ~2, PA/PVA weniger) und lässt sich pro Filament einstellen (*Offen bis Trocknen*,
+*Trocknen Dauer*).
+
+- **Eine Spule, die getrocknet werden sollte, wird eingelegt** – auch eine neue ohne Verlauf: Der
+  ACE-Trockner startet von selbst, Temperatur nach der empfindlichsten eingelegten Spule, Dauer nach der
+  feuchtesten.
+- **Prüfung beim Druckstart:** Beim Start vergleicht die Bridge jedes Werkzeug der Datei mit seinem Slot –
+  leerer Slot, anderes Material, deutlich andere Farbe, keine Spule zugeordnet oder Spule zu feucht – und
+  zeigt es unter *Meldungen*. Standard ist nur warnen; *Druckstart mit feuchter Spule → Druck sofort
+  pausieren* hält den Druck stattdessen einmal an.
+- Die Spulenkarte hat den Reiter **Feuchte** mit Schätzung, Ort, letzter Trocknung und Verlauf;
+  **Außerhalb getrocknet …** trägt eine Trocknung im eigenen Trockner ein. Die Spulenliste filtert auf
+  *trocknen*.
+- Für den Lagerraum rechnet die Bridge mit 50 % Luftfeuchte, bis ein **Raumsensor** über MQTT angebunden
+  ist (siehe [Konfiguration](../configuration.md#home-assistant-mqtt)); Trockenboxen bekommen pro
+  Spoolman-Lagerort einen eigenen Wert (`Trockenbox=15`).
+
+<p align="center"><img src="../images/web-spool-moisture.png" width="760" alt="Reiter Feuchte einer Spule"></p>
+
+## Einen Druck in 3D ansehen
+
+Während eines Drucks zeigt **Modell** die Druckdatei in 3D in den Farben der eingelegten Spulen: Gedrucktes
+kräftig, der Rest blass, die Düsenposition live. Ziehen dreht, zwei Finger oder rechte Maustaste
+verschieben, Mausrad oder Spreizen zoomt; *3D*, *Oben*, *Vorne* springen in eine Ansicht. Der
+Schicht-Regler zeigt jede beliebige Schicht (*nur Schicht* nur diese, *Live* zurück zur laufenden). Wie
+gezeichnet wird, hängt vom Gerät ab (*Einstellungen → Dieses Gerät → 3D-Modell*, in der App
+*Einstellungen → 3D-Modell*): *Volumen* (schattierte Stränge), *Linien* (schont die Grafik), *Bild der
+Bridge* (für schwache Geräte) oder *Automatisch*, das nach den Fähigkeiten des Geräts wählt.
+
+<p align="center"><img src="../images/web-3d.png" width="760" alt="3D-Ansicht des laufenden Drucks"></p>
+
 ## Einen Druck beobachten
 
 Die Druckerkarte zeigt **Modell** – die Druckdatei, von der Bridge gezeichnet in den Farben deiner
@@ -242,6 +286,24 @@ Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt d
 *Einstellungen → Töne* spielt jeden Ton ab und schickt pro Art eine Probe-Benachrichtigung (prüft Lautstärke
 und *Nicht stören*). Abschalten unter *Einstellungen*; jede Art ist ein eigener Kanal in den
 Android-Einstellungen der App.
+
+**Widget:** *Einstellungen → Widget auf den Startbildschirm* legt den Druck auf den Startbildschirm –
+Kamerabild, Fortschritt, Rest- und Fertig-Zeit; Antippen öffnet die App.
+
+## Einstellungen
+
+*Einstellungen* in der Weboberfläche ändert die Bridge im laufenden Betrieb – Kamera, Druckvorschau, Slots
+und RFID, Feuchte der Spulen, Meldungen, Verbrauch, Daten – ohne Neustart und ohne Portainer. Die Umgebung
+des Stacks gibt nur die Startwerte; *zurücksetzen* stellt sie wieder her. Siehe
+[Konfiguration](../configuration.md#changing-settings-at-runtime).
+
+<p align="center"><img src="../images/web-settings.png" width="760" alt="Einstellungen der Bridge"></p>
+
+## Home Assistant
+
+Mit `MQTT_HOST` schickt die Bridge Drucker, Slots, ACE, Meldungen und KI an deinen MQTT-Broker, und Home
+Assistant legt das Gerät *Kobra S1 (ace-lane-bridge)* von selbst an – der Drucker bekommt keinen weiteren
+Client. Details in der [Konfiguration](../configuration.md#home-assistant-mqtt).
 
 ## KI-Fehldruck-Erkennung
 

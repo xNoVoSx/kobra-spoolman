@@ -215,7 +215,7 @@ function NumSetting({ it, save }) {
   useEffect(() => setV(String(it.value).replace(".", ",")), [it.value]);
   const commit = () => { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && n !== it.value) save(it.key, n); };
   return html`<label class="row small" style="gap:6px">
-    <input class="set-num" inputmode="decimal" value=${v} onInput=${(e) => setV(e.target.value)} onBlur=${commit}
+    <input class="inp set-num" inputmode="decimal" value=${v} onInput=${(e) => setV(e.target.value)} onBlur=${commit}
       onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} aria-label=${it.label} />
     <span class="muted">${it.unit}</span></label>`;
 }
@@ -224,7 +224,7 @@ function NumSetting({ it, save }) {
 function TextSetting({ it, save }) {
   const [v, setV] = useState(it.value || "");
   useEffect(() => setV(it.value || ""), [it.value]);
-  return html`<input class="set-text" value=${v} placeholder="Trockenbox=15" onInput=${(e) => setV(e.target.value)}
+  return html`<input class="inp set-text" value=${v} placeholder="Trockenbox=15" onInput=${(e) => setV(e.target.value)}
     onBlur=${() => { if (v !== (it.value || "")) save(it.key, v); }} onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} aria-label=${it.label} />`;
 }
 
@@ -246,7 +246,7 @@ function BridgeSettings() {
           ${it.kind !== "bool" && it.min != null && html`<div class="small faint">erlaubt ${String(it.min).replace(".", ",")}–${String(it.max).replace(".", ",")} ${it.unit}</div>`}
           ${it.changed && html`<div class="small" style="color:var(--accent-text)">geändert · Standard ${fmt(it, it.default)} <button class="linkbtn" onClick=${() => reset(it.key)}>zurücksetzen</button></div>`}</div>
         ${it.kind === "bool" ? html`<label class="toggle"><input type="checkbox" role="switch" checked=${!!it.value} onChange=${(e) => save(it.key, e.target.checked)} aria-label=${it.label} /><span class="knob" aria-hidden="true"></span></label>`
-          : it.kind === "choice" ? html`<select value=${it.value} onChange=${(e) => save(it.key, e.target.value)} aria-label=${it.label}>${it.options.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select>`
+          : it.kind === "choice" ? html`<select class="inp set-text" value=${it.value} onChange=${(e) => save(it.key, e.target.value)} aria-label=${it.label}>${it.options.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select>`
           : it.kind === "text" ? html`<${TextSetting} it=${it} save=${save} />`
           : html`<${NumSetting} it=${it} save=${save} />`}
       </div>`)}
@@ -270,7 +270,7 @@ function DeviceCard() {
   return html`<section class="card pad col">
     <h2 class="h2">Dieses Gerät</h2>
     <div class="row wrap"><span class="grow">3D-Modell</span>
-      <select value=${q} onChange=${(e) => { setQuality(e.target.value); setQ(e.target.value); toast("Gilt ab dem nächsten Öffnen der Modell-Ansicht", "ok"); }} aria-label="3D-Modell">
+      <select class="inp set-text" value=${q} onChange=${(e) => { setQuality(e.target.value); setQ(e.target.value); toast("Gilt ab dem nächsten Öffnen der Modell-Ansicht", "ok"); }} aria-label="3D-Modell">
         ${opts.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select></div>
     <div class="small muted">Gilt nur in diesem Browser. Die App hat dieselbe Einstellung unter Einstellungen.</div>
   </section>`;

@@ -124,6 +124,49 @@ The temperature is **never higher than the most sensitive loaded filament allows
 If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once and keeps
 the remaining time. The **ACE** page lists the limit of every slot.
 
+**Feuchte-Verlauf** (ACE page, in the app in the dryer sheet) shows the ACE humidity over 6 h to
+30 days, the ACE temperature, the set point while drying, the automation thresholds as dashed lines
+and every print and drying as a band. Below it every drying with who started it (automation, by hand,
+planned, spool loaded, printer display/Mainsail) and why, its temperatures and the humidity before and after.
+
+<p align="center"><img src="images/web-humidity.png" width="760" alt="Humidity history with dryings"></p>
+
+## Spool moisture
+
+Nobody can measure how wet a spool is — but the bridge can follow where it was. Every spool gets a
+**moisture estimate**: it rises with the humidity around the spool (ACE sensor while loaded, the
+storage room on the shelf) and falls while drying. 100 % means *trocknen empfohlen*. How fast a
+material takes up water and how long it needs to dry come from the material (open at 50 % RH: PLA ~14 days,
+PETG ~5, ABS/ASA ~21, TPU ~2, PA/PVA less) and can be set per filament (*Offen bis Trocknen*,
+*Trocknen Dauer*).
+
+- **Loading a spool that needs drying** — also a new spool without history — starts the ACE dryer by
+  itself: temperature of the most sensitive loaded spool, time of the wettest one.
+- **Print start check**: when a print starts, the bridge compares every tool of the file with its
+  slot — empty slot, other material, clearly different colour, no spool assigned, or a spool that
+  needs drying — and shows it under *Meldungen*. By default it only warns; *Druckstart mit feuchter
+  Spule → Druck sofort pausieren* pauses the print once instead.
+- The spool card has a **Feuchte** tab with the estimate, where the spool is, the last drying and its
+  history; **Außerhalb getrocknet …** records drying in another dryer. The spool list can filter
+  *trocknen*.
+- The storage room counts with 50 % humidity until a **room sensor** is connected through MQTT (see
+  [configuration](configuration.md#home-assistant-mqtt)); dry boxes get their own value per Spoolman
+  location (`Trockenbox=15`).
+
+<p align="center"><img src="images/web-spool-moisture.png" width="760" alt="Moisture tab of a spool"></p>
+
+## Watching a print in 3D
+
+While printing, **Modell** shows the print file in 3D in the colours of the loaded spools: printed
+part solid, the rest faint, the nozzle position live. Drag to rotate, two fingers or right mouse button
+to move, wheel or pinch to zoom; *3D*, *Oben*, *Vorne* jump to a view. The layer slider looks at any
+layer (*nur Schicht* shows only that one, *Live* returns to the running layer). How it is drawn depends on
+the device (*Einstellungen → Dieses Gerät → 3D-Modell*, in the app *Einstellungen → 3D-Modell*):
+*Volumen* (shaded strands), *Linien* (light on the graphics), *Bild der Bridge* (for weak devices)
+or *Automatisch*, which picks by what the device can do.
+
+<p align="center"><img src="images/web-3d.png" width="760" alt="3D view of the running print"></p>
+
 ## Watching a print
 
 The printer card shows **Modell** — the print file drawn by the bridge in the colours of your
@@ -238,6 +281,23 @@ took about two thirds of the printer's CPU). It only asks the bridge, so the pri
 *Einstellungen → Töne* plays every sound and sends a test notification per kind (checks volume and
 *Do not disturb*). Switch monitoring off under *Einstellungen*; each kind is a separate channel in
 Android's notification settings.
+
+**Widget:** *Einstellungen → Widget auf den Startbildschirm* puts the print on the home screen — camera
+picture, progress, remaining and finish time; tapping it opens the app.
+
+## Settings
+
+*Einstellungen* in the web UI changes the bridge while it runs — camera, print preview, slots and RFID,
+spool moisture, notices, consumption, data — no restart and no Portainer. The stack's environment
+only gives the start values; *zurücksetzen* goes back to them. See [configuration](configuration.md#changing-settings-at-runtime).
+
+<p align="center"><img src="images/web-settings.png" width="760" alt="Bridge settings"></p>
+
+## Home Assistant
+
+With `MQTT_HOST` set, the bridge sends printer, slots, ACE, messages and AI to your MQTT broker and
+Home Assistant creates the device *Kobra S1 (ace-lane-bridge)* by itself — the printer gets no extra
+client. Details in [configuration](configuration.md#home-assistant-mqtt).
 
 ## AI print-failure detection
 
