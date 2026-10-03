@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import json
 import math
@@ -107,3 +108,51 @@ def cfg(tmp_path, monkeypatch):
 
 
 os.environ.setdefault("MOONRAKER_URL", "http://printer.invalid:7125")
+
+
+# ---------------------------------------------------------------- KI (vision)
+class Clock:
+    def __init__(self):
+        self.t = 1_000_000.0
+
+    def __call__(self):
+        return self.t
+
+
+class FakeCamera:
+    def __init__(self):
+        self.calls = 0
+
+    async def still(self):
+        self.calls += 1
+        return b"\xff\xd8fake-jpeg", 0.0
+
+
+@pytest.fixture
+def vision(cfg, monkeypatch):
+    """KI mit Nachbau von Kamera und Dienst: v.p_next bestimmt die Sicherheit des naechsten Fundes."""
+    from acebridge.vision import Vision
+    cfg.vision_url = "http://vision.invalid:7917"
+    cfg.vision_interval_s = 10
+    moon = FakeMoonraker()
+    moon.merge({"print_stats": {"state": "standby", "filename": "Benchy PETG.gcode"}})
+    clock = Clock()
+    v = Vision(cfg, moon, FakeCamera(), None, clock=clock)
+    v.p_next = 0.0
+
+    async def analyze(_img):
+        return {"detections": [["failure", v.p_next, [0.5, 0.5, 0.2, 0.2]]] if v.p_next else [],
+                "width": 1280, "height": 720, "ms": 50, "provider": "CPUExecutionProvider"}
+
+    async def health():
+        v.health = {"ok": True, "model": {"loaded": False, "provider": None}}
+    monkeypatch.setattr(v, "analyze", analyze)
+    monkeypatch.setattr(v, "check_health", health)
+    return v, moon, clock
+
+
+def run_print(v, moon, clock, p, frames):
+    v.p_next = p
+    for _ in range(frames):
+        clock.t += 10
+        asyncio.run(v.tick())

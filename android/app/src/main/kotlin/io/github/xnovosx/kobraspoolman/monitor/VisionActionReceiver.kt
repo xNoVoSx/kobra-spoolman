@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Knoepfe am KI-Alarm: "Pausieren" pausiert den Druck ueber die Bridge und merkt das Bild als Fehldruck,
- * "Fehlalarm" merkt es als Fehlalarm (die KI ist dann fuer den Rest des Drucks still).
+ * "Stimmt" merkt es nur als Fehldruck, "Fehlalarm" als Fehlalarm (die KI ist dann fuer den Rest des Drucks still).
  */
 class VisionActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -31,6 +31,10 @@ class VisionActionReceiver : BroadcastReceiver() {
                         client.printAction("pause")
                         client.visionFeedback(eventId, "confirmed")
                         "Druck pausiert"
+                    }
+                    ACTION_CONFIRM -> {
+                        client.visionFeedback(eventId, "confirmed")
+                        "Als Fehldruck gemerkt"
                     }
                     else -> {
                         client.visionFeedback(eventId, "false_alarm")
@@ -49,6 +53,7 @@ class VisionActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_PAUSE = "io.github.xnovosx.kobraspoolman.VISION_PAUSE"
         const val ACTION_FALSE_ALARM = "io.github.xnovosx.kobraspoolman.VISION_FALSE_ALARM"
+        const val ACTION_CONFIRM = "io.github.xnovosx.kobraspoolman.VISION_CONFIRM"
         const val EXTRA_EVENT = "event"
         const val EXTRA_NOTIFICATION = "notification"
     }

@@ -16,7 +16,8 @@ data class PrintEvent(val kind: EventKind, val title: String, val text: String, 
  */
 class EventDetector(
     private val changeStuckMs: Long = 3 * 60_000L,
-    private val tempDropMs: Long = 30_000L,
+    private val tempDropMs: Long = 60_000L,
+    private val errorMs: Long = 10_000L,
     private val tempDropK: Double = 15.0,
     private val goneMs: Long = 60_000L,
     private val spoolmanMs: Long = 5 * 60_000L,
@@ -28,6 +29,11 @@ class EventDetector(
     private var changeAlarmed = false
     private var coldSince: Long? = null
     private var coldAlarmed = false
+    // Duese: erst wenn das Soll einmal erreicht war, ist "darunter" ein Abkuehlen (sonst Aufheizen)
+    private var nozzleTarget = 0.0
+    private var nozzleReached = false
+    private var errorSince: Long? = null
+    private var errorAlarmed = false
     private var bridgeGoneSince: Long? = null
     private var bridgeAlarmed = false
     private var printerGoneSince: Long? = null
@@ -85,11 +91,22 @@ class EventDetector(
                     file + (p.printDurationS?.let { " · ${formatDuration(it)}" } ?: ""), "state")
                 st == "cancelled" && was && !own("cancel") ->
                     out += PrintEvent(EventKind.ALARM, "Druck abgebrochen", file, "state")
-                st == "error" -> out += PrintEvent(EventKind.ALARM, "Druckerfehler",
-                    p.message ?: "Der Drucker meldet einen Fehler.", "state")
+                // "error" meldet GoKlipper in der Vorbereitung auch fuer < 1 s - erst unten nach errorMs melden
             }
         }
         prevState = st
+
+        // ---- Druckerfehler, der bleibt (kurzes Flackern in der Vorbereitung ignorieren)
+        if (st == "error") {
+            val since = errorSince ?: now.also { errorSince = it }
+            if (!errorAlarmed && now - since >= errorMs) {
+                errorAlarmed = true
+                out += PrintEvent(EventKind.ALARM, "Druckerfehler", p.message ?: "Der Drucker meldet einen Fehler.", "state")
+            }
+        } else {
+            errorSince = null
+            errorAlarmed = false
+        }
 
         // ---- Drucker weg (nur, wenn gerade gedruckt wurde)
         if (st == "offline") {
@@ -125,9 +142,15 @@ class EventDetector(
             changeAlarmed = false
         }
 
-        // ---- Duese kuehlt im Druck ab
+        // ---- Duese kuehlt im Druck ab: nur wenn das Soll schon erreicht war (neues/hoeheres Soll = Aufheizen),
+        // erst ab Schicht 1 (Vorbereitung: Abtasten bei 140 degC, Aufheizen) und erst nach tempDropMs
         val n = p.nozzle
-        if (st == "printing" && n != null && n.target > 0 && n.temp < n.target - tempDropK) {
+        if (n == null || n.target <= 0 || n.target != nozzleTarget) {
+            nozzleTarget = n?.target ?: 0.0
+            nozzleReached = false
+        }
+        if (n != null && n.target > 0 && n.temp >= n.target - 5) nozzleReached = true
+        if (st == "printing" && n != null && nozzleReached && (p.layer ?: 0) >= 1 && n.temp < n.target - tempDropK) {
             val since = coldSince ?: now.also { coldSince = it }
             if (!coldAlarmed && now - since >= tempDropMs) {
                 coldAlarmed = true

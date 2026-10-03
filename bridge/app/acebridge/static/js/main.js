@@ -7,6 +7,7 @@ import { Dialogs } from "./dialogs.js";
 import { Icon } from "./icons.js";
 import { AcePage, DevicesPage, FilamentHub, JobsPage, Overview, PairPage, SettingsPage, Ultra, filamentView } from "./pages.js";
 import { useFilteredSpools } from "./spools.js";
+import { AiPage } from "./ai.js";
 import { LogsPage, TerminalPage } from "./terminal.js";
 import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set, useStore } from "./store.js";
 import { cls, printerLook } from "./util.js";
@@ -16,6 +17,7 @@ const PAGES = {
   filament: { title: "Filament", icon: "spool", C: FilamentHub, fill: true },
   drucke: { title: "Drucke", icon: "clock", C: JobsPage },
   ace: { title: "ACE", icon: "dryer", C: AcePage },
+  ki: { title: "KI", icon: "eye", C: AiPage },
   terminal: { title: "Terminal", icon: "terminal", C: TerminalPage, fill: true },
   logs: { title: "Logs", icon: "log", C: LogsPage, fill: true },
   geraete: { title: "Geräte", icon: "phone", C: DevicesPage, bottom: true },
@@ -49,7 +51,7 @@ function useWidth() {
 function MorePage() {
   return html`<div class="col">
     <h1 class="h1">Mehr</h1>
-    ${["ace", "terminal", "logs", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
+    ${["ace", "ki", "terminal", "logs", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
   </div>`;
 }
 

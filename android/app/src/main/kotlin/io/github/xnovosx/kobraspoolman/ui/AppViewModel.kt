@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.xnovosx.kobraspoolman.BuildConfig
+import io.github.xnovosx.kobraspoolman.data.VisionFull
 import io.github.xnovosx.kobraspoolman.data.AppState
 import io.github.xnovosx.kobraspoolman.data.AppUpdate
 import io.github.xnovosx.kobraspoolman.monitor.MonitorService
@@ -273,6 +274,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         it.printAction(action)
         _messages.send(done)
         refresh()
+    }
+
+    // ------------------------------------------------ KI
+    suspend fun vision(): VisionFull? = runCatching { client()?.vision() }.getOrNull()
+
+    fun visionSettings(changes: kotlinx.serialization.json.JsonObject, done: () -> Unit) = launchSafe {
+        it.visionSettings(changes)
+        _messages.send("KI-Einstellung gespeichert")
+        done()
+    }
+
+    fun visionMute(on: Boolean, done: () -> Unit) = launchSafe {
+        it.visionMute(on)
+        _messages.send(if (on) "Dieser Druck wird nicht überwacht" else "KI überwacht wieder")
+        done()
+    }
+
+    fun visionFeedback(id: String, verdict: String, done: () -> Unit) = launchSafe {
+        it.visionFeedback(id, verdict)
+        _messages.send(if (verdict == "false_alarm") "Als Fehlalarm gemerkt" else "Als Fehldruck gemerkt")
+        done()
     }
 
     fun tune(body: kotlinx.serialization.json.JsonObject) = launchSafe {

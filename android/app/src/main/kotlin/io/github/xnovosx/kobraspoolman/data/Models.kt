@@ -2,6 +2,7 @@ package io.github.xnovosx.kobraspoolman.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 
 // Datenmodelle der Bridge-API (/api/app/..., docs/api.md). Unbekannte Felder werden ignoriert,
@@ -34,7 +35,62 @@ data class VisionInfo(
 )
 
 @Serializable
-data class VisionEvent(val id: String, val level: String = "warn", val at: Double = 0.0, val score: Double? = null)
+data class VisionEvent(
+    val id: String, val level: String = "warn", val at: Double = 0.0, val score: Double? = null,
+    val p: Double? = null, val verdict: String? = null, val file: String? = null, val paused: Boolean = false,
+)
+
+/** GET /api/vision - alles fuer die KI-Seite. */
+@Serializable
+data class VisionFull(
+    val enabled: Boolean = false,
+    val configured: Boolean = false,
+    val level: String = "ok",
+    val muted: Boolean = false,
+    @SerialName("muted_reason") val mutedReason: String? = null,
+    val score: Double? = null,
+    val printing: Boolean = false,
+    val error: String? = null,
+    val ms: Double? = null,
+    @SerialName("quiet_now") val quietNow: Boolean = false,
+    @SerialName("action_now") val actionNow: String = "warn",
+    @SerialName("safe_frames") val safeFrames: Int = 30,
+    val settings: VisionSettings = VisionSettings(),
+    val prediction: VisionPrediction = VisionPrediction(),
+    val events: List<VisionEvent> = emptyList(),
+    val dataset: VisionDataset = VisionDataset(),
+    val health: VisionHealth = VisionHealth(),
+)
+
+@Serializable
+data class VisionSettings(
+    val enabled: Boolean = true,
+    val sensitivity: Double = 1.0,
+    val action: String = "warn",
+    @SerialName("heater_off") val heaterOff: Boolean = false,
+    val notify: String = "warn",
+    @SerialName("interval_s") val intervalS: Double = 10.0,
+    @SerialName("safe_s") val safeS: Double = 300.0,
+    val zones: List<JsonObject> = emptyList(),
+    val quiet: VisionQuiet = VisionQuiet(),
+    @SerialName("dataset_gb") val datasetGb: Double = 5.0,
+)
+
+@Serializable
+data class VisionQuiet(val enabled: Boolean = false, val start: String = "22:00", val end: String = "07:00", val mode: String = "fail_only")
+
+@Serializable
+data class VisionPrediction(val p: Double = 0.0, val long: Double = 0.0, val frames: Int = 0, val lifetime: Int = 0)
+
+@Serializable
+data class VisionDataset(val jobs: Int = 0, val frames: Int = 0, val labelled: Int = 0, val mb: Double = 0.0,
+                         @SerialName("limit_gb") val limitGb: Double = 5.0)
+
+@Serializable
+data class VisionHealth(val model: VisionModel? = null)
+
+@Serializable
+data class VisionModel(val loaded: Boolean = false, val provider: String? = null)
 
 /** Zuletzt ueber die Bridge ausgeloeste Druckaktion (pause, resume, cancel ...); at = Unix-Sekunden. */
 @Serializable

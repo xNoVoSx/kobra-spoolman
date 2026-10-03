@@ -29,6 +29,7 @@ const P = {
   pause: () => html`<path d="M8 5v14M16 5v14"/>`,
   terminal: () => html`<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 9l3 3-3 3M13 15h4"/>`,
   log: () => html`<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>`,
+  eye: () => html`<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>`,
   download: () => html`<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>`,
 };
 

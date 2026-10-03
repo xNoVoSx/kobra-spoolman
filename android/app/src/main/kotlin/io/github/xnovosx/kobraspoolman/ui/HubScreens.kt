@@ -65,7 +65,7 @@ fun ScreenHeader(title: String, onBack: (() -> Unit)? = null, action: (@Composab
     }
 }
 
-private fun listPadding(p: PaddingValues) =
+internal fun listPadding(p: PaddingValues) =
     PaddingValues(start = 20.dp, end = 20.dp, top = p.calculateTopPadding() + 16.dp, bottom = p.calculateBottomPadding() + 16.dp)
 
 /** Umschalter wie im Web (Spulen | Sorten, Befehle | Bridge). */
@@ -168,6 +168,7 @@ fun MoreScreen(
     onAce: () -> Unit,
     onJobs: () -> Unit,
     onProtocol: () -> Unit,
+    onAi: () -> Unit,
     onDevices: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -176,6 +177,7 @@ fun MoreScreen(
         item { ScreenHeader("Mehr") }
         update?.let { u -> item { UpdateCard(u, updateProgress, onInstall) } }
         if (hasAce) item { MoreRow(KIcons.Dryer, "ACE & Trockner", "Trocknen, Spülen, Nachladen", onAce) }
+        item { MoreRow(KIcons.Eye, "KI", "Fehldruck-Erkennung: Zustand, Einstellungen, Ereignisse", onAi) }
         item { MoreRow(KIcons.Clock, "Drucke", "Verbrauch pro Druck und Spule", onJobs) }
         item { MoreRow(KIcons.Terminal, "Protokoll", "Gesendete Befehle, Antworten, was die Bridge macht", onProtocol) }
         item { MoreRow(KIcons.Phone, "Geräte", "Gekoppelte Geräte, Gerät hinzufügen", onDevices) }

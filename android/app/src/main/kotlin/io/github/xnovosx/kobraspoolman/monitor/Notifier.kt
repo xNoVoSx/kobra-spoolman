@@ -167,8 +167,9 @@ object Notifier {
                 PendingIntent.getBroadcast(context, req, Intent(context, VisionActionReceiver::class.java).setAction(what)
                     .putExtra(VisionActionReceiver.EXTRA_EVENT, ev).putExtra(VisionActionReceiver.EXTRA_NOTIFICATION, id),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build()
-            b.addAction(action(VisionActionReceiver.ACTION_PAUSE, "Pausieren", id * 2))
-            b.addAction(action(VisionActionReceiver.ACTION_FALSE_ALARM, "Fehlalarm", id * 2 + 1))
+            b.addAction(action(VisionActionReceiver.ACTION_PAUSE, "Pausieren", id * 3))
+            b.addAction(action(VisionActionReceiver.ACTION_CONFIRM, "Stimmt", id * 3 + 2))
+            b.addAction(action(VisionActionReceiver.ACTION_FALSE_ALARM, "Fehlalarm", id * 3 + 1))
         }
         context.getSystemService(NotificationManager::class.java).notify(id, b.build())
     }

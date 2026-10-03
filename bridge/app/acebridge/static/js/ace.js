@@ -22,7 +22,7 @@ function usePurgePreview(multiplier) {
   return data;
 }
 
-function Toggle({ label, hint, value, disabled, onChange }) {
+export function Toggle({ label, hint, value, disabled, onChange }) {
   return html`<label class=${cls("toggle", disabled && "off")}>
     <span class="grow"><span>${label}</span>${hint && html`<span class="small muted" style="display:block">${hint}</span>`}</span>
     <input type="checkbox" role="switch" checked=${!!value} disabled=${disabled} onChange=${(e) => onChange(e.target.checked)} />

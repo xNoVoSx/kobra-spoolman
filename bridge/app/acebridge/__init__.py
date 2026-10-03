@@ -1,11 +1,16 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.17.0"
+__version__ = "2.18.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.18.0", "2026-10-03", [
+        "KI-Tab: Einstellungen, ignorierte Bereiche, Gedächtnis, Bildersammlung mit Kennzeichnen und ZIP",
+        "KI gewöhnt sich nicht mehr an einen lange unbemerkten Fehldruck",
+        "App 1.6.0: keine Fehlalarme mehr beim Aufheizen, KI-Seite, „Stimmt“ am Alarm",
+    ]),
     ("2.17.0", "2026-10-03", [
         "KI-Fehldruck-Erkennung (kobra-vision): Alarm mit Kamerabild, Rahmen im Bild, Fehlalarm/Stimmt",
         "Bildersammlung für die nächsten KI-Stufen (bis 5 GB)",

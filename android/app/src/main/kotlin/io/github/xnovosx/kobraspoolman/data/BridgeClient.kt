@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -58,7 +59,13 @@ class BridgeClient(
                         val msg = runCatching { json.decodeFromString(ApiError.serializer(), text).error }.getOrNull()
                         throw BridgeException(resp.code, msg?.takeIf { it.isNotBlank() } ?: "HTTP ${resp.code}")
                     }
-                    json.decodeFromString(out, text)
+                    try {
+                        json.decodeFromString(out, text)
+                    } catch (e: SerializationException) {
+                        // andere Bridge-Version: nie abstuerzen, sondern melden
+                        throw BridgeException(0, "Antwort der Bridge nicht lesbar – App und Bridge auf denselben Stand bringen " +
+                            "(${e.message?.substringBefore('\n')?.take(120)})")
+                    }
                 }
             } catch (e: IOException) {
                 throw BridgeException(0, "Bridge nicht erreichbar (${e.message ?: e.javaClass.simpleName})")
@@ -183,6 +190,18 @@ class BridgeClient(
     /** pause, resume, cancel, emergency_stop - die App hat vorher selbst nachgefragt (confirm). */
     suspend fun printAction(action: String) {
         call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
+    }
+
+    suspend fun vision(): VisionFull = call("GET", "/api/vision", null, VisionFull.serializer())
+
+    /** KI-Einstellungen aendern - nur die mitgeschickten Felder. */
+    suspend fun visionSettings(changes: JsonObject) {
+        call("POST", "/api/vision/settings", changes.toString(), ApiError.serializer())
+    }
+
+    /** Diesen Druck (nicht) ueberwachen. */
+    suspend fun visionMute(on: Boolean) {
+        call("POST", "/api/vision/mute", buildJsonObject { put("on", on) }.toString(), ApiError.serializer())
     }
 
     /** KI-Ereignis bewerten: false_alarm (KI fuer den Rest des Drucks still) oder confirmed. */

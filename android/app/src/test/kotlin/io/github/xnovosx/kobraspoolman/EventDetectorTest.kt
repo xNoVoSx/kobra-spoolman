@@ -55,9 +55,39 @@ class EventDetectorTest {
         assertEquals(emptyList<String>(), titles(d, st("printing", layer = 5, changing = true), 1_000))
         assertEquals(listOf("Farbwechsel hängt"), titles(d, st("printing", layer = 5, changing = true), 1_000 + 180_000))
         assertEquals(emptyList<String>(), titles(d, st("printing", layer = 5, changing = true), 1_000 + 200_000))
+        d.update(st("printing", layer = 6, nozzle = Heater(temp = 240.0, target = 240.0)), 290_000)   // Soll erreicht
         val cold = Heater(temp = 180.0, target = 240.0)
         assertEquals(emptyList<String>(), titles(d, st("printing", layer = 6, nozzle = cold), 300_000))
-        assertEquals(listOf("Düsentemperatur fällt"), titles(d, st("printing", layer = 6, nozzle = cold), 331_000))
+        assertEquals(emptyList<String>(), titles(d, st("printing", layer = 6, nozzle = cold), 331_000))   // < 60 s
+        assertEquals(listOf("Düsentemperatur fällt"), titles(d, st("printing", layer = 6, nozzle = cold), 361_000))
+    }
+
+    /** Ablauf wie beim echten Druck am 03.10.: Aufheizen, Abtasten bei 140 degC, "error" fuer < 1 s. */
+    @Test
+    fun preparationOfARealPrintGivesNoAlarm() {
+        val d = EventDetector()
+        fun at(t: Long, state: String, temp: Double, target: Double, layer: Int = 0) =
+            d.update(st(state, layer = layer, nozzle = Heater(temp = temp, target = target)), t * 1000).map { it.title }
+        val all = mutableListOf<String>()
+        all += at(0, "printing", 30.0, 0.0)
+        for (t in 68L..144L step 5) all += at(t, "printing", 30.0 + (t - 68) * 2.3, 205.0)    // 76 s aufheizen
+        all += at(150, "printing", 205.0, 205.0)
+        for (t in 214L..700L step 20) all += at(t, "printing", 140.0, 140.0)                // abtasten
+        all += at(709, "error", 140.0, 140.0)                                                 // kurzes Flackern
+        all += at(710, "printing", 140.0, 140.0)
+        for (t in 713L..746L step 5) all += at(t, "printing", 140.0 + (t - 713) * 2.0, 205.0)
+        for (t in 3813L..3875L step 5) all += at(t, "printing", 140.0 + (t - 3813) * 1.7, 250.0)
+        all += at(3880, "printing", 250.0, 250.0, layer = 1)
+        assertEquals(emptyList<String>(), all.filter { it == "Düsentemperatur fällt" || it == "Druckerfehler" })
+    }
+
+    @Test
+    fun printerErrorThatStaysIsAnAlarm() {
+        val d = EventDetector()
+        d.update(st("printing", layer = 3), 0)
+        assertEquals(emptyList<String>(), titles(d, st("error", message = "Heizung"), 1_000))
+        assertEquals(listOf("Druckerfehler"), titles(d, st("error", message = "Heizung"), 12_000))
+        assertEquals(emptyList<String>(), titles(d, st("error", message = "Heizung"), 20_000))     // nur einmal
     }
 
     @Test

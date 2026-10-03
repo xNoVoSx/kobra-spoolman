@@ -389,3 +389,26 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .digits input { width: 44px; height: 58px; font-size: 26px; }
   .toasts { left: 16px; right: 16px; bottom: 84px; }
 }
+
+/* KI-Tab */
+.ai-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .ai-grid { grid-template-columns: minmax(0, 1fr); } }
+.ai-img { position: relative; width: 100%; max-width: 100%; background: #0b0c0e; border-radius: var(--r-sm); overflow: hidden; }
+.ai-img > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.ai-chart { width: 100%; height: 150px; display: block; }
+.ai-settings { max-width: 760px; }
+.ai-settings input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.ai-nums label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.ai-nums input, .ai-settings input[type=time] { width: 90px; }
+.ai-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.ai-event { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.ai-bar { height: 6px; border-radius: 3px; background: var(--sunken); overflow: hidden; }
+.ai-bar > span { display: block; height: 100%; background: var(--accent); }
+.ai-jobs { display: flex; flex-direction: column; gap: 8px; }
+.ai-job { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); flex-wrap: wrap; }
+.ai-job-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; padding: 0; }
+.ai-job-main img, .ai-job-main .media-empty { width: 112px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; flex: none; }
+.ai-frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ai-frame { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.ai-frame .chip { font-size: 11px; padding: 2px 8px; min-height: 26px; }
+.ai-kv { grid-template-columns: max-content minmax(0, 1fr); }

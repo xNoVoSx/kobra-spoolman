@@ -173,9 +173,11 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onAce = { dryerOpen = true },
                     onJobs = { nav.navigate("jobs") },
                     onProtocol = { nav.navigate("protocol") },
+                    onAi = { nav.navigate("ai") },
                     onDevices = { nav.navigate("devices") },
                     onSettings = { nav.navigate("settings") })
             }
+            composable("ai") { AiScreen(padding, vm, onBack = { nav.popBackStack() }) }
             composable("jobs") { JobsScreen(padding, load = { vm.jobs() }, onBack = { nav.popBackStack() }) }
             composable("protocol") {
                 ProtocolScreen(padding, console = { vm.console(it) }, logs = { a, l -> vm.logs(a, l) },
