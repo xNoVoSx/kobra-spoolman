@@ -25,6 +25,7 @@ from .auth import CameraKey, Devices
 from .console import LOG_BUFFER, Console
 from .dryer import Dryer
 from .usage import UsageTracker
+from .runtime_settings import RuntimeSettings
 from .vision import Vision
 from .web import build_app
 
@@ -39,6 +40,7 @@ def spoolman_support_off(value) -> bool:
 class Bridge:
     def __init__(self, cfg: Config, session: aiohttp.ClientSession):
         self.cfg = cfg
+        self.settings = RuntimeSettings(cfg)      # gespeicherte Einstellungen vor allen Bausteinen anwenden
         self.session = session
         self.moon = Moonraker(cfg, session, self._on_status)
         self.sm = Spoolman(cfg, session)

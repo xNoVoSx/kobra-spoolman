@@ -207,6 +207,48 @@ function CameraLinkCard() {
 }
 
 // ------------------------------------------------------------ Einstellungen / Info
+/** Eine Zahl: erst bei Enter oder Verlassen des Feldes speichern; Bereich und Einheit daneben. */
+function NumSetting({ it, save }) {
+  const [v, setV] = useState(String(it.value).replace(".", ","));
+  useEffect(() => setV(String(it.value).replace(".", ",")), [it.value]);
+  const commit = () => { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && n !== it.value) save(it.key, n); };
+  return html`<label class="row small" style="gap:6px">
+    <input class="set-num" inputmode="decimal" value=${v} onInput=${(e) => setV(e.target.value)} onBlur=${commit}
+      onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} aria-label=${it.label} />
+    <span class="muted">${it.unit}</span></label>`;
+}
+
+/** Einstellungen der Bridge, im Betrieb aenderbar (gespeichert in der Bridge; Umgebung = Startwert). */
+function BridgeSettings() {
+  const [v, setV] = useState(null);
+  useEffect(() => { get("/api/settings").then(setV).catch((e) => toast(e.message, "bad")); }, []);
+  if (!v) return null;
+  const save = guard(async (key, value) => { setV(await post("/api/settings", { [key]: value })); toast("Gespeichert", "ok"); });
+  const reset = guard(async (key) => { setV(await post("/api/settings/reset", { key })); toast("Standard wiederhergestellt", "ok"); });
+  const fmt = (it, x) => (it.kind === "bool" ? (x ? "an" : "aus") : `${String(x).replace(".", ",")} ${it.unit}`.trim());
+  return html`
+    ${v.groups.map((g) => html`<section class="card pad col">
+      <h2 class="h2">${g.name}</h2>
+      ${g.items.map((it) => html`<div class="set-row">
+        <div class="grow"><div>${it.label}</div>
+          ${it.help && html`<div class="small muted">${it.help}</div>`}
+          ${it.kind !== "bool" && it.min != null && html`<div class="small faint">erlaubt ${String(it.min).replace(".", ",")}–${String(it.max).replace(".", ",")} ${it.unit}</div>`}
+          ${it.changed && html`<div class="small" style="color:var(--accent-text)">geändert · Standard ${fmt(it, it.default)} <button class="linkbtn" onClick=${() => reset(it.key)}>zurücksetzen</button></div>`}</div>
+        ${it.kind === "bool" ? html`<label class="toggle"><input type="checkbox" role="switch" checked=${!!it.value} onChange=${(e) => save(it.key, e.target.checked)} aria-label=${it.label} /><span class="knob" aria-hidden="true"></span></label>`
+          : html`<${NumSetting} it=${it} save=${save} />`}
+      </div>`)}
+    </section>`)}
+    <section class="card pad col">
+      <h2 class="h2">Weitere Einstellungen</h2>
+      <div class="row wrap"><a class="btn sm" href="#/ace">Trockner-Regeln (ACE)</a><a class="btn sm" href="#/ki">KI</a><a class="btn sm" href="#/geraete">Geräte</a></div>
+    </section>
+    <section class="card pad col">
+      <h2 class="h2">Verbindungen</h2>
+      <div class="kv">${v.readonly.map((r) => html`<span>${r.label}</span><span class="m">${r.value === "" || r.value == null ? "–" : String(r.value)}</span>`)}</div>
+      <div class="small muted">Diese brauchen einen Neustart der Bridge: im Stack (Umgebungsvariablen) ändern und neu ausrollen.</div>
+    </section>`;
+}
+
 /** Einstellungen, die nur in diesem Browser gelten (localStorage). */
 function DeviceCard() {
   const [q, setQ] = useState(quality());
@@ -224,9 +266,6 @@ function DeviceCard() {
 export function SettingsPage() {
   useEffect(() => { loadHealth(); }, []);
   const h = S.health;
-  const SET = { booking: "Verbrauch buchen", book_interval_s: "Buchen alle (s)", book_min_mm: "Buchen ab (mm)", gate_debounce_s: "Slotwechsel entprellen (s)",
-    usage_tolerance: "Toleranz Abgleich", auto_unassign_on_empty: "Leerer Slot → Regal", write_lane_data: "lane_data für Orca",
-    telemetry: "Aufzeichnung", job_history: "Drucke behalten", slot_location_prefix: "Ort-Präfix Slot", shelf_location: "Ort Regal", template_vendor: "Hersteller der Vorlagen" };
   return html`<div class="col" style="max-width:1100px">
     <h1 class="h1">Einstellungen</h1>
     <section class="card pad col">
@@ -245,10 +284,9 @@ export function SettingsPage() {
         <span>Spoolman</span><span><a href=${h.links?.spoolman || h.spoolman.url} target="_blank" rel="noopener">${h.links?.spoolman || h.spoolman.url}</a></span>
         ${h.links?.printer_ui && html`<span>Drucker-Oberfläche</span><span><a href=${h.links.printer_ui} target="_blank" rel="noopener">${h.links.printer_ui}</a></span>`}
         <span>Firmware-Spoolman</span><span>${h.firmware_spoolman_support ? html`<span class="chip bad">an – doppelte Buchung!</span>` : "aus"}</span>
-        ${Object.entries(SET).map(([k, l]) => html`<span>${l}</span><span class="m">${String(h.settings[k])}</span>`)}
       </div>
-      <div class="small muted">Einstellen über Umgebungsvariablen im Stack (siehe docs/configuration.md).</div>
     </section>
+    <${BridgeSettings} />
     <section class="card pad col">
       <h2 class="h2">Neu in der Bridge</h2>
       ${h.changelog.map((c) => html`<div><b class="m">${c.version}</b> <span class="muted small">${c.date}</span><ul style="margin:6px 0 0;padding-left:20px">${c.items.map((i) => html`<li class="small">${i}</li>`)}</ul></div>`)}

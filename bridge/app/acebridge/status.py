@@ -16,8 +16,8 @@ from .purge import change_mm
 if TYPE_CHECKING:
     from .__main__ import Bridge
 
-LOW_SPOOL_G = 100           # darunter: "Spule fast leer"
-REACH_MARGIN = 1.05         # 5 % Reserve bei "reicht die Spule?"
+LOW_SPOOL_G = 100           # darunter: "Spule fast leer" (Standard; einstellbar: cfg.low_spool_g)
+REACH_RESERVE_PCT = 5.0     # Reserve bei "reicht die Spule?" (cfg.reach_reserve_pct)
 RECENT_S = 30 * 60          # so lange bleiben "Druck fertig" / Trockner-Ereignisse als Info stehen
 ONLINE_S = 5 * 60           # Geraet gilt als verbunden, wenn es sich so kurz vorher gemeldet hat
 LEVELS = {"error": 0, "warn": 1, "info": 2}
@@ -98,7 +98,8 @@ def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
         need_g = _grams(mm, d, rho)
         out.append({"slot": g + 1, "spool_id": spool.get("id"), "need_mm": round(mm), "need_g": round(need_g, 1),
                     "have_g": round(float(have), 1) if have is not None else None,
-                    "enough": None if have is None else float(have) >= need_g * REACH_MARGIN})
+                    "enough": None if have is None else float(have) >= need_g * (1 + getattr(
+                        bridge.cfg, "reach_reserve_pct", REACH_RESERVE_PCT) / 100)})
     return out
 
 
@@ -128,7 +129,7 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
             out.append(_msg(level, f"Slot {s['slot']}: {h}", f"hint{s['slot']}"))
         sp = s["spool"]
         rem = sp.get("remaining_weight") if sp else None
-        if rem is not None and rem < LOW_SPOOL_G:
+        if rem is not None and rem < getattr(bridge.cfg, "low_spool_g", LOW_SPOOL_G):
             out.append(_msg("warn", f"Slot {s['slot']}: {sp.get('display_name') or 'Spule'} fast leer "
                                     f"(noch {round(rem)} g)", f"low{s['slot']}"))
 

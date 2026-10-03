@@ -442,9 +442,11 @@ class PrintPreview:
         m = self.model
         if not m or not len(m) or self.status != "ready":
             return None
-        key = (self.file, len(m))
+        limit_now = getattr(self.cfg, "geometry_max_segments", MAX_GEOMETRY)
+        key = (self.file, len(m), limit_now)
         if getattr(self, "_geom_key", None) != key:
-            self._geom = await asyncio.get_running_loop().run_in_executor(None, geometry_bin, m)
+            limit = limit_now
+            self._geom = await asyncio.get_running_loop().run_in_executor(None, geometry_bin, m, limit)
             self._geom_key = key
         return self._geom
 

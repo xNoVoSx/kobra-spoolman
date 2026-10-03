@@ -311,6 +311,33 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.Response(body=data, content_type="image/jpeg",
                             headers={"Cache-Control": "no-store", "X-Taken-At": str(int(taken))})
 
+    # ---------------------------------------------------------------- Einstellungen
+    @r.get("/api/settings")
+    async def settings_view(_: web.Request):
+        return web.json_response(bridge.settings.view())
+
+    @r.post("/api/settings")
+    async def settings_update(request: web.Request):
+        """{"<name>": wert, ...} - nur die mitgeschickten; bei einem Fehler wird nichts uebernommen."""
+        if (denied := paired(request)) is not None:
+            return denied
+        try:
+            bridge.settings.update(await _body(request))
+        except ValueError as e:
+            return _err(400, str(e))
+        return web.json_response({"ok": True, **bridge.settings.view()})
+
+    @r.post("/api/settings/reset")
+    async def settings_reset(request: web.Request):
+        """{"key": "<name>"} - zurueck auf den Startwert aus der Umgebung."""
+        if (denied := paired(request)) is not None:
+            return denied
+        try:
+            bridge.settings.reset(str((await _body(request)).get("key") or ""))
+        except ValueError as e:
+            return _err(400, str(e))
+        return web.json_response({"ok": True, **bridge.settings.view()})
+
     # ---------------------------------------------------------------- KI (kobra-vision)
     def paired(request: web.Request) -> Optional[web.Response]:
         try:

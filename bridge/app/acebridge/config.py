@@ -80,6 +80,11 @@ class Config:
     gate_debounce_s: float = field(default_factory=lambda: _float("GATE_DEBOUNCE_S", 3.0))    # Flackern der ACE ignorieren
     usage_tolerance: float = field(default_factory=lambda: _float("USAGE_TOLERANCE", 0.03))   # Abgleich mit Sollwerten
     job_history: int = field(default_factory=lambda: _int("JOB_HISTORY", 50))
+    humidity_days: int = field(default_factory=lambda: _int("HUMIDITY_DAYS", 30))
+
+    # Meldungen
+    low_spool_g: float = field(default_factory=lambda: _float("LOW_SPOOL_G", 100.0))
+    reach_reserve_pct: float = field(default_factory=lambda: _float("REACH_RESERVE_PCT", 5.0))
     default_diameter: float = field(default_factory=lambda: _float("DEFAULT_DIAMETER", 1.75))
     default_density: float = field(default_factory=lambda: _float("DEFAULT_DENSITY", 1.24))
 
@@ -101,6 +106,7 @@ class Config:
     render: bool = field(default_factory=lambda: _bool("RENDER", True))
     render_max_mb: float = field(default_factory=lambda: _float("RENDER_MAX_MB", 200.0))
     render_interval_s: float = field(default_factory=lambda: _float("RENDER_INTERVAL_S", 15.0))
+    geometry_max_segments: int = field(default_factory=lambda: _int("GEOMETRY_MAX_SEGMENTS", 1_500_000))
 
     # KI (kobra-vision): leer = aus. Im Druck alle VISION_INTERVAL_S ein Bild an den Dienst; warn = nur melden,
     # pause = bei sicherem Fehldruck pausieren. Bilder fuer spaeteres Training: hoechstens VISION_DATASET_GB.

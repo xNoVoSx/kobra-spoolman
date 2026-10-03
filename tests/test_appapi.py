@@ -11,6 +11,7 @@ import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from conftest import FakeMoonraker
 
+from acebridge.runtime_settings import RuntimeSettings
 from acebridge.vision import Vision
 from acebridge.appapi import (AppError, build_filament_body, choose_tag_nr, convert_extra, copy_filament_body,
                               normalize_uid, printer_state, tag_content)
@@ -247,6 +248,7 @@ class FakeBridge:
         self.camera = Camera(cfg, self.moon, None)       # ohne Zuschauer kein Abruf
         self.preview = PrintPreview(cfg, self.moon, None)
         self.vision = Vision(cfg, self.moon, self.camera, None)  # VISION_URL leer: aus
+        self.settings = RuntimeSettings(cfg)
 
     def safety_warnings(self):
         return []
