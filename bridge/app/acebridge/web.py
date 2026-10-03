@@ -311,6 +311,50 @@ def build_app(bridge: "Bridge") -> web.Application:
         return web.Response(body=data, content_type="image/jpeg",
                             headers={"Cache-Control": "no-store", "X-Taken-At": str(int(taken))})
 
+    # ---------------------------------------------------------------- Feuchte
+    @r.get("/api/humidity")
+    async def humidity_view(request: web.Request):
+        """Verlauf der ACE (?hours=24, hoechstens humidity_days) mit Trocknungen, Drucken und Automatik-Schwellen."""
+        try:
+            hours = min(float(request.query.get("hours", 24)), bridge.cfg.humidity_days * 24)
+        except ValueError:
+            return _err(400, "hours muss eine Zahl sein")
+        since = time.time() - hours * 3600
+        prints = []
+        for j in bridge.usage.history:
+            try:
+                start = time.mktime(time.strptime(j["started"][:19], "%Y-%m-%dT%H:%M:%S"))
+                end = time.mktime(time.strptime((j.get("ended") or j["started"])[:19], "%Y-%m-%dT%H:%M:%S"))
+            except (KeyError, ValueError):
+                continue
+            if end >= since:
+                prints.append({"start": round(start), "end": round(end), "file": j.get("file"), "state": j.get("state")})
+        cfg = bridge.dryer.config
+        return web.json_response({"hours": hours, "points": bridge.humidity.points(hours),
+                                  "sessions": bridge.humidity.recent_sessions(hours), "prints": prints,
+                                  "automation": {"enabled": cfg.enabled, "start_above": cfg.start_above,
+                                                 "stop_below": cfg.stop_below}})
+
+    @r.get("/api/spool/{spool_id}/moisture")
+    async def spool_moisture(request: web.Request):
+        sid = _int(request.match_info["spool_id"], -1)
+        sp = bridge.sm.spool(sid)
+        if not sp:
+            return _err(404, "Unbekannte Spule")
+        return web.json_response({**bridge.moisture.view(sp), "history": bridge.moisture.history(sid)})
+
+    @r.post("/api/spool/{spool_id}/dried")
+    async def spool_dried(request: web.Request):
+        """Ausserhalb der ACE getrocknet (eigener Trockner): {"temp": 55, "minutes": 360}."""
+        if (denied := paired(request)) is not None:
+            return denied
+        sid = _int(request.match_info["spool_id"], -1)
+        if not bridge.sm.spool(sid):
+            return _err(404, "Unbekannte Spule")
+        b = await _body(request)
+        bridge.moisture.note_dried(sid, float(b.get("temp") or 0), float(b.get("minutes") or 0))
+        return web.json_response({"ok": True})
+
     # ---------------------------------------------------------------- Einstellungen
     @r.get("/api/settings")
     async def settings_view(_: web.Request):

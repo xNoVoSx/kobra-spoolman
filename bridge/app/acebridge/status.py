@@ -176,6 +176,18 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
         out.append(_msg("info", cam["error"], "camera"))
+    wet = getattr(bridge, "wet_loaded", None)
+    if callable(wet):
+        drying = bridge.dryer.state().get("drying")
+        for slot, s, v, h in wet():
+            f = s.get("filament") or {}
+            name = f.get("name") or f"Spule #{s.get('id')}"
+            if drying:
+                out.append(_msg("info", f"Slot {slot}: {name} wird getrocknet", f"wet{slot}"))
+            else:
+                why = "neu, Verlauf unbekannt" if v["score"] is None else f"Feuchte-Schätzung {v['score']} %"
+                out.append(_msg("warn", f"Slot {slot}: {name} wahrscheinlich feucht ({why}) – vor dem Druck ~{h:g} h trocknen",
+                                f"wet{slot}"))
     vision = getattr(bridge, "vision", None)
     if vision is not None:
         out.extend(vision.messages())

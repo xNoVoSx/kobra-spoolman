@@ -1,5 +1,6 @@
 // Regal: Liste aller Spulen mit Suche/Filtern und die Detailansicht einer Spule.
 
+import { MoistureChip, SpoolMoisture } from "./humidity.js";
 import { html, useEffect, useMemo, useRef, useState } from "../vendor/preact-htm.module.js";
 import { get } from "./api.js";
 import { Bar, Field, Spool, Swatch } from "./components.js";
@@ -51,6 +52,7 @@ export function useFilteredSpools() {
     if (q) out = out.filter((s) => `${s.display_name} ${s.material} ${s.location || ""} #${s.spool_id} ${s.tag_nr || ""}`.toLowerCase().includes(q));
     if (f === "ace") out = out.filter((s) => s.slot);
     else if (f === "leer") out = out.filter((s) => (s.remaining_weight ?? 1e9) < LOW_G);
+    else if (f === "feucht") out = out.filter((s) => S.st?.moisture?.[String(s.spool_id)]?.needs_drying);
     else if (f !== "alle") out = out.filter((s) => (s.material || "").toUpperCase() === f);
     out.sort((a, b) => (a.slot || 99) - (b.slot || 99) || a.material.localeCompare(b.material) || a.display_name.localeCompare(b.display_name) || a.spool_id - b.spool_id);
     return out;
@@ -74,7 +76,7 @@ export function SpoolList({ wideCols }) {
       <span class="h2">Spulen</span><span class="m small muted">${all.length} Spulen · ${num(total / 1000)} kg</span>
       <span class="grow"></span>
       ${chip("alle", "Alle")}${materials.map((m) => chip(m, m))}
-      ${chip("ace", "im ACE")}${chip("leer", "fast leer")}
+      ${chip("ace", "im ACE")}${chip("leer", "fast leer")}${chip("feucht", "trocknen")}
     </div>
     <div class="table" ref=${tableRef} role="listbox" aria-label="Spulen">
       <div class="tr th"><span></span><span class="hide-s">ID</span><span>Filament</span><span class="hide-s">Mat.</span><span>Rest</span><span class="hide-s">Ort</span>${wideCols && html`<span class="opt">Tag</span>`}</div>
@@ -86,7 +88,7 @@ export function SpoolList({ wideCols }) {
              onContextMenu=${(e) => { e.preventDefault(); set({ sel: s.spool_id, menu: { x: e.clientX, y: e.clientY, items: spoolMenu(s) } }); }}>
           <${Swatch} color=${s.color} />
           <span class="m muted hide-s">#${s.spool_id}</span>
-          <span class="ell"><b>${s.name}</b><span class="muted"> · ${s.vendor}</span></span>
+          <span class="ell"><b>${s.name}</b><span class="muted"> · ${s.vendor}</span> <${MoistureChip} id=${s.spool_id} /></span>
           <span class="hide-s">${s.material}</span>
           <span class="row" style="gap:8px"><${Bar} value=${s.remaining_weight} max=${s.initial_weight || 1000} warnBelow=${LOW_G} /><span class="m small" style="min-width:56px;text-align:right">${grams(s.remaining_weight)}</span></span>
           <span class="hide-s ell" style=${{ color: s.slot ? "var(--accent)" : "var(--text)" }}>${s.slot ? `ACE ${s.slot}` : s.location || "–"}</span>
@@ -181,7 +183,7 @@ export function SpoolDetail({ id, onBack }) {
       </div>
       <button class="btn" onClick=${(e) => { e.stopPropagation(); menu(e); }}>${sp.slot ? "Slot ändern" : "In Slot legen"}</button>
     </div>
-    <div class="tabs" role="tablist">${tabBtn("spule", "Spule")}${tabBtn("filament", "Filament")}${tabBtn("verbrauch", "Verbrauch")}</div>
+    <div class="tabs" role="tablist">${tabBtn("spule", "Spule")}${tabBtn("filament", "Filament")}${tabBtn("verbrauch", "Verbrauch")}${tabBtn("feuchte", "Feuchte")}</div>
     <div class="dbody">
       ${tab === "spule" && html`
         <div class="stats">
@@ -197,6 +199,7 @@ export function SpoolDetail({ id, onBack }) {
           <button class="btn danger" onClick=${guard(() => confirmArchive(sp))}><${Icon} name="archive" small />Archivieren</button>
         </div>`}
       ${tab === "filament" && (sp.filament_id ? html`<${FilamentEditor} fid=${sp.filament_id} embedded />` : html`<div class="empty-state">Kein Filament.</div>`)}
+      ${tab === "feuchte" && html`<${SpoolMoisture} id=${sp.spool_id} />`}
       ${tab === "verbrauch" && html`
         <div class="kv">
           <span>Zuerst benutzt</span><span>${when(sp.first_used)}</span>

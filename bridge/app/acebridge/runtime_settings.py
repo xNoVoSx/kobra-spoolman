@@ -25,11 +25,12 @@ class Spec:
     key: str                 # Name im Config-Objekt
     group: str
     label: str
-    kind: str                # bool | float | int
+    kind: str                # bool | float | int | text | choice
     lo: Optional[float] = None
     hi: Optional[float] = None
     unit: str = ""
     help: str = ""
+    options: tuple = ()      # choice: ((wert, Anzeige), ...)
 
 
 SPECS: List[Spec] = [
@@ -59,6 +60,17 @@ SPECS: List[Spec] = [
          help="Beim Zuordnen von Spulen ohne Anycubic-Tag (sonst bricht der Druck mit „index out of range“ ab)"),
     Spec("write_lane_data", "Slots und RFID", "lane_data für Orca schreiben", "bool",
          help="Damit Orcas Sync-Knopf die richtigen Profile in die Slots setzt"),
+    # Feuchte
+    Spec("room_rh", "Feuchte der Spulen", "Luftfeuchte im Lagerraum", "float", 10, 95, "%",
+         "Bis ein Raumsensor angebunden ist, rechnet die Bridge mit diesem Wert für Spulen im Regal"),
+    Spec("dry_locations", "Feuchte der Spulen", "Lagerorte mit eigener Feuchte", "text",
+         help="Spoolman-Lagerort=Feuchte, getrennt mit ;  z. B.  Trockenbox=15; Vakuumbeutel=10"),
+    Spec("auto_dry_on_insert", "Feuchte der Spulen", "Feuchte Spulen beim Einlegen automatisch trocknen", "bool",
+         help="Temperatur nach der empfindlichsten eingelegten Spule, Dauer nach der feuchtesten"),
+    Spec("new_spools_dry", "Feuchte der Spulen", "Neue Spulen zuerst trocknen", "bool",
+         help="Spulen ohne Verlauf gelten beim ersten Einlegen als zu trocknen"),
+    Spec("wet_print_action", "Feuchte der Spulen", "Druckstart mit feuchter Spule", "choice",
+         options=(("warn", "nur warnen"), ("pause", "Druck sofort pausieren"))),
     # Meldungen
     Spec("low_spool_g", "Meldungen", "„Spule fast leer“ unter", "float", 0, 1000, "g"),
     Spec("reach_reserve_pct", "Meldungen", "Reserve bei „Spule reicht nicht“", "float", 0, 50, "%"),
@@ -86,6 +98,18 @@ def _path(cfg: "Config") -> str:
 
 
 def _coerce(spec: Spec, v: Any) -> Any:
+    if spec.kind == "text":
+        if not isinstance(v, str) or len(v) > 2000:
+            raise ValueError(f"{spec.label}: Text erwartet")
+        if spec.key == "dry_locations":
+            from .moisture import parse_locations
+            parse_locations(v)                 # wirft ValueError mit Erklaerung
+        return v.strip()
+    if spec.kind == "choice":
+        allowed = [o[0] for o in spec.options]
+        if v not in allowed:
+            raise ValueError(f"{spec.label}: " + " oder ".join(o[1] for o in spec.options))
+        return v
     if spec.kind == "bool":
         if isinstance(v, bool):
             return v
@@ -180,6 +204,7 @@ class RuntimeSettings:
         for s in SPECS:
             groups.setdefault(s.group, []).append({
                 "key": s.key, "label": s.label, "kind": s.kind, "min": s.lo, "max": s.hi, "unit": s.unit, "help": s.help,
+                "options": [list(o) for o in s.options],
                 "value": getattr(self.cfg, s.key), "default": self.defaults[s.key], "changed": s.key in self.saved})
         return {"groups": [{"name": g, "items": items} for g, items in groups.items()],
                 "readonly": [{"key": k, "label": label, "value": getattr(self.cfg, k, None)} for k, label in READONLY]}

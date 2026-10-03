@@ -214,7 +214,10 @@ class Dryer:
         log.info("Trockner: %s", text)
 
     # ------------------------------------------------------------ Befehle
-    async def start(self, temp: Optional[float] = None, hours: Optional[float] = None, source: str = "hand") -> Dict[str, Any]:
+    log_sink: Any = None          # humidity.HumidityLog (setzt die Bridge): Ausloeser und Grund jeder Trocknung
+
+    async def start(self, temp: Optional[float] = None, hours: Optional[float] = None, source: str = "hand",
+                    reason: str = "") -> Dict[str, Any]:
         req = self.required_temp()
         if req["temp"] is None and temp is None:
             raise ValueError("Keine Spule eingelegt - Temperatur angeben")
@@ -228,15 +231,30 @@ class Dryer:
         await self.moon.gcode(f"MMU_DRYER_START UNIT=0 DURATION={int(round(h * 60))} TEMP={t}", source="Trockner")
         self._last_cmd_at = self.clock()
         self.auto_run = source == "auto"
+        if self.log_sink is not None:
+            self.log_sink.note_start(source, t, h, reason or {"hand": "von Hand gestartet", "plan": "geplant"}.get(source, source))
         self._event(f"Start {t} °C für {h:g} h ({source})")
         return {"temp": t, "hours": h}
 
-    async def stop(self, source: str = "hand") -> None:
+    async def stop(self, source: str = "hand", reason: str = "") -> None:
         await self.moon.gcode("MMU_DRYER_STOP UNIT=0", source="Trockner")
+        if self.log_sink is not None:
+            self.log_sink.note_stop(source, reason)
         self._last_cmd_at = self.clock()
         self.auto_run = False
         self.pause_until = self.clock() + self.config.pause_minutes * 60
         self._event(f"Stopp ({source})")
+
+    async def ensure(self, hours: float, reason: str) -> bool:
+        """Mindestens so lange trocknen (feuchte Spule eingelegt). Laeuft schon eine Trocknung, die lange genug
+        dauert: nichts tun. Rueckgabe: neu gestartet?"""
+        hub = hub_state(self.moon.status)
+        if not hub["present"]:
+            return False
+        if hub["drying"] and (hub["remaining_min"] or 0) >= hours * 60 - 5:
+            return False
+        await self.start(None, max(0.5, min(24.0, hours)), source="spule", reason=reason)
+        return True
 
     # ------------------------------------------------------------ Automatik
     async def evaluate(self) -> None:
@@ -268,11 +286,12 @@ class Dryer:
             # Sicherheit, auch bei Start von Hand: empfindlicheres Filament eingelegt -> Temperatur senken
             if req["temp"] is not None and hub["target_temp"] and hub["target_temp"] > req["temp"]:
                 left = (hub["remaining_min"] or c.max_hours * 60) / 60
-                await self.start(req["temp"], max(0.5, min(24.0, left)), source="auto" if self.auto_run else "hand")
+                await self.start(req["temp"], max(0.5, min(24.0, left)), source="auto" if self.auto_run else "hand",
+                                 reason=f"Temperatur auf {req['temp']} °C gesenkt (empfindlichere Spule eingelegt)")
                 self._event(f"Temperatur auf {req['temp']} °C gesenkt (Slot {', '.join(map(str, req['limited_by']))})")
                 return
             if self.auto_run and hub["humidity"] is not None and hub["humidity"] <= c.stop_below:
-                await self.stop(source="auto")
+                await self.stop(source="auto", reason=f"Ziel erreicht: Feuchte {hub['humidity']} % ≤ {c.stop_below:g} %")
             return
         if self.schedule and now >= self.schedule["at"]:
             sched, self.schedule = self.schedule, None
@@ -280,7 +299,7 @@ class Dryer:
             if req["temp"] is None and sched.get("temp") is None:
                 self._event("Geplantes Trocknen übersprungen: keine Spule eingelegt")
                 return
-            await self.start(sched.get("temp"), sched.get("hours"), source="plan")
+            await self.start(sched.get("temp"), sched.get("hours"), source="plan", reason="geplanter Start")
             return
         if self.auto_run:       # die ACE hat den Durchgang selbst beendet (Laufzeit um)
             self.auto_run = False
@@ -291,4 +310,5 @@ class Dryer:
         if not c.while_printing and self.slots.printing:
             return
         if hub["humidity"] >= c.start_above:
-            await self.start(req["temp"], c.max_hours, source="auto")
+            await self.start(req["temp"], c.max_hours, source="auto",
+                             reason=f"Automatik: Feuchte {hub['humidity']} % ≥ {c.start_above:g} %")

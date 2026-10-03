@@ -47,6 +47,8 @@ FILAMENT_FIELDS = [
     ("bed_temp_smooth_first_layer", "Bett glatte PEI erste Schicht",  "integer", "°C",       13),  # hot_plate_temp_initial_layer
     ("chamber_temp",                "Kammertemperatur",               "integer", "°C",       14),  # chamber_temperature
     ("dry_temp",                    "Trocknen max.",                  "integer", "°C",       15),  # ACE-Trockner, kein Orca-Wert
+    ("dry_hours",                   "Trocknen Dauer",                 "float",   "h",        16),  # Mindestdauer bei "Trocknen max." (Bridge)
+    ("open_days",                   "Offen bis Trocknen",             "float",   "Tage",     17),  # bei 50 % rF bis "trocknen empfohlen"
     ("fan_min",                     "Bauteillüfter min",              "integer", "%",        20),  # fan_min_speed
     ("fan_max",                     "Bauteillüfter max",              "integer", "%",        21),  # fan_max_speed
     ("fan_off_first_layers",        "Lüfter aus erste Schichten",     "integer", "Schichten",22),  # close_fan_the_first_x_layers
@@ -67,6 +69,10 @@ FILAMENT_FIELDS = [
 SPOOL_FIELDS = [
     ("nfc_uid",                     "NFC-Kennung",                    "text",    None,       10),  # UID des Tags (setzt die Bridge/App)
     ("tag_nr",                      "Tag-Nummer",                     "integer", None,       11),  # Nummer in der SKU selbst beschriebener Tags
+    ("moisture",                    "Feuchte-Schätzung",              "integer", "%",        20),  # 100 = trocknen empfohlen (setzt die Bridge)
+    ("last_in_ace",                 "Zuletzt im ACE",                 "datetime", None,      21),  # wann sie herausgenommen wurde
+    ("last_dried",                  "Zuletzt getrocknet",             "datetime", None,      22),
+    ("last_dried_info",             "Zuletzt getrocknet mit",         "text",    None,       23),  # Temperatur
 ]
 
 VENDOR_NAME = "Vorlage"

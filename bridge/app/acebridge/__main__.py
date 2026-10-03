@@ -25,6 +25,8 @@ from .auth import CameraKey, Devices
 from .console import LOG_BUFFER, Console
 from .dryer import Dryer
 from .usage import UsageTracker
+from .humidity import HumidityLog
+from .moisture import MoistureModel, hours_needed
 from .runtime_settings import RuntimeSettings
 from .vision import Vision
 from .web import build_app
@@ -55,6 +57,11 @@ class Bridge:
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
         self.dryer = Dryer(cfg, self.moon, self.slots)
+        self.humidity = HumidityLog(cfg, self.moon)
+        self.dryer.log_sink = self.humidity
+        self.moisture = MoistureModel(cfg, self.moon, self.slots)
+        self.moisture.on_insert = self._spool_inserted
+        self.humidity.spools_in_ace = self._spools_in_ace
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
@@ -91,6 +98,51 @@ class Bridge:
             if new_state != old_state:
                 await self.slots.on_print_state_change(old_state, new_state)
 
+    def _spools_in_ace(self) -> list:
+        assigned, _ = self.slots.assignments()
+        out = []
+        for slot, s in sorted(assigned.items()):
+            if s:
+                f = s.get("filament") or {}
+                out.append({"slot": slot, "spool_id": s.get("id"), "name": f"{(f.get('vendor') or {}).get('name', '')} "
+                            f"{f.get('name') or ''}".strip(), "score": self.moisture.view(s)["score"]})
+        return out
+
+    def wet_loaded(self) -> list:
+        """Eingelegte Spulen, die getrocknet werden sollten: (Slot, Spule, Feuchte-Info, Stunden bei der ACE-Temperatur)."""
+        assigned, _ = self.slots.assignments()
+        temp = self.dryer.required_temp()["temp"]
+        out = []
+        for slot, s in sorted(assigned.items()):
+            if not s:
+                continue
+            v = self.moisture.view(s)
+            if v["needs_drying"]:
+                p = v["params"]
+                e = self.moisture.state.get(str(s.get("id"))) or {}
+                h = hours_needed(e.get("u"), p["dry_hours"], temp or p["dry_temp"], p["dry_temp"])
+                out.append((slot, s, v, round(h, 1)))
+        return out
+
+    async def _spool_inserted(self, spool: dict, info: dict) -> None:
+        """Feuchte Spule eingelegt: melden (messages) und - wenn eingestellt - trocknen lassen."""
+        if not info.get("needs_drying") or not self.cfg.auto_dry_on_insert:
+            return
+        if self.slots.printing and not self.dryer.config.while_printing:
+            return
+        wet = self.wet_loaded()
+        if not wet:
+            return
+        hours = max(h for *_, h in wet)
+        name = ((spool.get("filament") or {}).get("name") or f"Spule #{spool.get('id')}")
+        why = "neu – Verlauf unbekannt" if info.get("score") is None else \
+            f"Feuchte-Schätzung {info['score']} %" + (f", lag {info['outside_h']:g} h draußen" if info.get("outside_h") else "")
+        try:
+            if await self.dryer.ensure(hours, f"Spule eingelegt: {name} (Slot {info.get('slot')}) – {why}"):
+                log.info("Trockne %.1f h wegen %s (%s)", hours, name, why)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Trocknen beim Einlegen nicht gestartet: %s", e)
+
     def safety_warnings(self) -> list:
         """Doppelte Buchung verhindern: Moonraker/Firmware duerfen nicht selbst buchen."""
         out = []
@@ -121,6 +173,8 @@ class Bridge:
                 await self.usage.tick()
                 await self.slots.evaluate()  # Entprellung der Auto-Freigabe
                 await self.dryer.evaluate()  # Automatik und Temperatur-Sicherheit
+                self.humidity.tick()         # Feuchte-Verlauf, Trocknungen
+                await self.moisture.tick()   # Feuchte je Spule
                 await self.ace.refresh()
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")

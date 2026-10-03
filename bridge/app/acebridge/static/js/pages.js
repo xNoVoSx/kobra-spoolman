@@ -1,5 +1,6 @@
 // Seiten. Welche Seite, entscheidet die Adresse (#/filament ...); wie viel nebeneinander passt, die Breite.
 
+import { HumidityCard } from "./humidity.js";
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, del, get, post } from "./api.js";
 import { AceCard } from "./ace.js";
@@ -143,6 +144,7 @@ export function AcePage() {
         <span>ACE höchstens</span><span class="m">${req.ace_max ?? "–"} °C</span></div>
       <div class="small muted">Eigene Grenze pro Filament im Feld „Trocknen max.“ (Filamente → Temperaturen).</div>
     </section>`}
+    ${d?.present && html`<${HumidityCard} />`}
   </div>`;
 }
 
@@ -218,6 +220,14 @@ function NumSetting({ it, save }) {
     <span class="muted">${it.unit}</span></label>`;
 }
 
+/** Text: erst bei Enter oder Verlassen des Feldes speichern. */
+function TextSetting({ it, save }) {
+  const [v, setV] = useState(it.value || "");
+  useEffect(() => setV(it.value || ""), [it.value]);
+  return html`<input class="set-text" value=${v} placeholder="Trockenbox=15" onInput=${(e) => setV(e.target.value)}
+    onBlur=${() => { if (v !== (it.value || "")) save(it.key, v); }} onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} aria-label=${it.label} />`;
+}
+
 /** Einstellungen der Bridge, im Betrieb aenderbar (gespeichert in der Bridge; Umgebung = Startwert). */
 function BridgeSettings() {
   const [v, setV] = useState(null);
@@ -225,7 +235,8 @@ function BridgeSettings() {
   if (!v) return null;
   const save = guard(async (key, value) => { setV(await post("/api/settings", { [key]: value })); toast("Gespeichert", "ok"); });
   const reset = guard(async (key) => { setV(await post("/api/settings/reset", { key })); toast("Standard wiederhergestellt", "ok"); });
-  const fmt = (it, x) => (it.kind === "bool" ? (x ? "an" : "aus") : `${String(x).replace(".", ",")} ${it.unit}`.trim());
+  const fmt = (it, x) => (it.kind === "bool" ? (x ? "an" : "aus") : it.kind === "choice" ? (it.options.find((o) => o[0] === x)?.[1] || x)
+    : it.kind === "text" ? (x || "leer") : `${String(x).replace(".", ",")} ${it.unit}`.trim());
   return html`
     ${v.groups.map((g) => html`<section class="card pad col">
       <h2 class="h2">${g.name}</h2>
@@ -235,6 +246,8 @@ function BridgeSettings() {
           ${it.kind !== "bool" && it.min != null && html`<div class="small faint">erlaubt ${String(it.min).replace(".", ",")}–${String(it.max).replace(".", ",")} ${it.unit}</div>`}
           ${it.changed && html`<div class="small" style="color:var(--accent-text)">geändert · Standard ${fmt(it, it.default)} <button class="linkbtn" onClick=${() => reset(it.key)}>zurücksetzen</button></div>`}</div>
         ${it.kind === "bool" ? html`<label class="toggle"><input type="checkbox" role="switch" checked=${!!it.value} onChange=${(e) => save(it.key, e.target.checked)} aria-label=${it.label} /><span class="knob" aria-hidden="true"></span></label>`
+          : it.kind === "choice" ? html`<select value=${it.value} onChange=${(e) => save(it.key, e.target.value)} aria-label=${it.label}>${it.options.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select>`
+          : it.kind === "text" ? html`<${TextSetting} it=${it} save=${save} />`
           : html`<${NumSetting} it=${it} save=${save} />`}
       </div>`)}
     </section>`)}

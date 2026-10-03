@@ -82,6 +82,13 @@ class Config:
     job_history: int = field(default_factory=lambda: _int("JOB_HISTORY", 50))
     humidity_days: int = field(default_factory=lambda: _int("HUMIDITY_DAYS", 30))
 
+    # Feuchte der Spulen (moisture.py)
+    room_rh: float = field(default_factory=lambda: _float("ROOM_RH", 50.0))
+    dry_locations: str = field(default_factory=lambda: os.environ.get("DRY_LOCATIONS", ""))
+    auto_dry_on_insert: bool = field(default_factory=lambda: _bool("AUTO_DRY_ON_INSERT", True))
+    new_spools_dry: bool = field(default_factory=lambda: _bool("NEW_SPOOLS_DRY", True))
+    wet_print_action: str = field(default_factory=lambda: os.environ.get("WET_PRINT_ACTION", "warn").strip().lower())
+
     # Meldungen
     low_spool_g: float = field(default_factory=lambda: _float("LOW_SPOOL_G", 100.0))
     reach_reserve_pct: float = field(default_factory=lambda: _float("REACH_RESERVE_PCT", 5.0))

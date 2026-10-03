@@ -560,6 +560,11 @@ class AppApi:
                 "notices": notices(b),
                 "last_control": getattr(b, "last_control", None),
                 "vision": b.vision.summary() if getattr(b, "vision", None) else None,
+                # Feuchte-Schaetzung je Spule (id -> score, state, needs_drying, hours_needed)
+                "moisture": {str(sp.get("id")): {k: v for k, v in b.moisture.view(sp).items() if k in
+                                                 ("score", "state", "needs_drying", "hours_needed", "out_since")}
+                             for sp in b.sm.spools if sp.get("id") is not None and not b.sm.is_template(sp.get("filament") or {})}
+                if getattr(b, "moisture", None) else None,
             })
 
         @r.get("/api/app/catalog")

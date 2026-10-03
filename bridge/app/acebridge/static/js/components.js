@@ -1,5 +1,6 @@
 // Gemeinsame Bausteine: Karten fuer Drucker, Slots, Trockner, offene Posten, Drucke; Dialograhmen, Meldungen, Menue.
 
+import { MoistureChip } from "./humidity.js";
 import { html, useEffect, useRef } from "../vendor/preact-htm.module.js";
 import { Icon } from "./icons.js";
 import { ControlBar } from "./control.js";
@@ -81,6 +82,7 @@ export function SlotCard({ slot }) {
       <div class="row">
         ${sp ? html`<button class="name g ell" style="background:none;border:0;padding:0;cursor:pointer;text-align:left" onClick=${open}>${title(sp)}</button>`
              : html`<span class="name muted">Leer</span>`}
+        ${sp && html`<${MoistureChip} id=${sp.spool_id} />`}
         ${active && html`<span class="chip acc" style="margin-left:auto">aktiv</span>`}
       </div>
       <div class="small muted ell">${sp ? `${sp.vendor} · #${sp.spool_id}` : slot.ace?.present ? `ACE meldet ${slot.ace.material || "Spule ohne Material"}` : "Spule einlegen und hier zuordnen"}</div>

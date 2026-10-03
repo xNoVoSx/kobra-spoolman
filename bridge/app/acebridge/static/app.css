@@ -429,3 +429,14 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .set-row:first-of-type { border-top: 0; }
 .set-num { width: 96px; text-align: right; }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+
+/* Feuchte */
+.hum-chart { position: relative; }
+.hum-chart svg { width: 100%; height: 260px; display: block; }
+.hum-tip { position: absolute; top: 4px; left: 50px; padding: 4px 8px; border-radius: 6px; background: rgba(11,12,14,.9); border: 1px solid var(--line); font-size: 12px; pointer-events: none; }
+.hum-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); margin-top: 6px; }
+.hum-legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+.hum-legend i.box { height: 10px; }
+.hum-sessions { display: flex; flex-direction: column; gap: 8px; }
+.hum-session { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); display: flex; flex-direction: column; gap: 4px; }
+.set-text { width: min(320px, 50vw); }
