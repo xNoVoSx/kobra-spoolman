@@ -191,7 +191,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onBack = { nav.popBackStack() },
                     onMove = { vm.moveSpool(id, it) },
                     onArchive = { vm.archiveSpool(id) { nav.popBackStack() } },
-                    onWriteTag = { side -> nav.navigate("tag/$id?side=$side") })
+                    onWriteTag = { side -> nav.navigate("tag/$id?side=$side") },
+                    moisture = { SpoolMoistureSection(id, canWrite, { vm.spoolMoisture(it) }) { t, h, done -> vm.spoolDried(id, t, h, done) } })
             }
             composable("new?uid={uid}", arguments = listOf(navArgument("uid") { nullable = true; defaultValue = null })) { entry ->
                 val uid = entry.arguments?.getString("uid")
@@ -260,7 +261,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 onClearPlan = { vm.clearDryerSchedule() },
                 onPreview = { vm.loadPurgePreview(it) },
                 onSetFlush = { v, confirm -> vm.setFlushMultiplier(v, confirm) },
-                onOption = { k, v, confirm -> vm.setAceOption(k, v, confirm) })
+                onOption = { k, v, confirm -> vm.setAceOption(k, v, confirm) },
+                humidity = { HumiditySection { h -> vm.humidity(h) } })
         }
     }
     val printer = state?.printer

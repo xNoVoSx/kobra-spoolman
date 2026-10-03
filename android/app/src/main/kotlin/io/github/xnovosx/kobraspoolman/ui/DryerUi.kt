@@ -80,6 +80,7 @@ fun DryerSheet(
     onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, onSaveConfig: (DryerConfig) -> Unit,
     onPlan: (Double, Int?, Double?) -> Unit, onClearPlan: () -> Unit,
     onPreview: (Double?) -> Unit, onSetFlush: (Double, Boolean) -> Unit, onOption: (String, Boolean, Boolean) -> Unit,
+    humidity: @Composable () -> Unit = {},
 ) {
     var temp by remember { mutableStateOf("") }
     var hours by remember { mutableStateOf(num(d.config.maxHours)) }
@@ -139,6 +140,7 @@ fun DryerSheet(
         }, Modifier.fillMaxWidth())
         d.lastEvent?.let { Text("Zuletzt: ${it.text}", style = MaterialTheme.typography.bodySmall, color = K.Muted) }
         DryPlanSection(d, onPlan, onClearPlan)
+        humidity()
         ace?.let { AceSection(it, preview, onPreview, onSetFlush, onOption) }
         Text("Die Temperatur richtet sich immer nach dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“ in " +
             "Spoolman, sonst Startwert je Material) und geht nie über das, was die ACE kann (ACE 2 Pro: ${req.aceMax} °C).",
@@ -147,7 +149,7 @@ fun DryerSheet(
 }
 
 @Composable
-private fun NumField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier, placeholder: String? = null) {
+internal fun NumField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier, placeholder: String? = null) {
     OutlinedTextField(
         value = value, onValueChange = { v -> onChange(v.filter { it.isDigit() || it == '.' || it == ',' }) },
         label = { Text(label) }, singleLine = true, modifier = modifier.width(120.dp), shape = RoundedCornerShape(12.dp),

@@ -49,6 +49,7 @@ fun SpoolScreen(
     onMove: (Int?) -> Unit,
     onArchive: () -> Unit,
     onWriteTag: (side: Int) -> Unit,
+    moisture: @Composable () -> Unit = {},
 ) {
     var confirmArchive by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(K.Ground).verticalScroll(rememberScrollState())) {
@@ -120,6 +121,7 @@ fun SpoolScreen(
                 enabled = canWrite && !busy, danger = true)
             if (!canWrite) Hint("Ändern geht erst, wenn die App gekoppelt ist (Einstellungen).")
 
+            moisture()
             SectionLabel("Letzte Drucke", Modifier.padding(top = 12.dp))
             if (detail.jobs.isEmpty()) Text("Noch keine Drucke mit dieser Spule.", style = MaterialTheme.typography.bodySmall, color = K.Muted)
             detail.jobs.forEach { j ->

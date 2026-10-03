@@ -192,6 +192,16 @@ class BridgeClient(
         call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
     }
 
+    suspend fun humidity(hours: Int): HumidityData = call("GET", "/api/humidity?hours=$hours", null, HumidityData.serializer())
+    suspend fun spoolMoisture(id: Int): SpoolMoistureFull =
+        call("GET", "/api/spool/$id/moisture", null, SpoolMoistureFull.serializer())
+
+    /** Ausserhalb der ACE getrocknet (eigener Trockner). */
+    suspend fun spoolDried(id: Int, temp: Int, minutes: Double) {
+        call("POST", "/api/spool/$id/dried", buildJsonObject { put("temp", temp); put("minutes", minutes) }.toString(),
+            ApiError.serializer())
+    }
+
     suspend fun vision(): VisionFull = call("GET", "/api/vision", null, VisionFull.serializer())
 
     /** KI-Einstellungen aendern - nur die mitgeschickten Felder. */

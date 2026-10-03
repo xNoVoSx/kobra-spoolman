@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.xnovosx.kobraspoolman.BuildConfig
+import io.github.xnovosx.kobraspoolman.data.SpoolMoistureFull
+import io.github.xnovosx.kobraspoolman.data.HumidityData
 import io.github.xnovosx.kobraspoolman.data.VisionFull
 import io.github.xnovosx.kobraspoolman.data.AppState
 import io.github.xnovosx.kobraspoolman.data.AppUpdate
@@ -285,6 +287,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun viewerUrl(c: Connection?, mode: String): String? =
         if (c == null || !c.configured || mode == "image") null
         else BridgeClient.normalizeUrl(c.url) + "/viewer?q=" + mode
+
+    // ------------------------------------------------ Feuchte
+    suspend fun humidity(hours: Int): HumidityData? = runCatching { client()?.humidity(hours) }.getOrNull()
+    suspend fun spoolMoisture(id: Int): SpoolMoistureFull? = runCatching { client()?.spoolMoisture(id) }.getOrNull()
+
+    fun spoolDried(id: Int, temp: Int, hours: Double, done: () -> Unit) = launchSafe {
+        it.spoolDried(id, temp, hours * 60)
+        _messages.send("Als getrocknet gemerkt")
+        done()
+    }
 
     // ------------------------------------------------ KI
     suspend fun vision(): VisionFull? = runCatching { client()?.vision() }.getOrNull()

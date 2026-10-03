@@ -2,6 +2,7 @@ package io.github.xnovosx.kobraspoolman.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 
@@ -22,6 +23,74 @@ data class AppState(
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
     val vision: VisionInfo? = null,
+    val moisture: Map<String, MoistureBrief>? = null,
+)
+
+/** Feuchte-Schaetzung einer Spule in /api/app/state (Kurzform). state: unknown | ok | soon | wet */
+@Serializable
+data class MoistureBrief(
+    val score: Int? = null,
+    val state: String = "unknown",
+    @SerialName("needs_drying") val needsDrying: Boolean = false,
+    @SerialName("hours_needed") val hoursNeeded: Double? = null,
+)
+
+/** GET /api/spool/{id}/moisture */
+@Serializable
+data class SpoolMoistureFull(
+    val score: Int? = null,
+    val state: String = "unknown",
+    @SerialName("needs_drying") val needsDrying: Boolean = false,
+    val where: String? = null,
+    @SerialName("out_since") val outSince: Double? = null,
+    @SerialName("last_dried") val lastDried: MoistHist? = null,
+    val params: MoistParams = MoistParams(),
+    @SerialName("hours_needed") val hoursNeeded: Double? = null,
+    val history: List<MoistHist> = emptyList(),
+)
+
+@Serializable
+data class MoistParams(
+    @SerialName("open_days") val openDays: Double = 0.0,
+    @SerialName("dry_hours") val dryHours: Double = 0.0,
+    @SerialName("dry_temp") val dryTemp: Int? = null,
+    val material: String = "",
+)
+
+@Serializable
+data class MoistHist(
+    val at: Double = 0.0, val kind: String = "", val slot: Int? = null, val temp: Double? = null,
+    val minutes: Double? = null, val score: Int? = null, val manual: Boolean = false,
+)
+
+/** GET /api/humidity - Punkte [Zeit, Feuchte, ACE-Temp, Soll, trocknet] */
+@Serializable
+data class HumidityData(
+    val hours: Double = 24.0,
+    val points: List<JsonArray> = emptyList(),
+    val sessions: List<DrySession> = emptyList(),
+    val prints: List<PrintBand> = emptyList(),
+    val automation: HumAutomation = HumAutomation(),
+)
+
+@Serializable
+data class DrySession(
+    val id: String = "", val start: Double = 0.0, val end: Double? = null, val minutes: Int? = null,
+    val temps: List<JsonArray> = emptyList(), val source: String = "", val reason: String = "",
+    @SerialName("end_reason") val endReason: String? = null,
+    @SerialName("humidity_start") val humidityStart: Double? = null,
+    @SerialName("humidity_end") val humidityEnd: Double? = null,
+    val running: Boolean = false,
+)
+
+@Serializable
+data class PrintBand(val start: Double = 0.0, val end: Double = 0.0, val file: String? = null)
+
+@Serializable
+data class HumAutomation(
+    val enabled: Boolean = false,
+    @SerialName("start_above") val startAbove: Double? = null,
+    @SerialName("stop_below") val stopBelow: Double? = null,
 )
 
 /** KI-Fehldruck-Erkennung (kobra-vision ueber die Bridge). level: ok | warn | fail; event: offenes Ereignis. */
