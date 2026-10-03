@@ -176,10 +176,19 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
         out.append(_msg("info", cam["error"], "camera"))
+    checked = set()
+    if getattr(bridge, "preview", None) is not None and getattr(bridge, "moisture", None) is not None:
+        from .printcheck import check
+        for issue in check(bridge):
+            out.append(_msg(issue["level"], issue["text"], f"check{issue['slot']}{issue['kind']}"))
+            if issue["kind"] == "wet":
+                checked.add(issue["slot"])
     wet = getattr(bridge, "wet_loaded", None)
     if callable(wet):
         drying = bridge.dryer.state().get("drying")
         for slot, s, v, h in wet():
+            if slot in checked:          # schon als Druckstart-Pruefung gemeldet (rot)
+                continue
             f = s.get("filament") or {}
             name = f.get("name") or f"Spule #{s.get('id')}"
             if drying:

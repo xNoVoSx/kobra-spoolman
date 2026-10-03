@@ -27,6 +27,7 @@ from .dryer import Dryer
 from .usage import UsageTracker
 from .humidity import HumidityLog
 from .moisture import MoistureModel, hours_needed
+from .printcheck import PrintGuard
 from .runtime_settings import RuntimeSettings
 from .vision import Vision
 from .web import build_app
@@ -62,6 +63,7 @@ class Bridge:
         self.moisture = MoistureModel(cfg, self.moon, self.slots)
         self.moisture.on_insert = self._spool_inserted
         self.humidity.spools_in_ace = self._spools_in_ace
+        self.print_guard = PrintGuard(self)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
@@ -175,6 +177,7 @@ class Bridge:
                 await self.dryer.evaluate()  # Automatik und Temperatur-Sicherheit
                 self.humidity.tick()         # Feuchte-Verlauf, Trocknungen
                 await self.moisture.tick()   # Feuchte je Spule
+                await self.print_guard.tick()  # feuchte Spule beim Druckstart -> ggf. pausieren
                 await self.ace.refresh()
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")

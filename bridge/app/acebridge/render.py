@@ -50,6 +50,7 @@ class GcodeModel:
         self.thumbnail: Optional[bytes] = None
         self._thumb_size = 0
         self.colours: List[str] = []   # aus "; filament_colour = #..;#.."
+        self.types: List[str] = []     # aus "; filament_type = PETG;PLA" (Pruefung beim Druckstart)
         # Verbrauch pro Werkzeug (netto mm, Rueckzuege abgezogen) und Werkzeugwechsel - fuer "reicht die Spule?"
         self.e_total: Dict[int, float] = {}
         self.changes: List[Tuple[int, Optional[int], int]] = []    # (Byte-Position, von, nach); von None = erster
@@ -141,6 +142,8 @@ class GcodeModel:
         if m:
             self._thumb, self._thumb_wh = [], int(m.group(1)) * int(m.group(2))
             return
+        if line.startswith("; filament_type =") and not self.types:
+            self.types = [t.strip() for t in line.split("=", 1)[1].split(";")]
         if line.startswith(("; filament_colour =", "; extruder_colour =")) and not self.colours:
             self.colours = [c.strip().lstrip("#")[:6] for c in line.split("=", 1)[1].split(";")]
 
