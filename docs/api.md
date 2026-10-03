@@ -202,8 +202,8 @@ in the data folder and can be replaced by any paired device.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail`, `done` (printed toolpath segments), `geometry` (key of the current 3D data, `null` = none), `colours` (per tool, as the ACE shows them) |
-| GET | `/api/print/geometry.bin` | toolpaths for the 3D view, binary (gzip): header `KSG1`, version, segment count, layers, step, bed size, max. Z, layer heights, then per segment `x0 y0 x1 y1 z layer` (uint16) and the tool (uint8). At most `GEOMETRY_MAX_SEGMENTS`, longer files are thinned evenly |
+| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail`, `done` (printed toolpath segments), `geometry` (key of the current 3D data, `null` = none), `colours` (per tool, lightened for dark backgrounds), `filament_colours` (per tool, unchanged — used by the 3D view) |
+| GET | `/api/print/geometry.bin` | toolpaths for the 3D view, binary (gzip): header `KSG1`, version, segment count, layers, step, bed size, max. Z, layer heights, then per segment `x0 y0 x1 y1 z layer` (uint16), the tool (uint8) and — from version 2 — the strand width in 1/100 mm (uint8, from extrusion, length and layer height). At most `GEOMETRY_MAX_SEGMENTS`, longer files are thinned evenly |
 | GET | `/api/print/preview.png` | the print file drawn by the bridge in the ACE colours; printed part solid, the rest as a shadow, nozzle marked; refreshed at most every `RENDER_INTERVAL_S` |
 | GET | `/api/print/thumbnail.png` | the thumbnail the slicer embedded in the file |
 

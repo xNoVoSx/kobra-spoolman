@@ -1,10 +1,18 @@
 // 3D-Ansicht der Druckdatei mit WebGL2 - ohne Bibliothek. Daten: /api/print/geometry.bin (render.geometry_bin).
-// Jede Druckbahn ist eine Instanz: "Volumen" zeichnet sie als schattierten Strang (Quader), "Linien" als Linie.
+// Aussehen wie Orcas Vorschau (eigene Umsetzung, kein Orca-Code): grauer Hintergrund, Druckplatte mit 10-mm-Raster,
+// jede Druckbahn als Strang mit gerundetem Querschnitt (echte Breite und Schichthoehe) und spitzen Enden, Licht von oben
+// und vorne mit leichtem Glanz. "Linien" zeichnet jede Bahn nur als Linie (schwache Geraete).
 // Was schon gedruckt ist (Instanz < done), welche Schichten sichtbar sind und die Farben entscheidet der Shader -
 // laeuft der Druck weiter, aendert sich nur eine Zahl, nichts wird neu hochgeladen.
 
-const LINE_W = 0.45;           // Strangbreite in mm (Duese 0,4)
-const GHOST = [0.30, 0.33, 0.38];
+const BG = [0.329, 0.329, 0.353];          // wie Orca im dunklen Design
+const PLATE = [0.255, 0.255, 0.283];
+const PLATE_EDGE = [0.2, 0.2, 0.22];
+const MARGIN = 5;                           // Platte ragt ueber den Druckbereich hinaus (mm)
+const THICK = 4;                            // Plattendicke (mm)
+const RADIUS = 8;                           // Eckenradius der Platte (mm)
+const GHOST_ALPHA = 0.2;                    // Rest als Strang (vorderste Flaeche einmal geblendet)
+const GHOST_ALPHA_LINES = 0.05;             // Rest als Linien: liegen viele uebereinander, daher viel schwaecher
 
 /** Was kann dieses Geraet? volume | lines | image */
 export function capability() {
@@ -33,18 +41,20 @@ export function quality() {
 export function setQuality(v) { try { localStorage.setItem(QUALITY_KEY, v); } catch { /* egal */ } }
 export const effectiveQuality = () => (quality() === "auto" ? capability() : quality());
 
-/** Binaerformat der Bridge lesen. */
+/** Binaerformat der Bridge lesen (Version 1 ohne, Version 2 mit Strangbreite). */
 export function parseGeometry(buf) {
   const dv = new DataView(buf);
   const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
   if (magic !== "KSG1") throw new Error("Unbekanntes Format der Druckbahnen");
+  const ver = dv.getUint16(4, true);
   const n = dv.getUint32(8, true), nl = dv.getUint32(12, true), step = dv.getUint32(16, true);
   const bed = dv.getFloat32(20, true), zmax = dv.getFloat32(24, true);
   const layers = new Float32Array(buf, 28, nl);
   const base = 28 + 4 * nl;
   const col = (k) => new Uint16Array(buf, base + 2 * n * k, n);
+  const widths = ver >= 2 ? new Uint8Array(buf, base + 13 * n, n) : new Uint8Array(n).fill(45);
   return { n, step, bed, zmax, layers, cols: buf.slice(base, base + 12 * n), tools: new Uint8Array(buf, base + 12 * n, n),
-    x1: col(2), y1: col(3), z: col(4), layer: col(5) };
+    widths, x1: col(2), y1: col(3), z: col(4), layer: col(5) };
 }
 
 // ------------------------------------------------------------ Mathe (Spalten-Matrizen wie WebGL)
@@ -60,61 +70,91 @@ function lookAt(e, c, up) {
   const z = norm(sub(e, c)), x = norm(cross(up, z)), y = cross(z, x);
   return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, e), -dot(y, e), -dot(z, e), 1];
 }
-function mul(a, b) {
-  const o = new Array(16).fill(0);
-  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
-  return o;
-}
 
 // ------------------------------------------------------------ Shader
+// Licht im Kameraraum: eines von oben links, eines von vorne, Grundhelligkeit und Glanz - kraeftige Filamentfarben.
+const LIGHT = `
+const vec3 L_TOP = vec3(-0.4575, 0.4575, 0.7625);
+const vec3 L_FRONT = vec3(0.6985, 0.1397, 0.6985);
+vec3 shade(vec3 base, vec3 n, vec3 eyePos) {
+  n = normalize(n);
+  if (dot(n, eyePos) > 0.0) n = -n;                       // Rueckseite von hinten gesehen
+  float diff = 0.48 * max(dot(n, L_TOP), 0.0) + 0.18 * max(dot(n, L_FRONT), 0.0);
+  float spec = 0.15 * pow(max(dot(reflect(-L_TOP, n), normalize(-eyePos)), 0.0), 20.0);
+  return base * (0.34 + 0.15 + diff) + vec3(spec);
+}`;
+
 const VS = `#version 300 es
 precision highp float;
-in float a_x0, a_y0, a_x1, a_y1, a_z, a_layer, a_tool;   // je Bahn (Instanz)
-in vec3 a_corner;                                         // t (0..1 entlang), Seite (-1/1), oben (0/1)
-in vec3 a_normal;                                         // entlang, seitlich, oben
-uniform mat4 u_mvp;
-uniform float u_bed, u_zmax, u_h, u_w, u_maxLayer, u_single, u_ghost;
-uniform int u_done;
+in float a_x0, a_y0, a_x1, a_y1, a_z, a_layer, a_tool, a_width, a_height;   // je Bahn (Instanz)
+in vec4 a_v;                                   // t (0..1 entlang), Seite (-1..1), oben (-1..1), Spitze (-1/0/1)
+in vec3 a_n;                                   // Normale: entlang, seitlich, oben
+uniform mat4 u_view, u_proj;
+uniform float u_bed, u_zmax, u_maxLayer, u_single, u_ghostAlpha;
+uniform int u_done, u_pass;                    // Durchgang 0: Gedrucktes, 1: Rest (blass)
 uniform vec3 u_colors[16];
-uniform vec3 u_ghostColor;
 uniform bool u_volume;
-out vec3 v_color;
-out float v_light;
+out vec3 v_color; out vec3 v_n; out vec3 v_pos; out float v_alpha; out float v_flat;
 void main() {
   bool done = gl_InstanceID < u_done;
-  if (a_layer > u_maxLayer || (u_single > 0.5 && a_layer != u_maxLayer) || (!done && u_ghost < 0.5)) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;        // ausserhalb: nicht zeichnen
+  if (a_layer > u_maxLayer || (u_single > 0.5 && a_layer != u_maxLayer) || (u_pass == 0) != done) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;        // gehoert nicht in diesen Durchgang
   }
   vec2 p0 = vec2(a_x0, a_y0) * u_bed, p1 = vec2(a_x1, a_y1) * u_bed;
   float z = a_z * u_zmax;
   vec2 d = p1 - p0; float len = length(d);
   vec2 dir = len > 1e-5 ? d / len : vec2(1.0, 0.0);
   vec2 perp = vec2(-dir.y, dir.x);
-  vec3 pos;
-  vec3 n = vec3(0.0, 0.0, 1.0);
+  vec3 pos; vec3 n = vec3(0.0, 0.0, 1.0);
   if (u_volume) {
-    vec2 along = mix(p0, p1, a_corner.x) + dir * (a_corner.x * 2.0 - 1.0) * u_w * 0.5;
-    vec2 xy = along + perp * a_corner.y * u_w * 0.5;
-    pos = vec3(xy, z - u_h + a_corner.z * u_h);
-    n = normalize(vec3(dir * a_normal.x + perp * a_normal.y, a_normal.z));
+    float h = max(a_height / 100.0, 0.05), w = max(a_width / 100.0, h);
+    vec2 xy = mix(p0, p1, a_v.x) + dir * a_v.w * w * 0.5 + perp * a_v.y * w * 0.5;
+    pos = vec3(xy, z - h * 0.5 + a_v.z * h * 0.5);
+    n = vec3(dir * a_n.x + perp * a_n.y, a_n.z);
   } else {
-    pos = vec3(mix(p0, p1, a_corner.x), z);
+    pos = vec3(mix(p0, p1, a_v.x), z);
   }
-  gl_Position = u_mvp * vec4(pos, 1.0);
-  vec3 c = done ? u_colors[int(a_tool) & 15] : u_ghostColor;
-  if (done && a_layer == u_maxLayer && u_single < 0.5) c = mix(c, vec3(1.0), 0.18);   // aktuelle Schicht heller
-  v_color = c;
-  vec3 L = normalize(vec3(-0.45, -0.6, 0.75));
-  v_light = u_volume ? 0.42 + 0.58 * max(dot(n, L), 0.0) : 0.55 + 0.45 * clamp(z / max(u_zmax, 1.0), 0.0, 1.0);
+  vec4 eye = u_view * vec4(pos, 1.0);
+  gl_Position = u_proj * eye;
+  vec3 c = u_colors[int(a_tool) & 15];
+  v_color = u_pass == 0 ? c : mix(c, vec3(0.85), 0.45);
+  v_alpha = u_pass == 0 ? 1.0 : u_ghostAlpha;
+  v_n = mat3(u_view) * n;
+  v_pos = eye.xyz;
+  v_flat = u_volume ? 0.0 : 0.55 + 0.45 * clamp(z / max(u_zmax, 1.0), 0.0, 1.0);
 }`;
 const FS = `#version 300 es
 precision mediump float;
-in vec3 v_color; in float v_light;
+in vec3 v_color; in vec3 v_n; in vec3 v_pos; in float v_alpha; in float v_flat;
 out vec4 o;
-void main() { o = vec4(v_color * v_light, 1.0); }`;
+${LIGHT}
+void main() {
+  vec3 c = v_flat > 0.0 ? v_color * v_flat : shade(v_color, v_n, v_pos);
+  o = vec4(c, v_alpha);
+}`;
+
+// Platte, Duese: Dreiecke mit Normale, Farbe oder Textur
+const VS_MESH = `#version 300 es
+in vec3 a_pos; in vec3 a_n; in vec2 a_uv;
+uniform mat4 u_view, u_proj; uniform vec3 u_offset;
+out vec3 v_n; out vec3 v_pos; out vec2 v_uv;
+void main() {
+  vec4 eye = u_view * vec4(a_pos + u_offset, 1.0);
+  gl_Position = u_proj * eye; v_n = mat3(u_view) * a_n; v_pos = eye.xyz; v_uv = a_uv;
+}`;
+const FS_MESH = `#version 300 es
+precision mediump float;
+in vec3 v_n; in vec3 v_pos; in vec2 v_uv;
+uniform vec4 u_color; uniform bool u_useTex; uniform sampler2D u_tex; uniform bool u_lit;
+out vec4 o;
+${LIGHT}
+void main() {
+  vec4 c = u_useTex ? texture(u_tex, v_uv) : u_color;
+  o = vec4(u_lit ? shade(c.rgb, v_n, v_pos) : c.rgb, c.a * u_color.a);
+}`;
 const VS_FLAT = `#version 300 es
-in vec3 a_pos; uniform mat4 u_mvp; uniform float u_size;
-void main() { gl_Position = u_mvp * vec4(a_pos, 1.0); gl_PointSize = u_size; }`;
+in vec3 a_pos; uniform mat4 u_view, u_proj;
+void main() { gl_Position = u_proj * u_view * vec4(a_pos, 1.0); }`;
 const FS_FLAT = `#version 300 es
 precision mediump float; uniform vec4 u_color; out vec4 o; void main() { o = u_color; }`;
 
@@ -131,21 +171,88 @@ function program(gl, vs, fs) {
   return p;
 }
 
-// Quader: 6 Flaechen x 4 Ecken; (t, Seite, oben) und Normale (entlang, seitlich, oben)
-function boxMesh() {
-  const v = [], idx = [];
-  const face = (corners, normal) => {
-    const b = v.length / 6;
-    corners.forEach((c) => v.push(...c, ...normal));
-    idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
-  };
-  face([[0, -1, 1], [1, -1, 1], [1, 1, 1], [0, 1, 1]], [0, 0, 1]);     // oben
-  face([[0, -1, 0], [0, 1, 0], [1, 1, 0], [1, -1, 0]], [0, 0, -1]);    // unten
-  face([[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]], [0, 1, 0]);       // Seite links
-  face([[0, -1, 0], [1, -1, 0], [1, -1, 1], [0, -1, 1]], [0, -1, 0]);  // Seite rechts
-  face([[1, -1, 0], [1, 1, 0], [1, 1, 1], [1, -1, 1]], [1, 0, 0]);     // Ende
-  face([[0, -1, 0], [0, -1, 1], [0, 1, 1], [0, 1, 0]], [-1, 0, 0]);    // Anfang
+// Strang: Querschnitt als abgerundetes Rechteck (Superellipse, 8 Punkte) an beiden Enden plus je eine Spitze -
+// wie ein echter Extrusionsstrang: flach oben/unten, rund an den Seiten. Die Normalen zeigen an den Punkten nach
+// aussen, weich interpoliert wirkt der Strang rund; Schichten liegen ohne tiefe Rillen aufeinander.
+function strandMesh(N = 8) {
+  const sg = (x) => (x < 0 ? -1 : 1);
+  const ring = [];
+  for (let k = 0; k < N; k++) {
+    const a = (k / N) * 2 * Math.PI, c = Math.cos(a), s = Math.sin(a);
+    const p = [sg(c) * Math.sqrt(Math.abs(c)), sg(s) * Math.sqrt(Math.abs(s))];       // |x|^4 + |y|^4 = 1
+    const n = [sg(c) * Math.abs(c) ** 1.5, sg(s) * Math.abs(s) ** 1.5];
+    const l = Math.hypot(...n) || 1;
+    ring.push([p[0], p[1], n[0] / l, n[1] / l]);
+  }
+  const v = [];
+  for (const t of [0, 1]) for (const [sd, up, ns, nu] of ring) v.push(t, sd, up, 0, 0, ns, nu);
+  v.push(0, 0, 0, -1, -1, 0, 0);                             // Spitze am Anfang (2N)
+  v.push(1, 0, 0, 1, 1, 0, 0);                               // Spitze am Ende (2N+1)
+  const idx = [];
+  for (let k = 0; k < N; k++) {
+    const a = k, b = (k + 1) % N;
+    idx.push(a, b, N + b, a, N + b, N + a);                  // Mantel
+    idx.push(2 * N, b, a, 2 * N + 1, N + a, N + b);          // Spitzen
+  }
   return { v: new Float32Array(v), idx: new Uint16Array(idx) };
+}
+
+// Platte als abgerundetes Rechteck mit Dicke: Oberseite (Textur), Rand, Unterseite.
+function plateMesh(bed) {
+  const x0 = -MARGIN, x1 = bed + MARGIN, size = x1 - x0, r = RADIUS, seg = 8, out = [];
+  const corners = [[x1 - r, x0 + r, -Math.PI / 2], [x1 - r, x1 - r, 0], [x0 + r, x1 - r, Math.PI / 2], [x0 + r, x0 + r, Math.PI]];
+  for (const [cx, cy, a0] of corners) for (let i = 0; i <= seg; i++) {
+    const a = a0 + (Math.PI / 2) * (i / seg);
+    out.push([cx + r * Math.cos(a), cy + r * Math.sin(a), Math.cos(a), Math.sin(a)]);
+  }
+  const top = [], side = [], c = bed / 2;
+  const uv = (x, y) => [(x - x0) / size, 1 - (y - x0) / size];
+  out.forEach((p, i) => {
+    const q = out[(i + 1) % out.length];
+    top.push(c, c, 0, 0, 0, 1, ...uv(c, c), p[0], p[1], 0, 0, 0, 1, ...uv(p[0], p[1]), q[0], q[1], 0, 0, 0, 1, ...uv(q[0], q[1]));
+    top.push(c, c, -THICK, 0, 0, -1, 0, 0, q[0], q[1], -THICK, 0, 0, -1, 0, 0, p[0], p[1], -THICK, 0, 0, -1, 0, 0);
+    const P = (x, y, z, nx, ny) => side.push(x, y, z, nx, ny, 0, 0, 0);
+    P(p[0], p[1], 0, p[2], p[3]); P(p[0], p[1], -THICK, p[2], p[3]); P(q[0], q[1], -THICK, q[2], q[3]);
+    P(p[0], p[1], 0, p[2], p[3]); P(q[0], q[1], -THICK, q[2], q[3]); P(q[0], q[1], 0, q[2], q[3]);
+  });
+  return { top: new Float32Array(top), side: new Float32Array(side) };
+}
+
+// Aufdruck der Platte: Raster alle 10 mm, Rahmen des Druckbereichs, Schriftzug - einmal in ein Canvas gezeichnet.
+function plateTexture(bed) {
+  const px = 2048, size = bed + 2 * MARGIN, k = px / size;
+  const c = document.createElement("canvas"); c.width = c.height = px;
+  const g = c.getContext("2d");
+  const rgb = (a) => `rgb(${a.map((x) => Math.round(x * 255)).join(",")})`;
+  g.fillStyle = rgb(PLATE); g.fillRect(0, 0, px, px);
+  const X = (mm) => (mm + MARGIN) * k, Y = (mm) => px - (mm + MARGIN) * k;
+  g.strokeStyle = "rgba(230,230,230,0.42)"; g.lineWidth = 2;
+  g.beginPath();
+  for (let mm = 0; mm <= bed + 1e-6; mm += 10) {
+    g.moveTo(X(mm), Y(0)); g.lineTo(X(mm), Y(bed));
+    g.moveTo(X(0), Y(mm)); g.lineTo(X(bed), Y(mm));
+  }
+  g.stroke();
+  g.strokeStyle = "rgba(240,240,240,0.7)"; g.lineWidth = 4;
+  g.strokeRect(X(0), Y(bed), bed * k, bed * k);
+  g.fillStyle = "rgba(240,240,240,0.35)";
+  g.font = `600 ${Math.round(7 * k)}px sans-serif`;
+  g.textAlign = "right"; g.textBaseline = "bottom";
+  g.fillText("KOBRA S1", X(bed - 3), Y(3));
+  return c;
+}
+
+function cone(r, h, seg = 20) {
+  const v = [], s = Math.hypot(r, h);
+  for (let i = 0; i < seg; i++) {
+    const a = (i / seg) * 2 * Math.PI, b = ((i + 1) / seg) * 2 * Math.PI;
+    const n = (t) => [Math.cos(t) * h / s, Math.sin(t) * h / s, r / s];
+    v.push(0, 0, 0, ...n((a + b) / 2), 0, 0);
+    v.push(r * Math.cos(a), r * Math.sin(a), h, ...n(a), 0, 0);
+    v.push(r * Math.cos(b), r * Math.sin(b), h, ...n(b), 0, 0);
+    v.push(0, 0, h, 0, 0, 1, 0, 0, r * Math.cos(b), r * Math.sin(b), h, 0, 0, 1, 0, 0, r * Math.cos(a), r * Math.sin(a), h, 0, 0, 1, 0, 0);
+  }
+  return new Float32Array(v);
 }
 
 const hexRgb = (h) => { const s = String(h || "").replace("#", "").padEnd(6, "8"); return [0, 2, 4].map((i) => parseInt(s.slice(i, i + 2), 16) / 255); };
@@ -157,6 +264,7 @@ export class PrintView {
     if (!gl) throw new Error("WebGL2 nicht verfügbar");
     this.gl = gl;
     this.prog = program(gl, VS, FS);
+    this.meshProg = program(gl, VS_MESH, FS_MESH);
     this.flat = program(gl, VS_FLAT, FS_FLAT);
     this.mode = "volume";
     this.geo = null;
@@ -167,6 +275,8 @@ export class PrintView {
     this.colors = Array(16).fill([0.8, 0.8, 0.8]);
     this.cam = { yaw: -0.75, pitch: 0.55, dist: 420, target: [125, 125, 10] };
     this.dirty = true;
+    this._plate(250);
+    this._nozzleBuf = this._meshBuffer(cone(2.2, 7));
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.lost = true; onLost?.(); });
     this._controls();
     this._ro = new ResizeObserver(() => this.redraw());
@@ -177,29 +287,72 @@ export class PrintView {
 
   redraw() { this.dirty = true; }
 
+  // ---------------------------------------------------------- Platte
+  _meshBuffer(data) {
+    const gl = this.gl, p = this.meshProg;
+    const vao = gl.createVertexArray(), buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    [["a_pos", 3, 0], ["a_n", 3, 12], ["a_uv", 2, 24]].forEach(([name, size, off]) => {
+      const loc = gl.getAttribLocation(p, name);
+      if (loc < 0) return;
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 32, off);
+    });
+    gl.bindVertexArray(null);
+    return { vao, buf, count: data.length / 8 };
+  }
+
+  _plate(bed) {
+    if (this.plateBed === bed) return;
+    const gl = this.gl;
+    this.plateBed = bed;
+    [this.plateTop, this.plateSide].forEach((m) => { if (m) { gl.deleteVertexArray(m.vao); gl.deleteBuffer(m.buf); } });
+    const m = plateMesh(bed);
+    this.plateTop = this._meshBuffer(m.top);
+    this.plateSide = this._meshBuffer(m.side);
+    if (this.plateTex) gl.deleteTexture(this.plateTex);
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, plateTexture(bed));
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
+    if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    this.plateTex = tex;
+  }
+
+  // ---------------------------------------------------------- Bahnen
   load(geo) {
     const gl = this.gl;
     this.geo = geo;
-    if (this.vao) gl.deleteVertexArray(this.vao);
+    this._plate(geo.bed);
+    if (this.vaoBox) gl.deleteVertexArray(this.vaoBox);
+    if (this.vaoLine) gl.deleteVertexArray(this.vaoLine);
     this.buffers?.forEach((b) => gl.deleteBuffer(b));
-    const inst = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, inst);
-    gl.bufferData(gl.ARRAY_BUFFER, geo.cols, gl.STATIC_DRAW);
-    const tools = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, tools);
-    gl.bufferData(gl.ARRAY_BUFFER, geo.tools, gl.STATIC_DRAW);
-    const box = boxMesh();
-    const mesh = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, mesh);
-    gl.bufferData(gl.ARRAY_BUFFER, box.v, gl.STATIC_DRAW);
+    // Schichthoehe je Bahn (1/100 mm) aus den Schichten - die erste Schicht ist meist dicker
+    const L = geo.layers, lh = new Float32Array(L.length);
+    for (let i = 0; i < L.length; i++) lh[i] = i ? L[i] - L[i - 1] : L[0];
+    const gaps = Array.from(lh.slice(1)).sort((a, b) => a - b);
+    const typical = gaps.length ? Math.max(0.05, gaps[gaps.length >> 1]) : 0.2;
+    const heights = new Uint8Array(geo.n);
+    for (let i = 0; i < geo.n; i++) {
+      const h = lh[geo.layer[i]];
+      heights[i] = Math.min(255, Math.round(100 * (h > 0.02 && h < 1.5 ? h : typical)));
+    }
+    const buf = (data) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return b; };
+    const inst = buf(geo.cols), tools = buf(geo.tools), widths = buf(geo.widths), hb = buf(heights);
+    const s = strandMesh();
+    const mesh = buf(s.v);
+    const line = buf(new Float32Array([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]));
     const ibo = gl.createBuffer();
-    const line = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, line);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1]), gl.STATIC_DRAW);
-    this.buffers = [inst, tools, mesh, ibo, line];
-    this.boxCount = box.idx.length;
+    this.buffers = [inst, tools, widths, hb, mesh, line, ibo];
+    this.strandCount = s.idx.length;
     const p = this.prog;
-    const vaoFor = (meshBuf, stride, withIndex) => {
+    const vaoFor = (meshBuf, withIndex) => {
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
       gl.bindBuffer(gl.ARRAY_BUFFER, inst);
@@ -210,29 +363,26 @@ export class PrintView {
         gl.vertexAttribPointer(loc, 1, gl.UNSIGNED_SHORT, name !== "a_layer", 0, 2 * geo.n * k);
         gl.vertexAttribDivisor(loc, 1);
       });
-      const tl = gl.getAttribLocation(p, "a_tool");
-      gl.bindBuffer(gl.ARRAY_BUFFER, tools);
-      gl.enableVertexAttribArray(tl);
-      gl.vertexAttribPointer(tl, 1, gl.UNSIGNED_BYTE, false, 0, 0);
-      gl.vertexAttribDivisor(tl, 1);
+      [["a_tool", tools], ["a_width", widths], ["a_height", hb]].forEach(([name, b]) => {
+        const loc = gl.getAttribLocation(p, name);
+        if (loc < 0) return;
+        gl.bindBuffer(gl.ARRAY_BUFFER, b);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 1, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.vertexAttribDivisor(loc, 1);
+      });
       gl.bindBuffer(gl.ARRAY_BUFFER, meshBuf);
-      const cl = gl.getAttribLocation(p, "a_corner"), nl = gl.getAttribLocation(p, "a_normal");
-      gl.enableVertexAttribArray(cl);
-      gl.vertexAttribPointer(cl, 3, gl.FLOAT, false, stride, 0);
-      if (nl >= 0) { gl.enableVertexAttribArray(nl); gl.vertexAttribPointer(nl, 3, gl.FLOAT, false, stride, 12); }
-      if (withIndex) { gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, box.idx, gl.STATIC_DRAW); }
+      const vl = gl.getAttribLocation(p, "a_v"), nl = gl.getAttribLocation(p, "a_n");
+      gl.enableVertexAttribArray(vl);
+      gl.vertexAttribPointer(vl, 4, gl.FLOAT, false, 28, 0);
+      if (nl >= 0) { gl.enableVertexAttribArray(nl); gl.vertexAttribPointer(nl, 3, gl.FLOAT, false, 28, 16); }
+      if (withIndex) { gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, s.idx, gl.STATIC_DRAW); }
       gl.bindVertexArray(null);
       return vao;
     };
-    this.vaoBox = vaoFor(mesh, 24, true);
-    this.vaoLine = vaoFor(line, 24, false);
-    // Schichthoehe: haeufigster Abstand der Schichten
-    const L = geo.layers, gaps = [];
-    for (let i = 1; i < L.length; i++) gaps.push(Math.round((L[i] - L[i - 1]) * 100) / 100);
-    gaps.sort((a, b) => a - b);
-    this.layerH = gaps.length ? Math.max(0.05, gaps[gaps.length >> 1]) : 0.2;
+    this.vaoBox = vaoFor(mesh, true);
+    this.vaoLine = vaoFor(line, false);
     this.maxLayer = L.length - 1;
-    this.cam.target = [geo.bed / 2, geo.bed / 2, Math.min(geo.zmax, 60) / 2];
     this._fit();
     this.redraw();
   }
@@ -247,8 +397,8 @@ export class PrintView {
     const pc = (a, f) => a[Math.min(a.length - 1, Math.floor(a.length * f))];
     const x0 = pc(xs, 0.02), x1 = pc(xs, 0.98), y0 = pc(ys, 0.02), y1 = pc(ys, 0.98);
     const size = Math.max(x1 - x0, y1 - y0, g.zmax, 20);
-    this.cam.target = [(x0 + x1) / 2, (y0 + y1) / 2, g.zmax / 2];
-    this.cam.dist = size * 1.9;
+    this.cam.target = [(x0 + x1) / 2, (y0 + y1) / 2, g.zmax / 3];
+    this.cam.dist = size * 2.1;
     this.home = { ...this.cam, target: [...this.cam.target] };
   }
 
@@ -261,12 +411,12 @@ export class PrintView {
   set(opts) { Object.assign(this, opts); this.redraw(); }
   setColors(hexes) { this.colors = Array.from({ length: 16 }, (_, i) => hexRgb(hexes?.[i] || "cccccc")); this.redraw(); }
 
-  _matrix() {
+  _matrices() {
     const c = this.canvas, aspect = c.width / Math.max(1, c.height);
     const { yaw, pitch, dist, target } = this.cam;
     const eye = [target[0] + dist * Math.cos(pitch) * Math.sin(yaw), target[1] - dist * Math.cos(pitch) * Math.cos(yaw), target[2] + dist * Math.sin(pitch)];
     const up = pitch > 1.5 ? [Math.sin(yaw), Math.cos(yaw), 0] : [0, 0, 1];
-    return mul(perspective(0.7, aspect, Math.max(0.5, dist / 200), dist * 6 + 600), lookAt(eye, target, up));
+    return { view: lookAt(eye, target, up), proj: perspective(0.7, aspect, Math.max(0.5, dist / 200), dist * 6 + 800) };
   }
 
   _draw() {
@@ -275,77 +425,110 @@ export class PrintView {
     const w = Math.max(1, Math.round(c.clientWidth * dpr)), h = Math.max(1, Math.round(c.clientHeight * dpr));
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     gl.viewport(0, 0, w, h);
-    gl.clearColor(0.043, 0.047, 0.055, 1);
+    gl.clearColor(...BG, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
-    const mvp = this._matrix();
-    this._bed(mvp);
+    gl.depthFunc(gl.LEQUAL);
+    gl.disable(gl.BLEND);
+    const m = this._matrices();
+    this._drawPlate(m);
     const g = this.geo;
     if (!g || !g.n) return;
     const p = this.prog;
     gl.useProgram(p);
     const u = (n) => gl.getUniformLocation(p, n);
-    gl.uniformMatrix4fv(u("u_mvp"), false, mvp);
+    gl.uniformMatrix4fv(u("u_view"), false, m.view);
+    gl.uniformMatrix4fv(u("u_proj"), false, m.proj);
     gl.uniform1f(u("u_bed"), g.bed);
     gl.uniform1f(u("u_zmax"), g.zmax);
-    gl.uniform1f(u("u_h"), this.layerH);
-    gl.uniform1f(u("u_w"), LINE_W);
     gl.uniform1f(u("u_maxLayer"), this.maxLayer);
     gl.uniform1f(u("u_single"), this.single ? 1 : 0);
-    gl.uniform1f(u("u_ghost"), this.ghost ? 1 : 0);
     gl.uniform1i(u("u_done"), this.done);
     gl.uniform3fv(u("u_colors"), this.colors.flat());
-    gl.uniform3fv(u("u_ghostColor"), GHOST);
     const volume = this.mode === "volume";
     gl.uniform1i(u("u_volume"), volume ? 1 : 0);
-    if (volume) {
-      gl.bindVertexArray(this.vaoBox);
-      gl.drawElementsInstanced(gl.TRIANGLES, this.boxCount, gl.UNSIGNED_SHORT, 0, g.n);
-    } else {
-      gl.bindVertexArray(this.vaoLine);
-      gl.drawArraysInstanced(gl.LINES, 0, 2, g.n);
+    gl.uniform1f(u("u_ghostAlpha"), volume ? GHOST_ALPHA : GHOST_ALPHA_LINES);
+    const draw = () => {
+      if (volume) { gl.bindVertexArray(this.vaoBox); gl.drawElementsInstanced(gl.TRIANGLES, this.strandCount, gl.UNSIGNED_SHORT, 0, g.n); }
+      else { gl.bindVertexArray(this.vaoLine); gl.drawArraysInstanced(gl.LINES, 0, 2, g.n); }
+    };
+    gl.uniform1i(u("u_pass"), 0);
+    draw();                                                   // Gedrucktes, deckend
+    this._nozzle(m);
+    if (this.ghost && this.done < g.n) {
+      // Rest blass durchsichtig: erst nur die Tiefe (vorderste Flaeche), dann einmal Farbe darueber blenden -
+      // so liegen hintereinander liegende Bahnen nicht mehrfach uebereinander
+      gl.useProgram(p);
+      gl.uniform1i(u("u_pass"), 1);
+      if (volume) {
+        gl.colorMask(false, false, false, false);
+        draw();
+        gl.colorMask(true, true, true, true);
+        gl.depthMask(false);
+      }
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      draw();
+      gl.disable(gl.BLEND);
+      gl.depthMask(true);
     }
     gl.bindVertexArray(null);
-    this._nozzle(mvp);
   }
 
-  _flat(mvp, data, mode, color, size = 1) {
+  _mesh(m, mesh, color, { tex = null, lit = true, offset = [0, 0, 0] } = {}) {
+    const gl = this.gl, p = this.meshProg;
+    gl.useProgram(p);
+    const u = (n) => gl.getUniformLocation(p, n);
+    gl.uniformMatrix4fv(u("u_view"), false, m.view);
+    gl.uniformMatrix4fv(u("u_proj"), false, m.proj);
+    gl.uniform3fv(u("u_offset"), offset);
+    gl.uniform4fv(u("u_color"), color);
+    gl.uniform1i(u("u_lit"), lit ? 1 : 0);
+    gl.uniform1i(u("u_useTex"), tex ? 1 : 0);
+    if (tex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(u("u_tex"), 0); }
+    gl.bindVertexArray(mesh.vao);
+    gl.drawArrays(gl.TRIANGLES, 0, mesh.count);
+    gl.bindVertexArray(null);
+  }
+
+  _drawPlate(m) {
+    // Platte unbeleuchtet wie Orca (gleichmaessig grau), nur der Rand bekommt Licht fuer die Kante
+    this._mesh(m, this.plateTop, [1, 1, 1, 1], { tex: this.plateTex, lit: false });
+    this._mesh(m, this.plateSide, [...PLATE_EDGE, 1]);
+    // Achsen am Nullpunkt wie in Orca: X rot, Y gruen
     const gl = this.gl;
     gl.useProgram(this.flat);
-    if (!this._flatBuf) this._flatBuf = gl.createBuffer();
-    if (!this._flatVao) {
-      this._flatVao = gl.createVertexArray();
-      gl.bindVertexArray(this._flatVao);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this._flatBuf);
+    if (!this._axisBuf) {
+      this._axisVao = gl.createVertexArray();
+      gl.bindVertexArray(this._axisVao);
+      this._axisBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this._axisBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 0.05, 25, 0, 0.05, 0, 0, 0.05, 0, 25, 0.05]), gl.STATIC_DRAW);
       const loc = gl.getAttribLocation(this.flat, "a_pos");
       gl.enableVertexAttribArray(loc);
       gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0);
     }
-    gl.bindVertexArray(this._flatVao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this._flatBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.DYNAMIC_DRAW);
-    gl.uniformMatrix4fv(gl.getUniformLocation(this.flat, "u_mvp"), false, mvp);
-    gl.uniform4fv(gl.getUniformLocation(this.flat, "u_color"), color);
-    gl.uniform1f(gl.getUniformLocation(this.flat, "u_size"), size);
-    gl.drawArrays(mode, 0, data.length / 3);
+    gl.bindVertexArray(this._axisVao);
+    gl.uniformMatrix4fv(gl.getUniformLocation(this.flat, "u_view"), false, m.view);
+    gl.uniformMatrix4fv(gl.getUniformLocation(this.flat, "u_proj"), false, m.proj);
+    gl.uniform4fv(gl.getUniformLocation(this.flat, "u_color"), [0.86, 0.25, 0.25, 1]);
+    gl.drawArrays(gl.LINES, 0, 2);
+    gl.uniform4fv(gl.getUniformLocation(this.flat, "u_color"), [0.3, 0.78, 0.35, 1]);
+    gl.drawArrays(gl.LINES, 2, 2);
     gl.bindVertexArray(null);
   }
 
-  _bed(mvp) {
-    const b = this.geo?.bed || 250, d = [];
-    for (let i = 0; i <= b; i += 25) { d.push(i, 0, 0, i, b, 0, 0, i, 0, b, i, 0); }
-    this._flat(mvp, d, this.gl.LINES, [0.16, 0.18, 0.21, 1]);
-    this._flat(mvp, [0, 0, 0, b, 0, 0, b, 0, 0, b, b, 0, b, b, 0, 0, b, 0, 0, b, 0, 0, 0, 0], this.gl.LINES, [0.35, 0.38, 0.44, 1]);
-  }
-
-  _nozzle(mvp) {
+  _nozzle(m) {
     const g = this.geo, i = Math.min(this.done, g.n) - 1;
     if (i < 0 || this.single || this.done >= g.n) return;
     const q = g.bed / 65535;
-    const p = [g.x1[i] * q, g.y1[i] * q, g.z[i] / 65535 * g.zmax + 0.3];
-    this.gl.disable(this.gl.DEPTH_TEST);
-    this._flat(mvp, p, this.gl.POINTS, [1, 0.85, 0.3, 1], 9 * Math.min(window.devicePixelRatio || 1, 2));
-    this.gl.enable(this.gl.DEPTH_TEST);
+    const pos = [g.x1[i] * q, g.y1[i] * q, g.z[i] / 65535 * g.zmax];
+    // Kegel mit der Spitze an der Duese, etwas durchscheinend wie Orcas Werkzeug-Markierung
+    const gl = this.gl;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    this._mesh(m, this._nozzleBuf, [1.0, 0.84, 0.36, 0.9], { offset: pos });
+    gl.disable(gl.BLEND);
   }
 
   _controls() {

@@ -6,6 +6,16 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.20.0] – 2026-10-03
+
+### Changed
+- **3D view looks like OrcaSlicer's preview** (own implementation, no Orca code or assets): grey background,
+  the Kobra S1 plate with thickness, rounded corners and a 10 mm grid, every line as a lit strand with a
+  rounded cross-section in its real width and layer height, the unchanged filament colours with top and front
+  light and a slight sheen, the rest of the print transparent, a cone at the nozzle, X/Y axes at the origin.
+- Geometry format version 2: the strand width per segment (from extrusion, length and layer height; the
+  filament diameter comes from the file). `/api/print/info` adds `filament_colours`.
+
 ## [2.19.0] – 2026-10-03
 
 Ships app 1.7.0. Run `spoolman_setup.py` once more for the new Spoolman fields (see below).

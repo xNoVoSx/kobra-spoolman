@@ -45,7 +45,9 @@ class GcodeModel:
     def __init__(self) -> None:
         self.x0, self.y0, self.x1, self.y1, self.z = (array("f") for _ in range(5))
         self.tool = array("B")
+        self.ext = array("f")          # Filament (mm) je Strecke - daraus die Strangbreite fuer die 3D-Ansicht
         self.offset = array("Q")       # Byte-Position am Ende der Strecke
+        self.diameter = 1.75           # aus "; filament_diameter = 1.75;..."
         self.layers: List[float] = []
         self.thumbnail: Optional[bytes] = None
         self._thumb_size = 0
@@ -142,6 +144,11 @@ class GcodeModel:
         if m:
             self._thumb, self._thumb_wh = [], int(m.group(1)) * int(m.group(2))
             return
+        if line.startswith("; filament_diameter ="):
+            try:
+                self.diameter = float(line.split("=", 1)[1].split(";")[0].split(",")[0])
+            except ValueError:
+                pass
         if line.startswith("; filament_type =") and not self.types:
             self.types = [t.strip() for t in line.split("=", 1)[1].split(";")]
         if line.startswith(("; filament_colour =", "; extruder_colour =")) and not self.colours:
@@ -160,6 +167,7 @@ class GcodeModel:
             elif k == "E":
                 e = f
         extruding = False
+        de = 0.0
         if e is not None:
             de = e - self._e if self._abs_e else e
             self._e = e if self._abs_e else self._e + e
@@ -170,12 +178,12 @@ class GcodeModel:
             if not self.layers or abs(z - self.layers[-1]) > 1e-4:
                 if not self.layers or z > self.layers[-1]:
                     self.layers.append(z)
-            self._add(self._x, self._y, x, y, z, end_offset, dx, dy)
+            self._add(self._x, self._y, x, y, z, end_offset, dx, dy, de)
         else:
             self._dir = None
         self._x, self._y, self._z = x, y, z
 
-    def _add(self, x0, y0, x1, y1, z, off, dx, dy) -> None:
+    def _add(self, x0, y0, x1, y1, z, off, dx, dy, de=0.0) -> None:
         length = math.hypot(dx, dy)
         d = (dx / length, dy / length)
         n = len(self.x0)
@@ -184,9 +192,10 @@ class GcodeModel:
                 and abs(self.x1[n - 1] - x0) < 1e-3 and abs(self.y1[n - 1] - y0) < 1e-3
                 and d[0] * self._dir[0] + d[1] * self._dir[1] > 0.995):
             self.x1[n - 1], self.y1[n - 1], self.offset[n - 1] = x1, y1, off
+            self.ext[n - 1] += de
             return
         self.x0.append(x0); self.y0.append(y0); self.x1.append(x1); self.y1.append(y1)  # noqa: E702
-        self.z.append(z); self.tool.append(self._t); self.offset.append(off)  # noqa: E702
+        self.z.append(z); self.tool.append(self._t); self.offset.append(off); self.ext.append(de)  # noqa: E702
         self._dir = d
 
     def done_index(self, offset: Optional[int]) -> int:
@@ -213,16 +222,19 @@ class GcodeModel:
 
 
 GEOM_MAGIC = b"KSG1"
+GEOM_VERSION = 2
+DEFAULT_WIDTH_MM = 0.45
 MAX_GEOMETRY = 1_500_000         # mehr Strecken schickt die Bridge nicht an Browser/App (ausgeduennt)
 
 
 def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> bytes:
     """Strecken fuer die 3D-Ansicht im Browser - kompakt, little-endian:
 
-    Kopf: "KSG1", u16 Version 1, u16 frei, u32 Strecken, u32 Schichten, u32 Schritt (Ausduennung), f32 Bett-mm,
+    Kopf: "KSG1", u16 Version 2, u16 frei, u32 Strecken, u32 Schichten, u32 Schritt (Ausduennung), f32 Bett-mm,
           f32 Z-Hoechstwert, dann f32[Schichten] (Z je Schicht)
     Spalten je Strecke: u16 x0, y0, x1, y1 (0..65535 = 0..Bett-mm), u16 z (0..65535 = 0..Z-max), u16 Schicht,
-          u8 Werkzeug.  13 Byte je Strecke - 600 000 Strecken ~ 7,8 MB, gepackt ~ 4 MB.
+          u8 Werkzeug, u8 Strangbreite (1/100 mm; 0 = unbekannt).  14 Byte je Strecke - 600 000 Strecken ~ 8,4 MB,
+          gepackt ~ 4 MB. Version 1 hatte keine Breite.
     Wer die Strecke i (in Dateireihenfolge) schon gedruckt hat, steht in /api/print/info als "done" (/ Schritt).
     """
     import bisect
@@ -241,11 +253,28 @@ def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> bytes:
     cols = [col(model.x0, q), col(model.y0, q), col(model.x1, q), col(model.y1, q), col(model.z, qz),
             array("H", (min(65535, bisect.bisect_left(layers, model.z[i] - 1e-4)) for i in idx))]
     tools = array("B", (model.tool[i] for i in idx))
+    heights = [layers[0]] + [b - a for a, b in zip(layers, layers[1:], strict=False)]
+    widths = array("B", (strand_width(model, i, heights, layers) for i in idx))
     if sys.byteorder != "little":
         for c in cols:
             c.byteswap()
-    head = GEOM_MAGIC + struct.pack("<HHIIIff", 1, 0, len(tools), len(layers), step, BED_MM, zmax)
-    return head + array("f", layers).tobytes() + b"".join(c.tobytes() for c in cols) + tools.tobytes()
+    head = GEOM_MAGIC + struct.pack("<HHIIIff", GEOM_VERSION, 0, len(tools), len(layers), step, BED_MM, zmax)
+    return (head + array("f", layers).tobytes() + b"".join(c.tobytes() for c in cols) + tools.tobytes()
+            + widths.tobytes())
+
+
+def strand_width(model: GcodeModel, i: int, heights: List[float], layers: List[float]) -> int:
+    """Strangbreite (1/100 mm) aus Filamentmenge, Laenge und Schichthoehe - Querschnitt wie in Slic3r/Orca:
+    Rechteck mit halbrunden Seiten, also Flaeche = (w - h) * h + pi * (h/2)^2."""
+    import bisect
+    length = math.hypot(model.x1[i] - model.x0[i], model.y1[i] - model.y0[i])
+    k = min(len(heights) - 1, bisect.bisect_left(layers, model.z[i] - 1e-4))
+    h = heights[k] if heights[k] > 0.02 else 0.2
+    if length < 0.05 or model.ext[i] <= 0:
+        return round(DEFAULT_WIDTH_MM * 100)
+    area = model.ext[i] * math.pi * (model.diameter / 2) ** 2 / length
+    w = area / h + h * (1 - math.pi / 4)
+    return max(5, min(255, round(w * 100)))
 
 
 def parse_bytes(data: bytes) -> GcodeModel:
@@ -504,5 +533,6 @@ class PrintPreview:
                 "geometry": f"{self.file}:{len(m)}" if m and len(m) and self.status == "ready" else None,
                 # Farbe je Werkzeug fuer die 3D-Ansicht, wie im Bild der Bridge aufgehellt (dunkles Filament sichtbar)
                 "colours": ["%02x%02x%02x" % display_rgb(c) for c in self.colours(status)] if m else [],
+                "filament_colours": ["%02x%02x%02x" % _rgb(c) for c in self.colours(status)] if m else [],
                 "layer": m.layer_at(pos) if m and pos and len(m) else None,
                 "thumbnail": bool(m and m.thumbnail), "size": self.size, "loaded": self.loaded_bytes}

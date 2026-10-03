@@ -161,8 +161,9 @@ PETG ~5, ABS/ASA ~21, TPU ~2, PA/PVA weniger) und lässt sich pro Filament einst
 
 ## Einen Druck in 3D ansehen
 
-Während eines Drucks zeigt **Modell** die Druckdatei in 3D in den Farben der eingelegten Spulen: Gedrucktes
-kräftig, der Rest blass, die Düsenposition live. Ziehen dreht, zwei Finger oder rechte Maustaste
+Während eines Drucks zeigt **Modell** die Druckdatei in 3D wie OrcaSlicers Vorschau – grauer Hintergrund, die
+Kobra-S1-Platte mit 10-mm-Raster, jede Bahn als beleuchteter Strang in echter Breite und Schichthöhe in den
+Farben der eingelegten Spulen: Gedrucktes kräftig, der Rest durchsichtig, die Düsenposition live. Ziehen dreht, zwei Finger oder rechte Maustaste
 verschieben, Mausrad oder Spreizen zoomt; *3D*, *Oben*, *Vorne* springen in eine Ansicht. Der
 Schicht-Regler zeigt jede beliebige Schicht (*nur Schicht* nur diese, *Live* zurück zur laufenden). Wie
 gezeichnet wird, hängt vom Gerät ab (*Einstellungen → Dieses Gerät → 3D-Modell*, in der App

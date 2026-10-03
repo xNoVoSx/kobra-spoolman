@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import math
 from types import SimpleNamespace
 
 import aiohttp
@@ -13,7 +14,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestServer
 from PIL import Image
 
-from acebridge.render import BED_MM, GcodeModel, PrintPreview, display_rgb, geometry_bin, parse_bytes, render_png
+from acebridge.render import strand_width, BED_MM, GcodeModel, PrintPreview, display_rgb, geometry_bin, parse_bytes, render_png
 
 
 def png_bytes(w=8, h=8):
@@ -60,7 +61,7 @@ def test_geometry_for_the_3d_view():
     g = geometry_bin(m)
     assert g[:4] == b"KSG1"
     ver, _, n, nl, step, bed, zmax = struct.unpack("<HHIIIff", g[4:28])
-    assert (ver, n, nl, step, bed) == (1, 4, 2, 1, BED_MM) and zmax == pytest.approx(0.4)
+    assert (ver, n, nl, step, bed) == (2, 4, 2, 1, BED_MM) and zmax == pytest.approx(0.4)
     def arr(code, raw):
         a = array(code)
         a.frombytes(raw)
@@ -72,9 +73,23 @@ def test_geometry_for_the_3d_view():
     layer = arr("H", cols[10 * n:12 * n])
     tool = arr("B", cols[12 * n:13 * n])
     assert x0[0] == round(10 / BED_MM * 65535) and list(layer) == [0, 0, 0, 1] and list(tool) == [0, 0, 1, 1]
-    assert len(g) == 28 + 4 * nl + 13 * n
+    width = arr("B", cols[13 * n:14 * n])
+    assert all(5 <= w <= 255 for w in width)
+    assert len(g) == 28 + 4 * nl + 14 * n
     assert m.done_index(0) == 0 and m.done_index(10 ** 9) == 4
     assert geometry_bin(m, max_segments=2)[16:20] == struct.pack("<I", 2)        # Schritt 2 beim Ausduennen
+
+
+def test_strand_width_from_extrusion():
+    # 0,4 mm breit bei 0,2 mm Schicht: Flaeche (0,4 - 0,2) * 0,2 + pi * 0,01 = 0,0714 mm^2 -> E pro 10 mm
+    area = (0.4 - 0.2) * 0.2 + math.pi * 0.1 ** 2
+    e = area * 10 / (math.pi * 0.875 ** 2)
+    m = parse_bytes(("; filament_diameter = 1.75\nM83\nG1 X0 Y0 Z0.2\n"
+                     f"G1 X10 Y0 E{e:.5f}\nG1 X10 Y10 E{2 * e:.5f}\nG1 X10.01 Y10 E0.1\n").encode())
+    heights = [m.layers[0]]
+    assert strand_width(m, 0, heights, m.layers) == 40
+    assert strand_width(m, 1, heights, m.layers) == 76             # doppelte Menge -> breiter
+    assert strand_width(m, 2, heights, m.layers) == 45             # zu kurz zum Rechnen -> Standard
 
 
 def test_absolute_extrusion_and_resets():

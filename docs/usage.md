@@ -157,8 +157,9 @@ PETG ~5, ABS/ASA ~21, TPU ~2, PA/PVA less) and can be set per filament (*Offen b
 
 ## Watching a print in 3D
 
-While printing, **Modell** shows the print file in 3D in the colours of the loaded spools: printed
-part solid, the rest faint, the nozzle position live. Drag to rotate, two fingers or right mouse button
+While printing, **Modell** shows the print file in 3D like OrcaSlicer's preview — grey background, the
+Kobra S1 plate with its 10 mm grid, every line as a lit strand with its real width and layer height in
+the colours of the loaded spools: printed part solid, the rest transparent, the nozzle position live. Drag to rotate, two fingers or right mouse button
 to move, wheel or pinch to zoom; *3D*, *Oben*, *Vorne* jump to a view. The layer slider looks at any
 layer (*nur Schicht* shows only that one, *Live* returns to the running layer). How it is drawn depends on
 the device (*Einstellungen → Dieses Gerät → 3D-Modell*, in the app *Einstellungen → 3D-Modell*):

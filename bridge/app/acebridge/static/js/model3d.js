@@ -42,8 +42,8 @@ export function Model3D({ info, fallback }) {
   useEffect(() => {
     const v = view.current; if (!v || !v.geo) return;
     v.set({ mode, done: Math.floor((info?.done || 0) / (v.step || 1)), maxLayer: layer == null ? total - 1 : layer - 1, single: single && layer != null, ghost });
-    v.setColors(info?.colours);
-  }, [info?.done, info?.colours?.join(), layer, single, ghost, mode, geoKey, total]);
+    v.setColors(info?.filament_colours?.length ? info.filament_colours : info?.colours);     // Originalfarben wie in Orca
+  }, [info?.done, info?.filament_colours?.join(), info?.colours?.join(), layer, single, ghost, mode, geoKey, total]);
 
   if (mode === "image" || err) return html`${fallback}${err && html`<span class="media-meta m">3D: ${err}</span>`}`;
   const cur = info?.layer || 0;
