@@ -424,4 +424,17 @@ that tag byte for byte (`AceTagTest`).
   `camera.still()`: newest frame or one single snapshot.
 - Android sets a notification channel's `USAGE_ALARM` back to `USAGE_NOTIFICATION` (checked on the
   Android 17 emulator), so alarm notifications follow the notification volume.
+- Obico's baseline (`long`) absorbs a failure that keeps going: after ~21,000 spaghetti pictures in the
+  demo it stood at 1.96 and the AI stayed silent. The bridge therefore freezes the baseline while an
+  alarm is open.
+- Suspicious pictures saved at every check filled 4.8 GB in one unattended demo print (2 s interval) —
+  now at most one every 30 s.
+
+## Print preparation on the Kobra S1 (recording 2026-10-03)
+
+- The nozzle target goes 0 → 205 °C (heating ~76 s from room temperature), then 140 °C for probing, then
+  back to 205 or up to 250 °C (33–70 s each) — all in layer 0. An alarm on "more than 15 °C below
+  target for 30 s" fired five times in one preparation.
+- GoKlipper reports `print_stats.state = error` for under a second during the preparation (twice in one
+  print) and continues printing.
 

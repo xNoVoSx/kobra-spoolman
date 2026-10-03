@@ -244,10 +244,14 @@ Android's notification settings.
 With [kobra-vision](vision.md) running, the bridge sends a camera picture to the AI every 10 s while
 printing and watches the score over the print. When a print turns into spaghetti you get a red message
 **KI: wahrscheinlich Fehldruck** — in the web UI with **Fehlalarm** / **Stimmt**, on the phone as an
-alarm with camera picture and **Pausieren** / **Fehlalarm**. The camera image shows the found spots as
+alarm with camera picture and **Pausieren** / **Stimmt** / **Fehlalarm**. The camera image shows the found spots as
 boxes. *Fehlalarm* silences the AI for the rest of this print. The first ~5 minutes of a print never
 alarm. By default the AI only warns; it can pause by itself once you trust it (`VISION_ACTION=pause`).
 The pictures are collected (up to 5 GB) to teach the next stages: plate check and knocked-over parts.
+
+Everything is controlled in the **KI** tab: sensitivity, report or pause, quiet hours, areas to ignore
+(e.g. the purge chute), the baseline, all events, and the picture collection to label, delete or
+download — details in [vision.md](vision.md#the-ki-tab). In the app: *Mehr → KI*.
 
 <p align="center"><img src="images/app-ai-alarm.png" width="360" alt="AI alarm on the phone"></p>
 

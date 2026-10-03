@@ -47,8 +47,16 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
   [`android/tools/make_sounds.py`](../android/tools/make_sounds.py) (no third-party samples, MIT like
   the rest). It restarts after the phone reboots.
 - **AI alarm** — when the bridge's [AI](vision.md) sees a failed print, the alarm carries the camera
-  picture and two buttons: **Pausieren** (pauses through the bridge and labels the picture as a real
-  failure) and **Fehlalarm** (silences the AI for this print, labels the picture as a false alarm).
+  picture and three buttons: **Pausieren** (pauses through the bridge and labels the picture as a real
+  failure), **Stimmt** (labels it as a real failure) and **Fehlalarm** (silences the AI for this print,
+  labels the picture as a false alarm).
+- **Mehr → KI** — state and score, *Diesen Druck nicht überwachen*, the main settings (on/off,
+  sensitivity, report or pause, phone alarm level, nozzle off after pause, quiet hours), baseline and
+  collection size, events with picture and verdict. Areas and the picture collection are in the web UI.
+- The nozzle alarm only fires when the nozzle had reached its target and then stays more than 15 °C
+  below it for 60 s, from layer 1 on — heating up and the 140 °C probing during the preparation are no
+  alarm. A printer error must last 10 s (GoKlipper reports `error` for under a second while preparing).
+- The app never crashes on an unexpected bridge answer; it shows "Antwort der Bridge nicht lesbar".
 - **Mehr** — ACE & dryer, print history, **Protokoll** (read-only: commands sent through the bridge
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.

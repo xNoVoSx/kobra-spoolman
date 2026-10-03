@@ -6,6 +6,38 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.18.0] – 2026-10-03
+
+Ships app 1.6.0.
+
+### Added
+- **KI tab** (web UI) to see and control the AI ([vision.md](docs/vision.md#the-ki-tab)): live state with
+  score curve, *Jetzt prüfen* and testing an uploaded picture, *Diesen Druck nicht überwachen*;
+  settings stored in the bridge (sensitivity, report or pause, nozzle off after an AI pause, phone alarm
+  level, quiet hours, interval, learning time, collection limit — the `VISION_*` variables are only start
+  values); **areas to ignore** drawn on the camera picture; the baseline with reset and all events with
+  verdicts; the picture collection per print with filters, labels for later training, delete and ZIP export.
+- API: `/api/vision/settings`, `/mute`, `/test`, `/baseline/reset`, `/jobs`, `/label`, `/export.zip`,
+  deleting prints and pictures; `vision.muted_reason`.
+
+### Changed
+- AI: the baseline does not learn while an alarm is open — a failure running unnoticed for hours no
+  longer becomes "normal" (seen in the test environment).
+- AI: suspicious pictures are collected at most every 30 s (an unattended failure filled 4.8 GB in the
+  test environment); the gallery loads in pages.
+
+### Fixed
+- Event pictures from 2.17.0 were not found anymore after the storage change.
+
+## app 1.6.0 – 2026-10-03
+
+- Düsen-Alarm nur noch, wenn die Düse ihr Soll schon erreicht hatte und dann 60 s deutlich darunter liegt, erst ab
+  Schicht 1 – Aufheizen und das Abtasten bei 140 °C in der Vorbereitung lösen keinen Alarm mehr aus
+- Druckerfehler erst, wenn er 10 s bleibt (GoKlipper meldet in der Vorbereitung kurz „error“)
+- Neue Seite Mehr → KI: Zustand, Einstellungen, „Diesen Druck nicht überwachen“, Ereignisse mit Bild und Bewertung
+- KI-Alarm hat jetzt auch „Stimmt“
+- Die App stürzt bei einer unerwarteten Antwort der Bridge nicht mehr ab, sondern meldet es
+
 ## [2.17.0] – 2026-10-03
 
 Ships app 1.5.0. New optional service **kobra-vision** 0.1.0 (`ghcr.io/xnovosx/kobra-vision`).

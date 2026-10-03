@@ -188,11 +188,21 @@ See [vision.md](vision.md). Off when `VISION_URL` is empty.
 | Method | Path | Meaning |
 |---|---|---|
 | GET | `/api/vision` | state: `enabled`, `level` (`ok`, `warn`, `fail`), `score` (0–1), `muted`, `detections` of the last picture (`[label, confidence, [x-centre, y-centre, width, height]]`, relative 0–1) with `size`, open `event`, `error`, `health` of the service, `prediction`, `history` (`[time, p, score]`), last `events` with `verdict`, `dataset` (prints, pictures, MB) |
+| POST | `/api/vision/settings` | *(paired)* change settings — only the fields sent: `enabled`, `sensitivity` (0.3–3), `action` (`warn`/`pause`), `heater_off`, `notify` (`warn`/`fail`), `interval_s` (2–60), `safe_s` (0–900), `zones` (`[{x, y, w, h}]` relative, ≤ 10), `quiet` (`{enabled, start, end, mode: fail_only\|pause}`), `dataset_gb` (0–100), `save_every_s` (10–600). 400 with a German message on invalid values |
+| POST | `/api/vision/mute` | *(paired)* `{"on": true}` — do not watch the running print (until the next one) |
+| POST | `/api/vision/test` | *(paired)* check the current camera picture now, or a JPEG sent as body (`Content-Type: image/jpeg`); does not change the judgement → `detections`, `ignored`, `p`, `verdict` |
+| POST | `/api/vision/baseline/reset` | *(paired)* forget the baseline |
 | GET | `/api/vision/event/{id}.jpg` | *(paired, like the camera)* picture of an event |
-| POST | `/api/vision/feedback` | *(paired)* `{"id": <event>, "verdict": "false_alarm" \| "confirmed"}` — a false alarm silences the AI for the rest of the print; both label the picture in the dataset |
+| POST | `/api/vision/feedback` | *(paired)* `{"id": <event>, "verdict": "false_alarm" \| "confirmed" \| null}` — a false alarm silences the AI for the rest of the print; labels the picture (`ok` / `spaghetti`) |
+| GET | `/api/vision/jobs` | collected prints (pictures, alarms, labels, MB, cover) and `stats` |
+| GET | `/api/vision/jobs/{job}` | pictures of one print: `?filter=all\|event\|suspect\|startend\|labelled\|open&offset=0&limit=120` → `frames` (with `kind`, `p`, boxes, `label`), `total` |
+| GET | `/api/vision/jobs/{job}/{frame}` | *(paired or camera key)* one picture |
+| POST | `/api/vision/label` | *(paired)* `{"job", "frame", "label": ok\|spaghetti\|detached\|tower\|plate_not_empty\|plate_empty\|null}` |
+| DELETE | `/api/vision/jobs/{job}` / `/api/vision/jobs/{job}/{frame}` | *(paired)* delete a print (not the running one) or one picture |
+| GET | `/api/vision/export.zip` | *(paired or camera key)* the collection as ZIP, `?job=` for one print (streamed, pictures uncompressed) |
 
-`/api/app/state` carries the short form as `vision` (`enabled`, `level`, `score`, `muted`,
-`detections`, `size`, `event`). Messages: `ai-warn`, `ai-fail` (red), `ai-down` (service unreachable
+`/api/app/state` carries the short form as `vision` (`enabled`, `configured`, `level`, `score`, `muted`
+(boolean), `muted_reason` (`false_alarm`, `manual`), `detections`, `ignored`, `zones`, `size`, `event`). Messages: `ai-warn`, `ai-fail` (red), `ai-down` (service unreachable
 during a print, yellow); status line `ai`.
 
 ## Print control

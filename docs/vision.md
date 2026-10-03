@@ -53,22 +53,47 @@ the confidences `p` per picture over time, with Obico's method and parameters
 - `ewm`: exponentially weighted mean of `p` (span 12 pictures),
 - `short`: mean over this print (≤ 310 pictures), `long`: baseline over all prints (≤ 7200 pictures,
   survives restarts in `vision/state.json`),
-- the first **30 pictures** of a print (~5 min) never alarm — first layer, purge, wiping,
+- the first **5 minutes** of a print (*Lernzeit*, 30 pictures at 10 s) never alarm — first layer,
+  purge, wiping,
 - **warn** (*verdächtig*) when `ewm − long` is above 0.38 and clearly above this print's own level,
   or above 0.78; **fail** (*wahrscheinlich Fehldruck*) with the same test divided by 1.75.
 
-So a sudden rise alarms, a constant pattern (e.g. a textured plate) does not. In the test environment
+So a sudden rise alarms, a constant pattern (e.g. a textured plate) does not.
+
+**One change against Obico:** while an alarm is open (not marked *Fehlalarm*), the baseline `long`
+does not learn. Otherwise a failure that keeps going unnoticed becomes "normal" — in the test
+environment a spaghetti picture shown for ~21,000 pictures pushed the baseline to 1.96 and the AI fell
+silent. After *Fehlalarm* it learns again (then it was normal). In the test environment
 a spaghetti picture after a clean start gave *verdächtig* after 2 and *Fehldruck* after 4 pictures —
 with 10 s per picture **20–40 s** after the spaghetti appears.
 
-`VISION_SENSITIVITY` multiplies the score (1.0 = Obico's default; 1.5 = more sensitive).
+The sensitivity multiplies the score (1.0 = Obico's default; *Hoch* 1.5 alarms earlier, *Niedrig*
+0.7 later).
+
+## The KI tab
+
+Everything is set and inspected in the bridge's **KI** tab (web UI; the app has the important parts
+under *Mehr → KI*). Settings are stored in `DATA_DIR/vision/settings.json`; the `VISION_*` environment
+variables are only the start values.
+
+<p align="center"><img src="images/web-ki.png" width="760" alt="KI tab: live state, history, camera with findings"></p>
+
+| Part | What it does |
+|---|---|
+| **Live** | Current state and score, last picture's findings, service (CPU/GPU, ms per picture, model loaded), what applies now (report or pause, quiet hours). **Jetzt prüfen** checks the current camera picture, **Bild testen** an uploaded picture — both without touching the judgement. **Diesen Druck nicht überwachen**. The score curve of the running print with the *verdächtig* and *Fehldruck* bands. Camera with boxes; ignored findings dashed grey. |
+| **Einstellungen** | On/off; sensitivity (*Niedrig / Normal / Hoch* or fine, 0.3–3); on a failure *nur melden* or *pausieren*; optionally switch the nozzle heater off after an AI pause (`M104 S0`, **not yet tested on the Kobra** — check the nozzle temperature when resuming); phone alarm already at *verdächtig* or only at *Fehldruck* (below that the message stays yellow in the app); quiet hours (e.g. 22:00–07:00: only *Fehldruck*, or pause); picture interval (2–60 s, tuned for 10 s); *Lernzeit* (0–15 min); collection limit and interval. |
+| **Bereiche** | Draw rectangles on a camera picture — findings whose centre lies inside do not count (purge chute, wiper, reflections). Up to 10. The strongest lever against false alarms with a fixed camera. |
+| **Gedächtnis** | What the AI knows: the baseline and how many pictures it is based on, thresholds; **Grundlinie zurücksetzen** (e.g. after moving the camera). All events with picture, score and your verdict, changeable afterwards. |
+| **Bilder** | The collection per print (cover, pictures, alarms, labels, size), filter (alarms, suspicious, start/end, labelled, unlabelled), **label** each picture (*In Ordnung, Spaghetti, Teil gelöst, Turm umgefallen, Platte nicht leer, Platte leer*), delete pictures or prints, download one print or everything as **ZIP** (pictures, `frames.jsonl`, `labels.jsonl`). |
+
+<p align="center"><img src="images/web-ki-settings.png" width="640" alt="KI settings"></p>
 
 ## What you see
 
 - **Message** `KI: Druck sieht verdächtig aus` / `KI: wahrscheinlich Fehldruck (Spaghetti)` (red), in
   the web UI with **Fehlalarm** and **Stimmt**.
-- **App alarm** (own alarm sound, camera picture) with **Pausieren** and **Fehlalarm**; *Fehldruck*
-  replaces an earlier *verdächtig* notification.
+- **App alarm** (own alarm sound, camera picture) with **Pausieren**, **Stimmt** and **Fehlalarm**;
+  *Fehldruck* replaces an earlier *verdächtig* notification.
 - **Boxes** with their confidence over the camera image (web UI).
 - **Status line** *KI*: `lernt den Druck (12/30)`, `unauffällig · Wert 0.05 · CPU`, `verdächtig`,
   `Fehldruck?`, `für diesen Druck stumm (Fehlalarm)`, or a warning if the service is unreachable.
@@ -76,13 +101,14 @@ with 10 s per picture **20–40 s** after the spaghetti appears.
 **Fehlalarm** silences the AI for the rest of this print and labels the picture as a negative example.
 **Stimmt** labels it as a real failure. **Pausieren** (app) pauses the print and labels it as real.
 
-`VISION_ACTION=warn` (default) only reports. With `VISION_ACTION=pause` the bridge pauses the print
-itself on *Fehldruck* — switch this on once a few weeks without false alarms have passed.
+*Nur melden* (default) only reports. With *pausieren* the bridge pauses the print itself on
+*Fehldruck* — switch this on once a few weeks without false alarms have passed.
 
 ## Data collection (for stages 2 and 3)
 
-`DATA_DIR/vision/jobs/<start>_<file>/` per print: a picture at the start, every
-`VISION_SAVE_EVERY_S` (60 s), every suspicious picture (`p` > 0.076), every alarm and one at the end;
+`DATA_DIR/vision/jobs/<start>_<file>/` per print: a picture at the start, one per minute, suspicious
+pictures (`p` > 0.076, at most one every 30 s — a failure running for hours would otherwise fill the
+disk), every alarm and one at the end;
 `frames.jsonl` with time, `p`, boxes, layer and progress; `labels.jsonl` with your feedback. Above
 `VISION_DATASET_GB` (5 GB) the oldest prints are deleted first. At ~250 KB per picture and one per
 minute a 3-hour print takes ~50 MB — 5 GB hold roughly the last 100 prints.
@@ -120,6 +146,8 @@ The KI status line should show *bereit · CPU* after a few seconds.
 the Nvidia container runtime (`deploy.resources.reservations.devices: [{driver: nvidia, count: 1,
 capabilities: [gpu]}]`) and `USE_GPU: "true"`. ONNX Runtime's CUDA build needs CUDA 12 / cuDNN 9 and a
 recent driver; the status line then shows *Grafikkarte*.
+
+Settings of the bridge side are in the KI tab (above); `VISION_URL` / `VISION_TOKEN` stay in the stack.
 
 ### kobra-vision settings
 
