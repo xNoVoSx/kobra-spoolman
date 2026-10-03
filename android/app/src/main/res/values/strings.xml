@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Kobra Spoolman</string>
+    <string name="widget_description">Druck auf dem Startbildschirm: Fortschritt, Restzeit und Kamerabild</string>
 </resources>

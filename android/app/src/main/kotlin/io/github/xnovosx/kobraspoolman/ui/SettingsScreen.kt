@@ -95,6 +95,15 @@ fun SettingsScreen(
                 Switch(monitor, onMonitor)
             }
             SoundsSection()
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            SecondaryButton("Widget auf den Startbildschirm", {
+                val m = android.appwidget.AppWidgetManager.getInstance(ctx)
+                if (m.isRequestPinAppWidgetSupported) {
+                    m.requestPinAppWidget(android.content.ComponentName(ctx, io.github.xnovosx.kobraspoolman.monitor.PrintWidget::class.java), null, null)
+                }
+            }, Modifier.fillMaxWidth())
+            Text("Zeigt Fortschritt, Restzeit und Kamerabild – aktualisiert von der Überwachung, kostet also nichts extra.",
+                style = MaterialTheme.typography.bodySmall, color = K.Muted)
             SectionLabel("Druckvorschau", Modifier.padding(top = 8.dp))
             Text("3D-Modell", style = MaterialTheme.typography.bodyLarge)
             Segmented(listOf("auto" to "Automatisch", "volume" to "Volumen", "lines" to "Linien", "image" to "Bild"), render3d, onRender3d)

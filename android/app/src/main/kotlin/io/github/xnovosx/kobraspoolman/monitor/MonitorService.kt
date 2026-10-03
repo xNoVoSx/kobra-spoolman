@@ -72,6 +72,7 @@ class MonitorService : Service() {
             if (!running) camera = null
             getSystemService(android.app.NotificationManager::class.java)
                 .notify(Notifier.ID_PROGRESS, Notifier.progress(this, p, camera, reachable = state != null))
+            PrintWidget.update(this, p, camera, reachable = state != null)
             delay(if (running) 5_000 else 30_000)
         }
     }
