@@ -45,17 +45,10 @@ def _iso_age(iso: Optional[str], now: float) -> Optional[float]:
 
 
 # ====================================================================== Reicht die Spule?
-def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
-    """Pro Slot im laufenden Druck: noch benoetigt (Druckdatei ab aktueller Position + Spuelen der noch
-    kommenden Farbwechsel) gegen den Rest auf der zugeordneten Spule."""
+def _slot_need(bridge: "Bridge", offset: Optional[int]) -> Dict[int, float]:
+    """mm pro Gate ab der Byte-Position (0 = ganze Datei): Druckdatei + Spuelen der noch kommenden Farbwechsel."""
     st = bridge.moon.status
-    if (st.get("print_stats") or {}).get("state") not in ("printing", "paused"):
-        return []
-    pv = bridge.preview
-    if pv.status != "ready" or not pv.model:
-        return []
-    pos = (st.get("virtual_sdcard") or {}).get("file_position")
-    rest_mm, later = pv.model.remaining(pos)
+    rest_mm, later = bridge.preview.model.remaining(offset)
     mmu = st.get("mmu") or {}
     colors = [(c or "")[:6] or None for c in (mmu.get("gate_color") or [])]
     ttg = mmu.get("ttg_map") or list(range(len(colors)))
@@ -83,7 +76,30 @@ def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
             mm = change_mm(colors[s] if s < len(colors) else None, colors[g] if g < len(colors) else None,
                            purge.flush, purge.offset_mm) or 0.0
         need[g] = need.get(g, 0.0) + mm
+    return need
 
+
+def _spool_grams(bridge: "Bridge", spool: Optional[Dict[str, Any]], mm: float) -> float:
+    fil = (spool or {}).get("filament") or {}
+    return _grams(mm, float(fil.get("diameter") or bridge.cfg.default_diameter),
+                  float(fil.get("density") or bridge.cfg.default_density))
+
+
+def _model_ready(bridge: "Bridge") -> bool:
+    st = bridge.moon.status
+    if (st.get("print_stats") or {}).get("state") not in ("printing", "paused"):
+        return False
+    pv = bridge.preview
+    return pv.status == "ready" and bool(pv.model)
+
+
+def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
+    """Pro Slot im laufenden Druck: noch benoetigt (Druckdatei ab aktueller Position + Spuelen der noch
+    kommenden Farbwechsel) gegen den Rest auf der zugeordneten Spule."""
+    if not _model_ready(bridge):
+        return []
+    pos = (bridge.moon.status.get("virtual_sdcard") or {}).get("file_position")
+    need = _slot_need(bridge, pos)
     assigned, _ = bridge.slots.assignments()
     out = []
     for g, mm in sorted(need.items()):
@@ -91,15 +107,34 @@ def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
         if not spool:
             out.append({"slot": g + 1, "need_mm": round(mm), "need_g": None, "have_g": None, "enough": None})
             continue
-        fil = spool.get("filament") or {}
-        d = float(fil.get("diameter") or bridge.cfg.default_diameter)
-        rho = float(fil.get("density") or bridge.cfg.default_density)
         have = spool.get("remaining_weight")
-        need_g = _grams(mm, d, rho)
+        need_g = _spool_grams(bridge, spool, mm)
         out.append({"slot": g + 1, "spool_id": spool.get("id"), "need_mm": round(mm), "need_g": round(need_g, 1),
                     "have_g": round(float(have), 1) if have is not None else None,
                     "enough": None if have is None else float(have) >= need_g * (1 + getattr(
                         bridge.cfg, "reach_reserve_pct", REACH_RESERVE_PCT) / 100)})
+    return out
+
+
+def file_usage(bridge: "Bridge") -> List[Dict[str, Any]]:
+    """Welche Slots die laufende Druckdatei benutzt: gesamt und noch offen (mm/g, inkl. Spuelen) mit Spule und Farbe.
+    Fuer die Zeile "benutzt" in Web und App."""
+    if not _model_ready(bridge):
+        return []
+    pos = (bridge.moon.status.get("virtual_sdcard") or {}).get("file_position")
+    total, rest = _slot_need(bridge, 0), _slot_need(bridge, pos)
+    assigned, _ = bridge.slots.assignments()
+    out = []
+    for g, mm in sorted(total.items()):
+        spool = assigned.get(g + 1)
+        ace = bridge.slots.ace_gate(g)
+        fil = (spool or {}).get("filament") or {}
+        out.append({"slot": g + 1, "spool_id": (spool or {}).get("id"),
+                    "name": fil.get("name") or ace.get("material") or None,
+                    "material": fil.get("material") or ace.get("material") or None,
+                    "color": (fil.get("color_hex") or ace.get("color") or "")[:6] or None,
+                    "total_mm": round(mm), "total_g": round(_spool_grams(bridge, spool, mm), 1),
+                    "rest_mm": round(rest.get(g, 0.0)), "rest_g": round(_spool_grams(bridge, spool, rest.get(g, 0.0)), 1)})
     return out
 
 

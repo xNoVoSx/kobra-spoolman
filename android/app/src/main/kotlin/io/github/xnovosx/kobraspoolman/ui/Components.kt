@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.Printer
+import io.github.xnovosx.kobraspoolman.data.SlotUse
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.Plex
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
@@ -101,7 +102,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 
 /** Druckerstatus oben auf dem Startbildschirm. */
 @Composable
-fun StatusCard(p: Printer, activeName: String?) {
+fun StatusCard(p: Printer, activeName: String?, uses: List<SlotUse> = emptyList()) {
     val c = statusColors(Format.stateKey(p))
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.bg).border(1.dp, c.line, RoundedCornerShape(18.dp))
@@ -124,6 +125,15 @@ fun StatusCard(p: Printer, activeName: String?) {
         }
         Text(left, style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1,
             overflow = TextOverflow.Ellipsis)
+        // welche Slots die Druckdatei benutzt (gesamt / noch offen)
+        uses.forEach { u ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(spoolColor(u.color)).border(1.dp, K.LineStrong, CircleShape))
+                Text("Benutzt: Slot ${u.slot}" + (u.name?.let { " · $it" } ?: "") +
+                    " · ~${Format.grams(u.totalG)}, noch ${Format.grams(u.restG)}",
+                    style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
         if (p.printDurationS != null || p.etaS != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TimeStat("Läuft", Format.duration(p.printDurationS))

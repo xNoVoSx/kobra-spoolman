@@ -57,6 +57,12 @@ export function PrinterCard({ compact, tall }) {
       ${active && html`<span class="muted row" style="gap:6px">Aktiv <${Swatch} color=${active.spool?.color} size=${12} /> <b style="color:var(--text)">Slot ${active.slot}</b></span>`}
       ${live && html`<span class="muted">bisher <b class="m" style="color:var(--text)">${grams(live.slots.reduce((a, s) => a + s.g, 0))}</b> · ${live.changes} Wechsel</span>`}
     </div>`}
+    ${running && S.st?.uses?.length > 0 && html`
+    <div class="row wrap small" style="gap:6px 18px" aria-label="Benutzte Slots">
+      <span class="muted">Benutzt</span>
+      ${S.st.uses.map((u) => html`<span class="muted row" style="gap:6px" title=${`gesamt ${u.total_mm} mm inkl. Spülen, noch ${u.rest_mm} mm`}>
+        <${Swatch} color=${u.color} size=${12} /><b style="color:var(--text)">Slot ${u.slot}</b>${u.name ? ` ${u.name}` : ""}${" · "}<b class="m" style="color:var(--text)">~${grams(u.total_g)}</b>, noch ${grams(u.rest_g)}</span>`)}
+    </div>`}
   </section>`;
 }
 

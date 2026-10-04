@@ -440,3 +440,4 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .hum-sessions { display: flex; flex-direction: column; gap: 8px; }
 .hum-session { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); display: flex; flex-direction: column; gap: 4px; }
 .set-text { width: min(320px, 50vw); }
+.set-time { width: 120px; }

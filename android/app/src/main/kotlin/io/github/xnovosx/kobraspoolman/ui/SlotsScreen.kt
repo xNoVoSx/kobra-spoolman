@@ -76,7 +76,8 @@ fun SlotsScreen(
         if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera, viewerUrl) }
         item {
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
-            StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName)
+            StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName,
+                if (state.printer.state == "printing" || state.printer.state == "paused") state.uses else emptyList())
         }
         if (state.canWrite && state.printer.state != "offline") item { ControlRow(state.printer, onPrintAction, onTune) }
         state.slots.chunked(2).forEach { row ->

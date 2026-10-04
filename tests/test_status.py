@@ -8,7 +8,7 @@ import pytest
 from test_appapi import FakeBridge
 
 from acebridge.render import parse_bytes
-from acebridge.status import notices, spool_reach
+from acebridge.status import file_usage, notices, spool_reach
 
 
 def two_tool_gcode() -> bytes:
@@ -62,6 +62,17 @@ def test_reach_includes_purge_of_coming_changes(bridge):
     need_without = spool_reach(bridge)[0]["need_mm"]
     bridge.purge.first_load_mm = 0
     assert spool_reach(bridge)[0]["need_mm"] < need_without            # erster Ladevorgang zaehlt mit
+
+
+def test_file_usage_lists_used_slots(bridge):
+    uses = {u["slot"]: u for u in file_usage(bridge)}
+    assert set(uses) == {1, 2}                                         # Slot 3/4 benutzt die Datei nicht
+    assert uses[1]["total_mm"] >= 130 and uses[1]["total_g"] > 0 and uses[1]["color"]
+    assert uses[1]["rest_mm"] == uses[1]["total_mm"]                   # Position 0: noch alles offen
+    bridge.moon.merge({"virtual_sdcard": {"file_position": 10 ** 6}})
+    assert file_usage(bridge)[0]["rest_mm"] < uses[1]["total_mm"]     # weiter hinten weniger offen (Stuetzstellen)
+    bridge.moon.merge({"print_stats": {"state": "complete"}})
+    assert file_usage(bridge) == []
 
 
 def test_no_reach_without_print_or_model(bridge):

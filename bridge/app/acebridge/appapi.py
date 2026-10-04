@@ -28,7 +28,7 @@ from .profiles import basic_info, color_hex, find_template, orca_filament_id
 from .slots import base_type
 from .auth import AuthError
 from .spoolman import NFC_UID_FIELD, TAG_NR_FIELD, extra_value
-from .status import notices
+from .status import file_usage, notices
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -556,6 +556,7 @@ class AppApi:
                 "dryer": b.dryer.state(),
                 "ace": b.ace.state(),
                 "usage": {"live": b.usage.live(), "open": b.usage.open},
+                "uses": file_usage(b),                    # Slots, die die laufende Druckdatei benutzt
                 "warnings": b.safety_warnings() + b.slots.warnings,
                 "notices": notices(b),
                 "last_control": getattr(b, "last_control", None),

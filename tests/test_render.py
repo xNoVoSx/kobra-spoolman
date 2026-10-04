@@ -6,6 +6,7 @@ import asyncio
 import base64
 import io
 import math
+import struct
 from types import SimpleNamespace
 
 import aiohttp
@@ -14,7 +15,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestServer
 from PIL import Image
 
-from acebridge.render import strand_width, BED_MM, GcodeModel, PrintPreview, display_rgb, geometry_bin, parse_bytes, render_png
+from acebridge.render import simplify, strand_width, BED_MM, GcodeModel, PrintPreview, display_rgb, geometry_bin, parse_bytes, render_png
 
 
 def png_bytes(w=8, h=8):
@@ -77,7 +78,45 @@ def test_geometry_for_the_3d_view():
     assert all(5 <= w <= 255 for w in width)
     assert len(g) == 28 + 4 * nl + 14 * n
     assert m.done_index(0) == 0 and m.done_index(10 ** 9) == 4
-    assert geometry_bin(m, max_segments=2)[16:20] == struct.pack("<I", 2)        # Schritt 2 beim Ausduennen
+    small = geometry_bin(m, max_segments=2)
+    assert struct.unpack("<I", small[8:12])[0] <= 2 and small[16:20] == struct.pack("<I", 1)
+
+
+def arc_gcode(n=60, r=20.0):
+    """Kreis aus n kleinen Stuecken (wie eine runde Wand) plus eine gerade Linie mit anderem Werkzeug."""
+    pts = [(100 + r * math.cos(2 * math.pi * i / n), 100 + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
+    lines = ["M83", "T0", f"G1 X{pts[0][0]:.4f} Y{pts[0][1]:.4f} Z0.2"]
+    lines += [f"G1 X{x:.4f} Y{y:.4f} E0.02" for x, y in pts[1:]]
+    lines += ["T1", "G1 X10 Y10", "G1 X60 Y10 E2"]
+    return ("\n".join(lines) + "\n").encode()
+
+
+def test_simplify_merges_curves_without_gaps():
+    m = parse_bytes(arc_gcode())
+    assert len(simplify(m)) == len(m)                                 # passt unter die Grenze: nichts zusammengefasst
+    ends = simplify(m, max_segments=len(m) * 2 // 3)                  # Grenze erzwingt Zusammenfassen
+    assert 8 < len(ends) <= len(m) * 2 // 3
+    assert ends[-1] == len(m) - 1 and m.tool[ends[-2]] == 0           # Werkzeugwechsel trennt immer
+    starts = [0] + [e + 1 for e in ends[:-1]]
+    for a, b in zip(starts[1:], ends[:-1], strict=False):             # lueckenlos: jede Strecke beginnt am Ende der vorigen
+        assert a == b + 1
+    # Abweichung jeder Original-Ecke von ihrer zusammengefassten Strecke <= hoechste Toleranz
+    for a, b in zip(starts, ends, strict=True):
+        ax, ay, bx, by = m.x0[a], m.y0[a], m.x1[b], m.y1[b]
+        L = math.hypot(bx - ax, by - ay) or 1
+        for k in range(a, b + 1):
+            assert abs((bx - ax) * (ay - m.y1[k]) - (ax - m.x1[k]) * (by - ay)) / L <= 0.2 + 1e-6
+
+
+def test_progress_counts_merged_segments():
+    m = parse_bytes(arc_gcode())
+    ends = simplify(m, max_segments=len(m) * 2 // 3)
+    g = geometry_bin(m, ends=ends)
+    assert struct.unpack("<I", g[8:12])[0] == len(ends)
+    import bisect
+    mid = len(m) // 2
+    done = bisect.bisect_left(ends, m.done_index(m.offset[mid]))      # Position nach Original-Strecke mid
+    assert 0 < done < len(ends) and ends[done - 1] <= mid
 
 
 def test_strand_width_from_extrusion():

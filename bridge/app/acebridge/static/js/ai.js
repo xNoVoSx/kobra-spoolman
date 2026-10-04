@@ -48,6 +48,8 @@ function Confirm({ label, sure = "Wirklich?", onYes, small = true, danger = true
 function Boxed({ src, size, dets = [], ignored = [], zones = [], level = "warn", children, onPointer }) {
   const [w, h] = size && size[0] ? size : [1280, 720];
   const color = level === "fail" ? "var(--danger)" : "var(--accent)";
+  const [gone, setGone] = useState(false);              // Bild geloescht (z. B. Druck in der Sammlung entfernt)
+  useEffect(() => setGone(false), [src]);
   const rect = (b, stroke, dash, label) => {
     const [xc, yc, bw, bh] = b;
     return html`<g><rect x=${(xc - bw / 2) * w} y=${(yc - bh / 2) * h} width=${bw * w} height=${bh * h} fill="none" stroke=${stroke}
@@ -55,7 +57,8 @@ function Boxed({ src, size, dets = [], ignored = [], zones = [], level = "warn",
       ${label && html`<text x=${(xc - bw / 2) * w + 4} y=${(yc - bh / 2) * h + Math.max(14, h / 40)} fill=${stroke} font-size=${Math.max(12, h / 45)}>${label}</text>`}</g>`;
   };
   return html`<div class="ai-img" style=${{ aspectRatio: `${w} / ${h}` }}>
-    ${src ? html`<img src=${src} alt="Kamerabild" />` : html`<div class="media-empty">kein Bild</div>`}
+    ${src && !gone ? html`<img src=${src} alt="Kamerabild" onError=${() => setGone(true)} />`
+      : html`<div class="media-empty">${src ? "Bild gelöscht" : "kein Bild"}</div>`}
     <svg class="ai-boxes" viewBox=${`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true"
       onPointerDown=${onPointer?.down} onPointerMove=${onPointer?.move} onPointerUp=${onPointer?.up} style=${onPointer ? { pointerEvents: "auto", cursor: "crosshair", touchAction: "none" } : null}>
       ${zones.map((z) => html`<rect x=${z.x * w} y=${z.y * h} width=${z.w * w} height=${z.h * h} fill="rgba(80,140,255,.18)" stroke="#5a8cff" stroke-width="2" vector-effect="non-scaling-stroke" />`)}
@@ -177,19 +180,19 @@ function Settings({ v, reload }) {
     <div class="lbl">Ruhezeiten</div>
     <${Toggle} label="Ruhezeiten" hint="Z. B. nachts anders reagieren" value=${q.enabled} onChange=${(x) => ch({ quiet: { ...q, enabled: x } })} />
     ${q.enabled && html`<div class="row wrap">
-      <label class="row small">von <input type="time" value=${q.start} onInput=${(e) => ch({ quiet: { ...q, start: e.target.value } })} /></label>
-      <label class="row small">bis <input type="time" value=${q.end} onInput=${(e) => ch({ quiet: { ...q, end: e.target.value } })} /></label>
+      <label class="row small">von <input class="inp set-time" type="time" value=${q.start} onInput=${(e) => ch({ quiet: { ...q, start: e.target.value } })} /></label>
+      <label class="row small">bis <input class="inp set-time" type="time" value=${q.end} onInput=${(e) => ch({ quiet: { ...q, end: e.target.value } })} /></label>
       ${seg([["Nur Fehldruck melden", "fail_only"], ["Bei Fehldruck pausieren", "pause"]], q.mode, (x) => ch({ quiet: { ...q, mode: x } }))}</div>`}
     <div class="lbl">Zeiten</div>
     <div class="row wrap ai-nums">
-      <label>Bild alle <input type="number" min="2" max="60" value=${s.interval_s} onInput=${(e) => ch({ interval_s: Number(e.target.value) })} /> s</label>
-      <label>Lernzeit am Druckanfang <input type="number" min="0" max="15" value=${Math.round(s.safe_s / 60)} onInput=${(e) => ch({ safe_s: Number(e.target.value) * 60 })} /> min</label>
+      <label>Bild alle <input class="inp set-num" type="number" min="2" max="60" value=${s.interval_s} onInput=${(e) => ch({ interval_s: Number(e.target.value) })} /> s</label>
+      <label>Lernzeit am Druckanfang <input class="inp set-num" type="number" min="0" max="15" value=${Math.round(s.safe_s / 60)} onInput=${(e) => ch({ safe_s: Number(e.target.value) * 60 })} /> min</label>
     </div>
     <div class="small muted">In der Lernzeit meldet die KI nie (erste Schicht, Spülen, Abstreifen). Die Bewertung ist auf ~10 s je Bild abgestimmt.</div>
     <div class="lbl">Bildersammlung</div>
     <div class="row wrap ai-nums">
-      <label>höchstens <input type="number" min="0" max="100" step="0.5" value=${s.dataset_gb} onInput=${(e) => ch({ dataset_gb: Number(e.target.value) })} /> GB</label>
-      <label>ein Bild alle <input type="number" min="10" max="600" value=${s.save_every_s} onInput=${(e) => ch({ save_every_s: Number(e.target.value) })} /> s</label>
+      <label>höchstens <input class="inp set-num" type="number" min="0" max="100" step="0.5" value=${s.dataset_gb} onInput=${(e) => ch({ dataset_gb: Number(e.target.value) })} /> GB</label>
+      <label>ein Bild alle <input class="inp set-num" type="number" min="10" max="600" value=${s.save_every_s} onInput=${(e) => ch({ save_every_s: Number(e.target.value) })} /> s</label>
     </div>
     <div class="small muted">Dazu jedes verdächtige Bild und jeder Alarm. 0 GB = nichts sammeln. Bei weniger Platz werden die ältesten Drucke gelöscht.</div>
     <div class="row"><span class="grow"></span>
@@ -320,7 +323,7 @@ function Gallery({ key_ }) {
     <div class="row wrap">${FILTERS.map(([k, l]) => html`<button class=${cls("chip", filter === k && "on")} onClick=${() => setFilter(k)}>${l}</button>`)}</div>
     <div class="ai-frames">${show.map((f) => html`<div class="ai-frame">
       ${key_ ? html`<${Boxed} src=${img(job, f.frame)} size=${f.size} dets=${f.detections || []} ignored=${f.ignored || []} level=${f.level === "fail" ? "fail" : "warn"} />` : null}
-      <div class="row small"><span class="m">${time(f.t)}</span><span class="muted">${KIND[f.kind] || f.kind}</span><span class="m grow" style="text-align:right">p ${num(f.p, 2)}</span></div>
+      <div class="row small"><span class="m">${time(f.t)}</span><span class="muted">${KIND[f.kind] || f.kind}</span><span class="m grow" style="text-align:right" title="Summe der Sicherheiten aller Funde in diesem Bild – nicht der Wert 0–1 aus „Live“">Funde ${Number(f.p || 0).toFixed(2).replace(".", ",")}</span></div>
       <div class="row wrap" style="gap:4px">${Object.entries(list.stats.labels).map(([k, l]) => html`<button class=${cls("chip", f.label === k && "on")} onClick=${() => label(f, k)}>${l}</button>`)}</div>
       <div class="row"><span class="grow small muted">${f.layer != null ? `Schicht ${f.layer}` : ""}</span>
         <${Confirm} label="Löschen" sure="Bild löschen?" onYes=${async () => { await del(`/api/vision/jobs/${encodeURIComponent(job)}/${encodeURIComponent(f.frame)}`); patch(f.frame, (fr, n) => fr.filter((x) => x.frame !== n)); setPage((pg) => ({ ...pg, total: pg.total - 1 })); }} /></div>

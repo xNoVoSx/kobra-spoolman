@@ -593,7 +593,8 @@ def build_app(bridge: "Bridge") -> web.Application:
 
     @r.get("/api/print/info")
     async def print_info(_):
-        return web.json_response(bridge.preview.info(bridge.moon.status))
+        from .status import file_usage
+        return web.json_response({**bridge.preview.info(bridge.moon.status), "uses": file_usage(bridge)})
 
     @r.get("/api/print/preview.png")
     async def print_preview(_):

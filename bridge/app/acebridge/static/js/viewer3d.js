@@ -271,7 +271,7 @@ export class PrintView {
     this.done = 0;
     this.maxLayer = 0;
     this.single = false;
-    this.ghost = true;
+    this.rest = "glass";              // Rest (noch nicht gedruckt): glass = durchsichtig, full = deckend, off = aus
     this.colors = Array(16).fill([0.8, 0.8, 0.8]);
     this.cam = { yaw: -0.75, pitch: 0.55, dist: 420, target: [125, 125, 10] };
     this.dirty = true;
@@ -443,7 +443,8 @@ export class PrintView {
     gl.uniform1f(u("u_zmax"), g.zmax);
     gl.uniform1f(u("u_maxLayer"), this.maxLayer);
     gl.uniform1f(u("u_single"), this.single ? 1 : 0);
-    gl.uniform1i(u("u_done"), this.done);
+    // "Voll": alles in vollen Farben wie in Orca - der Fortschritt steckt dann nur in der Duese
+    gl.uniform1i(u("u_done"), this.rest === "full" ? g.n : this.done);
     gl.uniform3fv(u("u_colors"), this.colors.flat());
     const volume = this.mode === "volume";
     gl.uniform1i(u("u_volume"), volume ? 1 : 0);
@@ -455,7 +456,7 @@ export class PrintView {
     gl.uniform1i(u("u_pass"), 0);
     draw();                                                   // Gedrucktes, deckend
     this._nozzle(m);
-    if (this.ghost && this.done < g.n) {
+    if (this.rest === "glass" && this.done < g.n) {
       // Rest blass durchsichtig: erst nur die Tiefe (vorderste Flaeche), dann einmal Farbe darueber blenden -
       // so liegen hintereinander liegende Bahnen nicht mehrfach uebereinander
       gl.useProgram(p);

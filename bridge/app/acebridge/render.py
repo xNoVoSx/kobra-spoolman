@@ -227,52 +227,105 @@ DEFAULT_WIDTH_MM = 0.45
 MAX_GEOMETRY = 1_500_000         # mehr Strecken schickt die Bridge nicht an Browser/App (ausgeduennt)
 
 
-def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> bytes:
+SIMPLIFY_TOLERANCES = (0.02, 0.05, 0.1, 0.2)      # mm Abweichung beim Zusammenfassen (Bogenhoehe)
+MAX_TURN = math.radians(35)                       # staerkere Knicke werden nie zusammengefasst
+
+
+def simplify(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> array:
+    """Strecken fuer die 3D-Ansicht zusammenfassen statt weglassen: aufeinanderfolgende, verbundene Stuecke derselben
+    Bahn (gleiches Werkzeug, gleiche Hoehe) werden eine Strecke, solange die Bogenhoehe (Sehne * Drehwinkel / 8)
+    unter der Toleranz bleibt - Rundungen aus vielen kleinen Stuecken werden so stark reduziert, ohne Loecher.
+    Ergebnis: Index der letzten Original-Strecke je zusammengefasster Strecke. Reicht auch die groesste Toleranz
+    nicht, wird gleichmaessig weggelassen (nur bei riesigen Dateien)."""
+    n = len(model)
+    x0, y0, x1, y1, z, tool = model.x0, model.y0, model.x1, model.y1, model.z, model.tool
+    ends = array("I")
+    for tol in SIMPLIFY_TOLERANCES:
+        ends = array("I")
+        i = 0
+        while i < n:
+            sx, sy = x0[i], y0[i]
+            dx, dy = x1[i] - x0[i], y1[i] - y0[i]
+            prev = math.atan2(dy, dx)
+            turned = 0.0
+            j = i
+            while j + 1 < n:
+                k = j + 1
+                if (tool[k] != tool[i] or abs(z[k] - z[i]) > 1e-4 or abs(x0[k] - x1[j]) > 1e-3
+                        or abs(y0[k] - y1[j]) > 1e-3):
+                    break
+                ang = math.atan2(y1[k] - y0[k], x1[k] - x0[k])
+                d = abs((ang - prev + math.pi) % (2 * math.pi) - math.pi)
+                if d > MAX_TURN:
+                    break
+                chord = math.hypot(x1[k] - sx, y1[k] - sy)
+                if chord * (turned + d) / 8 > tol:
+                    break
+                turned += d
+                prev = ang
+                j = k
+            ends.append(j)
+            i = j + 1
+        if len(ends) <= max_segments:
+            return ends
+    step = -(-len(ends) // max_segments)
+    return array("I", ends[::step])
+
+
+def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY, ends: Optional[array] = None) -> bytes:
     """Strecken fuer die 3D-Ansicht im Browser - kompakt, little-endian:
 
-    Kopf: "KSG1", u16 Version 2, u16 frei, u32 Strecken, u32 Schichten, u32 Schritt (Ausduennung), f32 Bett-mm,
-          f32 Z-Hoechstwert, dann f32[Schichten] (Z je Schicht)
+    Kopf: "KSG1", u16 Version 2, u16 frei, u32 Strecken, u32 Schichten, u32 Schritt (immer 1: "done" in
+          /api/print/info zaehlt schon die zusammengefassten Strecken), f32 Bett-mm, f32 Z-Hoechstwert,
+          dann f32[Schichten] (Z je Schicht)
     Spalten je Strecke: u16 x0, y0, x1, y1 (0..65535 = 0..Bett-mm), u16 z (0..65535 = 0..Z-max), u16 Schicht,
-          u8 Werkzeug, u8 Strangbreite (1/100 mm; 0 = unbekannt).  14 Byte je Strecke - 600 000 Strecken ~ 8,4 MB,
-          gepackt ~ 4 MB. Version 1 hatte keine Breite.
-    Wer die Strecke i (in Dateireihenfolge) schon gedruckt hat, steht in /api/print/info als "done" (/ Schritt).
+          u8 Werkzeug, u8 Strangbreite (1/100 mm; 0 = unbekannt).  14 Byte je Strecke - 1,5 Mio. ~ 21 MB,
+          gepackt ~ 10 MB. Version 1 hatte keine Breite.
+    Strecken sind zusammengefasst (simplify); ends = Index der letzten Original-Strecke je Strecke.
     """
     import bisect
     import struct
     import sys
-    n = len(model)
-    step = max(1, -(-n // max_segments)) if n else 1
-    idx = range(0, n, step)
+    if ends is None:
+        ends = simplify(model, max_segments)
+    starts = [0] + [e + 1 for e in ends[:-1]]
+    runs = list(zip(starts, ends, strict=True))
     layers = model.layers or [0.0]
     zmax = max(max(layers), 0.01)
     q = 65535.0 / BED_MM
     qz = 65535.0 / zmax
 
-    def col(src, scale):
-        return array("H", (min(65535, max(0, int(src[i] * scale + 0.5))) for i in idx))
-    cols = [col(model.x0, q), col(model.y0, q), col(model.x1, q), col(model.y1, q), col(model.z, qz),
-            array("H", (min(65535, bisect.bisect_left(layers, model.z[i] - 1e-4)) for i in idx))]
-    tools = array("B", (model.tool[i] for i in idx))
+    def col(vals, scale):
+        return array("H", (min(65535, max(0, int(v * scale + 0.5))) for v in vals))
+    cols = [col((model.x0[a] for a, _ in runs), q), col((model.y0[a] for a, _ in runs), q),
+            col((model.x1[b] for _, b in runs), q), col((model.y1[b] for _, b in runs), q),
+            col((model.z[b] for _, b in runs), qz),
+            array("H", (min(65535, bisect.bisect_left(layers, model.z[b] - 1e-4)) for _, b in runs))]
+    tools = array("B", (model.tool[b] for _, b in runs))
     heights = [layers[0]] + [b - a for a, b in zip(layers, layers[1:], strict=False)]
-    widths = array("B", (strand_width(model, i, heights, layers) for i in idx))
+    widths = array("B", (strand_width(model, a, heights, layers, b) for a, b in runs))
     if sys.byteorder != "little":
         for c in cols:
             c.byteswap()
-    head = GEOM_MAGIC + struct.pack("<HHIIIff", GEOM_VERSION, 0, len(tools), len(layers), step, BED_MM, zmax)
+    head = GEOM_MAGIC + struct.pack("<HHIIIff", GEOM_VERSION, 0, len(tools), len(layers), 1, BED_MM, zmax)
     return (head + array("f", layers).tobytes() + b"".join(c.tobytes() for c in cols) + tools.tobytes()
             + widths.tobytes())
 
 
-def strand_width(model: GcodeModel, i: int, heights: List[float], layers: List[float]) -> int:
+def strand_width(model: GcodeModel, i: int, heights: List[float], layers: List[float], last: Optional[int] = None) -> int:
     """Strangbreite (1/100 mm) aus Filamentmenge, Laenge und Schichthoehe - Querschnitt wie in Slic3r/Orca:
     Rechteck mit halbrunden Seiten, also Flaeche = (w - h) * h + pi * (h/2)^2."""
     import bisect
-    length = math.hypot(model.x1[i] - model.x0[i], model.y1[i] - model.y0[i])
+    last = i if last is None else last
+    length = ext = 0.0
+    for k in range(i, last + 1):                 # zusammengefasste Strecke: Laenge und Filament aufsummieren
+        length += math.hypot(model.x1[k] - model.x0[k], model.y1[k] - model.y0[k])
+        ext += model.ext[k]
     k = min(len(heights) - 1, bisect.bisect_left(layers, model.z[i] - 1e-4))
     h = heights[k] if heights[k] > 0.02 else 0.2
-    if length < 0.05 or model.ext[i] <= 0:
+    if length < 0.05 or ext <= 0:
         return round(DEFAULT_WIDTH_MM * 100)
-    area = model.ext[i] * math.pi * (model.diameter / 2) ** 2 / length
+    area = ext * math.pi * (model.diameter / 2) ** 2 / length
     w = area / h + h * (1 - math.pi / 4)
     return max(5, min(255, round(w * 100)))
 
@@ -434,6 +487,7 @@ class PrintPreview:
             self._task.cancel()
         self.file, self.status, self.error = name, "loading", None
         self.model, self.png, self.png_position, self.loaded_bytes, self.size = None, None, None, 0, 0
+        self._ends, self._ends_key = None, None
         self._task = asyncio.create_task(self._load(name))
 
     async def _load(self, name: str) -> None:
@@ -461,8 +515,12 @@ class PrintPreview:
                 if rest:
                     pos += len(rest)
                     model.feed_line(rest.decode("utf-8", "ignore"), pos)
+            limit = getattr(self.cfg, "geometry_max_segments", MAX_GEOMETRY)
+            ends = await asyncio.get_running_loop().run_in_executor(None, simplify, model, limit)
+            self._ends, self._ends_key = ends, (len(model), limit)
             self.model, self.status = model, "ready"
-            log.info("Vorschau: %s geladen (%d Strecken, %d Schichten)", name, len(model), len(model.layers))
+            log.info("Vorschau: %s geladen (%d Strecken, %d Schichten, 3D: %d Strecken)", name, len(model),
+                     len(model.layers), len(ends))
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001
@@ -474,13 +532,31 @@ class PrintPreview:
         m = self.model
         if not m or not len(m) or self.status != "ready":
             return None
-        limit_now = getattr(self.cfg, "geometry_max_segments", MAX_GEOMETRY)
-        key = (self.file, len(m), limit_now)
+        ends = await self._simplified()
+        key = (self.file, len(m), len(ends))
         if getattr(self, "_geom_key", None) != key:
-            limit = limit_now
-            self._geom = await asyncio.get_running_loop().run_in_executor(None, geometry_bin, m, limit)
+            self._geom = await asyncio.get_running_loop().run_in_executor(None, geometry_bin, m, len(ends), ends)
             self._geom_key = key
         return self._geom
+
+    async def _simplified(self) -> array:
+        """Zusammengefasste Strecken (simplify) - neu, wenn sich die Grenze in den Einstellungen geaendert hat."""
+        m = self.model
+        limit = getattr(self.cfg, "geometry_max_segments", MAX_GEOMETRY)
+        if getattr(self, "_ends_key", None) != (len(m), limit):
+            self._ends = await asyncio.get_running_loop().run_in_executor(None, simplify, m, limit)
+            self._ends_key = (len(m), limit)
+        return self._ends
+
+    def _done_runs(self, pos: Optional[int]) -> int:
+        """Fortschritt in zusammengefassten Strecken: fertig ist eine Strecke, wenn ihr letztes Stueck gedruckt ist."""
+        import bisect
+        m = self.model
+        ends = getattr(self, "_ends", None)
+        d = m.done_index(pos)
+        if ends is None or getattr(self, "_ends_key", (None,))[0] != len(m):
+            return d
+        return bisect.bisect_left(ends, d)
 
     async def _thumbnail_only(self, r: aiohttp.ClientResponse) -> None:
         model = GcodeModel()
@@ -529,8 +605,9 @@ class PrintPreview:
         pos = (status.get("virtual_sdcard") or {}).get("file_position")
         return {"file": self.file, "status": self.status, "error": self.error,
                 "segments": len(m) if m else 0, "layers": len(m.layers) if m else 0,
-                "done": m.done_index(pos) if m and len(m) else 0,
-                "geometry": f"{self.file}:{len(m)}" if m and len(m) and self.status == "ready" else None,
+                "done": self._done_runs(pos) if m and len(m) else 0,
+                "geometry": f"{self.file}:{len(m)}:{len(getattr(self, '_ends', []) or [])}"
+                if m and len(m) and self.status == "ready" else None,
                 # Farbe je Werkzeug fuer die 3D-Ansicht, wie im Bild der Bridge aufgehellt (dunkles Filament sichtbar)
                 "colours": ["%02x%02x%02x" % display_rgb(c) for c in self.colours(status)] if m else [],
                 "filament_colours": ["%02x%02x%02x" % _rgb(c) for c in self.colours(status)] if m else [],

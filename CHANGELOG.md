@@ -6,6 +6,30 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.21.0] – 2026-10-04
+
+Ships app 1.8.0.
+
+### Added
+- **Benutzt** line under the print (web UI and app): the slots the running file uses, with the total amount and
+  what is still to print, purge included (`uses` in `/api/print/info` and `/api/app/state`).
+- 3D view: **Rest** switch in the window — *Durchsichtig*, *Voll* (whole model in full colour, like Orca) or
+  *Aus*; remembered per device.
+
+### Changed
+- 3D view of large files: connected pieces of a line are **merged** instead of every n-th segment being left out —
+  no more holes in infill and jagged walls. A 3.4 M segment print fits under the 1.5 M limit at 0.1 mm deviation.
+- KI tab: the value under each picture is called *Funde* (sum of the confidences in that picture) instead of *p*;
+  number fields styled like the rest of the settings.
+
+### Fixed
+- KI tab: events whose picture was deleted with its print show *Bild gelöscht* instead of a broken image.
+
+## app 1.8.0 – 2026-10-04
+
+- Startseite: Zeile „Benutzt“ mit den Slots der Druckdatei, Gesamtmenge und was noch kommt
+- 3D-Ansicht: Umschalter „Rest“ (Durchsichtig, Voll, Aus)
+
 ## [2.20.0] – 2026-10-03
 
 ### Changed

@@ -3,6 +3,10 @@
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { PrintView, effectiveQuality, parseGeometry } from "./viewer3d.js";
+
+const REST_KEY = "kobra.render3d.rest";
+const RESTS = [["glass", "Durchsichtig"], ["full", "Voll"], ["off", "Aus"]];
+const loadRest = () => { try { const v = localStorage.getItem(REST_KEY); return RESTS.some(([k]) => k === v) ? v : "glass"; } catch { return "glass"; } };
 import { cls } from "./util.js";
 
 export function Model3D({ info, fallback }) {
@@ -12,7 +16,8 @@ export function Model3D({ info, fallback }) {
   const [loading, setLoading] = useState(false);
   const [layer, setLayer] = useState(null);          // null = alles (live)
   const [single, setSingle] = useState(false);
-  const [ghost, setGhost] = useState(true);
+  const [rest, setRestState] = useState(loadRest);          // pro Geraet gemerkt
+  const setRest = (v) => { setRestState(v); try { localStorage.setItem(REST_KEY, v); } catch { /* egal */ } };
   const [geoKey, setGeoKey] = useState(null);
   const mode = effectiveQuality();
   const total = info?.layers || 0;
@@ -41,9 +46,9 @@ export function Model3D({ info, fallback }) {
   // Fortschritt, Farben, Schicht
   useEffect(() => {
     const v = view.current; if (!v || !v.geo) return;
-    v.set({ mode, done: Math.floor((info?.done || 0) / (v.step || 1)), maxLayer: layer == null ? total - 1 : layer - 1, single: single && layer != null, ghost });
+    v.set({ mode, done: Math.floor((info?.done || 0) / (v.step || 1)), maxLayer: layer == null ? total - 1 : layer - 1, single: single && layer != null, rest });
     v.setColors(info?.filament_colours?.length ? info.filament_colours : info?.colours);     // Originalfarben wie in Orca
-  }, [info?.done, info?.filament_colours?.join(), info?.colours?.join(), layer, single, ghost, mode, geoKey, total]);
+  }, [info?.done, info?.filament_colours?.join(), info?.colours?.join(), layer, single, rest, mode, geoKey, total]);
 
   if (mode === "image" || err) return html`${fallback}${err && html`<span class="media-meta m">3D: ${err}</span>`}`;
   const cur = info?.layer || 0;
@@ -52,7 +57,8 @@ export function Model3D({ info, fallback }) {
     ${loading && html`<div class="m3d-loading">Bahnen werden geladen …</div>`}
     <div class="m3d-bar">
       <div class="seg">${[["iso", "3D"], ["top", "Oben"], ["front", "Vorne"]].map(([k, l]) => html`<button class="seg-btn" onClick=${() => view.current?.view(k)}>${l}</button>`)}</div>
-      <label class="m3d-chk"><input type="checkbox" checked=${ghost} onChange=${(e) => setGhost(e.target.checked)} />Rest</label>
+      <span class="m3d-chk">Rest</span>
+      <div class="seg" role="group" aria-label="Noch nicht gedruckter Teil">${RESTS.map(([k, l]) => html`<button class=${cls("seg-btn", rest === k && "on")} aria-pressed=${rest === k} onClick=${() => setRest(k)}>${l}</button>`)}</div>
       <label class="m3d-chk"><input type="checkbox" checked=${single} disabled=${layer == null} onChange=${(e) => setSingle(e.target.checked)} />nur Schicht</label>
       <input class="grow" type="range" min="1" max=${Math.max(1, total)} value=${layer ?? total} aria-label="Schicht"
         onInput=${(e) => setLayer(Number(e.target.value) >= total ? null : Number(e.target.value))} />

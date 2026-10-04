@@ -43,7 +43,7 @@
 | `RENDER` | `true` | draw the running print file (preview) |
 | `RENDER_MAX_MB` | `200` | larger files only get the slicer thumbnail |
 | `RENDER_INTERVAL_S` | `15` | redraw at most this often while printing |
-| `GEOMETRY_MAX_SEGMENTS` | `1500000` | detail of the 3D view: more toolpath segments are thinned out (1.5 M ≈ 20 MB transfer) |
+| `GEOMETRY_MAX_SEGMENTS` | `1500000` | detail of the 3D view: above this, connected pieces of a line are merged (deviation 0.02 → 0.2 mm, as little as needed); only if that is not enough, segments are left out. 1.5 M ≈ 20 MB transfer |
 | `HUMIDITY_DAYS` | `30` | days of ACE humidity history kept (`DATA_DIR/humidity/`) |
 | `ROOM_RH` | `50` | humidity (%) of the storage room for the spool moisture estimate, used while no room sensor delivers fresh values |
 | `DRY_LOCATIONS` | – | Spoolman locations with their own humidity, e.g. `Trockenbox=15; Vakuumbeutel=10` |

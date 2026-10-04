@@ -24,6 +24,17 @@ data class AppState(
     @SerialName("last_control") val lastControl: LastControl? = null,
     val vision: VisionInfo? = null,
     val moisture: Map<String, MoistureBrief>? = null,
+    val uses: List<SlotUse> = emptyList(),
+)
+
+/** Slot, den die laufende Druckdatei benutzt: gesamt und noch offen (inkl. Spuelen). */
+@Serializable
+data class SlotUse(
+    val slot: Int,
+    val name: String? = null,
+    val color: String? = null,
+    @SerialName("total_g") val totalG: Double? = null,
+    @SerialName("rest_g") val restG: Double? = null,
 )
 
 /** Feuchte-Schaetzung einer Spule in /api/app/state (Kurzform). state: unknown | ok | soon | wet */

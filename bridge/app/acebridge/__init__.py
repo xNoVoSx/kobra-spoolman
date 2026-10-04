@@ -1,11 +1,17 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.20.0"
+__version__ = "2.21.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.21.0", "2026-10-04", [
+        "Zeile „Benutzt“: welche Slots der Druck braucht, gesamt und was noch kommt",
+        "3D-Ansicht: „Rest“ durchsichtig, voll oder aus; große Dateien ohne Löcher (zusammengefasst statt weggelassen)",
+        "KI-Tab: gelöschte Bilder sauber angezeigt, „Funde“ statt „p“",
+        "App 1.8.0: Zeile „Benutzt“ auf der Startseite",
+    ]),
     ("2.20.0", "2026-10-03", [
         "3D-Ansicht wie in Orca: Druckplatte mit Raster, grauer Hintergrund, runde Stränge in echter Breite, kräftige Farben",
     ]),
