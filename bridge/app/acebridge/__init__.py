@@ -1,11 +1,15 @@
 """ace-lane-bridge v2 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "2.21.0"
+__version__ = "2.21.1"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("2.21.1", "2026-10-06", [
+        "Rücksync aus Orca löscht nie mehr ein Spoolman-Feld, nur weil ein Wert unlesbar ist (Düsentemperatur war weg)",
+        "Orca-Plugin 0.5.2 empfohlen: Profile aus Orca 2.5 laden wieder, Rücksync nimmt den Wert der aktiven Extruder-Variante",
+    ]),
     ("2.21.0", "2026-10-04", [
         "Zeile „Benutzt“: welche Slots der Druck braucht, gesamt und was noch kommt",
         "3D-Ansicht: „Rest“ durchsichtig, voll oder aus; große Dateien ohne Löcher (zusammengefasst statt weggelassen)",

@@ -6,6 +6,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [2.21.1] – 2026-10-06
+
+Use with plugin 0.5.2.
+
 ### Fixed
 - Bridge: back-sync never clears a Spoolman field because a value cannot be read. A list per extruder
   variant sent as text (plugin 0.5.1) was converted to "no value" and deleted the nozzle temperature;
