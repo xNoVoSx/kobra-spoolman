@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.5.1"
+# version = "0.5.2"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -53,7 +53,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.5.1"
+PLUGIN_VERSION = "0.5.2"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -66,6 +66,7 @@ DEFAULT_CONFIG = {
     "warn_after_slice": True,       # Orca-Hinweis, wenn eine Spule nach dem Slicen nicht reicht
 }
 # Schluessel, die das Plugin selbst setzt und die nie als "Aenderung" nach Spoolman gehen
+ACTIVE_VARIANT = "Direct Drive Standard"    # printer_extruder_variant des Kobra S1
 META_KEYS = {"name", "inherits", "from", "instantiation", "setting_id", "filament_id", "version", "type",
              "filament_settings_id", "compatible_printers", "compatible_printers_condition",
              "compatible_prints", "compatible_prints_condition", "filament_notes", "is_custom_defined",
@@ -298,21 +299,32 @@ def diff_profiles(written, saved):
     fuegt Orca beim Speichern als eigenen Standardwert hinzu (Orca 2.5: ~80 Schluessel, viele je Extruder-Variante)
     - das ist keine Aenderung des Nutzers."""
     changes = {}
+    idx = active_variant_index(saved)
     for key in written:
         if key in META_KEYS:
             continue
         a, b = written.get(key), saved.get(key)
         if b is None:
             continue
-        nb = normalize(b)
-        if normalize(a) != nb:
-            lst = as_list(b)
-            if lst is not None and len(lst) > 1 and len(set(map(str, lst))) > 1:
-                changes[key] = json.dumps(lst, ensure_ascii=False)   # echte Unterschiede je Variante
-            else:
-                v = lst[0] if lst else b
-                changes[key] = v if isinstance(v, str) else fmt_value(v)
+        lst = as_list(b)
+        if lst is not None and len(lst) > 1:
+            # Orca aendert in der Oberflaeche nur die aktive Variante ("Direct Drive Standard" beim S1) - in
+            # Spoolman steht ein Wert pro Feld, also zaehlt genau dieser (eine Liste als Text loescht sonst das Feld)
+            b = lst[idx] if idx < len(lst) else lst[0]
+        if normalize(a) != normalize(b):
+            v = as_list(b)
+            v = v[0] if v else b
+            changes[key] = v if isinstance(v, str) else fmt_value(v)
     return changes
+
+
+def active_variant_index(profile):
+    """Index der Extruder-Variante des Druckers in filament_extruder_variant (Kobra S1: Direct Drive Standard)."""
+    variants = profile.get("filament_extruder_variant") or []
+    try:
+        return list(variants).index(ACTIVE_VARIANT)
+    except ValueError:
+        return 0
 
 
 # ====================================================================== Spuelen der ACE

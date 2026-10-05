@@ -107,8 +107,16 @@ def test_diff_ignores_orca_defaults_and_variant_expansion(ks):
     assert ks.diff_profiles(written, saved) == {}
     saved["nozzle_temperature"] = ["265"] * 6                       # echte Aenderung, je Variante gleich
     assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "265"}
-    saved["nozzle_temperature"] = ["265", "270", "265", "265", "265", "265"]   # je Variante verschieden
-    assert ks.diff_profiles(written, saved) == {"nozzle_temperature": json.dumps(saved["nozzle_temperature"])}
+    # Orca aendert in der Oberflaeche nur die aktive Variante -> deren Wert zaehlt (Fehler 06.10.: Liste als Text
+    # kam bei der Bridge als "kein Wert" an und loeschte die Duesentemperatur in Spoolman)
+    saved["filament_extruder_variant"] = ["Direct Drive Standard", "Direct Drive High Flow", "Bowden Standard"]
+    saved["nozzle_temperature"] = ["255", "260", "260"]
+    assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "255"}
+    saved["filament_extruder_variant"] = ["Bowden Standard", "Direct Drive Standard", "Direct Drive High Flow"]
+    saved["nozzle_temperature"] = ["260", "250", "260"]
+    assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "250"}
+    saved["nozzle_temperature"] = ["250", "260", "260"]        # nur eine andere Variante geaendert -> nichts
+    assert ks.diff_profiles(written, saved) == {}
 
 
 def test_build_profile_json_turns_list_text_back_into_list(ks, system):

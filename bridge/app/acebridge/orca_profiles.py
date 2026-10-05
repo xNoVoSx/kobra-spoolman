@@ -87,6 +87,21 @@ def _convert(value: Any, typ: Callable[[Any], Any]) -> Any:
         return None
 
 
+def _first_of_list(value: Any) -> Any:
+    """Orca 2.5 speichert viele Filamentwerte je Extruder-Variante; ein aelteres Plugin schickte sie als
+    JSON-Liste im Text. Spoolman hat einen Wert pro Feld -> der erste Eintrag (Direct Drive Standard)."""
+    if isinstance(value, list):
+        return value[0] if value else None
+    if isinstance(value, str) and value.strip().startswith("["):
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            return value
+        if isinstance(parsed, list):
+            return parsed[0] if parsed else None
+    return value
+
+
 def parse_overrides(text: Any) -> Dict[str, str]:
     """'schluessel = wert' je Zeile; Kommentare mit # am Zeilenanfang."""
     out: Dict[str, str] = {}
@@ -196,7 +211,11 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
             continue
         if key in ORCA_TO_SOURCE:
             src, typ = ORCA_TO_SOURCE[key]
+            raw = _first_of_list(raw)
             val = _convert(raw, typ)
+            if val is None and raw not in (None, ""):
+                ignored.append(key)  # nicht lesbar: nie ein Feld loeschen, nur weil der Wert unbekannt aussieht
+                continue
             kind, name = src.split(":", 1)
             if kind == "native":
                 patch[name] = val

@@ -61,6 +61,19 @@ def test_backsync_maps_known_fields_and_keeps_the_rest_as_overrides():
     assert "filament_id" in ignored and applied["nozzle_temperature"] == 245
 
 
+def test_backsync_never_clears_a_field_for_an_unreadable_value():
+    """06.10.: Plugin 0.5.1 schickte eine Liste je Extruder-Variante als Text - die Bridge machte daraus
+    "kein Wert" und loeschte die Duesentemperatur in Spoolman."""
+    patch, applied, ignored = backsync_patch(FILAMENT, {
+        "nozzle_temperature": '["255", "260", "260", "260", "260", "260"]',
+        "nozzle_temperature_initial_layer": ["255", "260"],
+        "fan_max_speed": "viel"})
+    assert patch["settings_extruder_temp"] == 255
+    assert patch["extra"]["nozzle_temp_first_layer"] == "255"
+    assert "fan_max" not in patch.get("extra", {}) and "fan_max_speed" in ignored
+    assert applied == {"nozzle_temperature": 255, "nozzle_temperature_initial_layer": 255}
+
+
 def test_backsync_accepts_both_colour_keys():
     for key in ("default_filament_colour", "filament_colour"):
         patch, applied, ignored = backsync_patch(FILAMENT, {key: "#a1b2c3"})

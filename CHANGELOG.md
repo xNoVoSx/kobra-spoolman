@@ -6,6 +6,19 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Bridge: back-sync never clears a Spoolman field because a value cannot be read. A list per extruder
+  variant sent as text (plugin 0.5.1) was converted to "no value" and deleted the nozzle temperature;
+  such a list now counts as its first entry, anything else unreadable is reported as ignored.
+
+## plugin 0.5.2 – 2026-10-06
+
+### Fixed
+- Back-sync of a value Orca stores per extruder variant: Orca's settings page only changes the
+  active variant (*Direct Drive Standard* on the Kobra S1), so the list differed per variant and was
+  sent as text — the bridge then deleted the field (a nozzle temperature set to 255 °C was gone and
+  the profile fell back to 260 °C). The plugin now sends the value of the active variant.
+
 ## plugin 0.5.1 – 2026-10-06
 
 ### Fixed
