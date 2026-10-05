@@ -6,7 +6,7 @@
 # description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.5.0"
+# version = "0.5.1"
 # ///
 """Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
 
@@ -53,7 +53,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.5.0"
+PLUGIN_VERSION = "0.5.1"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -69,7 +69,7 @@ DEFAULT_CONFIG = {
 META_KEYS = {"name", "inherits", "from", "instantiation", "setting_id", "filament_id", "version", "type",
              "filament_settings_id", "compatible_printers", "compatible_printers_condition",
              "compatible_prints", "compatible_prints_condition", "filament_notes", "is_custom_defined",
-             "base_id", "user_id", "updated_time"}
+             "base_id", "user_id", "updated_time", "filament_extruder_variant"}
 FORBIDDEN = ("secret", "cert", "conf")   # Orcas Sandbox sperrt Pfade mit diesen Woertern
 # Mehrverbrauch pro Ladevorgang, solange die Bridge noch keinen fertigen Druck gemessen hat
 # (erster Testdruck: 451 mm beim Start + 195 mm beim Wechsel, 2 Ladevorgaenge)
@@ -103,13 +103,29 @@ def fmt_value(v):
     return str(v)
 
 
-def normalize(v):
-    """Vergleichsform eines Profilwerts (Liste mit einem Element == Einzelwert)."""
+def as_list(v):
+    """Profilwert als Liste: Orca 2.5 speichert viele Filamentwerte je Extruder-Variante (6 Eintraege).
+    Ein Text, der eine JSON-Liste ist (so kam er frueher per Ruecksync nach Spoolman), wird wieder zur Liste."""
     if isinstance(v, list):
-        if len(v) == 1:
-            v = v[0]
+        return v
+    if isinstance(v, str) and v.strip().startswith("["):
+        try:
+            parsed = json.loads(v)
+        except ValueError:
+            return None
+        if isinstance(parsed, list):
+            return [fmt_value(x) for x in parsed]
+    return None
+
+
+def normalize(v):
+    """Vergleichsform eines Profilwerts (Liste mit einem Element oder lauter gleichen Werten == Einzelwert)."""
+    lst = as_list(v)
+    if lst is not None:
+        if len(lst) == 1 or (lst and all(str(x) == str(lst[0]) for x in lst)):
+            v = lst[0] if lst else ""
         else:
-            return json.dumps(v, ensure_ascii=False)
+            return json.dumps(lst, ensure_ascii=False)
     s = str(v).strip()
     try:
         f = float(s.rstrip("%"))
@@ -251,8 +267,12 @@ def build_profile_json(base, prof, name):
     for key, val in profile_values(prof["values"]).items():
         if key == "filament_id":
             continue
-        s = fmt_value(val)
         cur = out.get(key)
+        lst = as_list(val)
+        if lst is not None:                       # Liste (je Variante) bleibt Liste
+            out[key] = lst
+            continue
+        s = fmt_value(val)
         out[key] = s if (cur is not None and not isinstance(cur, list)) else [s]
     out.update({
         "type": "filament",
@@ -272,17 +292,26 @@ def build_profile_json(base, prof, name):
 
 
 def diff_profiles(written, saved):
-    """Schluessel, deren Wert der Nutzer in Orca geaendert hat: {key: neuer Wert (Text)}."""
+    """Schluessel, deren Wert der Nutzer in Orca geaendert hat: {key: neuer Wert (Text)}.
+
+    Nur Schluessel aus unserer geschriebenen Datei zaehlen: Sie enthaelt das ganze Basisprofil. Was dort fehlt,
+    fuegt Orca beim Speichern als eigenen Standardwert hinzu (Orca 2.5: ~80 Schluessel, viele je Extruder-Variante)
+    - das ist keine Aenderung des Nutzers."""
     changes = {}
-    for key in set(written) | set(saved):
+    for key in written:
         if key in META_KEYS:
             continue
         a, b = written.get(key), saved.get(key)
         if b is None:
             continue
-        if a is None or normalize(a) != normalize(b):
-            v = b[0] if isinstance(b, list) and len(b) == 1 else b
-            changes[key] = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
+        nb = normalize(b)
+        if normalize(a) != nb:
+            lst = as_list(b)
+            if lst is not None and len(lst) > 1 and len(set(map(str, lst))) > 1:
+                changes[key] = json.dumps(lst, ensure_ascii=False)   # echte Unterschiede je Variante
+            else:
+                v = lst[0] if lst else b
+                changes[key] = v if isinstance(v, str) else fmt_value(v)
     return changes
 
 

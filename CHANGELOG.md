@@ -6,6 +6,23 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## plugin 0.5.1 – 2026-10-06
+
+### Fixed
+- A profile saved in Orca 2.5 and synced back to Spoolman stopped loading (Orca logged
+  `Invalid value provided for parameter activate_air_filtration_during_print`), although the
+  plugin reported it as written. Orca 2.5 stores many filament values once per extruder variant
+  (six entries) and adds about 80 of its own defaults when saving. The back-sync took all of them
+  as changes and stored the lists as text in `orca_overrides`; writing the profile then wrapped
+  that text in a one-element list, which Orca rejects.
+  - Back-sync only compares keys the plugin wrote (the full base profile); keys Orca adds on save
+    are its defaults, not edits.
+  - A list whose entries are all equal counts as that single value; only real per-variant
+    differences are sent as a list.
+  - Writing a profile turns a list stored as text back into a list, so profiles from the broken
+    state load again without touching Spoolman.
+- The panel docked a few pixels wide on start: fixed in the Orca build (orca-kobra patch 0004).
+
 ## [2.21.0] – 2026-10-04
 
 Ships app 1.8.0.

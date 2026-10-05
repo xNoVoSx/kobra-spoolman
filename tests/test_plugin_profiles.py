@@ -87,10 +87,43 @@ def test_colour_from_older_bridge_becomes_default_filament_colour(ks, system):
 
 
 def test_diff_ignores_meta_and_formatting(ks):
-    written = {"name": "A", "version": "1", "nozzle_temperature": ["230"], "filament_flow_ratio": ["0.960"]}
+    written = {"name": "A", "version": "1", "nozzle_temperature": ["230"], "filament_flow_ratio": ["0.960"],
+               "fan_max_speed": ["100"]}
     saved = {"name": "A", "version": "2", "nozzle_temperature": ["235"], "filament_flow_ratio": ["0.96"],
              "fan_max_speed": ["80"]}
     assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "235", "fan_max_speed": "80"}
+
+
+def test_diff_ignores_orca_defaults_and_variant_expansion(ks):
+    """Orca 2.5 fuegt beim Speichern eigene Standardwerte hinzu und fuellt Werte je Extruder-Variante (6x) auf -
+    beides ist keine Aenderung des Nutzers (Fehler 05.10.: ~97 Werte landeten als Text in orca_overrides)."""
+    written = {"name": "A", "nozzle_temperature": ["260"], "activate_air_filtration": ["1"],
+               "filament_extruder_variant": ["Direct Drive Standard"]}
+    saved = {"name": "A", "nozzle_temperature": ["260", "260", "260", "260", "260", "260"],
+             "activate_air_filtration": ["1"] * 6,
+             "filament_extruder_variant": ["Direct Drive Standard", "Direct Drive High Flow"],
+             "activate_chamber_temp_control": ["0"], "filament_cooling_moves": ["4"],
+             "adaptive_pressure_advance": ["0"] * 6}
+    assert ks.diff_profiles(written, saved) == {}
+    saved["nozzle_temperature"] = ["265"] * 6                       # echte Aenderung, je Variante gleich
+    assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "265"}
+    saved["nozzle_temperature"] = ["265", "270", "265", "265", "265", "265"]   # je Variante verschieden
+    assert ks.diff_profiles(written, saved) == {"nozzle_temperature": json.dumps(saved["nozzle_temperature"])}
+
+
+def test_build_profile_json_turns_list_text_back_into_list(ks, system):
+    """Alter, kaputter Stand in Spoolman: Listen als Text -> im Profil muss eine echte Liste stehen,
+    sonst verwirft Orca das ganze Profil (\"Invalid value provided for parameter ...\")."""
+    base = ks.SystemProfiles(system / "system").resolve("Test PLA @Printer")
+    prof = {"orca_id": "SM000014", "filament_id": 14, "values": {
+        "activate_air_filtration_during_print": '["1", "1", "1", "1", "1", "1"]',
+        "adaptive_pressure_advance_model": '["0,0,0\\n0,0,0", "0,0,0\\n0,0,0"]',
+        "nozzle_temperature": 260}}
+    out = ks.build_profile_json(base, prof, "eSUN ASA+ Grau (SM000014)")
+    assert out["activate_air_filtration_during_print"] == ["1"] * 6
+    assert out["adaptive_pressure_advance_model"] == ["0,0,0\n0,0,0", "0,0,0\n0,0,0"]
+    assert out["nozzle_temperature"] == ["260"]
+    json.dumps(out)                                                  # als Datei schreibbar
 
 
 def test_safe_name_avoids_sandbox_keywords(ks):
