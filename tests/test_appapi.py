@@ -227,9 +227,6 @@ class FakeUsage:
     def last_by_slot(self):
         return {}
 
-    def purge_stats(self):
-        return {"jobs": 0}
-
 
 class FakeBridge:
     def __init__(self, cfg):

@@ -624,7 +624,7 @@ def build_app(bridge: "Bridge") -> web.Application:
     @r.get("/api/usage")
     async def usage(_):
         return web.json_response({"live": bridge.usage.live(), "last": bridge.usage.last_by_slot(),
-                                  "open": bridge.usage.open, "purge": bridge.usage.purge_stats()})
+                                  "open": bridge.usage.open})
 
     @r.get("/api/jobs")
     async def jobs(request: web.Request):
@@ -722,7 +722,7 @@ def build_app(bridge: "Bridge") -> web.Application:
             "moonraker": bridge.moon.connected, "spoolman": bridge.sm.connected,
             "slots": slots, "profiles_hash": digest,
             "usage": {"live": bridge.usage.live(), "last": bridge.usage.last_by_slot(),
-                      "open": len(bridge.usage.open), "purge": bridge.usage.purge_stats()},
+                      "open": len(bridge.usage.open)},
             "warnings": bridge.safety_warnings() + bridge.slots.warnings,
         })
 

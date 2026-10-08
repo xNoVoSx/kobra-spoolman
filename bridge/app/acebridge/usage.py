@@ -617,19 +617,6 @@ class UsageTracker:
         return {s["slot"]: {"mm": s["mm"], "g": s["g"], "file": last["file"], "ended": last["ended"]}
                 for s in last["slots"] if s["slot"] > 0}
 
-    def purge_stats(self) -> Dict[str, Any]:
-        """Mehrverbrauch pro Laden aus fertigen Drucken (gemessen - G-Code-Soll) fuer die Vorschau im Plugin.
-        Ohne Soll (Bridge 3.0 unter Klipper liest es noch nicht aus der Datei) leer: {"jobs": 0}."""
-        out: Dict[str, Any] = {"jobs": 0}
-        rows = [h for h in self.history if h.get("overhead_mm") is not None and h.get("loads")
-                and h.get("slicer") != "AnycubicSlicer"]
-        if rows:
-            per_load = [h["overhead_mm"] / h["loads"] for h in rows]
-            out = {"jobs": len(rows), "overhead_per_load_mm": round(sum(per_load) / len(per_load), 1),
-                   "last": [{"file": h["file"], "overhead_mm": h["overhead_mm"], "loads": h["loads"]}
-                            for h in rows[:10]]}
-        return out
-
     # ================================================================== offene Posten (API)
     async def resolve_open(self, item_id: str, spool_id: Optional[int]) -> Dict[str, Any]:
         async with self._lock:
