@@ -104,7 +104,6 @@ def build_app(bridge: "Bridge") -> web.Application:
                 "slot_location_prefix": cfg.slot_location_prefix, "shelf_location": cfg.shelf_location,
                 "template_vendor": cfg.template_vendor, "data_dir": cfg.data_dir, "log_level": cfg.log_level,
             },
-            "firmware_spoolman_support": (bridge.moon.status.get("mmu", {}) or {}).get("spoolman_support"),
             "dry_run": bridge.cfg.dry_run,
             "moonraker": {"url": bridge.cfg.moonraker_url, "connected": bridge.moon.connected,
                           "klippy_ready": bridge.moon.klippy_ready},

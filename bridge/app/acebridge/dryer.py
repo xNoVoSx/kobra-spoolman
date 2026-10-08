@@ -1,8 +1,14 @@
 """ACE-Trockner: Anzeige, Steuerung von Hand und Automatik nach Luftfeuchte.
 
-Daten kommen aus GoKlippers Objekt "filament_hub" (im bestehenden Moonraker-Abo, die ACE meldet
-etwa alle 20 s). Rinkhals' eigene mmu-Sicht liefert Feuchte und Restzeit nicht richtig (0), deshalb
-direkt von dort. Gesteuert wird ueber Rinkhals' Befehle MMU_DRYER_START / MMU_DRYER_STOP.
+Daten kommen vom ACE-Treiber (ACEPRO, Objekt ace_instance_0 im Moonraker-Abo, acemodel.dryer). Gesteuert wird mit
+ACE_START_DRYING TEMP= DURATION=<Minuten> und ACE_STOP_DRYING.
+
+Durchgaenge (Wunsch Novos, 09.10.2026):
+- von Hand, geplant oder nach dem Einlegen einer feuchten Spule: laeuft bis zur gewaehlten Zeit, egal wie trocken
+  die ACE schon ist. Beendet die ACE ihn vorher von selbst, startet die Bridge ihn mit der Restzeit neu
+  (hoechstens MAX_RESTARTS mal). Nur ein Stopp von Hand beendet ihn vorher.
+- Automatik: startet erst, wenn die Feuchte start_delay_minutes am Stueck ueber der Schwelle liegt (Deckel auf ->
+  kurzer Ausschlag startet nichts); stoppt bei <= stop_below.
 
 Temperatur: nie hoeher, als das empfindlichste eingelegte Filament vertraegt - Wert am Filament
 (Zusatzfeld dry_temp), sonst an seiner Vorlage, sonst ein vorsichtiger Startwert je Material - und
@@ -18,6 +24,7 @@ import time
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
+from . import acemodel
 from .profiles import find_template
 from .slots import base_type
 from .spoolman import extra_value
@@ -39,32 +46,34 @@ DEFAULT_DRY_TEMP = {
     "PA": 65, "PA-CF": 65, "PA6-CF": 65, "PC": 65, "PPS": 65,
 }
 FALLBACK_DRY_TEMP = 50          # unbekanntes Material: vorsichtiger als PLA
-# Die ACE meldet ihren Zustand nur etwa alle 20 s: nach einem Befehl so lange nichts neu entscheiden
-COMMAND_SETTLE_S = 90
+# Nach einem Befehl kurz warten, bis der Treiber den neuen Zustand meldet
+COMMAND_SETTLE_S = 15
+# Durchgang von Hand/Plan/Einlegen: so oft neu starten, wenn die ACE vorzeitig aufhoert; Rest darunter: fertig
+MAX_RESTARTS = 3
+MIN_REST_MIN = 5
 
 
 def ace_max_temp(model: Optional[str]) -> int:
-    """ACE 2 Pro trocknet bis 65 degC, die erste ACE Pro bis 55 degC."""
-    m = (model or "").lower()
-    return 65 if ("2.0" in m or " 2 " in f" {m} ") else 55
+    """ACE 2 Pro trocknet bis 65 degC, die erste ACE Pro bis 55 degC (ACEPRO meldet z.B. "ACE2 (USB Single Serial)")."""
+    m = (model or "").lower().replace(" ", "")
+    return 65 if ("ace2" in m or "2.0" in m) else 55
 
 
 def hub_state(status: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """Rohdaten aus filament_hub -> Anzeige. present=False, wenn es keine ACE gibt."""
-    hubs = ((status.get("filament_hub") or {}).get("filament_hubs")) or []
-    h = hubs[0] if hubs and isinstance(hubs[0], dict) else {}
-    ds = h.get("dryer_status") or {}
-    remain_s = ds.get("remain_time") or 0          # Sekunden (duration dagegen in Minuten)
+    """ACE-Trockner fuer die Anzeige (acemodel.dryer). present=False ohne verbundene ACE."""
+    d = acemodel.dryer(status)
+    remaining = d.get("remaining_min")
+    duration = d.get("duration_min")
     return {
-        "present": bool(h),
-        "model": h.get("filament_model"),
-        "humidity": h.get("humidity"),
-        "temp": h.get("temp"),
-        "status": ds.get("status") or "stop",
-        "drying": (ds.get("status") or "stop") == "drying",
-        "target_temp": ds.get("target_temp") or None,
-        "duration_min": ds.get("duration") or None,
-        "remaining_min": round(remain_s / 60) if remain_s else None,
+        "present": d["present"],
+        "model": d.get("model"),
+        "humidity": d.get("humidity"),
+        "temp": d.get("temp"),
+        "status": d["status"],
+        "drying": d["drying"],
+        "target_temp": d.get("target_temp") or None,
+        "duration_min": round(duration) if duration else None,
+        "remaining_min": round(remaining) if remaining else None,      # App: ganze Minuten
     }
 
 
@@ -88,6 +97,7 @@ class DryerConfig:
     max_hours: float = 6.0          # laengste Laufzeit pro Durchgang (ACE stoppt dann selbst)
     pause_minutes: float = 60.0     # Mindestpause nach einem Durchgang (gegen An/Aus-Flattern)
     while_printing: bool = True
+    start_delay_minutes: float = 15.0   # so lange muss die Feuchte am Stueck ueber start_above liegen
 
     def validate(self) -> None:
         if not 0 <= self.stop_below < self.start_above <= 100:
@@ -96,6 +106,8 @@ class DryerConfig:
             raise ValueError("Laufzeit 0,5 bis 24 Stunden")
         if not 0 <= self.pause_minutes <= 24 * 60:
             raise ValueError("Pause 0 bis 1440 Minuten")
+        if not 0 <= self.start_delay_minutes <= 240:
+            raise ValueError("Wartezeit 0 bis 240 Minuten")
 
 
 class Dryer:
@@ -111,6 +123,9 @@ class Dryer:
         self.pause_until = 0.0
         self.last_event: Optional[Dict[str, Any]] = None
         self.schedule: Optional[Dict[str, Any]] = None   # geplanter Start: {"at": epoch, "temp", "hours"}
+        # laufender Durchgang: {"source", "until": epoch, "temp", "restarts"} - auch ueber einen Neustart der Bridge
+        self.run: Optional[Dict[str, Any]] = None
+        self._above_since: Optional[float] = None         # Feuchte seit wann am Stueck ueber start_above
         self._busy = False
         self._last_cmd_at = -1e12
         self._load()
@@ -126,6 +141,10 @@ class Dryer:
             sched = data.get("schedule")
             if isinstance(sched, dict) and isinstance(sched.get("at"), (int, float)):
                 self.schedule = sched
+            run = data.get("run")
+            if isinstance(run, dict) and isinstance(run.get("until"), (int, float)):
+                self.run = run
+                self.auto_run = run.get("source") == "auto"
         except FileNotFoundError:
             pass
         except Exception as e:  # noqa: BLE001
@@ -135,7 +154,7 @@ class Dryer:
     def _save(self) -> None:
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"config": asdict(self.config), "schedule": self.schedule}, fh, indent=1)
+            json.dump({"config": asdict(self.config), "schedule": self.schedule, "run": self.run}, fh, indent=1)
         os.replace(tmp, self.path)
 
     def set_config(self, changes: Dict[str, Any]) -> DryerConfig:
@@ -206,6 +225,8 @@ class Dryer:
         return {**hub_state(self.moon.status), "required": self.required_temp(), "config": asdict(self.config),
                 "schedule": sched,
                 "auto_run": self.auto_run,
+                "run": {**self.run, "until_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.run["until"]))}
+                if self.run else None,
                 "paused_until": self.pause_until if self.pause_until > self.clock() else None,
                 "last_event": self.last_event}
 
@@ -217,7 +238,9 @@ class Dryer:
     log_sink: Any = None          # humidity.HumidityLog (setzt die Bridge): Ausloeser und Grund jeder Trocknung
 
     async def start(self, temp: Optional[float] = None, hours: Optional[float] = None, source: str = "hand",
-                    reason: str = "") -> Dict[str, Any]:
+                    reason: str = "", until: Optional[float] = None, restarts: int = 0) -> Dict[str, Any]:
+        """Trockner starten. source: hand / plan / spule / auto. until: Ende eines laufenden Durchgangs
+        beibehalten (Neustart mit Restzeit, Temperatur gesenkt)."""
         req = self.required_temp()
         if req["temp"] is None and temp is None:
             raise ValueError("Keine Spule eingelegt - Temperatur angeben")
@@ -228,20 +251,26 @@ class Dryer:
         h = float(hours if hours is not None else self.config.max_hours)
         if not 0.5 <= h <= 24:
             raise ValueError("Laufzeit 0,5 bis 24 Stunden")
-        await self.moon.gcode(f"MMU_DRYER_START UNIT=0 DURATION={int(round(h * 60))} TEMP={t}", source="Trockner")
-        self._last_cmd_at = self.clock()
+        await self.moon.gcode(f"ACE_START_DRYING TEMP={t} DURATION={int(round(h * 60))}", source="Trockner")
+        now = self.clock()
+        self._last_cmd_at = now
         self.auto_run = source == "auto"
+        self.run = {"source": source, "until": until if until is not None else now + h * 3600, "temp": t,
+                    "restarts": restarts}
+        self._save()
         if self.log_sink is not None:
             self.log_sink.note_start(source, t, h, reason or {"hand": "von Hand gestartet", "plan": "geplant"}.get(source, source))
         self._event(f"Start {t} °C für {h:g} h ({source})")
         return {"temp": t, "hours": h}
 
     async def stop(self, source: str = "hand", reason: str = "") -> None:
-        await self.moon.gcode("MMU_DRYER_STOP UNIT=0", source="Trockner")
+        await self.moon.gcode("ACE_STOP_DRYING", source="Trockner")
         if self.log_sink is not None:
             self.log_sink.note_stop(source, reason)
         self._last_cmd_at = self.clock()
         self.auto_run = False
+        self.run = None
+        self._save()
         self.pause_until = self.clock() + self.config.pause_minutes * 60
         self._event(f"Stopp ({source})")
 
@@ -274,10 +303,16 @@ class Dryer:
 
     async def _evaluate(self, hub: Dict[str, Any]) -> None:
         now = self.clock()
-        if now - self._last_cmd_at < COMMAND_SETTLE_S:
-            return          # ACE hat den letzten Befehl noch nicht zurueckgemeldet
-        req = self.required_temp()
         c = self.config
+        # Automatik-Schwelle laufend beobachten (auch waehrend der Wartezeit nach einem Befehl)
+        if hub["humidity"] is not None and hub["humidity"] >= c.start_above:
+            if self._above_since is None:
+                self._above_since = now
+        else:
+            self._above_since = None
+        if now - self._last_cmd_at < COMMAND_SETTLE_S:
+            return          # der Treiber hat den letzten Befehl noch nicht zurueckgemeldet
+        req = self.required_temp()
         if hub["drying"]:
             if self.schedule and now >= self.schedule["at"]:
                 self.schedule = None
@@ -285,14 +320,32 @@ class Dryer:
                 self._event("Geplantes Trocknen fällig – Trockner lief bereits")
             # Sicherheit, auch bei Start von Hand: empfindlicheres Filament eingelegt -> Temperatur senken
             if req["temp"] is not None and hub["target_temp"] and hub["target_temp"] > req["temp"]:
-                left = (hub["remaining_min"] or c.max_hours * 60) / 60
-                await self.start(req["temp"], max(0.5, min(24.0, left)), source="auto" if self.auto_run else "hand",
-                                 reason=f"Temperatur auf {req['temp']} °C gesenkt (empfindlichere Spule eingelegt)")
+                run = self.run or {}
+                left = (run["until"] - now) / 3600 if run.get("until") else (hub["remaining_min"] or c.max_hours * 60) / 60
+                await self.start(req["temp"], max(0.5, min(24.0, left)),
+                                 source=run.get("source") or ("auto" if self.auto_run else "hand"),
+                                 reason=f"Temperatur auf {req['temp']} °C gesenkt (empfindlichere Spule eingelegt)",
+                                 until=run.get("until"), restarts=run.get("restarts", 0))
                 self._event(f"Temperatur auf {req['temp']} °C gesenkt (Slot {', '.join(map(str, req['limited_by']))})")
                 return
+            # Nur Durchgaenge der Automatik enden an der Feuchte - von Hand / Plan / Einlegen laufen bis zur Zeit
             if self.auto_run and hub["humidity"] is not None and hub["humidity"] <= c.stop_below:
                 await self.stop(source="auto", reason=f"Ziel erreicht: Feuchte {hub['humidity']} % ≤ {c.stop_below:g} %")
             return
+        # ---- Trockner aus
+        if self.run is not None and self.run.get("source") != "auto":
+            run = self.run
+            left_min = (run["until"] - now) / 60
+            if left_min >= MIN_REST_MIN and run.get("restarts", 0) < MAX_RESTARTS and req["temp"] is not None:
+                await self.start(run.get("temp"), max(0.5, min(24.0, left_min / 60)), source=run["source"],
+                                 reason=f"ACE hatte vorzeitig beendet – weiter für {left_min:.0f} min",
+                                 until=run["until"], restarts=run.get("restarts", 0) + 1)
+                self._event(f"ACE hatte vorzeitig beendet – neu gestartet, noch {left_min:.0f} min")
+                return
+            self.run = None
+            self._save()
+            self._event("Durchgang beendet" if left_min < MIN_REST_MIN
+                        else "Durchgang beendet (ACE hörte mehrfach vorzeitig auf)")
         if self.schedule and now >= self.schedule["at"]:
             sched, self.schedule = self.schedule, None
             self._save()
@@ -303,12 +356,15 @@ class Dryer:
             return
         if self.auto_run:       # die ACE hat den Durchgang selbst beendet (Laufzeit um)
             self.auto_run = False
+            self.run = None
+            self._save()
             self.pause_until = now + c.pause_minutes * 60
             self._event("Durchgang beendet (Laufzeit)")
         if not c.enabled or hub["humidity"] is None or now < self.pause_until or req["temp"] is None:
             return
         if not c.while_printing and self.slots.printing:
             return
-        if hub["humidity"] >= c.start_above:
+        if self._above_since is not None and now - self._above_since >= c.start_delay_minutes * 60:
             await self.start(req["temp"], c.max_hours, source="auto",
-                             reason=f"Automatik: Feuchte {hub['humidity']} % ≥ {c.start_above:g} %")
+                             reason=f"Automatik: Feuchte {hub['humidity']} % ≥ {c.start_above:g} % "
+                                    f"seit {c.start_delay_minutes:g} min")

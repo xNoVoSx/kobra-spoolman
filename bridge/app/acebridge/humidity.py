@@ -1,6 +1,6 @@
 """Feuchte-Verlauf der ACE und jede Trocknung als Eintrag.
 
-Quelle: filament_hub (im bestehenden Abo, die ACE meldet etwa alle 20 s) - am Drucker kommt nichts dazu.
+Quelle: ACE-Treiber (ace_instance_0 im bestehenden Abo, acemodel.dryer) - am Drucker kommt nichts dazu.
 - Verlauf: ein Punkt pro Minute (Feuchte, Ist-/Soll-Temperatur, trocknet) in DATA_DIR/humidity/<Tag>.jsonl,
   aelter als cfg.humidity_days wird geloescht.
 - Trocknungen: erkannt am Zustand der ACE (also auch, wenn am Display oder in Mainsail gestartet). Was die Bridge

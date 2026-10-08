@@ -296,7 +296,6 @@ export function SettingsPage() {
         <span>Drucker</span><span class="m">${h.moonraker.url}</span>
         <span>Spoolman</span><span><a href=${h.links?.spoolman || h.spoolman.url} target="_blank" rel="noopener">${h.links?.spoolman || h.spoolman.url}</a></span>
         ${h.links?.printer_ui && html`<span>Drucker-Oberfläche</span><span><a href=${h.links.printer_ui} target="_blank" rel="noopener">${h.links.printer_ui}</a></span>`}
-        <span>Firmware-Spoolman</span><span>${h.firmware_spoolman_support ? html`<span class="chip bad">an – doppelte Buchung!</span>` : "aus"}</span>
       </div>
     </section>
     <${BridgeSettings} />

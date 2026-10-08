@@ -6,6 +6,7 @@ import json
 import os
 
 import pytest
+from conftest import ace_status
 from test_dryer import GMoon, Clock, hub, run
 
 from acebridge.dryer import Dryer
@@ -75,8 +76,7 @@ def sp(sid, location, material="PETG"):
 @pytest.fixture
 def world(cfg):
     moon = GMoon()
-    moon.merge({"mmu": {"num_gates": 4, "gate_status": [1] * 4, "gate_material": [""] * 4,
-                        "gate_color": ["000000FF"] * 4}, "print_stats": {"state": "standby"}})
+    moon.merge({**ace_status([{"material": "", "color": "000000"}] * 4), "print_stats": {"state": "standby"}})
     moon.merge(hub(humidity=20))
     clock = Clock()
     clock.t = 1_000_000.0
@@ -127,7 +127,7 @@ def test_insert_calls_back_and_drying_in_the_ace_dries(world):
     run(m.tick())
     assert seen and seen[0][0] == 1 and seen[0][1]["needs_drying"] and seen[0][1]["slot"] == 2
     moon.merge(hub(humidity=20, drying=True, target=60, remain=6 * 3600))
-    moon.status["filament_hub"]["filament_hubs"][0]["temp"] = 60      # gemessene Lufttemperatur zaehlt
+    moon.status["ace_instance_0"]["temp"] = 60                        # gemessene Lufttemperatur zaehlt
     advance(m, clock, 6)
     assert m.view(sm.spool(1))["score"] < 30
     moon.merge(hub(humidity=10, drying=False))
@@ -200,8 +200,7 @@ def test_drying_already_running_at_bridge_start_has_unknown_origin(cfg):
 
 def test_ensure_only_restarts_when_too_short(cfg):
     moon = GMoon()
-    moon.merge({"mmu": {"num_gates": 4, "gate_status": [1] * 4, "gate_material": [""] * 4, "gate_color": ["000000FF"] * 4},
-                "print_stats": {"state": "standby"}})
+    moon.merge({**ace_status([{"material": "", "color": "000000"}] * 4), "print_stats": {"state": "standby"}})
     moon.merge(hub(drying=True, target=55, remain=8 * 3600))
 
     class S:
@@ -212,7 +211,7 @@ def test_ensure_only_restarts_when_too_short(cfg):
     d = Dryer(cfg, moon, SlotManager(cfg, moon, S()), clock=Clock())
     assert run(d.ensure(6, "x")) is False and moon.sent == []
     moon.merge(hub(drying=True, target=55, remain=2 * 3600))
-    assert run(d.ensure(6, "Spule eingelegt")) is True and moon.sent[-1].startswith("MMU_DRYER_START") and "DURATION=360" in moon.sent[-1]
+    assert run(d.ensure(6, "Spule eingelegt")) is True and moon.sent[-1].startswith("ACE_START_DRYING") and "DURATION=360" in moon.sent[-1]
 
 
 def test_spoolman_values_are_json_encoded(world):

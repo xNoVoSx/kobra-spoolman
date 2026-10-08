@@ -35,11 +35,6 @@ from .web import build_app
 log = logging.getLogger("bridge")
 
 
-def spoolman_support_off(value) -> bool:
-    """Rinkhals meldet "off"; False/0/"false" (andere Staende) gelten ebenso als aus."""
-    return value is None or value is False or str(value).strip().lower() in ("off", "false", "0", "disabled", "")
-
-
 class Bridge:
     def __init__(self, cfg: Config, session: aiohttp.ClientSession):
         self.cfg = cfg
@@ -92,9 +87,9 @@ class Bridge:
         old_state, self._print_state = self._print_state, new_state
         if new_state != old_state:
             log.info("Druckerstatus: %s -> %s", old_state or "?", new_state or "?")
-        if full or "filament_hub" in delta:
+        if full or "ace_instance_0" in delta:
             await self.dryer.evaluate()
-        if full or "mmu" in delta or new_state != old_state:
+        if full or "ace" in delta or "ace_instance_0" in delta or new_state != old_state:
             await self.slots.evaluate()
             if new_state != old_state:
                 await self.slots.on_print_state_change(old_state, new_state)
@@ -150,9 +145,6 @@ class Bridge:
         if "spoolman" in (self.moon.components or []):
             out.append("Moonraker hat [spoolman] aktiv - Verbrauch wuerde doppelt gebucht. "
                        "Abschnitt [spoolman] in moonraker.conf entfernen.")
-        support = (self.moon.status.get("mmu", {}) or {}).get("spoolman_support")
-        if not spoolman_support_off(support):
-            out.append(f"Drucker-Firmware meldet spoolman_support={support} - Verbrauch wuerde doppelt gebucht.")
         return out
 
     async def spoolman_loop(self) -> None:
