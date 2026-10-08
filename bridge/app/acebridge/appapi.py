@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 
 from aiohttp import web
 
-from . import __version__, appupdate
+from . import __version__, acemodel, appupdate
 from .assets import TAG as UI_TAG
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
@@ -53,7 +53,6 @@ ORCA_KEY = {src.split(":", 1)[1]: orca for src, orca, _ in FIELD_MAP}
 ORCA_KEY.update({"color_hex": "default_filament_colour", "density": "filament_density",
                  "diameter": "filament_diameter", "material": "filament_type"})
 
-MMU_IDLE = {"", "idle", "none", "ready"}
 
 
 class AppError(Exception):
@@ -313,7 +312,6 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
     """Status fuer die App aus dem Moonraker-Abo der Bridge (keine zusaetzliche Last am Drucker)."""
     ps = status.get("print_stats") or {}
     vsd = status.get("virtual_sdcard") or {}
-    mmu = status.get("mmu") or {}
     if not connected or not klippy_ready:
         state = "offline"
     else:
@@ -324,7 +322,9 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
     eta = None
     if progress and duration and 0.01 < progress < 1:
         eta = int(duration * (1 - progress) / progress)
-    action = str(mmu.get("action") or "")
+    # Werkzeugwechsel des ACE-Treibers laeuft (Ziel gesetzt, noch nicht geladen)
+    target = acemodel.target_slot(status) if running else None
+    action = f"Wechsel auf Slot {target + 1}" if target is not None else ""
     shows_file = running or state in ("complete", "cancelled", "error")
     info = ps.get("info") or {}
     return {
@@ -336,7 +336,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         "message": ps.get("message") or None,
         "active_slot": active_slot,
         "mmu_action": action or None,
-        "changing_filament": running and action.strip().lower() not in MMU_IDLE,
+        "changing_filament": target is not None,
         "layer": info.get("current_layer") if running and info.get("total_layer") else None,
         "layers": info.get("total_layer") if running and info.get("total_layer") else None,
         **machine_state(status),

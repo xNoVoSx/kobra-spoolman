@@ -12,6 +12,7 @@ import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from . import acemodel
 from .config import Config
 from .moonraker import Moonraker
 from .profiles import basic_info
@@ -33,14 +34,6 @@ def base_type(material: str) -> str:
         if t in up or t.replace("-", " ") in up:
             return t
     return (material or "").strip()
-
-
-def _idx(container: Any, i: int, default=None):
-    if isinstance(container, list):
-        return container[i] if i < len(container) else default
-    if isinstance(container, dict):
-        return container.get(str(i), container.get(i, default))
-    return default
 
 
 def _hex6(c: Any) -> str:
@@ -80,39 +73,28 @@ def ace_match(ace: Dict[str, Any], info: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def gate_has_tag(ace: Dict[str, Any]) -> bool:
-    """Spule mit RFID-Tag: die ACE fuellt Material/Farbe selbst aus dem Tag. Rinkhals zeigt das interne
-    rfid-Feld nicht, aber gate_spool_id ist nur mit Tag gesetzt (Zahl hinter dem Bindestrich der SKU)."""
-    try:
-        return int(ace.get("tag_id") or 0) > 0
-    except (TypeError, ValueError):
-        return False
+    """Spule mit RFID-Tag: die ACE fuellt Material/Farbe selbst aus dem Tag (ACEPRO: Slot-Feld rfid)."""
+    return bool(ace.get("rfid"))
 
 
 def gate_needs_info(ace: Dict[str, Any]) -> bool:
-    """Slot hat Filament, aber die ACE kennt kein Material (kein Tag, am Display nichts eingetragen).
-    Rinkhals schickt beim Druckstart dann material_type "" - GoKlipper bricht mit
-    'index out of range [0] with length 0' ab (docs/findings.md)."""
+    """Slot hat Filament, aber die ACE kennt kein Material (kein Tag, nichts eingetragen) - ACEPRO kennt dann
+    keine Lade-/Spueltemperatur fuer Wechsel von Hand und Orca keinen Typ fuer den Slot."""
     return bool(ace.get("present")) and not ace.get("material")
 
 
-def _gcode_text(s: Any) -> str:
-    """Text fuer die MAP von MMU_GATE_MAP: keine Anfuehrungszeichen/Klammern (Rinkhals liest die MAP
-    mit ast.literal_eval, der Wert steht in MAP=\"...\")."""
-    return re.sub(r"\s+", " ", re.sub(r"[\"'{}\\:=;]", " ", str(s or ""))).strip()[:40]
-
-
-def gate_map_command(gate: int, spool_id: int, info: Dict[str, Any]) -> Optional[str]:
-    """MMU_GATE_MAP fuer einen Slot aus den Spoolman-Daten (Rinkhals mmu_ace.py, _on_gcode_mmu_gate_map).
-    Rinkhals gibt Material und Farbe per filament_hub/set_filament_info an GoKlipper weiter;
-    Slots mit RFID-Tag lehnt Rinkhals selbst ab."""
+def set_slot_command(gate: int, info: Dict[str, Any]) -> Optional[str]:
+    """ACE_SET_SLOT fuer einen Slot ohne Tag aus den Spoolman-Daten (ACEPRO: COLOR=R,G,B MATERIAL= TEMP= 1-300)."""
     material = base_type(info.get("material") or "").upper()
-    color = _hex6(info.get("color"))
-    if not material or not re.fullmatch(r"[A-Z0-9-]+", material):
+    color = _hex6(info.get("color")) or "FFFFFF"
+    try:
+        temp = int(info.get("nozzle_temp") or 0)
+    except (TypeError, ValueError):
+        temp = 0
+    if not material or not re.fullmatch(r"[A-Z0-9-]+", material) or not 1 <= temp <= 300:
         return None
-    entry = {"status": 1, "name": _gcode_text(info.get("display_name")) or material,
-             "material": material, "color": (color or "FFFFFF") + "FF",
-             "temp": int(info.get("nozzle_temp") or -1), "spool_id": int(spool_id), "speed_override": 100}
-    return f'MMU_GATE_MAP MAP="{repr({gate: entry})}"'
+    r, g, b = (int(color[i:i + 2], 16) for i in (0, 2, 4))
+    return f"ACE_SET_SLOT T={gate} MATERIAL={material} COLOR={r},{g},{b} TEMP={temp}"
 
 
 class SlotManager:
@@ -138,10 +120,6 @@ class SlotManager:
 
     # ------------------------------------------------------------ Zustand lesen
     @property
-    def mmu(self) -> Dict[str, Any]:
-        return self.moon.status.get("mmu", {}) or {}
-
-    @property
     def print_state(self) -> str:
         return (self.moon.status.get("print_stats", {}) or {}).get("state", "") or ""
 
@@ -150,30 +128,15 @@ class SlotManager:
         return self.print_state in PRINTING_STATES
 
     def num_gates(self) -> int:
-        n = self.mmu.get("num_gates")
-        try:
-            return int(n) if n else 4
-        except (TypeError, ValueError):
-            return 4
+        return acemodel.num_slots(self.moon.status)
 
     def ace_gate(self, gate: int) -> Dict[str, Any]:
-        m = self.mmu
-        status = _idx(m.get("gate_status"), gate)
-        try:
-            status = int(status) if status is not None else None
-        except (TypeError, ValueError):
-            status = None
-        return {
-            "status": status,
-            "present": bool(self.moon.klippy_ready and status not in (None, 0)),
-            "active": status == -1,
-            "material": (_idx(m.get("gate_material"), gate) or "").strip(),
-            "color": _hex6(_idx(m.get("gate_color"), gate)),
-            "name": (_idx(m.get("gate_filament_name"), gate) or "").strip(),
-            "vendor": (_idx(m.get("gate_vendor"), gate) or "").strip(),
-            "temperature": _idx(m.get("gate_temperature"), gate) or None,
-            "tag_id": _idx(m.get("gate_spool_id"), gate),
-        }
+        """Slot (0-basiert) laut ACE-Treiber (acemodel.slot)."""
+        return acemodel.slot(self.moon.status, gate, self.moon.klippy_ready)
+
+    @property
+    def ace_connected(self) -> bool:
+        return bool(self.moon.klippy_ready and acemodel.connected(self.moon.status))
 
     def assignments(self) -> Tuple[Dict[int, Dict[str, Any]], List[str]]:
         """Slot (1-basiert) -> Spule, plus Warnungen bei Doppelbelegung."""
@@ -228,9 +191,9 @@ class SlotManager:
                              if not ace["present"] else "Material/Farbe gehen nach dem Druck an die ACE"
                              if self.printing else "Material/Farbe werden an die ACE gegeben")
             elif self.moon.klippy_ready and gate_needs_info(ace):
-                hints.append("Am Drucker ist kein Material eingetragen – ein Druck mit diesem Slot bricht ab ("
-                             + ("Spule hier neu zuordnen oder am Display eintragen)"
-                                if info and self.cfg.set_ace_slot_info else "am Display beim Slot eintragen)"))
+                hints.append("Die ACE kennt kein Material für diesen Slot – "
+                             + ("Spule hier neu zuordnen" if info and self.cfg.set_ace_slot_info
+                                else "Spule zuordnen"))
             if info and self.moon.klippy_ready and not ace["present"]:
                 hints.append("ACE meldet den Slot als leer")
             if gate in self._pending_unassign:
@@ -277,7 +240,7 @@ class SlotManager:
     async def auto_by_tag(self, now: Optional[float] = None) -> None:
         """Spule mit unserem Tag im Slot -> automatisch zuordnen. Reagiert, wenn sich die Nummer im Gate aendert
         (auch beim Start: dann ist jede Nummer neu) - eine bewusste Handzuordnung wird nicht staendig ueberschrieben."""
-        if not self.cfg.auto_assign_by_tag or not self.moon.klippy_ready or "gate_spool_id" not in self.mmu:
+        if not self.cfg.auto_assign_by_tag or not self.ace_connected:
             return
         # erst mit der Spulenliste aus Spoolman - sonst waere beim Start jede Nummer "unbekannt"
         if not getattr(self.sm, "connected", True) or not self.sm.spools:
@@ -392,7 +355,7 @@ class SlotManager:
             for gate in range(self.num_gates()):
                 slot = gate + 1
                 ace = self.ace_gate(gate)
-                if self.moon.klippy_ready and "gate_status" in self.mmu:
+                if self.ace_connected:
                     await self._track_empty(gate, slot, ace["present"], assigned.get(slot), now)
             if self.cfg.write_lane_data and self.moon.connected:
                 await self._write_lanes(assigned)
@@ -491,7 +454,8 @@ class SlotManager:
                 log.warning("lane_data %s schreiben fehlgeschlagen: %s", key, e)
 
     async def _push_gate_info(self, assigned: Dict[int, Dict[str, Any]]) -> None:
-        """Material/Farbe einer in der Weboberflaeche oder App zugeordneten Spule an die ACE geben (MMU_GATE_MAP).
+        """Material/Farbe/Temperatur einer in der Weboberflaeche oder App zugeordneten Spule an die ACE geben
+        (ACE_SET_SLOT).
         Wartet, bis die Spule eingelegt ist und kein Druck laeuft; einmal pro Zuordnung. Slots mit
         RFID-Tag und Slots, fuer die die ACE schon genau diese Werte meldet, bleiben unberuehrt."""
         for gate, job in list(self._gate_info_pending.items()):
@@ -503,12 +467,12 @@ class SlotManager:
             if not ace["present"]:
                 continue                                     # Spule noch nicht eingelegt
             if gate_has_tag(ace):
-                # Der Tag bestimmt den Slot - nie ueberschreiben (Rinkhals wuerde es auch ablehnen)
+                # Der Tag bestimmt den Slot - nie ueberschreiben
                 self._gate_info_pending.pop(gate, None)
-                log.info("Slot %d: Spule mit RFID-Tag (%s) - Material/Farbe kommen vom Tag", gate + 1, ace["tag_id"])
+                log.info("Slot %d: Spule mit RFID-Tag (%s) - Material/Farbe kommen vom Tag", gate + 1, ace["sku"])
                 continue
             info = basic_info(spool["filament"], self.sm.templates())
-            cmd = gate_map_command(gate, spool["id"], info)
+            cmd = set_slot_command(gate, info)
             same = (base_type(ace["material"]).upper() == base_type(info.get("material") or "").upper()
                     and ace["color"] == _hex6(info.get("color")))
             if not cmd or same:
@@ -522,9 +486,9 @@ class SlotManager:
                 job["tries"] += 1
                 if job["tries"] >= 3:
                     self._gate_info_pending.pop(gate, None)
-                    log.warning("Slot %d: MMU_GATE_MAP aufgegeben: %s", gate + 1, e)
+                    log.warning("Slot %d: ACE_SET_SLOT aufgegeben: %s", gate + 1, e)
                 else:
-                    log.warning("Slot %d: MMU_GATE_MAP fehlgeschlagen (%s), neuer Versuch", gate + 1, e)
+                    log.warning("Slot %d: ACE_SET_SLOT fehlgeschlagen (%s), neuer Versuch", gate + 1, e)
 
     def reset_lane_cache(self) -> None:
         self._lanes_written.clear()

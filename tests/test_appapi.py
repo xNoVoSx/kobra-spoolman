@@ -9,7 +9,7 @@ import random
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
-from conftest import FakeMoonraker
+from conftest import FakeMoonraker, ace_status
 
 from acebridge.runtime_settings import RuntimeSettings
 from acebridge.vision import Vision
@@ -104,10 +104,13 @@ def test_tag_content_uses_filament_then_template():
 
 def test_printer_state():
     st = {"print_stats": {"state": "printing", "filename": "a.gcode", "print_duration": 600},
-          "virtual_sdcard": {"progress": 0.25}, "mmu": {"action": "Idle"}}
+          "virtual_sdcard": {"progress": 0.25}, "ace": {"current_index": 0, "target_index": -1}}
     p = printer_state(st, True, True, 1)
     assert p["state"] == "printing" and p["file"] == "a.gcode" and p["eta_s"] == 1800 and p["active_slot"] == 1
-    assert p["changing_filament"] is False
+    assert p["changing_filament"] is False and p["mmu_action"] is None
+    st["ace"] = {"current_index": -1, "target_index": 2}           # ACEPRO wechselt gerade auf Slot 3
+    p = printer_state(st, True, True, None)
+    assert p["changing_filament"] is True and p["mmu_action"] == "Wechsel auf Slot 3"
     assert printer_state(st, False, False, None)["state"] == "offline"
     idle = printer_state({"print_stats": {"state": "standby", "filename": "a.gcode"}}, True, True, None)
     assert idle["state"] == "standby" and idle["file"] is None and idle["progress"] is None
@@ -233,8 +236,8 @@ class FakeBridge:
     def __init__(self, cfg):
         self.cfg = cfg
         self.moon = GMoon()
-        self.moon.merge({"mmu": {"num_gates": 4, "gate_status": [-1, 1, 0, 0], "gate_material": ["PETG", "", "", ""],
-                                 "gate_color": ["685BC7FF", "", "", ""], "gate_spool_id": [0, 0, 0, 0]},
+        self.moon.merge({**ace_status([{"material": "PETG", "color": "685BC7"}, {"material": "", "color": "000000"}],
+                                      current=0),
                          "print_stats": {"state": "standby"}})
         self.sm = MemSpoolman(cfg)
         self.slots = SlotManager(cfg, self.moon, self.sm)

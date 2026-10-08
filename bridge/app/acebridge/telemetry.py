@@ -1,6 +1,6 @@
 """Telemetrie: Rohdaten jedes Drucks als JSONL.
 
-Zeichnet waehrend eines Drucks die Aenderungen von mmu / print_stats / virtual_sdcard auf.
+Zeichnet waehrend eines Drucks alle abonnierten Aenderungen auf (ACE-Treiber, print_stats, virtual_sdcard ...).
 Moonraker reicht nur noch echte Aenderungen weiter, die Dateien bleiben dadurch klein.
 Die Verbrauchsrechnung macht allein usage.py - hier stehen nur Rohdaten fuer Fehlersuche
 und Nachrechnen. Es bleiben die letzten TELEMETRY_KEEP Drucke erhalten.
@@ -15,8 +15,8 @@ import re
 import time
 from typing import Any, Dict, IO, List, Optional
 
+from . import acemodel
 from .config import Config
-from .usage import active_gate
 
 log = logging.getLogger("telemetry")
 
@@ -52,7 +52,7 @@ class Recorder:
         self._used_start = (status.get("print_stats", {}) or {}).get("filament_used")
         self._used_updates = 0
         self._gate_changes = []
-        self._last_gate = active_gate(status.get("mmu", {}) or {})
+        self._last_gate = acemodel.active_slot(status)
         log.info("Telemetrie-Aufzeichnung gestartet: %s", os.path.basename(self._path))
         self._prune()
 
@@ -113,9 +113,9 @@ class Recorder:
         ps_delta = delta.get("print_stats") if isinstance(delta.get("print_stats"), dict) else {}
         if "filament_used" in ps_delta:
             self._used_updates += 1
-        mmu_delta = delta.get("mmu") if isinstance(delta.get("mmu"), dict) else None
-        if mmu_delta is not None:
-            gate = active_gate(status.get("mmu", {}) or {})
+        ace_delta = delta.get("ace") if isinstance(delta.get("ace"), dict) else None
+        if ace_delta is not None:
+            gate = acemodel.active_slot(status)
             if gate != self._last_gate:
                 self._gate_changes.append({"t": round(time.time() - self._start, 1), "from": self._last_gate,
                                            "to": gate,
@@ -125,8 +125,8 @@ class Recorder:
         for obj, fields in delta.items():
             if isinstance(fields, dict):
                 self._buffer.setdefault(obj, {}).update(fields)
-        # mmu-Aenderungen und Statuswechsel sofort, alles andere gedrosselt
-        self._flush(force=mmu_delta is not None or "state" in ps_delta or full)
+        # Werkzeugwechsel (Objekt ace) und Statuswechsel sofort, alles andere gedrosselt
+        self._flush(force=ace_delta is not None or "state" in ps_delta or full)
 
         if state in PRINTING_STATES:
             self._end_at = None

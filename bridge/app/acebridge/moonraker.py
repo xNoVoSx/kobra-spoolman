@@ -1,4 +1,5 @@
-"""Moonraker-Anbindung: WebSocket-Abo (mmu, print_stats, virtual_sdcard) und HTTP fuer die Datenbank."""
+"""Moonraker-Anbindung (Klipper am Pi): WebSocket-Abo (ACE-Treiber, print_stats, virtual_sdcard, Heizungen,
+Luefter) und HTTP fuer die Datenbank."""
 
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optiona
 
 import aiohttp
 
-from . import __version__
+from . import __version__, acemodel
 from .config import Config
 
 if TYPE_CHECKING:
@@ -21,14 +22,15 @@ if TYPE_CHECKING:
 log = logging.getLogger("moonraker")
 
 # Druckerdaten fuer Karte/App: nur einzelne Felder, nichts was sich bei jeder Bewegung aendert
-# (Position, aktuelle Geschwindigkeit) - jede Aenderung kostet den schwachen Drucker etwas.
-SUBSCRIBE_OBJECTS = {"mmu": None, "print_stats": None, "virtual_sdcard": None,
+# (Position, aktuelle Geschwindigkeit).
+SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "extruder": ["temperature", "target", "power"],
                      "heater_bed": ["temperature", "target", "power"],
                      "fan": ["speed", "rpm"],
-                     "gcode_move": ["speed_factor", "extrude_factor", "speed_mode"]}
-# GoKlippers ACE-Rohdaten (Trockner, Feuchte) und die Zusatzluefter des S1; fehlen sie, ohne abonnieren
-OPTIONAL_OBJECTS = {"filament_hub": None, "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
+                     "gcode_move": ["speed_factor", "extrude_factor"],
+                     "bed_mesh": ["profile_name"]}
+# ACE-Treiber (ACEPRO, acemodel.SUBSCRIBE) und die Zusatzluefter des S1; fehlt etwas (Treiber aus), ohne abonnieren
+OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
 
 StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
 
@@ -81,13 +83,13 @@ class Moonraker:
                 r.raise_for_status()
 
     def cpu(self, window_s: float = 5.0, now: Optional[float] = None) -> Optional[float]:
-        """Mittlere System-CPU des Druckers der letzten window_s Sekunden (None ohne frische Werte)."""
+        """Mittlere System-CPU des Klipper-Rechners (Pi) der letzten window_s Sekunden (None ohne frische Werte)."""
         now = time.monotonic() if now is None else now
         vals = [c for t, c in self.cpu_samples if now - t <= window_s]
         return sum(vals) / len(vals) if vals else None
 
     async def get_json(self, path: str, timeout: float = 10) -> Any:
-        """Lesende HTTP-Abfrage an Moonraker (z.B. GoKlippers /printer/filament_hub/get_config)."""
+        """Lesende HTTP-Abfrage an Moonraker."""
         async with self.session.get(f"{self.cfg.moonraker_url}{path}", headers=self._headers(),
                                     timeout=aiohttp.ClientTimeout(total=timeout)) as r:
             r.raise_for_status()
@@ -95,7 +97,7 @@ class Moonraker:
         return data.get("result", data) if isinstance(data, dict) else data
 
     async def post_json(self, path: str, body: Dict[str, Any], timeout: float = 10) -> Any:
-        """Schreibende HTTP-Abfrage an Moonraker/GoKlipper (z.B. filament_hub/set_config)."""
+        """Schreibende HTTP-Abfrage an Moonraker."""
         if self.cfg.dry_run:
             log.info("[dry-run] POST %s %s", path, json.dumps(body))
             return None
@@ -106,7 +108,7 @@ class Moonraker:
         return data.get("result", data) if isinstance(data, dict) else data
 
     async def gcode(self, script: str, timeout: float = 15, source: str = "Bridge") -> None:
-        """G-Code ueber die bestehende WebSocket-Verbindung (Moonraker/Rinkhals faengt MMU_* ab).
+        """G-Code ueber die bestehende WebSocket-Verbindung.
         source: wer sendet - steht so in der Konsole."""
         if self.console is not None:
             self.console.add("command", script, source + (" (dry-run)" if self.cfg.dry_run else ""))
@@ -161,8 +163,7 @@ class Moonraker:
 
     def _merge(self, delta: Dict[str, Any]) -> Dict[str, Any]:
         """Uebernimmt ein Update in den Cache und liefert nur die Felder, die sich wirklich
-        geaendert haben. Rinkhals schickt das komplette mmu-Objekt bei jedem Update
-        (etwa zweimal pro Sekunde) - ohne diesen Filter waere jedes Update ein "mmu-Wechsel"."""
+        geaendert haben (ACEPRO schickt die Slot-Liste als Ganzes, auch wenn sich nur ein Zaehler aendert)."""
         changed: Dict[str, Any] = {}
         for obj, fields in delta.items():
             if not isinstance(fields, dict):

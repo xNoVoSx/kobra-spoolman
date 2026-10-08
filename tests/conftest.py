@@ -80,11 +80,37 @@ class FakeSlots:
         return out, []
 
     def ace_gate(self, gate: int) -> Dict[str, Any]:
-        mmu = self.moon.status.get("mmu", {})
-        mats = mmu.get("gate_material") or []
-        cols = mmu.get("gate_color") or []
-        return {"material": mats[gate] if gate < len(mats) else "",
-                "color": (cols[gate] if gate < len(cols) else "")[:6], "name": ""}
+        from acebridge import acemodel
+        return acemodel.slot(self.moon.status, gate, self.moon.klippy_ready)
+
+
+def ace_status(slots: List[Optional[Dict[str, Any]]], current: int = -1, humidity: Any = 20, temp: Any = 25,
+               dryer: Optional[Dict[str, Any]] = None, endless: bool = False, connected: bool = True) -> Dict[str, Any]:
+    """ACEPRO-Objekte ace/ace_instance_0 wie am Pi (tests/data/acepro_status_2026-10-09.json).
+
+    slots: je Slot None (leer) oder {"material", "color" "RRGGBB", optional "sku" (= Spule mit Tag), "temp"}."""
+    raw = []
+    for i, sp in enumerate((slots + [None] * 4)[:4]):
+        if not sp:
+            raw.append({"index": i, "tool": i, "status": "empty", "color": [0, 0, 0], "material": "", "temp": 0,
+                        "rfid": False})
+            continue
+        c = sp.get("color", "FFFFFF")
+        entry = {"index": i, "tool": i, "status": sp.get("status", "ready"),
+                 "color": [int(c[k:k + 2], 16) for k in (0, 2, 4)], "material": sp.get("material", ""),
+                 "temp": sp.get("temp", 0), "rfid": bool(sp.get("sku"))}
+        if sp.get("sku"):
+            entry["sku"] = sp["sku"]
+        raw.append(entry)
+    ds = {"status": "stop", "target_temp": 0, "duration": 0, "remain_time": 0}
+    ds.update(dryer or {})
+    return {
+        "ace": {"ace_instances": 1, "current_index": current, "target_index": -1,
+                "endless_spool_enabled": endless, "endless_spool_match_mode": "exact"},
+        "ace_instance_0": {"status": "ready", "dryer_status": ds, "temp": temp, "humidity": humidity, "slots": raw,
+                           "firmware": "V1.1.36", "model": "ACE2 (USB Single Serial)",
+                           "connection_state": "connected" if connected else "disconnected"},
+    }
 
 
 def spool(spool_id: int, slot: Optional[int], density: float = 1.24) -> Dict[str, Any]:

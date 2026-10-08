@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from conftest import ace_status
 from test_slot_info import GcodeMoonraker, SlotSpoolman
 
 from acebridge.slots import SlotManager
@@ -28,10 +29,13 @@ def spool(sid, name, tag=None, loc="Regal"):
 
 
 def status(tags, present=None, state="standby"):
+    """ACEPRO-Status: Tag-Nummer je Slot (0 = Spule ohne Tag), present=False = leer."""
     n = len(tags)
-    return {"mmu": {"num_gates": n, "gate_status": [1 if p else 0 for p in (present or [True] * n)],
-                    "gate_material": ["PETG"] * n, "gate_color": ["685BC7FF"] * n, "gate_spool_id": tags},
-            "print_stats": {"state": state}}
+    slots = [None if not p else {"material": "PETG", "color": "685BC7", **({"sku": f"AHPEBK-{t}"} if t else {})}
+             for t, p in zip(tags, present or [True] * n)]
+    st = ace_status(slots)
+    st["print_stats"] = {"state": state}
+    return st
 
 
 @pytest.fixture
@@ -73,15 +77,15 @@ def test_already_loaded_tag_is_assigned_at_start_after_debounce(make):
 
 def test_new_spool_replaces_old_and_manual_choice_is_kept(make):
     sm, moon = make(status([0, 0]), [spool(1, "Lavendel", 34532), spool(2, "Magenta", 4711, loc="ACE Slot 1")])
-    moon.merge({"mmu": {"gate_spool_id": [34532, 0]}})
+    moon.merge(status([34532, 0]))
     settle(sm, 10)
     assert loc(sm, 1) == "ACE Slot 1" and loc(sm, 2) == "Regal"   # alte Spule ins Regal
     run(sm.assign(1, 2))                                           # bewusst von Hand anders
     settle(sm, 30)
     assert loc(sm, 2) == "ACE Slot 1"                              # nicht zurueckgedreht
-    moon.merge({"mmu": {"gate_status": [0, 1]}})                  # herausgenommen ...
+    moon.merge(status([34532, 0], present=[False, True]))        # herausgenommen ...
     run(sm.auto_by_tag(now=50))
-    moon.merge({"mmu": {"gate_status": [1, 1]}})                  # ... und wieder eingelegt
+    moon.merge(status([34532, 0]))                                # ... und wieder eingelegt
     settle(sm, 60)
     assert loc(sm, 1) == "ACE Slot 1"
 

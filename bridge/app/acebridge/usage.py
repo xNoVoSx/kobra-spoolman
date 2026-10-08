@@ -1,13 +1,13 @@
 """Verbrauchsmessung und -buchung pro Slot (Etappe 2).
 
-Grundlage (Test 6, 24.09.2026): print_stats.filament_used zaehlt jeden Extruder-Vorschub
-inklusive des Spuelens der Firmware und trifft Orcas Modellwerte auf 1 mm. Daraus folgt:
+Grundlage: print_stats.filament_used (Klipper, mm) zaehlt jeden Extruder-Vorschub im Druck - auch Laden und
+Spuelen der ACE, die unter ACEPRO ueber die Duese laufen (mit ACEPRO-Patch 0003 sofort, nicht erst nach dem
+Wechsel). Daraus folgt:
 
 - Verbrauch = vorzeichenrichtige Differenz von filament_used. Rueckzuege heben sich auf.
-- Jede Differenz gehoert dem Slot, der zuletzt aktiv war. Momente ohne aktiven Slot
-  (Entladen, kurzes Flackern der ACE) zaehlen zum zuletzt aktiven Slot.
-- Ein neuer Slot gilt erst als aktiv, wenn er GATE_DEBOUNCE_S lang aktiv bleibt. Was in
-  dieser Zeit verbraucht wird, bekommt am Ende der Slot, der sich durchsetzt.
+- Jede Differenz gehoert dem Slot, der laut ACE-Treiber gerade verbraucht (acemodel.consuming_slot):
+  dem geladenen Slot, waehrend eines Wechsels nach dem Entladen dem Ziel-Slot. Momente ohne solchen Slot
+  zaehlen zum zuletzt aktiven Slot.
 - Verbrauch vor dem ersten aktiven Slot bekommt der erste Slot, der aktiv wird.
 - Gebucht wird auf die Spule, die zum Zeitpunkt des Verbrauchs im Slot war
   ("Topf" = Slot + Spule). Buchung beim Slotwechsel, bei Druckende und zwischendurch
@@ -30,6 +30,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from . import acemodel
 from .config import Config
 
 if TYPE_CHECKING:
@@ -47,19 +48,6 @@ RETRY_BACKOFF_S = 30
 
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-def active_gate(mmu: Dict[str, Any]) -> Optional[int]:
-    """Aktiver Slot laut ACE: gate_status -1. Das Feld 'gate' flackert und wird nur
-    als Ersatz genommen, wenn es gate_status nicht gibt."""
-    st = mmu.get("gate_status")
-    if isinstance(st, list):
-        for i, v in enumerate(st):
-            if v == -1:
-                return i
-        return None
-    g = mmu.get("gate")
-    return g if isinstance(g, int) and g >= 0 else None
 
 
 def _numbers(raw: Any) -> List[float]:
@@ -237,8 +225,8 @@ class UsageTracker:
             "started": _now_iso(),
             "used_start": used if isinstance(used, (int, float)) else 0.0,
             "last_used": used if isinstance(used, (int, float)) else 0.0,
-            "gate": None,              # zuletzt bestaetigter aktiver Slot (0-basiert)
-            "pending_gate": None,      # neuer Slot, noch in der Entprellzeit
+            "gate": None,              # Slot, dem der Verbrauch gerade gehoert (0-basiert)
+            "pending_gate": None,      # nur noch fuer gespeicherte Stände aus Bridge < 3.0 (Entprellung)
             "pending_since": None,
             "pending_mm": 0.0,
             "pre_mm": 0.0,             # Verbrauch vor dem ersten aktiven Slot
@@ -254,7 +242,7 @@ class UsageTracker:
         self._journal("job_start", job=self.job["id"], file=self.job["file"], used_start=self.job["used_start"],
                       targets=self.job["targets"])
         log.info("Druck gestartet: %s (Zaehler %.1f mm)", self.job["file"], self.job["used_start"])
-        seen = active_gate(status.get("mmu", {}) or {})
+        seen = acemodel.consuming_slot(status)
         if seen is not None:
             self._confirm_gate(seen)
 
@@ -301,28 +289,16 @@ class UsageTracker:
     _book_due_gate: Optional[int] = None
 
     def _observe_gate(self, seen: Optional[int], now: float) -> None:
+        """Der ACE-Treiber meldet den verbrauchenden Slot ohne Flackern - Wechsel sofort uebernehmen."""
         job = self.job
         assert job is not None
-        if seen is None:
-            return  # kein Slot aktiv: nichts aendern, Verbrauch geht an den bisherigen/ausstehenden
-        if job["gate"] is None:
-            self._confirm_gate(seen)
-            return
-        if seen == job["gate"]:
-            if job["pending_gate"] is not None:
-                # Flackern: der ausstehende Slot hat sich nicht durchgesetzt
-                self._add(job["gate"], job["pending_mm"])
-                log.debug("Flackern auf Slot %s verworfen", job["pending_gate"] + 1)
-                job["pending_gate"], job["pending_since"], job["pending_mm"] = None, None, 0.0
-            return
-        if job["pending_gate"] != seen:
-            if job["pending_gate"] is not None:
-                self._add(job["gate"], job["pending_mm"])
-            job["pending_gate"], job["pending_since"], job["pending_mm"] = seen, now, 0.0
-            self._dirty = True
+        if seen is None or seen == job["gate"]:
+            return  # kein Slot: Verbrauch geht weiter an den bisherigen
+        self._settle(now, force=True)
+        self._confirm_gate(seen)
 
     def _settle(self, now: float, force: bool = False) -> None:
-        """Ausstehenden Slot bestaetigen, wenn er lange genug aktiv war."""
+        """Nur fuer gespeicherte Staende aus Bridge < 3.0: ausstehenden Slot (Entprellung) bestaetigen."""
         job = self.job
         if not job or job["pending_gate"] is None:
             return
@@ -388,8 +364,8 @@ class UsageTracker:
             # Reihenfolge: erst den Verbrauch dem bisher bekannten Slot geben, dann den Slot aktualisieren
             if "filament_used" in ps_d and isinstance(ps_d["filament_used"], (int, float)):
                 self._consume(ps_d["filament_used"])
-            if "mmu" in delta:
-                self._observe_gate(active_gate(status.get("mmu", {}) or {}), now)
+            if "ace" in delta:
+                self._observe_gate(acemodel.consuming_slot(status), now)
             self._settle(now)
 
             if state not in PRINTING_STATES:
@@ -417,7 +393,7 @@ class UsageTracker:
                          self.job["file"], gap)
                 self._journal("resume", job=self.job["id"], gap_mm=round(gap, 1))
             self._consume(used)
-            self._observe_gate(active_gate(status.get("mmu", {}) or {}), time.monotonic())
+            self._observe_gate(acemodel.consuming_slot(status), time.monotonic())
             if not printing:
                 await self._finish(state or "beendet")
         else:
