@@ -18,6 +18,11 @@ class Moon(FakeMoonraker):
 
     async def gcode(self, script, source="Bridge"):
         self.sent.append(script)
+        for line in script.split("\n"):              # wie der Treiber: neuer Stand kommt im Abo zurueck
+            if line in ("ACE_ENABLE_ENDLESS_SPOOL", "ACE_DISABLE_ENDLESS_SPOOL"):
+                self.merge({"ace": {"endless_spool_enabled": line.startswith("ACE_ENABLE")}})
+            elif line.startswith("ACE_SET_ENDLESS_SPOOL_MODE MODE="):
+                self.merge({"ace": {"endless_spool_match_mode": line.split("=", 1)[1]}})
 
 
 class SM:
@@ -47,10 +52,19 @@ def test_reads_endless_spool_from_the_driver(ace):
 
 def test_switch_endless_spool_and_mode(ace):
     a, moon = ace
-    asyncio.run(a.set_options({"endless_spool": False, "endless_mode": "material"}))
+    st = asyncio.run(a.set_options({"endless_spool": False, "endless_mode": "material"}))
     assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL\nACE_SET_ENDLESS_SPOOL_MODE MODE=material"]
-    asyncio.run(a.set_options({"auto_refill": True}))                     # Schalter der App 1.8.0
-    assert moon.sent[-1] == "ACE_ENABLE_ENDLESS_SPOOL"
+    assert st["endless_spool"] is False and st["endless_mode"] == "material"     # Antwort zeigt den neuen Stand
+    st = asyncio.run(a.set_options({"auto_refill": True}))                # Schalter der App 1.8.0
+    assert moon.sent[-1] == "ACE_ENABLE_ENDLESS_SPOOL" and st["auto_refill"] is True
+
+
+def test_answer_does_not_hang_when_the_driver_stays_silent(ace, monkeypatch):
+    a, moon = ace
+    monkeypatch.setattr("acebridge.ace.CONFIRM_WAIT_S", 0.2)
+    moon.gcode = lambda script, source="Bridge": moon.sent.append(script) or asyncio.sleep(0)
+    st = asyncio.run(a.set_options({"endless_spool": False}))
+    assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL"] and st["endless_spool"] is True   # alter Stand, kein Fehler
 
 
 def test_allowed_while_printing(ace):

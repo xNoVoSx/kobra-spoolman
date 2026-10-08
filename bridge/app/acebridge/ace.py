@@ -12,6 +12,7 @@ Fuer App 1.8.0 bleibt die Form der Antwort gleich: `auto_refill` = Endlosspule, 
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("ace")
 
 MODES = {"exact": "gleiche Farbe und gleiches Material", "material": "gleiches Material", "next": "nächste Spule"}
+CONFIRM_WAIT_S = 2.0      # so lange auf die Rueckmeldung des Treibers warten (Antwort zeigt dann den neuen Stand)
 
 
 class AceError(Exception):
@@ -70,16 +72,18 @@ class AceSettings:
     async def set_options(self, changes: Dict[str, Any], confirm_printing: bool = False) -> Dict[str, Any]:
         """Endlosspule an/aus (endless_spool, alt: auto_refill) und Modus (endless_mode). confirm_printing wird
         nicht mehr gebraucht - beides ist unkritisch und gilt beim naechsten Runout."""
-        cmds = []
+        cmds, want = [], {}
         for k, v in changes.items():
             if k in ("endless_spool", "auto_refill"):
                 if not isinstance(v, bool):
                     raise AceError(400, f"{k}: true oder false")
                 cmds.append("ACE_ENABLE_ENDLESS_SPOOL" if v else "ACE_DISABLE_ENDLESS_SPOOL")
+                want["enabled"] = v
             elif k == "endless_mode":
                 if v not in MODES:
                     raise AceError(400, "Modus: " + ", ".join(MODES))
                 cmds.append(f"ACE_SET_ENDLESS_SPOOL_MODE MODE={v}")
+                want["mode"] = v
             elif k == "runout_detect":
                 raise AceError(400, "Runout überwacht der ACE-Treiber immer – kein Schalter mehr")
             else:
@@ -89,7 +93,17 @@ class AceSettings:
         self._check()
         await self.moon.gcode("\n".join(cmds), source="ACE-Karte")
         log.info("ACE-Einstellungen: %s", "; ".join(cmds))
+        await self._wait_for(want)
         return self.state()
+
+    async def _wait_for(self, want: Dict[str, Any]) -> None:
+        """Bis der Treiber den neuen Stand im Abo meldet (hoechstens CONFIRM_WAIT_S)."""
+        end = time.monotonic() + CONFIRM_WAIT_S
+        while time.monotonic() < end:
+            cur = acemodel.endless_spool(self.moon.status)
+            if all(cur.get(k) == v for k, v in want.items()):
+                return
+            await asyncio.sleep(0.1)
 
     async def set_flush_multiplier(self, value: Any, confirm_printing: bool = False) -> Dict[str, Any]:
         raise AceError(410, "Den Spül-Multiplikator gibt es nicht mehr – die Spülmengen kommen aus Orca "
