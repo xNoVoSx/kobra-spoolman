@@ -59,7 +59,7 @@ export function useCamera(active) {
     if (!on) return;
     let stop = false, timer = null;
     const tick = async () => {
-      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps == null ? null : { fps: c.fps, throttled: !!c.throttled }); if (c.error && !c.fps) setErr(c.error); } } catch { /* egal */ }
+      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps == null ? null : { fps: c.fps }); if (c.error && !c.fps) setErr(c.error); } } catch { /* egal */ }
       if (!stop) timer = setTimeout(tick, 2000);
     };
     timer = setTimeout(tick, 1500);
@@ -70,11 +70,11 @@ export function useCamera(active) {
   return [src, err, onError, fps];
 }
 
-/** Kleine Bildrate oben rechts im Kamerabild; "gedrosselt", wenn die Bridge wegen der Drucker-CPU runterregelt. */
+/** Kleine Bildrate oben rechts im Kamerabild. */
 export function Fps({ fps }) {
   if (fps == null) return null;
   const v = fps.fps;
-  return html`<span class="media-fps m" title=${fps.throttled ? "Die Bridge holt weniger Bilder, weil die Drucker-CPU hoch ist" : ""}>${v < 10 ? v.toFixed(1) : Math.round(v)} fps${fps.throttled ? " · gedrosselt" : ""}</span>`;
+  return html`<span class="media-fps m">${v < 10 ? v.toFixed(1) : Math.round(v)} fps</span>`;
 }
 
 /** Fundstellen der KI als Rahmen ueber dem Kamerabild. Das SVG hat das Seitenverhaeltnis des ausgewerteten

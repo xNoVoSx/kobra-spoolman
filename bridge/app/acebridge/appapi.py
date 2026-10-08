@@ -334,6 +334,9 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         "print_duration_s": int(duration) if duration else None,
         "eta_s": eta,
         "message": ps.get("message") or None,
+        # Moonraker erreichbar, Klipper aber nicht bereit (Not-Aus, Fehler): Web/App bieten "Klipper neu laden"
+        "moonraker_connected": bool(connected),
+        "klippy_ready": bool(connected and klippy_ready),
         "active_slot": active_slot,
         "mmu_action": action or None,
         "changing_filament": target is not None,

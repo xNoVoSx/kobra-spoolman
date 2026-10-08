@@ -41,7 +41,18 @@ function HoldButton({ onHeld, children }) {
 }
 
 export function ControlBar({ p }) {
-  if (!S.me || !p || p.state === "offline") return null;
+  if (!S.me || !p) return null;
+  if (p.state === "offline") {
+    // Klipper aus (Not-Aus, Fehler), Moonraker aber erreichbar: nur der Weg zurueck
+    if (!p.moonraker_connected || p.klippy_ready) return null;
+    const restart = () => openDialog("confirm", {
+      title: "Klipper neu laden?", ok: "Neu laden", back: "Zurück",
+      text: "Klipper ist nicht bereit (Not-Aus oder Fehler). Neu laden dauert einige Sekunden; die Achsen müssen danach neu referenziert werden.",
+      action: () => send("/api/print/firmware_restart", { confirm: true }, "Klipper wird neu geladen"),
+    });
+    return html`<div class="ctl row wrap"><span class="small muted grow">Klipper ist nicht bereit.</span>
+      <button class="btn sm acc" onClick=${guard(restart)}><${Icon} name="play" small />Klipper neu laden</button></div>`;
+  }
   const printing = p.state === "printing", paused = p.state === "paused";
   const pct = p.progress != null ? ` · ${Math.round(p.progress * 100)} %` : "";
   const cancel = () => openDialog("confirm", {
@@ -51,7 +62,7 @@ export function ControlBar({ p }) {
   });
   const estop = () => openDialog("confirm", {
     title: "Not-Aus auslösen?", ok: "Not-Aus", back: "Zurück", danger: true,
-    text: "Stoppt sofort alle Motoren und Heizungen. Danach muss der Drucker aus- und wieder eingeschaltet werden – ein Neustart per Befehl geht unter Rinkhals nicht.",
+    text: "Stoppt sofort alle Motoren und Heizungen. Danach Klipper neu laden (Knopf erscheint hier).",
     action: () => send("/api/print/emergency_stop", { confirm: true }, "Not-Aus ausgelöst"),
   });
   return html`<div class="ctl row wrap">

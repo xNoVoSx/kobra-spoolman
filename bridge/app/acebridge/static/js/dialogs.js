@@ -120,8 +120,9 @@ function DryerRules() {
   const c = S.st?.dryer?.config || {};
   const [v, setV] = useState({ enabled: !!c.enabled, while_printing: !!c.while_printing,
     start_above: String(c.start_above ?? 20), stop_below: String(c.stop_below ?? 10),
-    max_hours: String(c.max_hours ?? 6).replace(".", ","), pause_minutes: String(c.pause_minutes ?? 60) });
-  const nums = ["start_above", "stop_below", "max_hours", "pause_minutes"];
+    max_hours: String(c.max_hours ?? 6).replace(".", ","), pause_minutes: String(c.pause_minutes ?? 60),
+    start_delay_minutes: String(c.start_delay_minutes ?? 15) });
+  const nums = ["start_above", "stop_below", "max_hours", "pause_minutes", "start_delay_minutes"];
   const bad = nums.some((k) => parseNum(v[k]) == null || Number.isNaN(parseNum(v[k]))) || parseNum(v.stop_below) >= parseNum(v.start_above);
   const run = () => act().then((a) => a.dryerConfig({ enabled: v.enabled, while_printing: v.while_printing, ...Object.fromEntries(nums.map((k) => [k, parseNum(v[k])])) }));
   const n = (k, label, hint) => html`<${Field} id=${"rule-" + k} label=${label} hint=${hint}><input id=${"rule-" + k} inputmode="decimal" value=${v[k]} onInput=${(e) => setV({ ...v, [k]: e.target.value })} /></${Field}>`;
@@ -131,7 +132,9 @@ function DryerRules() {
       <div class="fgrid">
         ${n("start_above", "Start ab Feuchte (%)")}${n("stop_below", "Stopp unter Feuchte (%)")}
         ${n("max_hours", "Längstens (h)", "pro Durchgang")}${n("pause_minutes", "Pause danach (min)", "gegen An/Aus-Flattern")}
+        ${n("start_delay_minutes", "Erst starten nach (min)", "so lange am Stück über „Start ab“ – Deckel auf zählt nicht")}
       </div>
+      <div class="small muted">Gilt nur für die Automatik. Von Hand, geplant oder nach dem Einlegen gestartet läuft der Trockner bis zur gewählten Zeit.</div>
       <label class="check"><input type="checkbox" checked=${v.while_printing} onChange=${(e) => setV({ ...v, while_printing: e.target.checked })} />Auch während eines Drucks trocknen</label>
       ${bad && html`<div class="small" style="color:var(--danger-text)">Stopp-Feuchte muss unter der Start-Feuchte liegen.</div>`}
     </div></${Dialog}>`;

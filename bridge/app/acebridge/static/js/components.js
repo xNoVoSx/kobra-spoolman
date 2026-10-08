@@ -113,6 +113,7 @@ export function Slots() {
 }
 
 // ------------------------------------------------------------ Trockner
+const RUN_SOURCE = { hand: "von Hand", plan: "geplant", spule: "nach dem Einlegen" };
 export function dryerLook(d) {
   if (!d?.present) return ["keine ACE erkannt", ""];
   if (d.drying) return [d.auto_run ? "trocknet · Automatik" : "trocknet", "warn"];
@@ -138,8 +139,8 @@ export function DryerCard({ big }) {
       <div><div class="m" style=${{ fontSize: big ? "44px" : "32px", fontWeight: 600, lineHeight: 1 }}>${num(d.temp, 0)}<span class="muted" style="font-size:.5em"> °C</span></div><div class="small muted">im ACE${d.drying ? ` · Soll ${num(d.target_temp, 0)} °C` : ""}${limited.length ? ` · Grenze ${limited[0].name}` : ""}</div></div>
     </div>
     <div class="small muted">
-      ${d.drying ? `Noch ${minutes(d.remaining_min)}. ` : ""}
-      ${d.config?.enabled ? `Automatik startet ab ${num(d.config.start_above, 0)} %, stoppt unter ${num(d.config.stop_below, 0)} %, höchstens ${num(d.config.max_hours)} h.` : "Automatik ist aus."}
+      ${d.drying ? `Noch ${minutes(d.remaining_min)}${d.run && d.run.source !== "auto" ? ` (${RUN_SOURCE[d.run.source] || d.run.source}, läuft bis zur Zeit)` : ""}. ` : ""}
+      ${d.config?.enabled ? `Automatik startet ab ${num(d.config.start_above, 0)} % (nach ${num(d.config.start_delay_minutes ?? 15, 0)} min am Stück), stoppt unter ${num(d.config.stop_below, 0)} %, höchstens ${num(d.config.max_hours)} h.` : "Automatik ist aus."}
       ${req.temp != null ? ` Höchstens ${req.temp} °C für die eingelegten Spulen.` : ""}
     </div>
     ${d.schedule && html`<div class="small" style="color:var(--accent-text)">Geplant: ${when(d.schedule.at_iso)}${d.schedule.temp ? ` · ${num(d.schedule.temp, 0)} °C` : ""}${d.schedule.hours ? ` · ${num(d.schedule.hours)} h` : ""}</div>`}
