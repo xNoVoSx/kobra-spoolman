@@ -112,7 +112,7 @@ def test_recent_print_and_humidity_info(bridge):
     bridge.moon.merge({"print_stats": {"state": "complete"}})
     ended = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 300))
     bridge.usage.history = [{"file": "wuerfel.gcode", "ended": ended, "state": "complete", "slots": []}]
-    bridge.moon.merge({"filament_hub": {"filament_hubs": [{"humidity": 40, "dryer_status": {"status": "stop"}}]}})
+    bridge.moon.merge({"ace_instance_0": {"humidity": 40, "dryer_status": {"status": "stop"}}})
     msgs = {m["key"]: m for m in notices(bridge)["messages"]}
     assert msgs["done"]["text"].startswith("Druck fertig: wuerfel.gcode")
     assert msgs["humidity"]["level"] == "info"

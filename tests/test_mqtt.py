@@ -66,8 +66,8 @@ def bridge(monkeypatch, **kw):
                                 "info": {"current_layer": 3, "total_layer": 40}},
                 "virtual_sdcard": {"progress": 0.25},
                 "extruder": {"temperature": 219.6, "target": 220}, "heater_bed": {"temperature": 60.04, "target": 60},
-                "filament_hub": {"filament_hubs": [{"humidity": 18, "temp": 31,
-                                                    "dryer_status": {"status": "stop"}}]}})
+                "ace_instance_0": {"humidity": 18, "temp": 31, "connection_state": "connected",
+                                   "dryer_status": {"status": "stop"}}})
     slots = [{"slot": 1, "ace": {"present": True, "active": True, "material": "PETG", "color": "685BC7"},
               "spool": {"spool_id": 7, "display_name": "Sunlu PETG Lavendel", "material": "PETG", "color": "685BC7",
                         "remaining_weight": 812.4}},

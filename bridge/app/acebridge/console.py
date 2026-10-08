@@ -23,10 +23,10 @@ MAX_HOTEND = 260          # darueber: Rueckfrage
 
 # Befehl (erstes Wort) -> Grund der Rueckfrage
 RISKY = {
-    "M112": "Not-Aus: der Drucker muss danach aus- und eingeschaltet werden",
-    "EMERGENCY_STOP": "Not-Aus: der Drucker muss danach aus- und eingeschaltet werden",
-    "FIRMWARE_RESTART": "Neustart der Firmware - unter Rinkhals/GoKlipper oft nur per Aus/An zu beheben",
-    "RESTART": "Neustart der Firmware - unter Rinkhals/GoKlipper oft nur per Aus/An zu beheben",
+    "M112": "Not-Aus: alles stoppt sofort, danach Klipper neu laden (FIRMWARE_RESTART)",
+    "EMERGENCY_STOP": "Not-Aus: alles stoppt sofort, danach Klipper neu laden (FIRMWARE_RESTART)",
+    "FIRMWARE_RESTART": "Lädt Klipper neu – ein laufender Druck bricht ab",
+    "RESTART": "Lädt Klipper neu – ein laufender Druck bricht ab",
     "SAVE_CONFIG": "Schreibt die Drucker-Konfiguration und startet neu",
     "CANCEL_PRINT": "Bricht den laufenden Druck ab",
     "SDCARD_RESET_FILE": "Setzt die laufende Druckdatei zurück",
@@ -34,8 +34,8 @@ RISKY = {
     "SET_KINEMATIC_POSITION": "Setzt die Position ohne Referenzfahrt – kann crashen",
     "FORCE_MOVE": "Bewegt einen Motor ohne Grenzen – kann crashen",
 }
-MOVES = re.compile(r"^(G0|G1|G2|G3|G28|G29|G92|M84|M18|BED_MESH_CALIBRATE|LEVIQ2\w*|PROBE\w*|"
-                   r"MOVE_TO_\w+|WIPE_\w+|SHAPER_CALIBRATE|TEST_RESONANCES|PA_AUTO_CALIBRATE)$")
+MOVES = re.compile(r"^(G0|G1|G2|G3|G28|G29|G92|M84|M18|BED_MESH_CALIBRATE|KOBRA_BED_MESH_ALL|G9111|PROBE\w*|"
+                   r"MOVE_TO_\w+|WIPE_\w+|SHAPER_CALIBRATE|TEST_RESONANCES|T\d+|ACE_CHANGE_TOOL|CUT_TIP)$")
 TEMP_CMD = re.compile(r"^(M104|M109)$")
 TEMP_ARG = re.compile(r"\bS(\d+(?:\.\d+)?)", re.I)
 SET_HEATER = re.compile(r"HEATER=extruder\b.*\bTARGET=(\d+(?:\.\d+)?)", re.I)

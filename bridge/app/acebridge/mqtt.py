@@ -140,7 +140,7 @@ class MqttBridge:
         ent("sensor", "layer", "Schicht", "printer", "{{ value_json.layer }}", icon="mdi:layers")
         ent("sensor", "nozzle", "Düse", "printer", "{{ value_json.nozzle }}", unit_of_measurement="°C", device_class="temperature")
         ent("sensor", "bed", "Bett", "printer", "{{ value_json.bed }}", unit_of_measurement="°C", device_class="temperature")
-        ent("sensor", "cpu", "Drucker-CPU", "printer", "{{ value_json.cpu }}", unit_of_measurement="%", icon="mdi:cpu-32-bit",
+        ent("sensor", "cpu", "Klipper-CPU (Pi)", "printer", "{{ value_json.cpu }}", unit_of_measurement="%", icon="mdi:cpu-32-bit",
             entity_category="diagnostic")
         ent("sensor", "ace_humidity", "ACE Feuchte", "ace", "{{ value_json.humidity }}", unit_of_measurement="%", device_class="humidity")
         ent("sensor", "ace_temp", "ACE Temperatur", "ace", "{{ value_json.temp }}", unit_of_measurement="°C", device_class="temperature")

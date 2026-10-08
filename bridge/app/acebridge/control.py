@@ -1,9 +1,9 @@
 """Drucksteuerung: Pause/Weiter/Abbrechen/Not-Aus und Nachjustieren (Tempo, Fluss, Luefter, Temperaturen).
 
-Am Kobra S1 geprueft (01.10.2026): M220, M221, M106, SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1,
-M104, M140 wirken wie erwartet. CANCEL_PRINT leitet Rinkhals bei MQTT-Drucken an Anycubics Stopp weiter;
-PAUSE/RESUME sind GoKlipper-Makros. Nach einem Not-Aus hilft nur Aus/An (Rinkhals sperrt FIRMWARE_RESTART,
-GoKlipper haengt sonst). Alles geht ueber die eine Moonraker-Verbindung und steht mit Absender in der Konsole.
+Klipper am Pi (Tunnel): M220, M221, M106, SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1, M104, M140.
+PAUSE/RESUME/CANCEL_PRINT sind die Makros der Konfiguration (kobra-klipper). Nach einem Not-Aus oder einer
+Abschaltung laedt FIRMWARE_RESTART Klipper neu (Aktion "firmware_restart"). Alles geht ueber die eine
+Moonraker-Verbindung und steht mit Absender in der Konsole.
 """
 
 from __future__ import annotations
@@ -85,6 +85,9 @@ ACTIONS = {
     "resume": ("printer.print.resume", "RESUME (Druck fortsetzen)", ("paused",), False),
     "cancel": ("printer.print.cancel", "CANCEL_PRINT (Druck abbrechen)", ("printing", "paused"), True),
     "emergency_stop": ("printer.emergency_stop", "NOT-AUS", None, True),
+    # nicht waehrend eines Drucks (bricht ihn ab); nach Not-Aus/Abschaltung ("shutdown", "error") der Weg zurueck
+    "firmware_restart": ("printer.firmware_restart", "FIRMWARE_RESTART (Klipper neu laden)",
+                         ("standby", "complete", "cancelled", "error", "shutdown", "offline", "", None), True),
 }
 
 
@@ -94,8 +97,11 @@ def check_action(action: str, state: Optional[str], confirmed: bool) -> Tuple[st
     method, label, states, needs_confirm = ACTIONS[action]
     if states is not None and state not in states:
         raise ControlError(409, {"pause": "Es läuft kein Druck", "resume": "Der Druck ist nicht pausiert",
-                                 "cancel": "Es läuft kein Druck"}[action])
+                                 "cancel": "Es läuft kein Druck",
+                                 "firmware_restart": "Es läuft ein Druck – Neuladen würde ihn abbrechen"}[action])
     if needs_confirm and not confirmed:
-        raise ControlError(409, "Not-Aus: danach muss der Drucker aus- und wieder eingeschaltet werden"
-                           if action == "emergency_stop" else "Druck wirklich abbrechen?", confirm=True)
+        raise ControlError(409, {"emergency_stop": "Not-Aus: alles stoppt sofort, danach Klipper neu laden",
+                                 "cancel": "Druck wirklich abbrechen?",
+                                 "firmware_restart": "Klipper neu laden? (dauert einige Sekunden)"}[action],
+                           confirm=True)
     return method, label

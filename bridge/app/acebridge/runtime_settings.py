@@ -37,12 +37,10 @@ SPECS: List[Spec] = [
     # Kamera
     Spec("camera", "Kamera", "Kamera über die Bridge", "bool", help="Web, App und Mainsail-Link holen ihre Bilder über die Bridge"),
     Spec("camera_stream", "Kamera", "Dauerstream statt Einzelbildern", "bool",
-         help="Achtung: der MJPEG-Stream des Druckers kostet am Kobra S1 allein 100 % CPU. Standard: aus"),
+         help="Volle Bildrate über den MJPEG-Stream des Druckers – unter GoKlipper kostete er die ganze Drucker-CPU, "
+              "im Tunnel-Betrieb ist sie frei. Standard: aus"),
     Spec("camera_fps_min", "Kamera", "Bildrate mindestens", "float", 0.5, 15, "fps"),
     Spec("camera_fps_max", "Kamera", "Bildrate höchstens", "float", 1, 15, "fps"),
-    Spec("camera_cpu_low", "Kamera", "Schneller ab Drucker-CPU unter", "float", 30, 100, "%",
-         "Darunter alle 5 s 1 fps mehr. Im Druck liegt der S1 allein durch GoKlipper bei 75–89 %"),
-    Spec("camera_cpu_high", "Kamera", "Langsamer ab Drucker-CPU über", "float", 30, 100, "%", "Darüber alle 5 s 1 fps weniger"),
     # Druckvorschau
     Spec("render", "Druckvorschau", "Druckdatei laden (Modell, Restmenge)", "bool",
          help="Die Bridge lädt die Datei beim Druckstart einmal gedrosselt – für 3D-Modell und „Spule reicht nicht“"),
@@ -168,8 +166,6 @@ class RuntimeSettings:
         c = self.cfg
         if c.camera_fps_min > c.camera_fps_max:
             raise ValueError("Bildrate: mindestens darf nicht über höchstens liegen")
-        if c.camera_cpu_low >= c.camera_cpu_high:
-            raise ValueError("Kamera: „schneller unter“ muss kleiner als „langsamer über“ sein")
 
     def update(self, changes: Dict[str, Any]) -> None:
         """Pruefen, uebernehmen, speichern. Bei einem Fehler bleibt alles beim Alten (ValueError)."""

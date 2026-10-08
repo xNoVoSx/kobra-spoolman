@@ -20,8 +20,8 @@ REACH_RESERVE_PCT = 5.0     # Reserve bei "reicht die Spule?" (cfg.reach_reserve
 RECENT_S = 30 * 60          # so lange bleiben "Druck fertig" / Trockner-Ereignisse als Info stehen
 ONLINE_S = 5 * 60           # Geraet gilt als verbunden, wenn es sich so kurz vorher gemeldet hat
 LEVELS = {"error": 0, "warn": 1, "info": 2}
-# Im Druck liegt der S1 allein durch GoKlipper bei 75-89 % - erst darueber ist es auffaellig. Keine Meldung:
-# daran laesst sich im Druck nichts aendern; haengt der Drucker wirklich, meldet sich "Drucker nicht erreichbar".
+# CPU des Klipper-Rechners (Pi), wie Moonraker sie meldet. Keine Meldung, nur die Statuszeile: haengt Klipper
+# wirklich, meldet sich "Drucker nicht erreichbar" bzw. "Klipper nicht bereit".
 CPU_WARN = 90               # Status gelb ab
 CPU_BAD = 97                # Status rot ab (wie CAMERA_CPU_HIGH)
 
@@ -224,9 +224,9 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     return out
 
 
-# ====================================================================== Drucker-CPU
+# ====================================================================== CPU des Klipper-Rechners
 def printer_cpu(bridge: "Bridge") -> Optional[float]:
-    """Drucker-CPU (Mittel der letzten 5 s) aus Moonrakers notify_proc_stat_update."""
+    """CPU des Klipper-Rechners (Pi; Mittel der letzten 5 s) aus Moonrakers notify_proc_stat_update."""
     cpu = getattr(bridge.moon, "cpu", None)
     return cpu(5.0) if callable(cpu) else None
 
@@ -253,7 +253,7 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
         lines.append({"key": "printer", "label": "Drucker", "state": "ok", "detail": "Moonraker verbunden"})
     cpu = printer_cpu(bridge)
     if cpu is not None:
-        lines.append({"key": "cpu", "label": "Drucker-CPU", "detail": f"{cpu:.0f} %",
+        lines.append({"key": "cpu", "label": "Klipper-CPU (Pi)", "detail": f"{cpu:.0f} %",
                       "state": "ok" if cpu < CPU_WARN else "warn" if cpu < CPU_BAD else "bad"})
     lines.append({"key": "spoolman", "label": "Spoolman", "state": "ok" if bridge.sm.connected else "bad",
                   "detail": "verbunden" if bridge.sm.connected else "nicht erreichbar"})
@@ -264,10 +264,8 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
         lines.append({"key": "camera", "label": "Kamera", "state": "warn", "detail": cam["error"]})
     elif cam.get("mode") in ("stream", "snapshots"):
         detail = f"{cam['fps']:.0f} fps" if cam.get("fps") else "läuft"
-        detail += " · gedrosselt (Drucker-CPU)" if cam.get("throttled") else ""
         detail += f" · {cam['viewers']} Zuschauer" if cam.get("viewers") else ""
-        lines.append({"key": "camera", "label": "Kamera", "state": "warn" if cam.get("throttled") else "ok",
-                      "detail": detail})
+        lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": detail})
     else:
         lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": "bereit (nur wenn jemand schaut)"})
     vision = getattr(bridge, "vision", None)

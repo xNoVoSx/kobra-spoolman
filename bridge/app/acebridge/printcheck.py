@@ -1,7 +1,7 @@
 """Pruefung beim Druckstart: passen die Slots zur Druckdatei?
 
 Sobald die Bridge die Druckdatei gelesen hat (render.py), vergleicht sie fuer jedes Werkzeug, das die Datei
-wirklich benutzt, den Slot (ttg_map der ACE): Spule zugeordnet? Material wie im Slicer? Farbe ungefaehr gleich?
+wirklich benutzt, den Slot (ACEPRO: Werkzeug T<n> = Slot n): Spule zugeordnet? Material wie im Slicer? Farbe ungefaehr gleich?
 Spule nicht zu feucht (moisture.py)? Dass die Restmenge reicht, prueft status.spool_reach ohnehin.
 
 Ergebnis sind Meldungen (rot = Alarm am Handy). Mit wet_print_action = pause pausiert die Bridge einen Druck,
@@ -49,12 +49,10 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
     m = pv.model
     if not m or pv.status != "ready" or not len(m):
         return []
-    mmu = bridge.moon.status.get("mmu") or {}
-    ttg = mmu.get("ttg_map") or []
     assigned, _ = bridge.slots.assignments()
     out: List[Dict[str, Any]] = []
     for tool in sorted(t for t, mm in m.e_total.items() if mm > 1):
-        gate = ttg[tool] if tool < len(ttg) and isinstance(ttg[tool], int) else tool
+        gate = tool                       # ACEPRO: Werkzeug T<n> = Slot n (keine Umleitung wie GoKlippers ttg_map)
         slot = gate + 1
         ace = bridge.slots.ace_gate(gate)
         spool = assigned.get(slot)

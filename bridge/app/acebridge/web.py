@@ -813,13 +813,16 @@ def build_app(bridge: "Bridge") -> web.Application:
 
     @r.post("/api/print/{action}")
     async def print_action(request: web.Request):
-        """pause, resume, cancel (Rueckfrage), emergency_stop (Rueckfrage; danach Aus/An noetig)."""
+        """pause, resume, cancel (Rueckfrage), emergency_stop (Rueckfrage), firmware_restart (Rueckfrage, nicht im
+        Druck - der Weg zurueck nach Not-Aus/Abschaltung)."""
         try:
             dev = bridge.devices.require(request.headers.get("Authorization"))
         except AuthError as e:
             return _err(e.status, str(e))
         body = await _body(request)
-        state = (bridge.moon.status.get("print_stats") or {}).get("state")
+        # Klipper abgeschaltet (Not-Aus, Fehler): print_stats steht noch auf dem alten Wert, z.B. "printing"
+        state = ((bridge.moon.status.get("print_stats") or {}).get("state")
+                 if bridge.moon.klippy_ready else "shutdown")
         try:
             method, label = check_action(request.match_info["action"], state, bool(body.get("confirm")))
         except ControlError as e:

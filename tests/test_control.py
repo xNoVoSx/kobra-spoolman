@@ -38,8 +38,21 @@ def test_actions_check_state_and_confirmation():
     assert check_action("cancel", "paused", True)[0] == "printer.print.cancel"
     with pytest.raises(ControlError) as e:
         check_action("emergency_stop", "standby", False)
-    assert e.value.confirm and "aus- und wieder eingeschaltet" in str(e.value)
+    assert e.value.confirm and "neu laden" in str(e.value)
     assert check_action("emergency_stop", "standby", True)[0] == "printer.emergency_stop"
+
+
+def test_firmware_restart_only_without_print():
+    """Klipper neu laden (nach Not-Aus oder Abschaltung) - nie waehrend eines Drucks, immer mit Rueckfrage."""
+    for state in ("printing", "paused"):
+        with pytest.raises(ControlError) as e:
+            check_action("firmware_restart", state, True)
+        assert e.value.status == 409 and not e.value.confirm
+    with pytest.raises(ControlError) as e:
+        check_action("firmware_restart", "shutdown", False)
+    assert e.value.confirm
+    assert check_action("firmware_restart", "shutdown", True)[0] == "printer.firmware_restart"
+    assert check_action("firmware_restart", "standby", True)[0] == "printer.firmware_restart"
 
 
 @pytest.fixture
@@ -81,3 +94,15 @@ def test_routes(api):
     assert call("/api/print/unbekannt")[0] == 404
     assert [s[:2] for s in sent] == [("action", "printer.print.pause"), ("action", "printer.print.cancel"),
                                      ("gcode", "M220 S120\nSET_FAN_SPEED FAN=box_fan SPEED=0.5")]
+
+
+def test_firmware_restart_after_shutdown_mid_print(api):
+    """Not-Aus mitten im Druck: print_stats sagt noch "printing", Klipper ist aber aus - Neuladen muss gehen."""
+    bridge, call, sent = api
+    bridge.moon.merge({"print_stats": {"state": "printing"}})
+    assert call("/api/print/firmware_restart", {"confirm": True})[0] == 409    # Druck laeuft wirklich
+    bridge.moon.klippy_ready = False
+    status, res = call("/api/print/firmware_restart")
+    assert status == 409 and res["confirm"] is True
+    assert call("/api/print/firmware_restart", {"confirm": True})[0] == 200
+    assert sent[-1][:2] == ("action", "printer.firmware_restart")

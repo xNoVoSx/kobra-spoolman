@@ -56,8 +56,7 @@ def printer():
 
 def make_cfg(srv, stream=True, interval=60, fps_max=10.0):
     return SimpleNamespace(camera=True, camera_stream=stream, camera_interval_s=interval,
-                           camera_fps_min=1.0, camera_fps_max=fps_max, camera_cpu_low=70.0, camera_cpu_high=85.0,
-                           camera_stream_url=str(srv.make_url("/webcam/?action=stream")),
+                           camera_fps_min=1.0, camera_fps_max=fps_max, camera_stream_url=str(srv.make_url("/webcam/?action=stream")),
                            camera_snapshot_url=str(srv.make_url("/webcam/?action=snapshot")))
 
 
@@ -181,7 +180,7 @@ def test_resolve_skips_the_bridges_own_camera_link():
 
     async def go():
         cfg = SimpleNamespace(camera=True, camera_stream=True, camera_interval_s=1, camera_stream_url="",
-                              camera_snapshot_url="", printer_base_url=lambda: "http://drucker")
+                              camera_snapshot_url="", camera_fps_max=10.0, printer_base_url=lambda: "http://drucker")
         cam = Camera(cfg, Moon(), None)
         await cam._resolve()
         return cam.stream_url, cam.snapshot_url
@@ -207,36 +206,13 @@ def test_default_polls_snapshots_and_never_opens_the_printer_stream(printer):
             res = await asyncio.gather(viewer(3), viewer(3))
             assert all(f == JPEG for r in res for f in r)
             assert hits["stream"] == 0 and hits["snapshot"] >= 3
-            assert cam.state()["mode"] == "snapshots" and cam.state()["target_fps"] == 2.0
+            assert cam.state()["mode"] == "snapshots" and cam.state()["target_fps"] == 10.0   # gleich die Hoechstrate
             cam._wanted_until = 0
             await asyncio.wait_for(cam._reader, 3)
             stopped = hits["snapshot"]
             await asyncio.sleep(0.2)
             assert hits["snapshot"] == stopped and not cam.streaming       # ohne Zuschauer keine Abfragen mehr
     asyncio.run(go())
-
-
-def test_rate_follows_printer_cpu():
-    """Hohe Schwellen, kleine Schritte: die Last im Druck (75-89 %) kommt von GoKlipper, nicht von der Kamera."""
-    cfg = SimpleNamespace(camera=True, camera_stream=False, camera_fps_min=1.0, camera_fps_max=10.0,
-                          camera_cpu_low=90.0, camera_cpu_high=97.0, camera_stream_url="x", camera_snapshot_url="y")
-    cam = Camera(cfg, SimpleNamespace(), None)
-    cam.target_fps = 2.0
-    for _ in range(20):
-        cam.adjust(80.0)                                   # normaler Druck: hoch bis zum Maximum
-    assert cam.target_fps == 10.0 and not cam.throttled
-    cam.adjust(92.0)
-    assert cam.target_fps == 10.0                          # zwischen den Schwellen: halten
-    cam.adjust(99.0)
-    assert cam.target_fps == 9.0 and cam.throttled         # am Anschlag: nur 1 fps weniger, nicht halbieren
-    for _ in range(20):
-        cam.adjust(100.0)
-    assert cam.target_fps == 1.0                           # nie unter das Minimum
-    cam.adjust(None)
-    assert cam.target_fps == 1.0                           # ohne CPU-Werte nichts aendern
-    for _ in range(9):
-        cam.adjust(60.0)
-    assert cam.target_fps == 10.0 and not cam.throttled
 
 
 def test_viewer_disconnect_is_not_an_error():

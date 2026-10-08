@@ -57,8 +57,8 @@ class Config:
     lane_namespace: str = field(default_factory=lambda: os.environ.get("LANE_NAMESPACE", "lane_data"))
     empty_gate_mode: str = field(default_factory=lambda: os.environ.get("EMPTY_GATE_MODE", "delete").lower())
 
-    # Material/Farbe der zugeordneten Spule an die ACE geben (Rinkhals MMU_GATE_MAP), nur Slots ohne RFID-Tag.
-    # Am Drucker bestaetigt (30.09.): GoKlipper uebernimmt und behaelt die Werte (docs/findings.md).
+    # Material/Farbe/Temperatur der zugeordneten Spule an die ACE geben (ACEPRO ACE_SET_SLOT), nur Slots ohne
+    # RFID-Tag und nur beim Zuordnen auf der Slot-Seite.
     set_ace_slot_info: bool = field(default_factory=lambda: _bool("SET_ACE_SLOT_INFO", True))
 
     # Android-App: Schluessel fuer alle schreibenden /api/app-Aufrufe (leer = App darf nur lesen)
@@ -104,16 +104,13 @@ class Config:
     default_diameter: float = field(default_factory=lambda: _float("DEFAULT_DIAMETER", 1.75))
     default_density: float = field(default_factory=lambda: _float("DEFAULT_DENSITY", 1.24))
 
-    # Kamera: die Bridge holt Einzelbilder (nur solange jemand zuschaut; Rate nach der Drucker-CPU zwischen
-    # CAMERA_FPS_MIN und CAMERA_FPS_MAX) und verteilt sie als Stream an Weboberflaeche, App, Mainsail und
-    # spaeter die KI. Der Dauerstream des Druckers kostet am Kobra S1 die ganze CPU - CAMERA_STREAM=true nur
-    # fuer Drucker, bei denen er billig ist. URLs leer = aus Moonrakers Webcam-Liste.
+    # Kamera: die Bridge holt Einzelbilder (nur solange jemand zuschaut, mit CAMERA_FPS_MAX) und verteilt sie als
+    # Stream an Weboberflaeche, App, Mainsail und die KI. CAMERA_STREAM=true nimmt den Dauerstream des Druckers
+    # (im Tunnel-Betrieb ist die Drucker-CPU frei). URLs leer = aus Moonrakers Webcam-Liste.
     camera: bool = field(default_factory=lambda: _bool("CAMERA", True))
     camera_stream: bool = field(default_factory=lambda: _bool("CAMERA_STREAM", False))
     camera_fps_min: float = field(default_factory=lambda: _float("CAMERA_FPS_MIN", 1.0))
     camera_fps_max: float = field(default_factory=lambda: _float("CAMERA_FPS_MAX", 10.0))
-    camera_cpu_low: float = field(default_factory=lambda: _float("CAMERA_CPU_LOW", 90.0))
-    camera_cpu_high: float = field(default_factory=lambda: _float("CAMERA_CPU_HIGH", 97.0))
     camera_stream_url: str = field(default_factory=lambda: os.environ.get("CAMERA_STREAM_URL", ""))
     camera_snapshot_url: str = field(default_factory=lambda: os.environ.get("CAMERA_SNAPSHOT_URL", ""))
     camera_interval_s: float = field(default_factory=lambda: _float("CAMERA_INTERVAL_S", 1.0))
@@ -145,7 +142,7 @@ class Config:
     def links(self) -> dict:
         """Spoolman: im Stack heisst der Host 'spoolman' - das kennt der Browser nicht,
         dann baut die Seite den Link selbst (gleicher Host, Port 7912).
-        Drucker-Oberflaeche: Mainsail laeuft unter Rinkhals fest auf Port 4409."""
+        Drucker-Oberflaeche: Mainsail am Klipper-Rechner (Pi), Port 80 - gleicher Host wie Moonraker."""
         from urllib.parse import urlparse
         sm = self.spoolman_public_url
         if not sm:
@@ -154,11 +151,12 @@ class Config:
         ui = self.printer_ui_url
         if not ui:
             host = urlparse(self.moonraker_url).hostname
-            ui = f"http://{host}:4409" if host else ""
+            ui = f"http://{host}" if host else ""
         return {"spoolman": sm or None, "printer_ui": ui or None}
 
     def printer_base_url(self) -> str:
-        """Drucker-Webserver (Port 80, dort liegt unter Rinkhals auch /webcam/)."""
+        """Webserver des Klipper-Rechners (Pi, Mainsail/nginx Port 80) - Rueckfall fuer /webcam/, wenn Moonrakers
+        Webcam-Liste nichts liefert (die Kamera selbst haengt am Drucker, siehe moonraker.conf)."""
         from urllib.parse import urlparse
         host = urlparse(self.moonraker_url).hostname
         return f"http://{host}" if host else ""

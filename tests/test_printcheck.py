@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from conftest import FakeMoonraker
+from conftest import FakeMoonraker, ace_status
+
+from acebridge import acemodel
 
 from acebridge.printcheck import PrintGuard, check, colour_distance
 from acebridge.render import parse_bytes
@@ -27,9 +29,7 @@ class Slots:
         return self.assigned, []
 
     def ace_gate(self, gate):
-        m = self.moon.status["mmu"]
-        st = m["gate_status"][gate]
-        return {"present": st != 0, "material": m["gate_material"][gate], "color": m["gate_color"][gate][:6]}
+        return acemodel.slot(self.moon.status, gate)
 
 
 def spool(sid, material, colour, name="X"):
@@ -38,9 +38,9 @@ def spool(sid, material, colour, name="X"):
 
 def bridge(gates, assigned, wet=(), action="warn"):
     moon = FakeMoonraker()
-    moon.merge({"print_stats": {"state": "printing", "filename": "teil.gcode"},
-                "mmu": {"ttg_map": [0, 1, 2, 3], "gate_status": [g[0] for g in gates],
-                        "gate_material": [g[1] for g in gates], "gate_color": [g[2] for g in gates]}})
+    # gates: (belegt, Material, Farbe RRGGBB[AA]) je Slot -> ACEPRO-Status
+    slots = [{"material": g[1], "color": g[2][:6]} if g[0] else None for g in gates]
+    moon.merge({"print_stats": {"state": "printing", "filename": "teil.gcode"}, **ace_status(slots)})
     sent = []
 
     async def act(method, label, source="Bridge", timeout=30):

@@ -1,15 +1,12 @@
 """Kamera ueber die Bridge: eine Quelle am Drucker, weiterverteilt an alle Zuschauer.
 
-Gemessen am Kobra S1 (01.10.2026, Rinkhals' mjpg-streamer, 1280x720): schon EIN Dauerstream
-(?action=stream) treibt die Drucker-CPU auf 100 %; Einzelbilder (?action=snapshot) mit bis zu ~5 pro Sekunde
-aendern nichts gegenueber dem Leerlauf (30-50 %). Deshalb holt die Bridge Einzelbilder - wie Mainsails
-"adaptive"-Modus -, nur solange jemand zuschaut, und verteilt sie als MJPEG-Stream an Weboberflaeche, App,
-Mainsail (Kamera-Link) und spaeter die KI.
-
-Die Bildrate regelt sich nach der Drucker-CPU (notify_proc_stat_update, kommt ohnehin ueber die eine
-Moonraker-Verbindung): Start mit 2 fps; CPU-Mittel unter CAMERA_CPU_LOW -> alle 5 s +1 fps bis CAMERA_FPS_MAX;
-ueber CAMERA_CPU_HIGH -> alle 5 s 1 fps weniger bis CAMERA_FPS_MIN. Der Druck hat immer Vorrang.
-CAMERA_STREAM=true nutzt stattdessen den Stream des Druckers (fuer Drucker, bei denen er billig ist).
+Die Kamera haengt am Drucker (mjpg-streamer von Rinkhals, Port 8080), Klipper laeuft am Pi; die Adressen kommen
+aus Moonrakers Webcam-Liste (moonraker.conf des Pi). Unter GoKlipper kostete schon EIN Dauerstream die ganze
+Drucker-CPU (01.10.2026) - darum holt die Bridge Einzelbilder (wie Mainsails "adaptive"-Modus), nur solange jemand
+zuschaut, mit CAMERA_FPS_MAX, und verteilt sie als MJPEG-Stream an Weboberflaeche, App, Mainsail (Kamera-Link) und
+die KI. Im Tunnel-Betrieb ist die Drucker-CPU frei: CAMERA_STREAM=true nutzt den Dauerstream des Druckers (volle
+Bildrate) - am Geraet pruefen. Die fruehere Drosselung nach der Drucker-CPU entfaellt (Moonraker meldet jetzt die
+CPU des Pi).
 """
 
 from __future__ import annotations
@@ -32,9 +29,6 @@ IDLE_CLOSE_S = 20.0          # so lange nach dem letzten Zuschauer bleibt der St
 FIRST_FRAME_TIMEOUT_S = 6.0
 RETRY_S = 5.0                # nach einem Abbruch frühestens wieder verbinden
 NO_STREAM_RETRY_S = 300.0    # Drucker liefert gar keinen Stream: so lange Einzelbilder
-START_FPS = 2.0
-ADJUST_S = 5.0               # Regelschritt
-CPU_WINDOW_S = 10.0          # Mittelungsfenster der Drucker-CPU (kurze Spitzen im Druck zaehlen weniger)
 
 
 class CameraError(Exception):
@@ -109,8 +103,7 @@ class Camera:
         self._viewers = 0
         self._snap_lock = asyncio.Lock()
         self._retry_at = 0.0
-        self.target_fps = START_FPS
-        self.throttled = False       # wegen hoher Drucker-CPU unter dem Maximum
+        self.target_fps = float(cfg.camera_fps_max)
 
     # ------------------------------------------------------------ Adressen
     async def _resolve(self) -> None:
@@ -150,36 +143,15 @@ class Camera:
     def _idle(self) -> bool:
         return self._viewers == 0 and self.clock() > self._wanted_until
 
-    def adjust(self, cpu: Optional[float]) -> None:
-        """Ein Regelschritt: Drucker-CPU ueber CAMERA_CPU_HIGH -> 1 fps weniger, unter CAMERA_CPU_LOW -> 1 fps mehr.
-        Die Last im Druck kommt fast ganz von GoKlipper, Einzelbilder kosten kaum etwas (findings) - darum hohe
-        Schwellen und kleine Schritte: eine einzelne Spitze soll die Kamera nicht abwuergen. Ohne CPU-Werte: nichts."""
-        lo, hi = float(self.cfg.camera_fps_min), float(self.cfg.camera_fps_max)
-        if cpu is None:
-            return
-        if cpu > self.cfg.camera_cpu_high:
-            new = max(lo, self.target_fps - 1)
-            if new < self.target_fps:
-                log.info("Kamera: Drucker-CPU %.0f %% - %.1f -> %.1f fps", cpu, self.target_fps, new)
-            self.target_fps, self.throttled = new, True
-        elif cpu < self.cfg.camera_cpu_low and self.target_fps < hi:
-            self.target_fps = min(hi, self.target_fps + 1)
-            self.throttled = self.target_fps < hi and self.throttled
-
     async def _run_pump(self) -> None:
-        """Einzelbilder nacheinander (nie zwei gleichzeitig), Rate nach der Drucker-CPU geregelt."""
+        """Einzelbilder nacheinander (nie zwei gleichzeitig) mit CAMERA_FPS_MAX."""
         await self._resolve()
-        self.mode, self.target_fps, self.throttled = "snapshots", min(START_FPS, float(self.cfg.camera_fps_max)), False
-        cpu_of = getattr(self.moon, "cpu", None)
-        next_adjust = self.clock() + ADJUST_S
+        self.mode, self.target_fps = "snapshots", float(self.cfg.camera_fps_max)
         fails = 0
-        log.info("Kamera: Einzelbilder, %.0f-%.0f fps je nach Drucker-CPU", self.cfg.camera_fps_min, self.cfg.camera_fps_max)
+        log.info("Kamera: Einzelbilder, bis %.0f fps", self.target_fps)
         try:
             while not self._idle():
                 started = self.clock()
-                if started >= next_adjust:
-                    self.adjust(cpu_of(CPU_WINDOW_S) if cpu_of else None)
-                    next_adjust = started + ADJUST_S
                 try:
                     async with self.session.get(self.snapshot_url, timeout=aiohttp.ClientTimeout(total=8)) as r:
                         r.raise_for_status()
@@ -325,5 +297,5 @@ class Camera:
                 "error": self.error, "stream": bool(self.cfg.camera_stream),
                 "source": "stream" if self.cfg.camera_stream else "snapshots",
                 "target_fps": round(self.target_fps, 1) if self.mode == "snapshots" else None,
-                "throttled": self.throttled and self.mode == "snapshots",
+                "throttled": False,          # Drosselung nach Drucker-CPU entfallen (Feld fuer App 1.8.0)
                 "last": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.taken_wall)) if self.taken_wall else None}
