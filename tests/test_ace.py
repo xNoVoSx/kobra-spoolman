@@ -1,110 +1,82 @@
-"""ACE-Einstellungen: Multiplikator und Display-Optionen lesen/schreiben, Freigabe beim Drucken, Vorschau."""
+"""ACE-Karte unter ACEPRO: Endlosspule und Modus lesen/schreiben; der Spuel-Multiplikator ist entfallen."""
 
 from __future__ import annotations
 
 import asyncio
 
 import pytest
-from conftest import FakeMoonraker
+from conftest import FakeMoonraker, ace_status
 
 from acebridge.ace import AceError, AceSettings
-from acebridge.purge import PurgeModel
 from acebridge.slots import SlotManager
-
-HUB = {"auto_refill": 1, "flush_multiplier": 1, "flush_multiplier_editable": 1, "flush_volume_max": 800,
-       "flush_volume_min": 107, "runout_detect": 1}
 
 
 class Moon(FakeMoonraker):
     def __init__(self):
         super().__init__()
-        self.sent, self.posted, self.hub = [], [], dict(HUB)
+        self.sent = []
 
     async def gcode(self, script, source="Bridge"):
         self.sent.append(script)
-        if script.startswith("SET_ACE_FLUSH_MULTIPLIER"):       # so wie Rinkhals es weiterreicht
-            self.hub["flush_multiplier"] = float(script.split("VALUE=")[1])
-
-    async def get_json(self, path):
-        assert path == "/printer/filament_hub/get_config"
-        return dict(self.hub)
-
-    async def post_json(self, path, body):
-        self.posted.append((path, body))
-        self.hub.update(body)
 
 
 class SM:
-    def __init__(self, spools):
-        self.spools = spools
+    spools: list = []
 
     def templates(self):
         return []
 
 
-def spool(sid, slot, color, density=1.27):
-    return {"id": sid, "location": f"ACE Slot {slot}",
-            "filament": {"id": 100 + sid, "name": f"PETG {color}", "material": "PETG", "color_hex": color,
-                         "density": density, "vendor": {"name": "Sunlu"}}}
-
-
 @pytest.fixture
 def ace(cfg):
     moon = Moon()
-    moon.merge({"mmu": {"num_gates": 4, "gate_status": [1, 1, 0, 0], "gate_material": ["PETG", "PETG", "", ""],
-                        "gate_color": ["685BC7FF", "EC008CFF", "", ""]}, "print_stats": {"state": "standby"}})
-    slots = SlotManager(cfg, moon, SM([spool(1, 1, "685BC7"), spool(2, 2, "C52E79")]))
-    a = AceSettings(moon, PurgeModel(), slots, slots.sm)
-    asyncio.run(a.refresh())
-    return a, moon
+    moon.merge({**ace_status([{"material": "PETG", "color": "685BC7"}], endless=True),
+                "print_stats": {"state": "standby"}})
+    return AceSettings(moon, SlotManager(cfg, moon, SM())), moon
 
 
-def test_reads_settings_from_the_printer(ace):
+def test_reads_endless_spool_from_the_driver(ace):
     a, _ = ace
     st = a.state()
-    assert st["present"] and st["flush_multiplier"] == 1 and st["auto_refill"] is True
-    assert a.purge.flush_source == "printer"
+    assert st["present"] and st["endless_spool"] is True and st["endless_mode"] == "exact"
+    assert st["firmware"] == "V1.1.36" and set(st["endless_modes"]) == {"exact", "material", "next"}
+    # Form fuer App 1.8.0: auto_refill = Endlosspule, keine Zahl-Felder mit null
+    assert st["auto_refill"] is True and st["flush_multiplier_editable"] is False and st["presets"] == {}
+    assert a.purge_preview() == {"pairs": [], "source": "orca"}
 
 
-def test_flush_multiplier_via_rinkhals_command(ace):
+def test_switch_endless_spool_and_mode(ace):
     a, moon = ace
-    st = asyncio.run(a.set_flush_multiplier("0.8"))
-    assert moon.sent == ["SET_ACE_FLUSH_MULTIPLIER VALUE=0.8"] and st["flush_multiplier"] == 0.8
-    assert a.purge.flush["flush_multiplier"] == 0.8           # Spuel-Modell kennt den neuen Wert
-    for bad in ("0", "3.5", "viel"):
-        with pytest.raises(AceError):
-            asyncio.run(a.set_flush_multiplier(bad))
+    asyncio.run(a.set_options({"endless_spool": False, "endless_mode": "material"}))
+    assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL\nACE_SET_ENDLESS_SPOOL_MODE MODE=material"]
+    asyncio.run(a.set_options({"auto_refill": True}))                     # Schalter der App 1.8.0
+    assert moon.sent[-1] == "ACE_ENABLE_ENDLESS_SPOOL"
 
 
-def test_changes_while_printing_need_confirmation(ace):
+def test_allowed_while_printing(ace):
     a, moon = ace
     moon.merge({"print_stats": {"state": "printing"}})
-    with pytest.raises(AceError) as e:
-        asyncio.run(a.set_flush_multiplier(1.5))
-    assert e.value.status == 409 and moon.sent == []
-    asyncio.run(a.set_flush_multiplier(1.5, confirm_printing=True))
-    assert moon.sent == ["SET_ACE_FLUSH_MULTIPLIER VALUE=1.5"]
-    with pytest.raises(AceError):
-        asyncio.run(a.set_options({"auto_refill": False}))
+    asyncio.run(a.set_options({"endless_spool": True}))
+    assert moon.sent == ["ACE_ENABLE_ENDLESS_SPOOL"]
 
 
-def test_display_options(ace):
+def test_rejects_unknown_and_removed_settings(ace):
     a, moon = ace
-    st = asyncio.run(a.set_options({"auto_refill": False, "runout_detect": True}))
-    assert moon.posted == [("/printer/filament_hub/set_config", {"auto_refill": 0, "runout_detect": 1})]
-    assert st["auto_refill"] is False and st["runout_detect"] is True
-    for bad in ({"flush_volume_max": 900}, {"auto_refill": "ja"}, {}):
-        with pytest.raises(AceError):
-            asyncio.run(a.set_options(bad))
+    for body, status in (({"endless_mode": "egal"}, 400), ({"runout_detect": True}, 400), ({"x": 1}, 400),
+                         ({"endless_spool": "ja"}, 400), ({}, 400)):
+        with pytest.raises(AceError) as e:
+            asyncio.run(a.set_options(body))
+        assert e.value.status == status
+    with pytest.raises(AceError) as e:
+        asyncio.run(a.set_flush_multiplier(1.0))
+    assert e.value.status == 410 and "Orca" in str(e.value)
+    assert moon.sent == []
 
 
-def test_purge_preview_uses_ace_colours(ace):
-    a, _ = ace
-    p = a.purge_preview()
-    pairs = {(x["from_slot"], x["to_slot"]): x for x in p["pairs"]}
-    assert set(pairs) == {(1, 2), (2, 1)}
-    # Slot 2: die ACE meldet EC008C (Spoolman sagt C52E79) - gerechnet wird mit der ACE-Farbe
-    assert pairs[(1, 2)]["volume_mm3"] == 312 and pairs[(2, 1)]["volume_mm3"] == 381
-    assert pairs[(1, 2)]["mm"] == pytest.approx(312 / 2.405 - 3, abs=0.2)
-    double = a.purge_preview(2.0)
-    assert {(x["from_slot"], x["to_slot"]): x for x in double["pairs"]}[(1, 2)]["mm"] > 2 * pairs[(1, 2)]["mm"] - 5
+def test_ace_not_connected(ace):
+    a, moon = ace
+    moon.merge(ace_status([], connected=False))
+    assert a.state()["present"] is False and a.state()["endless_spool"] is None
+    with pytest.raises(AceError) as e:
+        asyncio.run(a.set_options({"endless_spool": True}))
+    assert e.value.status == 503

@@ -13,6 +13,7 @@ import aiohttp
 import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
+from conftest import ace_status
 from PIL import Image
 
 from acebridge.render import simplify, strand_width, BED_MM, GcodeModel, PrintPreview, display_rgb, geometry_bin, parse_bytes, render_png
@@ -179,11 +180,12 @@ def test_preview_loads_the_running_file(gcode_server):
             p = PrintPreview(cfg, moon, s)
             status = {"print_stats": {"state": "printing", "filename": "sub dir/test.gcode"},
                       "virtual_sdcard": {"file_position": 100},
-                      "mmu": {"gate_color": ["FF0000FF", "00FF00FF"], "ttg_map": [1, 0]}}
+                      **ace_status([{"material": "PLA", "color": "FF0000"}, None])}
             p.watch(status)
             await p._task
             assert p.status == "ready" and len(p.model) == 4
-            assert p.colours(status)[:2] == ["00FF00", "FF0000"]    # Werkzeug -> Slot ueber ttg_map
+            # Werkzeug T<n> = Slot n: Slot 1 meldet Rot, Slot 2 ist leer -> Farbe aus dem G-Code
+            assert p.colours(status)[0] == "FF0000" and p.colours(status)[1] != "FF0000"
             png = await p.render(status)
             assert png.startswith(b"\x89PNG") and p.info(status)["layers"] == 2
             p.watch(status)                                            # gleiche Datei: nicht neu laden

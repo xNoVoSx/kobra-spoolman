@@ -21,7 +21,6 @@ from acebridge.camera import Camera
 from acebridge.console import Console
 from acebridge.render import PrintPreview
 from acebridge.dryer import Dryer
-from acebridge.purge import PurgeModel
 from acebridge.slots import SlotManager
 from acebridge.web import build_app
 
@@ -243,11 +242,10 @@ class FakeBridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.usage = FakeUsage()
         self.dryer = Dryer(cfg, self.moon, self.slots)
-        self.ace = AceSettings(self.moon, PurgeModel(), self.slots, self.sm)
+        self.ace = AceSettings(self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
-        self.purge = PurgeModel()
         self.camera = Camera(cfg, self.moon, None)       # ohne Zuschauer kein Abruf
         self.preview = PrintPreview(cfg, self.moon, None)
         self.vision = Vision(cfg, self.moon, self.camera, None)  # VISION_URL leer: aus

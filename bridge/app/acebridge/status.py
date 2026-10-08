@@ -11,7 +11,6 @@ import math
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from .purge import change_mm
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -45,37 +44,23 @@ def _iso_age(iso: Optional[str], now: float) -> Optional[float]:
 
 
 # ====================================================================== Reicht die Spule?
+# ACEPRO beim Laden eines Slots (ace_KS1.cfg): vom Kopf-Sensor bis zur Duese, danach Spuelen. Die Spuelmenge je
+# Wechsel steht in der Datei (ACE_SET_PURGE_AMOUNT des Orca-Spuelskripts), sonst die Voreinstellung des Treibers.
+LOAD_TO_NOZZLE_MM = 85.0
+DEFAULT_PURGE_MM = 50.0
+
+
 def _slot_need(bridge: "Bridge", offset: Optional[int]) -> Dict[int, float]:
-    """mm pro Gate ab der Byte-Position (0 = ganze Datei): Druckdatei + Spuelen der noch kommenden Farbwechsel."""
-    st = bridge.moon.status
+    """mm pro Slot ab der Byte-Position (0 = ganze Datei): Druckdatei + Laden und Spuelen der noch kommenden
+    Farbwechsel. Werkzeug T<n> = Slot n (ACEPRO)."""
     rest_mm, later = bridge.preview.model.remaining(offset)
-    mmu = st.get("mmu") or {}
-    colors = [(c or "")[:6] or None for c in (mmu.get("gate_color") or [])]
-    ttg = mmu.get("ttg_map") or list(range(len(colors)))
-
-    def gate(tool: Optional[int]) -> Optional[int]:
-        if tool is None:
-            return None
-        g = ttg[tool] if tool < len(ttg) else tool
-        return g if isinstance(g, int) and g >= 0 else None
-
     need: Dict[int, float] = {}
     for tool, mm in rest_mm.items():
-        g = gate(tool)
-        if g is not None and mm > 0:
-            need[g] = need.get(g, 0.0) + mm
-    purge = bridge.purge
-    for src, dst in later:
-        g = gate(dst)
-        if g is None:
-            continue
-        s = gate(src)
-        if s is None:
-            mm = purge.first_load_mm
-        else:
-            mm = change_mm(colors[s] if s < len(colors) else None, colors[g] if g < len(colors) else None,
-                           purge.flush, purge.offset_mm) or 0.0
-        need[g] = need.get(g, 0.0) + mm
+        if mm > 0:
+            need[tool] = need.get(tool, 0.0) + mm
+    for _src, dst, purge in later:
+        mm = LOAD_TO_NOZZLE_MM + (purge if purge is not None else DEFAULT_PURGE_MM)
+        need[dst] = need.get(dst, 0.0) + mm
     return need
 
 

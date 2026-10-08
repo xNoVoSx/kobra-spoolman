@@ -35,7 +35,6 @@ from .config import Config
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
-    from .purge import PurgeModel
     from .slots import SlotManager
     from .spoolman import Spoolman
 
@@ -124,7 +123,6 @@ class UsageTracker:
         self.job: Optional[Dict[str, Any]] = None
         self.open: List[Dict[str, Any]] = []
         self.history: List[Dict[str, Any]] = []
-        self.purge: Optional["PurgeModel"] = None    # setzt die Bridge (Spuel-Modell, purge.py)
         self._load()
 
     # ================================================================== Persistenz
@@ -233,9 +231,8 @@ class UsageTracker:
             "buckets": {},             # "gate:spool" -> {gate, spool_id, mm, booked_mm, last_book}
             "loads": 0,                # wie oft ein Slot aktiv wurde (erster + Wechsel)
             "changes": [],             # Slotwechsel
-            "transitions": [],         # jedes Laden mit ACE-Farben (fuer das Spuel-Modell)
+            "transitions": [],         # jedes Laden mit ACE-Farben (Farbwechsel-Statistik)
             "slicer": vsd.get("slicer"),
-            "flush": dict(self.purge.flush) if self.purge and self.purge.flush_source == "printer" else None,
             "targets": parse_targets(vsd, self.cfg.default_diameter),
         }
         self._dirty = True
@@ -528,8 +525,6 @@ class UsageTracker:
         summary = self._summary(job, end_state)
         self.history.insert(0, summary)
         del self.history[self.cfg.job_history:]
-        if self.purge is not None:
-            self.purge.learn(self.history)
         try:
             self._atomic_write(self.history_path, self.history)
         except OSError as e:
@@ -623,12 +618,8 @@ class UsageTracker:
                 for s in last["slots"] if s["slot"] > 0}
 
     def purge_stats(self) -> Dict[str, Any]:
-        """Spuelen der Firmware fuer die Vorschau im Plugin.
-
-        "model": Firmware-Werte und eingemessene Konstanten des Spuel-Modells (purge.py) - damit
-        rechnet das Plugin pro Farbwechsel. "overhead_per_load_mm": alter Mittelwert pro Laden fuer
-        aeltere Plugins; nur aus Drucken, bei denen "gemessen - G-Code-Soll" das Spuelen ist
-        (AnycubicSlicer schreibt seine Spuelmenge ins Soll, das macht den Wert falsch)."""
+        """Mehrverbrauch pro Laden aus fertigen Drucken (gemessen - G-Code-Soll) fuer die Vorschau im Plugin.
+        Ohne Soll (Bridge 3.0 unter Klipper liest es noch nicht aus der Datei) leer: {"jobs": 0}."""
         out: Dict[str, Any] = {"jobs": 0}
         rows = [h for h in self.history if h.get("overhead_mm") is not None and h.get("loads")
                 and h.get("slicer") != "AnycubicSlicer"]
@@ -637,8 +628,6 @@ class UsageTracker:
             out = {"jobs": len(rows), "overhead_per_load_mm": round(sum(per_load) / len(per_load), 1),
                    "last": [{"file": h["file"], "overhead_mm": h["overhead_mm"], "loads": h["loads"]}
                             for h in rows[:10]]}
-        if self.purge is not None:
-            out["model"] = self.purge.state()
         return out
 
     # ================================================================== offene Posten (API)

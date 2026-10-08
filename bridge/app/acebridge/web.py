@@ -270,7 +270,7 @@ def build_app(bridge: "Bridge") -> web.Application:
             if not isinstance(body, dict):
                 raise TypeError
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"auto_refill\": true, \"runout_detect\": true}")
+            return _err(400, "Erwartet JSON {\"endless_spool\": true, \"endless_mode\": \"exact\"}")
         confirm = bool(body.pop("confirm_printing", False))
         return await _ace_call(bridge.ace.set_options(body, confirm))
 

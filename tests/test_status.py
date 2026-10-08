@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 import pytest
+from conftest import ace_status
 from test_appapi import FakeBridge
 
 from acebridge.render import parse_bytes
@@ -12,10 +13,11 @@ from acebridge.status import file_usage, notices, spool_reach
 
 
 def two_tool_gcode() -> bytes:
-    """T0 druckt 100 mm (mit Rueckzug), Wechsel auf T1 (50 mm), zurueck auf T0 (30 mm)."""
+    """T0 druckt 100 mm (mit Rueckzug), Wechsel auf T1 (50 mm), zurueck auf T0 (30 mm). Vor jedem T die Spuelmenge
+    des Orca-Spuelskripts (ACE_SET_PURGE_AMOUNT) - vor dem ersten T keine."""
     lines = ["M83", "T0", "G1 X0 Y0", "G1 X10 Y0 E60", "G1 E-2", "G1 E2", "G1 X20 Y0 E40",
-             "T1", "G1 X30 Y0 E50",
-             "T0", "G1 X40 Y0 E30"]
+             "ACE_SET_PURGE_AMOUNT PURGELENGTH=120.50", "T1", "G1 X30 Y0 E50",
+             "ACE_SET_PURGE_AMOUNT PURGELENGTH=60", "T0", "G1 X40 Y0 E30"]
     return ("\n".join(lines) + "\n").encode()
 
 
@@ -23,12 +25,13 @@ def test_model_counts_per_tool_and_remaining():
     data = two_tool_gcode()
     m = parse_bytes(data)
     assert m.e_total == pytest.approx({0: 130.0, 1: 50.0})           # Rueckzug und Wiederansetzen heben sich auf
-    assert [(s, d) for _, s, d in m.changes] == [(None, 0), (0, 1), (1, 0)]
+    assert [(s, d, p) for _, s, d, p in m.changes] == [(None, 0, None), (0, 1, 120.5), (1, 0, 60.0)]
     rest, later = m.remaining(0)
-    assert rest == pytest.approx({0: 130.0, 1: 50.0}) and later == [(None, 0), (0, 1), (1, 0)]
+    assert rest == pytest.approx({0: 130.0, 1: 50.0})
+    assert later == [(None, 0, None), (0, 1, 120.5), (1, 0, 60.0)]
     after_t1 = data.index(b"T1") + 3                                 # Position hinter "T1\n"
     rest, later = m.remaining(after_t1)
-    assert rest == pytest.approx({0: 30.0, 1: 50.0}) and later == [(1, 0)]
+    assert rest == pytest.approx({0: 30.0, 1: 50.0}) and later == [(1, 0, 60.0)]
 
 
 @pytest.fixture
@@ -37,7 +40,7 @@ def bridge(cfg):
     b = FakeBridge(cfg)
     b.moon.merge({"print_stats": {"state": "printing", "filename": "x.gcode"},
                   "virtual_sdcard": {"file_position": 0},
-                  "mmu": {"gate_color": ["685BC7FF", "EC008CFF", "", ""], "ttg_map": [0, 1, 2, 3]}})
+                  **ace_status([{"material": "PETG", "color": "685BC7"}, {"material": "PETG", "color": "EC008C"}])})
     b.preview.model, b.preview.status = parse_bytes(two_tool_gcode()), "ready"
     return b
 
@@ -58,10 +61,12 @@ def test_spool_reach_and_warning(bridge):
     assert levels == sorted(levels, key=["error", "warn", "info"].index)    # nach Wichtigkeit sortiert
 
 
-def test_reach_includes_purge_of_coming_changes(bridge):
-    need_without = spool_reach(bridge)[0]["need_mm"]
-    bridge.purge.first_load_mm = 0
-    assert spool_reach(bridge)[0]["need_mm"] < need_without            # erster Ladevorgang zaehlt mit
+def test_reach_includes_load_and_purge_of_coming_changes(bridge):
+    """Je kommendem Wechsel: 85 mm Laden bis zur Duese + Spuelmenge aus der Datei (sonst 50 mm)."""
+    from acebridge.status import _slot_need
+    need = _slot_need(bridge, 0)
+    assert need[0] == pytest.approx(130 + (85 + 50) + (85 + 60))      # Start (ohne Angabe) + Wechsel zurueck
+    assert need[1] == pytest.approx(50 + 85 + 120.5)
 
 
 def test_file_usage_lists_used_slots(bridge):

@@ -22,6 +22,8 @@ from urllib.parse import quote
 
 import aiohttp
 
+from . import acemodel
+
 if TYPE_CHECKING:
     from .config import Config
     from .moonraker import Moonraker
@@ -35,6 +37,7 @@ CHECKPOINT_BYTES = 256 * 1024    # Stuetzstellen fuer den Restverbrauch
 _MOVE = re.compile(r"^G[0123](?:\s|$)")
 _AXIS = re.compile(r"([XYZEF])(-?\d*\.?\d+)")
 _TOOL = re.compile(r"^T(\d+)\s*$")
+_PURGE = re.compile(r"^ACE_SET_PURGE_AMOUNT\b.*\bPURGELENGTH=(-?\d*\.?\d+)")   # Orca-Spuelskript vor jedem T
 _THUMB = re.compile(r"^;\s*thumbnail(?:_PNG)?\s+begin\s+(\d+)x(\d+)\s+(\d+)", re.I)
 
 
@@ -55,7 +58,9 @@ class GcodeModel:
         self.types: List[str] = []     # aus "; filament_type = PETG;PLA" (Pruefung beim Druckstart)
         # Verbrauch pro Werkzeug (netto mm, Rueckzuege abgezogen) und Werkzeugwechsel - fuer "reicht die Spule?"
         self.e_total: Dict[int, float] = {}
-        self.changes: List[Tuple[int, Optional[int], int]] = []    # (Byte-Position, von, nach); von None = erster
+        # (Byte-Position, von, nach, Spuelmenge mm aus ACE_SET_PURGE_AMOUNT oder None); von None = erster
+        self.changes: List[Tuple[int, Optional[int], int, Optional[float]]] = []
+        self._purge_next: Optional[float] = None
         self._cp_off = array("Q")                                   # Stuetzstellen: Position -> Verbrauch bis dahin
         self._cp_e: List[Dict[int, float]] = []
         self._tool_seen = False
@@ -100,14 +105,18 @@ class GcodeModel:
                     self._e = float(v)
                 elif k == "Z":
                     self._z = float(v)
+        elif code.startswith("ACE_SET_PURGE_AMOUNT"):
+            m = _PURGE.match(code)
+            self._purge_next = float(m.group(1)) if m else None
         else:
             m = _TOOL.match(code)
             if m:
                 t = min(255, int(m.group(1)))
                 if not self._tool_seen or t != self._t:
-                    self.changes.append((end_offset, self._t if self._tool_seen else None, t))
+                    self.changes.append((end_offset, self._t if self._tool_seen else None, t, self._purge_next))
                     self._checkpoint(end_offset)
                 self._t, self._tool_seen = t, True
+                self._purge_next = None
                 self._dir = None
         if self._cp_off and end_offset - self._cp_off[-1] >= CHECKPOINT_BYTES or not self._cp_off:
             self._checkpoint(end_offset)
@@ -116,15 +125,17 @@ class GcodeModel:
         self._cp_off.append(offset)
         self._cp_e.append(dict(self.e_total))
 
-    def remaining(self, offset: Optional[int]) -> Tuple[Dict[int, float], List[Tuple[Optional[int], int]]]:
-        """Noch zu druckende mm pro Werkzeug und die noch kommenden Werkzeugwechsel ab der Byte-Position.
+    def remaining(self, offset: Optional[int]) -> Tuple[Dict[int, float],
+                                                       List[Tuple[Optional[int], int, Optional[float]]]]:
+        """Noch zu druckende mm pro Werkzeug und die noch kommenden Werkzeugwechsel (von, nach, Spuelmenge)
+        ab der Byte-Position.
         Genauigkeit: eine Stuetzstelle alle CHECKPOINT_BYTES bzw. an jedem Wechsel."""
         import bisect
         offset = offset or 0
         i = bisect.bisect_right(self._cp_off, offset) - 1
         done = self._cp_e[i] if i >= 0 else {}
         rest = {t: max(0.0, mm - done.get(t, 0.0)) for t, mm in self.e_total.items()}
-        later = [(src, dst) for off, src, dst in self.changes if off > offset]
+        later = [(src, dst, purge) for off, src, dst, purge in self.changes if off > offset]
         return rest, later
 
     def _comment(self, line: str) -> None:
@@ -570,16 +581,11 @@ class PrintPreview:
 
     # ------------------------------------------------------------ Zeichnen
     def colours(self, status: Dict[str, Dict[str, Any]]) -> List[Optional[str]]:
-        """Farbe pro Werkzeug: ACE-Farbe des zugeordneten Slots, sonst die Farbe aus dem G-Code."""
-        mmu = status.get("mmu") or {}
-        gate_colors = mmu.get("gate_color") or []
-        ttg = mmu.get("ttg_map") or list(range(len(gate_colors)))
+        """Farbe pro Werkzeug: ACE-Farbe des Slots (ACEPRO: Werkzeug T<n> = Slot n), sonst aus dem G-Code."""
         out: List[Optional[str]] = []
         m = self.model
-        for t in range(max(len(ttg), len(m.colours) if m else 0, 1)):
-            g = ttg[t] if t < len(ttg) else t
-            ace = gate_colors[g] if isinstance(g, int) and 0 <= g < len(gate_colors) else None
-            ace = (ace or "")[:6] or None
+        for t in range(max(acemodel.num_slots(status), len(m.colours) if m else 0, 1)):
+            ace = acemodel.slot(status, t)["color"] if t < acemodel.num_slots(status) else ""
             out.append(ace or (m.colours[t] if m and t < len(m.colours) else None))
         return out
 

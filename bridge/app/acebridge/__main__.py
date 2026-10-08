@@ -16,7 +16,6 @@ from .config import Config
 from .ace import AceSettings
 from .camera import Camera
 from .moonraker import Moonraker
-from .purge import PurgeModel
 from .render import PrintPreview
 from .slots import SlotManager
 from .spoolman import Spoolman
@@ -51,10 +50,7 @@ class Bridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.recorder = Recorder(cfg)
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
-        self.purge = PurgeModel()
-        self.usage.purge = self.purge
-        self.purge.learn(self.usage.history)
-        self.ace = AceSettings(self.moon, self.purge, self.slots, self.sm)
+        self.ace = AceSettings(self.moon, self.slots)
         self.camera = Camera(cfg, self.moon, session)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
