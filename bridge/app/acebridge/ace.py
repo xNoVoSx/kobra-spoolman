@@ -5,8 +5,8 @@ Schreiben (G-Code des Treibers, gilt sofort, auch waehrend eines Drucks):
 - Endlosspule:   ACE_ENABLE_ENDLESS_SPOOL / ACE_DISABLE_ENDLESS_SPOOL
 - Modus:         ACE_SET_ENDLESS_SPOOL_MODE MODE=exact|material|next
 
-Entfallen mit Bridge 3.0 (GoKlipper): Spuel-Multiplikator (die Spuelmengen kommen aus Orcas Matrix, das
-Nachbearbeitungsskript gibt sie an den Treiber), `runout_detect` (der Treiber ueberwacht Runout immer).
+Entfallen mit Bridge 3.0 (GoKlipper): Spuel-Multiplikator (die Spuelmengen kommen aus Orcas Matrix, der
+Filamentwechsel-G-Code gibt sie an den Treiber), `runout_detect` (der Treiber ueberwacht Runout immer).
 Fuer App 1.8.0 bleibt die Form der Antwort gleich: `auto_refill` = Endlosspule, Spuelvorschau leer.
 """
 

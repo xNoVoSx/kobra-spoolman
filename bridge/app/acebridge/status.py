@@ -45,7 +45,7 @@ def _iso_age(iso: Optional[str], now: float) -> Optional[float]:
 
 # ====================================================================== Reicht die Spule?
 # ACEPRO beim Laden eines Slots (ace_KS1.cfg): vom Kopf-Sensor bis zur Duese, danach Spuelen. Die Spuelmenge je
-# Wechsel steht in der Datei (ACE_SET_PURGE_AMOUNT des Orca-Spuelskripts), sonst die Voreinstellung des Treibers.
+# Wechsel steht in der Datei (ACE_SET_PURGE_AMOUNT aus Orcas Filamentwechsel-G-Code), sonst die Voreinstellung des Treibers.
 LOAD_TO_NOZZLE_MM = 85.0
 DEFAULT_PURGE_MM = 50.0
 

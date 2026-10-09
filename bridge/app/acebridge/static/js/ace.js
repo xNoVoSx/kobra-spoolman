@@ -1,5 +1,5 @@
 // Karte "ACE": Einstellungen des ACE-Treibers (ACEPRO), die das Druckerdisplay nicht zeigt - Endlosspule und ihr
-// Modus. Die Spuelmengen kommen aus Orca (Spuelmengen-Dialog, das Nachbearbeitungsskript gibt sie an den Treiber).
+// Modus. Die Spuelmengen kommen aus Orca (Spuelmengen-Dialog, der Filamentwechsel-G-Code gibt sie an den Treiber).
 
 import { html, useState } from "../vendor/preact-htm.module.js";
 import { post } from "./api.js";
@@ -57,7 +57,7 @@ export function AceCard({ compact }) {
     ${!compact && html`
       <hr class="sep" />
       <div class="small muted">Spülmengen pro Farbwechsel stellst du in Orca ein (Spülmengen-Dialog neben „Filament“) –
-        das Nachbearbeitungsskript gibt sie an die ACE weiter. ${a.model ? html`<span class="faint">ACE: ${a.model}</span>` : null}</div>`}
+        der Filamentwechsel-G-Code des Druckerprofils gibt sie an die ACE weiter. ${a.model ? html`<span class="faint">ACE: ${a.model}</span>` : null}</div>`}
     ${compact && html`<a href="#/ace" class="small">Mehr zur ACE →</a>`}
   </section>`;
 }
