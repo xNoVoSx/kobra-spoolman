@@ -16,6 +16,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   messages for measurements. Switches: Auto-PA and automatic measuring (in the printer), setting `PA_SYNC`.
 - Changing PA in Orca (back-sync or reset) drops a measured table.
 
+### Fixed
+- `lane_data`: entries the bridge did not write (ACEPRO's own `lane1`…`lane4` from before its sync was switched
+  off) are removed after every reconnect — Orca saw every slot twice, partly without `filament_id`.
+
 ## app 1.10.0 – 2026-10-09
 
 - ACE: Abschnitt „Pressure Advance“ – Auto-PA und automatisches Messen an/aus, PA je Slot, jetzt messen, neu messen
