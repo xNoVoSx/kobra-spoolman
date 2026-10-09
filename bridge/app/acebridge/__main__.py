@@ -27,6 +27,7 @@ from .usage import UsageTracker
 from .humidity import HumidityLog
 from .moisture import MoistureModel, hours_needed
 from .mqtt import MqttBridge
+from .filament_z import FilamentZSync
 from .pa import OBJ as PA_OBJ, PaSync
 from .printcheck import PrintGuard
 from .runtime_settings import RuntimeSettings
@@ -48,6 +49,7 @@ class Bridge:
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
         self.ace = AceSettings(self.moon, self.slots)
         self.pa = PaSync(cfg, self.moon, self.sm, self.slots)
+        self.filament_z = FilamentZSync(cfg, self.moon, self.sm, self.slots)
         self.camera = Camera(cfg, self.moon, session)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
@@ -101,6 +103,8 @@ class Bridge:
                 await self.pa.tick(full)     # Auto-PA: neues Messergebnis sofort nach Spoolman
             except Exception:  # noqa: BLE001
                 log.exception("Auto-PA-Fehler")
+        if full:
+            await self.filament_z.tick(full=True)
 
     def _spools_in_ace(self) -> list:
         assigned, _ = self.slots.assignments()
@@ -179,6 +183,7 @@ class Bridge:
                 await self.print_guard.tick()  # feuchte Spule beim Druckstart -> ggf. pausieren
                 await self.ace.refresh()
                 await self.pa.tick()         # Auto-PA: Spoolman-Stand der Slots an Klipper (nur bei Aenderung)
+                await self.filament_z.tick()  # Z-Versatz je Slot an KOBRA_START (nur bei Aenderung)
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")
 

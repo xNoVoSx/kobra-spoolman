@@ -47,6 +47,7 @@
 | `ROOM_RH` | `50` | humidity (%) of the storage room for the spool moisture estimate, used while no room sensor delivers fresh values |
 | `DRY_LOCATIONS` | – | Spoolman locations with their own humidity, e.g. `Trockenbox=15; Vakuumbeutel=10` |
 | `PA_SYNC` | `true` | Auto-PA: give the PA of each slot's filament to the Klipper module `kobra_pa` and write measurements back to the filament (`pa_table`, `pressure_advance`) |
+| `FILAMENT_Z_SYNC` | `true` | give each slot's *Z-Versatz* (filament field `z_offset`, else its template) to the printer macro `KOBRA_START` (variable `slot_z`), which adds the start filament's value to the first layer |
 | `AUTO_DRY_ON_INSERT` | `true` | start the ACE dryer when a spool that needs drying is loaded (temperature of the most sensitive loaded spool, time of the wettest) |
 | `NEW_SPOOLS_DRY` | `true` | spools without history count as *needs drying* when first loaded |
 | `WET_PRINT_ACTION` | `warn` | print start with a spool that needs drying: `warn` or `pause` (pauses once, within the first 10 min) |

@@ -66,6 +66,9 @@ SPECS: List[Spec] = [
     Spec("pa_sync", "Pressure Advance", "Auto-PA mit Spoolman verbinden", "bool",
          help="PA-Werte der Filamente an Klipper geben (fehlt einer, misst Klipper beim Druck) und Messungen ans "
               "Filament zurückschreiben. Messen selbst schaltest du auf der ACE-Seite (Karte Pressure Advance) aus"),
+    Spec("filament_z_sync", "Erste Schicht", "Z-Versatz pro Filament", "bool",
+         help="Feld „Z-Versatz“ am Filament (oder seiner Vorlage) an den Drucker geben – der Druckstart rechnet den Wert "
+              "des Startfilaments zur ersten Schicht dazu (+ = weiter weg vom Bett)"),
     Spec("auto_dry_on_insert", "Feuchte der Spulen", "Feuchte Spulen beim Einlegen automatisch trocknen", "bool",
          help="Temperatur nach der empfindlichsten eingelegten Spule, Dauer nach der feuchtesten"),
     Spec("new_spools_dry", "Feuchte der Spulen", "Neue Spulen zuerst trocknen", "bool",

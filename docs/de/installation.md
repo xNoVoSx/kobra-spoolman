@@ -168,7 +168,7 @@ Updates, Rückfall und Entfernen: [Installationsanleitung von orca-kobra](https:
   aus Orcas Spülmengen (Dialog neben *Filament*), ACEPRO spült nach dem Laden genau so viel:
   ```
 M104 S{max(old_filament_temp, new_filament_temp)}
-{if previous_extruder >= 0}{local purge_mm = flush_volumes_matrix[previous_extruder * size(filament_colour) + next_extruder] * flush_multiplier[0] / (0.785398 * filament_diameter[next_extruder] * filament_diameter[next_extruder])}
+{if previous_extruder >= 0}{local purge_mm = purge_in_prime_tower ? 0 : flush_volumes_matrix[previous_extruder * size(filament_colour) + next_extruder] * flush_multiplier[0] / (0.785398 * filament_diameter[next_extruder] * filament_diameter[next_extruder])}
 ACE_SET_PURGE_AMOUNT PURGELENGTH={digits(purge_mm, 0, 1)}
 T[next_extruder]
 ; EXTERNAL_PURGE {digits(purge_mm + 85, 0, 2)}
@@ -179,7 +179,9 @@ T[next_extruder]
   `; EXTERNAL_PURGE` meldet Orca Laden (85 mm vom Kopf-Sensor bis zur Düse, ACEPROs
   `toolhead_full_purge_length`) plus Spülen – so zeigen Orcas Legende und die Vorschau im Plugin den echten Verbrauch.
 - **Spülmengen:** Multiplikator zunächst 1,0, einzelne Übergänge in der Matrix anpassen. *Purge in prime tower*
-  (Drucker → Multimaterial) bleibt **aus**, sonst bekommt der Turm dieselbe Menge noch einmal.
+  (Drucker → Multimaterial) bleibt **aus**: dann spült die ACE in den Schacht. Ist es an, spült Orca in den Turm (und
+  Füllung/Stützen, wenn am Objekt eingeschaltet) und der G-Code oben lässt die ACE nichts extra spülen – in unseren Tests
+  kostete das aber mehr Filament und Zeit, deshalb nicht empfohlen.
 
 > [!TIP]
 > Ohne den orca-kobra-Build funktioniert alles andere trotzdem (Profile, Panel, Rücksync,

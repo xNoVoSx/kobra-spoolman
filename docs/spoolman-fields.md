@@ -41,6 +41,7 @@ Mapping in code: `FIELD_MAP` in [`bridge/app/acebridge/orca_profiles.py`](../bri
 | Abluft nach Druck | `complete_print_exhaust_fan_speed` | % |
 | Flow Ratio | `filament_flow_ratio` | |
 | Pressure Advance | `pressure_advance` (+ `enable_pressure_advance`) | |
+| Z-Versatz | – (mm, + = farther from the bed; first layer of the start filament, given to `KOBRA_START` by the bridge; inherited from the template) | mm |
 | PA-Tabelle (Auto-PA) | – (K per speed for Klipper; the bridge writes it, see [usage](usage.md#pressure-advance-auto-pa)) | |
 | Max. Volumenstrom | `filament_max_volumetric_speed` | mm³/s |
 | Retraction Länge | `filament_retraction_length` | mm |

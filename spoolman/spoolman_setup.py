@@ -60,6 +60,7 @@ FILAMENT_FIELDS = [
     ("flow_ratio",                  "Flow Ratio",                     "float",   None,       40),  # filament_flow_ratio
     ("pressure_advance",            "Pressure Advance",               "float",   None,       41),  # pressure_advance (+enable)
     ("pa_table",                    "PA-Tabelle (Auto-PA)",           "text",    None,       43),  # Messung kobra_pa (Bridge schreibt)
+    ("z_offset",                    "Z-Versatz",                      "float",   "mm",       44),  # KOBRA_START, erste Schicht (+ = weiter weg)
     ("max_volumetric_speed",        "Max. Volumenstrom",              "float",   "mm³/s",    42),  # filament_max_volumetric_speed
     ("retraction_length",           "Retraction Länge",               "float",   "mm",       50),  # filament_retraction_length
     ("retraction_speed",            "Retraction Geschwindigkeit",     "integer", "mm/s",     51),  # filament_retraction_speed

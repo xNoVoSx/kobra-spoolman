@@ -194,6 +194,13 @@ Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeit
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*
 ersetzt ihn (der alte funktioniert dann nicht mehr).
 
+## Z-Versatz pro Filament
+
+Manche Filamente wollen die erste Schicht etwas höher oder tiefer (z. B. PETG). In Spoolman als **Z-Versatz** (mm,
++ = weiter weg vom Bett) am Filament oder an seiner Vorlage eintragen; die Bridge gibt die Werte der eingelegten Slots an
+den Drucker, und der Druckstart rechnet den Wert des Startfilaments zur ersten Schicht dazu (in der Konsole als
+`Filament T0 +0.020`). Leer = 0. Aus: *Einstellungen → Erste Schicht* oder `use_filament_z: False` in `KOBRA_START`.
+
 ## Pressure Advance (Auto-PA)
 
 Mit dem Klipper-Modul `kobra_pa` (nicht Teil dieses Repos) misst der Drucker Pressure Advance mit der Wiegezelle im

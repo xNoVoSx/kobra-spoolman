@@ -166,7 +166,7 @@ Updates, fallback and uninstall: [orca-kobra installation guide](https://github.
   from Orca's flushing volumes (the dialog next to *Filament*), ACEPRO purges that much after loading:
   ```
 M104 S{max(old_filament_temp, new_filament_temp)}
-{if previous_extruder >= 0}{local purge_mm = flush_volumes_matrix[previous_extruder * size(filament_colour) + next_extruder] * flush_multiplier[0] / (0.785398 * filament_diameter[next_extruder] * filament_diameter[next_extruder])}
+{if previous_extruder >= 0}{local purge_mm = purge_in_prime_tower ? 0 : flush_volumes_matrix[previous_extruder * size(filament_colour) + next_extruder] * flush_multiplier[0] / (0.785398 * filament_diameter[next_extruder] * filament_diameter[next_extruder])}
 ACE_SET_PURGE_AMOUNT PURGELENGTH={digits(purge_mm, 0, 1)}
 T[next_extruder]
 ; EXTERNAL_PURGE {digits(purge_mm + 85, 0, 2)}
@@ -178,7 +178,9 @@ T[next_extruder]
   `toolhead_full_purge_length`) plus purge, so Orca's legend and the plugin's preview show the real
   consumption.
 - **Flushing volumes:** multiplier 1.0 to start with, adjust single transitions in the matrix.
-  *Purge in prime tower* (printer → multimaterial) stays **off**, otherwise the tower gets the same amount again.
+  *Purge in prime tower* (printer → multimaterial) stays **off**: then the ACE purges into the chute. Switched on, Orca
+  purges into the tower (and infill/support if enabled on the object) and the G-code above lets the ACE purge nothing
+  extra — but in our tests that cost more filament and time, so it is not recommended.
 
 > [!TIP]
 > Without the orca-kobra build everything else still works (profiles, panel, back-sync,

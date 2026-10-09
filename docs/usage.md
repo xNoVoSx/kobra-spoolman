@@ -201,6 +201,13 @@ The **ACE** page (app: tap the dryer card) shows what the printer display hides:
 The purge per colour change is set in Orca (flushing volumes next to *Filament*); the printer profile's
 change-filament G-code passes it to the ACE driver, see [installation](installation.md#orca-printer-profile).
 
+## Z offset per filament
+
+Some filaments want the first layer a little higher or lower (e.g. PETG). Enter it in Spoolman as **Z-Versatz** (mm,
++ = farther from the bed) on the filament or on its template; the bridge gives the values of the loaded slots to the
+printer and the print start adds the start filament's value to the first layer (shown in the console as
+`Filament T0 +0.020`). Empty = 0. Off: *Einstellungen → Erste Schicht*, or `use_filament_z: False` in `KOBRA_START`.
+
 ## Pressure advance (Auto-PA)
 
 With the Klipper module `kobra_pa` (not part of this repo) the printer measures pressure advance with the load cell

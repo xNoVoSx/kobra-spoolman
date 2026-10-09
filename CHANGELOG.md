@@ -6,6 +6,17 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.2.0] – 2026-10-09
+
+### Added
+- Z offset per filament: Spoolman field *Z-Versatz* (`z_offset`, mm; inherited from the template). The bridge gives the
+  values of the loaded slots to the printer macro `KOBRA_START` (`slot_z`), the print start adds the start filament's
+  value to the first layer. Setting `FILAMENT_Z_SYNC`.
+
+### Changed
+- Installation: the change-filament G-code lets the ACE purge nothing extra when Orca's *Purge in prime tower* is on
+  (Orca then purges into the tower) — never purged twice. Not recommended: it cost more filament in our tests.
+
 ## [3.1.0] – 2026-10-09
 
 ### Added
