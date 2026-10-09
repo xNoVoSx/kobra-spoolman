@@ -194,6 +194,21 @@ Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeit
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*
 ersetzt ihn (der alte funktioniert dann nicht mehr).
 
+## Pressure Advance (Auto-PA)
+
+Mit dem Klipper-Modul `kobra_pa` (nicht Teil dieses Repos) misst der Drucker Pressure Advance mit der Wiegezelle im
+Kopf wie Anycubics Original-Firmware, aber nur einmal pro Filament: Hat das Filament eines Slots in Spoolman noch kein
+PA, misst der Drucker beim Druckstart bzw. nach dem Farbwechsel (~2 Minuten, etwa 120 mm in den Abfallschacht). Die
+Bridge speichert das Ergebnis am Filament – eine Tabelle mit K je Geschwindigkeit (*PA-Tabelle*) und K bei 200 mm/s in
+*Pressure Advance*, das auch Orcas Profil übernimmt. Klipper wendet K je Bewegungsgeschwindigkeit an.
+
+Die Karte **Pressure Advance** auf der ACE-Seite (App: ACE-Fenster) zeigt K je Slot und hat zwei Schalter, die im
+Drucker gespeichert sind: **Auto-PA** (aus = Klipper nimmt das PA aus Orca) und **Automatisch messen**. *Messen* misst
+den geladenen Slot sofort (nicht im Druck), *Neu messen* löscht den Wert, damit der nächste Druck neu misst. Ein von Hand
+eingetragener Wert (Spoolman oder Orca) gilt als festes PA und wird nicht gemessen; PA in Orca geändert ersetzt eine
+Messtabelle. Eine gescheiterte Messung hält den Druck nie an – es geht mit dem bisherigen PA weiter.
+*Einstellungen → Pressure Advance* schaltet die Verbindung zu Spoolman ganz ab.
+
 ## ACE-Einstellungen
 
 Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay versteckt:

@@ -172,6 +172,20 @@ For app 1.8.0 the settings also carry `auto_refill` (= endless spool), `runout_d
 (both `null`), `flush_multiplier_editable` (`false`) and `presets` (`{}`); `GET /api/ace` adds an empty
 `purge`. `/api/app/state` contains `ace` (the settings).
 
+## Auto-PA (pressure advance)
+
+For the Klipper module `kobra_pa` (load-cell PA measurement). The bridge subscribes to its status, sends each slot's
+PA from Spoolman (`KOBRA_PA_SET`: table, fixed value or "not measured yet") and writes new results to the filament
+(`pa_table` as JSON text, `pressure_advance` = K at 200 mm/s). Only values on the filament itself count, not inherited
+ones. `/api/app/state` contains `pa`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/pa` | `present`, `sync` (setting `PA_SYNC`), `enabled`, `auto`, `patched` (Klipper with per-move PA), `measuring`, `calibrating`, `slots` (`slot`, `filament_id`, `name`, `state` — `table`, `needed`, `failed`, `empty` —, `source` — `table`, `manual` —, `speeds`, `k`, `k_ref`, `date`, `active`), `last` (last result) |
+| POST | `/api/pa/switch` | *(paired)* `{"enabled": bool, "auto": bool}` (either) — `KOBRA_PA ENABLE= AUTO=`, stored in the printer |
+| POST | `/api/pa/calibrate` | *(paired)* `{"slot": 1}` — measure the loaded slot now (~2 min, not while printing); the result arrives through the status |
+| POST | `/api/pa/forget` | *(paired)* `{"filament_id": 5}` — delete the filament's PA so the next print measures again |
+
 ## Camera and print preview
 
 | Method | Path | Purpose |

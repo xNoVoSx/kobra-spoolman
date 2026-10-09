@@ -201,6 +201,21 @@ The **ACE** page (app: tap the dryer card) shows what the printer display hides:
 The purge per colour change is set in Orca (flushing volumes next to *Filament*); the printer profile's
 change-filament G-code passes it to the ACE driver, see [installation](installation.md#orca-printer-profile).
 
+## Pressure advance (Auto-PA)
+
+With the Klipper module `kobra_pa` (not part of this repo) the printer measures pressure advance with the load cell
+in the print head, like Anycubic's stock firmware, but only once per filament: if the filament of a slot has no PA in
+Spoolman yet, the printer measures it at the start of the print or after the colour change (~2 minutes, about 120 mm
+into the purge chute) and the bridge stores the result on the filament — a table with K per speed (*PA-Tabelle*) and K
+at 200 mm/s in *Pressure Advance*, which Orca's profile picks up. Klipper then applies K per move speed.
+
+The card **Pressure Advance** on the ACE page (app: ACE sheet) shows K per slot and has two switches that live in the
+printer: **Auto-PA** (off = Klipper uses Orca's PA) and **Automatisch messen**. *Messen* measures the loaded slot now
+(not while printing), *Neu messen* deletes the value so the next print measures again. A value you enter by hand
+(Spoolman or Orca) counts as fixed PA and is not measured; changing PA in Orca replaces a measured table. A failed
+measurement never stops the print — it continues with the previous PA. *Einstellungen → Pressure Advance* turns off the
+link to Spoolman entirely.
+
 ## Slicing and printing
 
 1. In Orca press the filament **sync** button. With the orca-kobra build the `SM…` profiles are

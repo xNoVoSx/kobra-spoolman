@@ -6,6 +6,20 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.1.0] – 2026-10-09
+
+### Added
+- Auto-PA: pressure advance measured by the printer's load cell (Klipper module `kobra_pa`, not part of this repo)
+  and kept per filament in Spoolman. The bridge sends each slot's PA to Klipper (table per speed, fixed value or
+  "not measured yet" — then the printer measures at the next print with it) and writes results back (`pa_table`,
+  `pressure_advance` = K at 200 mm/s, so Orca uses it too). API `/api/pa`, card *Pressure Advance* on the ACE page,
+  messages for measurements. Switches: Auto-PA and automatic measuring (in the printer), setting `PA_SYNC`.
+- Changing PA in Orca (back-sync or reset) drops a measured table.
+
+## app 1.10.0 – 2026-10-09
+
+- ACE: Abschnitt „Pressure Advance“ – Auto-PA und automatisches Messen an/aus, PA je Slot, jetzt messen, neu messen
+
 ## [3.0.0] – 2026-10-09
 
 **Breaking:** the printer now runs **Klipper on a Raspberry Pi** (USB tunnel to the Kobra S1's
