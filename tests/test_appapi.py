@@ -212,6 +212,9 @@ class GMoon(FakeMoonraker):
     async def db_delete(self, *a):
         pass
 
+    async def db_keys(self, *a):
+        return []
+
 
 class FakeUsage:
     history = [{"file": "wuerfel.gcode", "ended": "2026-09-30T20:00:00", "state": "complete",

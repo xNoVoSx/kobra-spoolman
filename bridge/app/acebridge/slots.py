@@ -434,6 +434,8 @@ class SlotManager:
 
     async def _write_lanes(self, assigned: Dict[int, Dict[str, Any]]) -> None:
         ns = self.cfg.lane_namespace
+        if not self._lanes_written:
+            await self._drop_foreign_lanes(ns)
         for gate in range(self.num_gates()):
             key = str(gate)
             lane = self._lane_for(gate, assigned.get(gate + 1))
@@ -489,6 +491,19 @@ class SlotManager:
                     log.warning("Slot %d: ACE_SET_SLOT aufgegeben: %s", gate + 1, e)
                 else:
                     log.warning("Slot %d: ACE_SET_SLOT fehlgeschlagen (%s), neuer Versuch", gate + 1, e)
+
+    async def _drop_foreign_lanes(self, ns: str) -> None:
+        """Nach jedem Neuabgleich: Eintraege, die nicht von der Bridge stammen (z. B. ACEPROs lane1..lane4 aus der
+        Zeit vor moonraker_lane_sync_enabled: False), entfernen - sonst sieht Orca jeden Slot doppelt, teils ohne
+        filament_id, und der Sync-Knopf waehlt das falsche Profil."""
+        own = {str(g) for g in range(self.num_gates())}
+        try:
+            for key in await self.moon.db_keys(ns):
+                if key not in own:
+                    await self.moon.db_delete(ns, key)
+                    log.info("lane_data %s entfernt (nicht von der Bridge)", key)
+        except Exception as e:  # noqa: BLE001
+            log.warning("lane_data aufraeumen fehlgeschlagen: %s", e)
 
     def reset_lane_cache(self) -> None:
         self._lanes_written.clear()

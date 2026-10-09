@@ -15,17 +15,23 @@ class GcodeMoonraker(FakeMoonraker):
         super().__init__()
         self.sent = []
         self.fail = False
+        self.db = {}
 
     async def gcode(self, script, source="Bridge"):
         if self.fail:
             raise ConnectionError("weg")
         self.sent.append(script)
 
-    async def db_post(self, *a):
-        pass
+        self.db = {}
 
-    async def db_delete(self, *a):
-        pass
+    async def db_post(self, ns, key, value):
+        self.db[key] = value
+
+    async def db_delete(self, ns, key):
+        self.db.pop(key, None)
+
+    async def db_keys(self, ns):
+        return list(self.db)
 
 
 class SlotSpoolman:
@@ -168,3 +174,20 @@ def test_slots_with_rfid_tag_are_never_written(make):
     run(mgr.assign(1, 8))                     # Spoolman sagt PETG Lavendel, der Tag PLA Schwarz
     assert moon.sent == [] and not mgr._gate_info_pending
     assert any("ACE meldet PLA" in h for h in mgr.slots_view()[0]["hints"])
+
+
+def test_foreign_lane_data_is_removed_after_each_reconnect(make):
+    """ACEPROs eigener Sync schrieb lane1..lane4 (ohne filament_id) - Orca saehe jeden Slot doppelt."""
+    sm, moon = make(ace(["PETG", "", "", ""], ["685BC7", "", "", ""], present=[True, False, False, False]),
+                    [petg_spool(8, 1)])
+    sm.cfg.write_lane_data = True
+    moon.db.update({"lane1": {"lane": "0", "material": "PETG"}, "lane4": {"lane": "3"}})
+    run(sm.evaluate())
+    assert set(moon.db) == {"0"} and moon.db["0"]["filament_id"]
+    moon.db["lane2"] = {"lane": "1"}            # kommt erst nach dem Abgleich wieder: bleibt bis zum naechsten
+    run(sm.evaluate())
+    assert "lane2" in moon.db
+    sm.reset_lane_cache()                        # Klipper/Moonraker neu verbunden
+    run(sm.evaluate())
+    assert set(moon.db) == {"0"}
+

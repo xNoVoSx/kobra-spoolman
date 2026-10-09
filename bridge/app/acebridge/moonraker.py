@@ -70,6 +70,18 @@ class Moonraker:
         ) as r:
             r.raise_for_status()
 
+    async def db_keys(self, namespace: str) -> list:
+        """Schluessel eines Namensraums der Moonraker-Datenbank ([] wenn es ihn nicht gibt)."""
+        async with self.session.get(
+            f"{self.cfg.moonraker_url}/server/database/item", params={"namespace": namespace},
+            headers=self._headers(), timeout=aiohttp.ClientTimeout(total=10),
+        ) as r:
+            if r.status == 404:
+                return []
+            r.raise_for_status()
+            value = ((await r.json()).get("result") or {}).get("value")
+            return list(value) if isinstance(value, dict) else []
+
     async def db_delete(self, namespace: str, key: str) -> None:
         if self.cfg.dry_run:
             log.info("[dry-run] db delete %s.%s", namespace, key)
