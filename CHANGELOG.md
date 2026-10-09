@@ -6,6 +6,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.2.2] – 2026-10-10
+
+### Fixed
+- Right after the bridge starts (Spoolman not loaded yet) or while Spoolman is unreachable, the bridge no longer
+  overwrites `lane_data` with slots without `filament_id`, and no longer reports all slots as empty to Auto-PA and the
+  Z offsets — Orca's sync could pick wrong profiles in that window.
+
 ## [3.2.1] – 2026-10-09
 
 ### Fixed
