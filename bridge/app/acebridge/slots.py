@@ -357,7 +357,9 @@ class SlotManager:
                 ace = self.ace_gate(gate)
                 if self.ace_connected:
                     await self._track_empty(gate, slot, ace["present"], assigned.get(slot), now)
-            if self.cfg.write_lane_data and self.moon.connected:
+            # ohne Spoolman-Stand (Bridge-Start, Spoolman weg) nichts ueberschreiben - sonst stuenden die Slots
+            # kurz ohne Profil (filament_id) da und Orcas Sync-Knopf waehlte falsch
+            if self.cfg.write_lane_data and self.moon.connected and getattr(self.sm, "connected", True):
                 await self._write_lanes(assigned)
             if self._gate_info_pending and self.moon.klippy_ready and not self.printing:
                 await self._push_gate_info(assigned)

@@ -80,3 +80,13 @@ def test_switch_off_and_missing_macro(cfg):
     moon.klippy_ready = True
     asyncio.run(zs.tick())
     assert len(moon.sent) == 1                                    # nach Klipper-Neustart wieder
+
+
+def test_nothing_is_pushed_before_spoolman_is_loaded(cfg):
+    zs, moon, sm = make(cfg)
+    sm.connected = False
+    asyncio.run(zs.tick())
+    assert moon.sent == []
+    sm.connected = True
+    asyncio.run(zs.tick())
+    assert len(moon.sent) == 1

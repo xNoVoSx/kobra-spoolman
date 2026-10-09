@@ -53,6 +53,8 @@ class FilamentZSync:
             self.pushed = None       # Klipper neu gestartet: Makro-Variable steht wieder auf 0
         if not getattr(self.cfg, "filament_z_sync", True) or not self.moon.klippy_ready:
             return
+        if not getattr(self.sm, "connected", True):
+            return                       # ohne Spoolman-Stand nichts schicken
         want = self.desired()
         if self.pushed == want:
             return

@@ -148,6 +148,8 @@ class PaSync:
             self.pushed.clear()
         if not getattr(self.cfg, "pa_sync", True) or kp is None:
             return
+        if not getattr(self.sm, "connected", True):
+            return                     # ohne Spoolman-Stand nichts schicken (sonst "leer" fuer alle Slots)
         await self._take_result(kp)
         if kp.get("measuring"):
             return

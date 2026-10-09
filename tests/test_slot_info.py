@@ -37,6 +37,7 @@ class GcodeMoonraker(FakeMoonraker):
 class SlotSpoolman:
     def __init__(self, spools):
         self.spools = spools
+        self.connected = True
 
     def templates(self):
         return []
@@ -191,3 +192,16 @@ def test_foreign_lane_data_is_removed_after_each_reconnect(make):
     run(sm.evaluate())
     assert set(moon.db) == {"0"}
 
+
+def test_lane_data_untouched_while_spoolman_is_not_loaded(make):
+    """Bridge-Start/Spoolman weg: lane_data nicht mit Slots ohne Profil ueberschreiben."""
+    sm, moon = make(ace(["PETG", "", "", ""], ["685BC7", "", "", ""], present=[True, False, False, False]),
+                    [petg_spool(8, 1)])
+    sm.cfg.write_lane_data = True
+    moon.db["0"] = {"lane": "0", "filament_id": "SM000020"}
+    sm.sm.connected = False
+    run(sm.evaluate())
+    assert moon.db == {"0": {"lane": "0", "filament_id": "SM000020"}}
+    sm.sm.connected = True
+    run(sm.evaluate())
+    assert moon.db["0"]["filament_id"] and moon.db["0"].get("name")

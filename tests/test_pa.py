@@ -191,3 +191,14 @@ def test_view_lists_slots(env):
     assert s2["state"] == "failed" and s2["k"] == []
     assert s3["state"] == "empty"
     assert v["enabled"] is True and v["patched"] is True
+
+
+def test_nothing_is_pushed_before_spoolman_is_loaded(env):
+    """Bridge-Start: bis Spoolman geladen ist, nicht alle Slots als leer an Klipper melden."""
+    pa, moon, sm = env
+    sm.connected = False
+    run(pa.tick())
+    assert moon.sent == []
+    sm.connected = True
+    run(pa.tick())
+    assert len(moon.sent) == 1
