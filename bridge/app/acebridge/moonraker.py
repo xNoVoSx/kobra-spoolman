@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optiona
 
 import aiohttp
 
-from . import __version__, acemodel
+from . import __version__, acemodel, pa
 from .config import Config
 
 if TYPE_CHECKING:
@@ -30,7 +30,8 @@ SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "gcode_move": ["speed_factor", "extrude_factor"],
                      "bed_mesh": ["profile_name"]}
 # ACE-Treiber (ACEPRO, acemodel.SUBSCRIBE) und die Zusatzluefter des S1; fehlt etwas (Treiber aus), ohne abonnieren
-OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
+OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, **pa.SUBSCRIBE,
+                    "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
 
 StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
 

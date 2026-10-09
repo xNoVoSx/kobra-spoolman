@@ -161,6 +161,10 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
             out.append(_msg("warn", f"Slot {r['slot']} wird noch gebraucht, hat aber keine Spule zugeordnet",
                             f"reach{r['slot']}"))
 
+    for ev in getattr(getattr(bridge, "pa", None), "events", []):
+        if now - ev["at"] < RECENT_S:
+            out.append(_msg(ev["level"], ev["text"], "pa"))
+
     slots = bridge.slots
     for gate, nr in sorted(getattr(slots, "unknown_tags", {}).items()):
         out.append(_msg("warn", f"Slot {gate + 1}: unbekannter Tag {nr} – Spule zuordnen, die Nummer wird gemerkt",

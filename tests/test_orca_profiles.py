@@ -88,3 +88,17 @@ def test_reset_clears_fields_so_template_applies_again():
     assert patch["settings_extruder_temp"] is None and patch["extra"]["fan_max"] is None
     assert parse_overrides(json.loads(patch["extra"]["orca_overrides"])) == {"b": "2"}
     assert set(done) == {"fan_max_speed", "nozzle_temperature", "a"}
+
+
+def test_pa_changed_in_orca_replaces_the_measured_table():
+    """Auto-PA: ein PA von Hand (Orca-Ruecksync) oder Zuruecksetzen verwirft die Messtabelle - sonst ueberstimmte sie."""
+    table = json.dumps(json.dumps({"speeds": [100, 200, 300], "k": [0.04, 0.035, 0.03]}))
+    fil = {"id": 1, "extra": {"pa_table": table, "pressure_advance": "0.035"}}
+    patch, applied, _ = backsync_patch(fil, {"pressure_advance": "0.05"})
+    assert patch["extra"] == {"pressure_advance": "0.05", "pa_table": None} and applied["pressure_advance"] == 0.05
+    patch, _ = reset_patch(fil, ["pressure_advance"])
+    assert patch["extra"] == {"pressure_advance": None, "pa_table": None}
+    patch, _, _ = backsync_patch(fil, {"nozzle_temperature": "250"})
+    assert "pa_table" not in patch.get("extra", {})                      # anderes Feld: Tabelle bleibt
+    patch, _, _ = backsync_patch({"id": 2, "extra": {}}, {"pressure_advance": "0.05"})
+    assert patch["extra"] == {"pressure_advance": "0.05"}                # ohne Tabelle nichts extra

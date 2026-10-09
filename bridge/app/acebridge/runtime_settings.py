@@ -55,7 +55,7 @@ SPECS: List[Spec] = [
          help="Meldet die ACE einen Slot leer, kommt die Spule ins Regal (im Druck erst danach)"),
     Spec("empty_debounce_s", "Slots und RFID", "… wenn der Slot so lange leer ist", "float", 0, 600, "s"),
     Spec("set_ace_slot_info", "Slots und RFID", "Material und Farbe an die ACE schreiben", "bool",
-         help="Beim Zuordnen von Spulen ohne Anycubic-Tag (sonst bricht der Druck mit „index out of range“ ab)"),
+         help="Beim Zuordnen von Spulen ohne Tag: Material, Farbe und Temperatur an den ACE-Treiber (ACE_SET_SLOT)"),
     Spec("write_lane_data", "Slots und RFID", "lane_data für Orca schreiben", "bool",
          help="Damit Orcas Sync-Knopf die richtigen Profile in die Slots setzt"),
     # Feuchte
@@ -63,6 +63,9 @@ SPECS: List[Spec] = [
          "Für Spulen im Regal, solange kein Raumsensor (ROOM_SENSOR_TOPIC) frische Werte liefert"),
     Spec("dry_locations", "Feuchte der Spulen", "Lagerorte mit eigener Feuchte", "text",
          help="Spoolman-Lagerort=Feuchte, getrennt mit ;  z. B.  Trockenbox=15; Vakuumbeutel=10"),
+    Spec("pa_sync", "Pressure Advance", "Auto-PA mit Spoolman verbinden", "bool",
+         help="PA-Werte der Filamente an Klipper geben (fehlt einer, misst Klipper beim Druck) und Messungen ans "
+              "Filament zurückschreiben. Messen selbst schaltest du auf der ACE-Seite (Karte Pressure Advance) aus"),
     Spec("auto_dry_on_insert", "Feuchte der Spulen", "Feuchte Spulen beim Einlegen automatisch trocknen", "bool",
          help="Temperatur nach der empfindlichsten eingelegten Spule, Dauer nach der feuchtesten"),
     Spec("new_spools_dry", "Feuchte der Spulen", "Neue Spulen zuerst trocknen", "bool",

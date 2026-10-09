@@ -27,6 +27,7 @@ from .usage import UsageTracker
 from .humidity import HumidityLog
 from .moisture import MoistureModel, hours_needed
 from .mqtt import MqttBridge
+from .pa import OBJ as PA_OBJ, PaSync
 from .printcheck import PrintGuard
 from .runtime_settings import RuntimeSettings
 from .vision import Vision
@@ -46,6 +47,7 @@ class Bridge:
         self.recorder = Recorder(cfg)
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
         self.ace = AceSettings(self.moon, self.slots)
+        self.pa = PaSync(cfg, self.moon, self.sm, self.slots)
         self.camera = Camera(cfg, self.moon, session)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
@@ -94,6 +96,11 @@ class Bridge:
             await self.slots.evaluate()
             if new_state != old_state:
                 await self.slots.on_print_state_change(old_state, new_state)
+        if full or PA_OBJ in delta:
+            try:
+                await self.pa.tick(full)     # Auto-PA: neues Messergebnis sofort nach Spoolman
+            except Exception:  # noqa: BLE001
+                log.exception("Auto-PA-Fehler")
 
     def _spools_in_ace(self) -> list:
         assigned, _ = self.slots.assignments()
@@ -171,6 +178,7 @@ class Bridge:
                 await self.moisture.tick()   # Feuchte je Spule
                 await self.print_guard.tick()  # feuchte Spule beim Druckstart -> ggf. pausieren
                 await self.ace.refresh()
+                await self.pa.tick()         # Auto-PA: Spoolman-Stand der Slots an Klipper (nur bei Aenderung)
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")
 

@@ -19,6 +19,7 @@ import time
 
 from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
+from .pa import PaError
 from .camera import CameraError
 from .console import LOG_BUFFER, check_command
 from .control import ControlError, check_action, tune_commands
@@ -231,6 +232,55 @@ def build_app(bridge: "Bridge") -> web.Application:
         async def apply():
             bridge.dryer.clear_schedule()
         return await _dryer_call(apply())
+
+    # ---------------------------------------------------------------- Auto-PA (Klipper-Modul kobra_pa)
+    async def _pa_call(coro):
+        try:
+            await coro
+            return web.json_response({"ok": True, **bridge.pa.view()})
+        except PaError as e:
+            return _err(e.status, str(e))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Auto-PA: %s", e)
+            return _err(502, str(e))
+
+    @r.get("/api/pa")
+    async def pa_state(_):
+        return web.json_response(bridge.pa.view())
+
+    @r.post("/api/pa/switch")
+    @need_device
+    async def pa_switch(request: web.Request):
+        try:
+            body = await request.json()
+            assert isinstance(body, dict)
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"enabled\": true, \"auto\": false}")
+        en, au = body.get("enabled"), body.get("auto")
+        if any(v is not None and not isinstance(v, bool) for v in (en, au)):
+            return _err(400, "enabled/auto: true oder false")
+        return await _pa_call(bridge.pa.switch(en, au))
+
+    @r.post("/api/pa/calibrate")
+    @need_device
+    async def pa_calibrate(request: web.Request):
+        try:
+            slot = int((await request.json()).get("slot"))
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"slot\": 1}")
+
+        async def start():
+            bridge.pa.calibrate(slot)
+        return await _pa_call(start())
+
+    @r.post("/api/pa/forget")
+    @need_device
+    async def pa_forget(request: web.Request):
+        try:
+            fid = int((await request.json()).get("filament_id"))
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"filament_id\": 5}")
+        return await _pa_call(bridge.pa.forget(fid))
 
     # ---------------------------------------------------------------- ACE-Einstellungen
     async def _ace_call(coro):

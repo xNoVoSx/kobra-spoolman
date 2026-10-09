@@ -86,6 +86,8 @@ class Config:
     room_rh: float = field(default_factory=lambda: _float("ROOM_RH", 50.0))
     dry_locations: str = field(default_factory=lambda: os.environ.get("DRY_LOCATIONS", ""))
     auto_dry_on_insert: bool = field(default_factory=lambda: _bool("AUTO_DRY_ON_INSERT", True))
+    # Auto-PA (Klipper-Modul kobra_pa): PA aus Spoolman an Klipper geben und Messungen zurueckschreiben
+    pa_sync: bool = field(default_factory=lambda: _bool("PA_SYNC", True))
     new_spools_dry: bool = field(default_factory=lambda: _bool("NEW_SPOOLS_DRY", True))
     wet_print_action: str = field(default_factory=lambda: os.environ.get("WET_PRINT_ACTION", "warn").strip().lower())
 

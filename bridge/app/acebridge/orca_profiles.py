@@ -265,9 +265,17 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
 
     if overrides_changed:
         extra["orca_overrides"] = None if not overrides else json.dumps(format_overrides(overrides))
+    _drop_pa_table(fil, extra)
     if extra:
         patch["extra"] = extra
     return patch, applied, ignored
+
+
+def _drop_pa_table(fil: Dict[str, Any], extra: Dict[str, Any]) -> None:
+    """PA in Orca von Hand geaendert oder zurueckgesetzt: die gemessene Auto-PA-Tabelle gilt dann nicht mehr
+    (sonst ueberstimmte sie den neuen Wert). Ohne PA misst Klipper beim naechsten Druck neu (wenn eingeschaltet)."""
+    if "pressure_advance" in extra and extra_value(fil, "pa_table") is not None:
+        extra["pa_table"] = None
 
 
 def reset_patch(fil: Dict[str, Any], keys: List[str]) -> Tuple[Dict[str, Any], List[str]]:
@@ -296,6 +304,7 @@ def reset_patch(fil: Dict[str, Any], keys: List[str]) -> Tuple[Dict[str, Any], L
                 done.append(key)
     if overrides_changed:
         extra["orca_overrides"] = None if not overrides else json.dumps(format_overrides(overrides))
+    _drop_pa_table(fil, extra)
     if extra:
         patch["extra"] = extra
     return patch, done
