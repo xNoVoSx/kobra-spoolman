@@ -77,12 +77,11 @@ filament), optionally **Gleich einlegen** into a slot. In the app you can also s
 On the slot card press **Spule wechseln** (or **Spule zuordnen** for an empty slot) and pick the
 spool. Spools that match what the ACE reads from the tag are on top and marked *passt*.
 
-**Spools without an Anycubic tag:** the printer does not know their material. When you assign such a
-spool, the bridge passes material and colour from Spoolman to the ACE — the printer display shows
-them right away (assigned before loading: as soon as the spool is in; during a print: afterwards).
-Only the assignment does this; to push the values again, assign the spool again. Without it (bridge
-off, `SET_ACE_SLOT_INFO=false`) enter them at the display, otherwise the print fails at the start
-(`index out of range`). The web UI, the app and the Orca panel warn about such slots.
+**Spools without a tag:** the ACE does not know their material. When you assign such a spool, the
+bridge passes material, colour and temperature from Spoolman to the ACE driver (`ACE_SET_SLOT`; assigned
+before loading: as soon as the spool is in; during a print: afterwards). Only the assignment does
+this; to push the values again, assign the spool again. ACEPRO needs them for endless spool and for the
+load temperature.
 
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Leeren** on the slot card.
@@ -115,8 +114,11 @@ A filament type lists its spools; tapping one opens it under *Spulen*.
 The dryer card shows the ACE's humidity and its current temperature; while drying also the set point,
 the filament that limits it and the time left. **Trocknen** /
 **Stoppen** works by hand; **Regeln** sets the automation: start when the humidity rises above a
-threshold (default 20 %), stop below a second one (default 10 %) or after a maximum time, then a
-pause; optionally also while printing.
+threshold (default 20 %) — and has stayed above it for *Warten* minutes (default 15), so opening
+the lid for a moment starts nothing — stop below a second one (default 10 %) or after a maximum time,
+then a pause; optionally also while printing. A run started **by hand, by plan or because a spool was
+loaded** always lasts its full time, however dry the ACE reports; if the ACE stops early, the bridge
+starts it again with the remaining time. Only the automation stops on low humidity.
 
 The temperature is **never higher than the most sensitive loaded filament allows** — the field
 *Trocknen max.* on the filament, else on its template, else a cautious default per material
@@ -187,19 +189,17 @@ a second stream: **Geräte → Kamera-Link** shows a stream and a snapshot URL. 
 *Settings → Webcams*, edit the webcam, choose the service *MJPEG-Streamer* and paste the two URLs.
 The link only shows the camera; *Neu erzeugen* replaces it (the old one stops working).
 
-## ACE settings and purge
+## ACE settings
 
 The **ACE** page (app: tap the dryer card) shows what the printer display hides:
 
-- **Purge multiplier** — how much the ACE flushes at a colour change (`× 1,0` is the firmware
-  default; Minimal 0,1 / Normal 1,0 / Maximum 3,0 or any value). Next to it the purge of every
-  change between your loaded spools, with the current and the new value, in mm and grams. Less purge
-  saves filament but can mix colours — try it on a small print.
-- **Automatisch nachladen** (backup spool when one runs out) and **Leer-Erkennung** (runout detection).
+- **Endlosspule** (endless spool) — when a spool runs out, the ACE loads a matching one and the print
+  goes on. *Welche Spule passt?*: same colour and material, same material, or simply the next spool.
+  Allowed while printing; applies at the next runout. The consumption follows the new slot.
 - **Trocknen planen** — one start at a set time, e.g. tonight at 22:00.
 
-During a print the fields are locked; **Freischalten** unlocks them after a warning. A new
-multiplier applies from the next colour change.
+The purge per colour change is set in Orca (flushing volumes next to *Filament*); the printer profile's
+change-filament G-code passes it to the ACE driver, see [installation](installation.md#orca-printer-profile).
 
 ## Slicing and printing
 
@@ -219,13 +219,11 @@ macros and starting a print stay in Mainsail/Fluidd (*Mainsail* on the printer c
 
 ### How the usage preview is calculated
 
-The *Details* section has two tables, all values in grams.
+The *Details* table is Orca's own preview legend (Preview → Filament), all values in grams.
 
 | Column | Source |
 |---|---|
-| *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Exactly Orca's preview legend (Preview → Filament): model, support, flush and prime tower per filament, *Gesamt* is their sum. Empty columns are left out, as in Orca. |
-| *Laden* | Firmware purge when the ACE loads the filament — Orca does not know about it. Computed **per colour change** exactly like the firmware does it: Orca's colour formula for the two slot colours (as the ACE reports them) + 107 mm³, times the multiplier set at the printer display; the first load of a print is a fixed ≈ 95 mm. The bridge reads the multiplier from the printer and refines the small constants on every finished Orca print. Orca counts the changes (from → to); with an older orca-kobra build the colours are averaged, without the bridge's purge model a measured average per load is used. |
-| *Bedarf* | *Gesamt* + *Laden* |
+| *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | model, support, flush and prime tower per filament, *Gesamt* is their sum; empty columns are left out, as in Orca. *Gereinigt* contains the ACE's load (85 mm) and purge at every colour change — the printer profile reports it to Orca (`EXTERNAL_PURGE`). If it is missing although the print changes colour, the panel says so. |
 | *Rest* | remaining weight of the spool assigned to the slot, from Spoolman |
 
 Filament N in Orca is counted against slot N — the same mapping the sync button sets. The
@@ -258,8 +256,8 @@ Orca profile on the next sync; profiles the plugin did not create are never touc
 Below the print status (web UI and app, paired devices only): **Pause** / **Weiter**, **Abbrechen**
 (asks first, a cancelled print cannot be resumed), **Nachjustieren** — speed, flow, the three fans and
 the nozzle/bed target, also without a print (e.g. to preheat) — and **Not-Aus**: hold it for two
-seconds, then confirm. After an emergency stop the printer has to be switched off and on again;
-Rinkhals blocks a firmware restart because GoKlipper would hang.
+seconds, then confirm. After an emergency stop (or a Klipper error) the bar shows **Klipper neu laden**
+(`FIRMWARE_RESTART`, asks first); home the axes again afterwards.
 
 ## Notifications on the phone
 

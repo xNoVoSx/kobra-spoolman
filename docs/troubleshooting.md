@@ -23,7 +23,7 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Cause / solution |
 |---|---|
-| Web UI: *Kobra S1 · Offline* | Moonraker not reachable. Check `MOONRAKER_URL`, open `http://<printer-ip>:7125/server/info`. |
+| Web UI: *Kobra S1 · Offline* | Moonraker not reachable or Klipper not ready. Check `MOONRAKER_URL`, open `http://<pi-ip>:7125/server/info`; after an emergency stop or error use *Klipper neu laden*. |
 | Web UI: *Spoolman getrennt* | Check `SPOOLMAN_URL`. Inside the same stack use the service name (`http://spoolman:8000`). |
 | Bridge does not start, `PermissionError` on `/data` | The image runs as user 1000. Make the data folder writable for it or add `user: "0:0"` to the service. |
 | Orca panel: *Bridge nicht erreichbar* | Set the bridge address under Plugins → Kobra Spoolman → Configuration. |
@@ -33,9 +33,10 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Cause / solution |
 |---|---|
-| Warning *…doppelt gebucht* | Moonraker's `[spoolman]` is enabled or the firmware's `spoolman_support` is on. Disable it. |
-| Print fails ~5 min after start, Mainsail: `runtime error: index out of range [0] with length 0` | A slot used by the print has no material at the printer (spool without tag, nothing entered at the display). Assign the spool in the web UI or app (material and colour go to the ACE) or enter them at the display. Details: [findings](findings.md#print-start-and-ace-slot-info-2026-09-30). |
-| Slot card: *Material/Farbe gehen nach dem Druck an die ACE* | The bridge never changes slot data while printing; it sends them when the print ends. |
+| Warning *…doppelt gebucht* | Moonraker's `[spoolman]` is enabled. Remove the section from `moonraker.conf`. |
+| Slot card: *Material/Farbe gehen nach dem Druck an die ACE* | The bridge never changes slot data while printing; it sends them (`ACE_SET_SLOT`) when the print ends. |
+| Orca's sync button picks Anycubic profiles, not the `SM…` ones | ACEPRO's own `lane_data` sync is on and overwrites the bridge's. Set `[ace] moonraker_lane_sync_enabled: False` ([installation](installation.md#1-printer-klipper-acepro-and-moonraker)). |
+| Plugin: *Spülen der ACE fehlt in Orcas Zahlen* | The printer profile's change-filament G-code is the old one (no `EXTERNAL_PURGE`). Replace it, see [installation](installation.md#orca-printer-profile). |
 | Spool not offered when assigning | Its vendor is the template vendor (`Vorlage`) or the spool is archived. |
 | *ACE meldet …, zugeordnet ist …* / *Farbe weicht ab* | Spoolman's material or colour differs from what the ACE reads. For Anycubic spools use the ACE's hex colour. |
 | Consumption not booked | See *Offene Buchungen*. Spoolman down → retried automatically every 30 s. |
@@ -63,6 +64,6 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 docker logs -f ace-lane-bridge                      # bridge log (setup code, bookings, warnings)
 curl -s http://<docker-host>:7913/api/health | jq   # status
 curl -s http://<docker-host>:7913/api/auth/status   # setup_required = nothing paired yet
-curl -s "http://<printer-ip>:7125/printer/objects/query?mmu=gate_status,gate_material,gate_color"
+curl -s "http://<pi-ip>:7125/printer/objects/query?ace&ace_instance_0"   # what ACEPRO reports
 grep kobra-spoolman ~/.config/OrcaSlicer/log/python_*.log | tail
 ```

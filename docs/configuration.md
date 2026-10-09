@@ -6,7 +6,7 @@
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `MOONRAKER_URL` | **required** | Moonraker on the printer, e.g. `http://192.168.1.50:7125` |
+| `MOONRAKER_URL` | **required** | Moonraker on the Klipper Pi, e.g. `http://192.168.1.50:7125` |
 | `MOONRAKER_API_KEY` | – | only if Moonraker requires one |
 | `SPOOLMAN_URL` | `http://spoolman:8000` | inside the same stack via the service name |
 | `SPOOLMAN_POLL_S` | `20` | how often Spoolman is re-read |
@@ -17,14 +17,14 @@
 | `AUTO_UNASSIGN_ON_EMPTY` | `true` | move the spool to the shelf when the ACE reports its slot empty |
 | `AUTO_ASSIGN_BY_TAG` | `true` | a spool with one of our tags (number ≥ `TAG_NR_MIN`) in a slot is assigned to it automatically |
 | `EMPTY_DEBOUNCE_S` | `15` | …after the slot stayed empty this long (during a print: after it ends) |
-| `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd |
+| `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd (switch ACEPRO's own sync off, see [installation](installation.md#1-printer-klipper-acepro-and-moonraker)) |
 | `LANE_NAMESPACE` | `lane_data` | Moonraker database namespace |
 | `EMPTY_GATE_MODE` | `delete` | `delete` empty gates from `lane_data`, or `keep` |
-| `SET_ACE_SLOT_INFO` | `true` | when a spool is assigned (web UI, app), give its material/colour to the ACE (Rinkhals `MMU_GATE_MAP`) — once, after it is loaded, never while printing; slots with RFID tag are refused by Rinkhals — see [findings](findings.md#print-start-and-ace-slot-info-2026-09-30) |
+| `SET_ACE_SLOT_INFO` | `true` | when a spool without RFID tag is assigned (web UI, app), give its material, colour and temperature to the ACE (`ACE_SET_SLOT`) — once, after it is loaded, never while printing; slots with a tag are never touched |
 | `BOOK_USAGE` | `true` | book consumption into Spoolman |
 | `BOOK_INTERVAL_S` | `300` | intermediate booking during a print |
 | `BOOK_MIN_MM` | `10` | smallest intermediate booking |
-| `GATE_DEBOUNCE_S` | `3` | a new active slot counts only after this long (ACE flicker) |
+| `GATE_DEBOUNCE_S` | `3` | an RFID tag must stay in the slot this long before the bridge assigns its spool |
 | `USAGE_TOLERANCE` | `0.03` | hint if a slot used less than the G-code model minus 3 % |
 | `JOB_HISTORY` | `50` | prints kept in the history |
 | `APP_TOKEN` | *(empty)* | **optional, transition only** — devices are now [paired](api.md#pairing-devices) and get their own keys. A set value still works as a key and as a pairing code |
@@ -32,11 +32,10 @@
 | `TELEMETRY` / `TELEMETRY_KEEP` | `true` / `30` | raw recordings of the last prints |
 | `DEFAULT_DIAMETER` / `DEFAULT_DENSITY` | `1.75` / `1.24` | only for estimates without a spool |
 | `SPOOLMAN_PUBLIC_URL` | – | Spoolman link in the web UI; empty = same host, port 7912 |
-| `PRINTER_UI_URL` | – | Mainsail link (*In Mainsail öffnen*); empty = printer IP, port 4409 (Rinkhals) |
+| `PRINTER_UI_URL` | – | Mainsail link (*In Mainsail öffnen*); empty = the Moonraker host on port 80 |
 | `CAMERA` | `true` | camera through the bridge (web UI, app, Mainsail via camera link) |
-| `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the printer's MJPEG stream instead — on the Kobra S1 that alone costs 100 % CPU |
+| `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer) |
 | `CAMERA_FPS_MIN` / `CAMERA_FPS_MAX` | `1` / `10` | range of the snapshot rate |
-| `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | printer CPU (%, mean over 10 s): below LOW the rate goes up by 1 fps every 5 s, above HIGH down by 1 fps every 5 s. During a print the S1 sits at 75–89 % from GoKlipper alone; snapshots cost next to nothing |
 | `CAMERA_STREAM_URL` | – | stream URL; empty = from Moonraker's webcam list (`/webcam/?action=stream` on the printer) |
 | `CAMERA_SNAPSHOT_URL` | – | snapshot URL; empty = from Moonraker's webcam list (`/webcam/?action=snapshot` on the printer) |
 | `CAMERA_INTERVAL_S` | `1` | a single `snapshot.jpg` request reuses an image younger than this |
@@ -82,7 +81,7 @@ With `MQTT_HOST` set, the bridge publishes what it knows anyway — the printer 
 | Topic (retained JSON) | Content |
 |---|---|
 | `<prefix>/status` | `online` / `offline` (last will) |
-| `<prefix>/printer` | state, progress, ETA, finish time, file, layer, nozzle/bed, active slot, printer CPU |
+| `<prefix>/printer` | state, progress, ETA, finish time, file, layer, nozzle/bed, active slot, Klipper host CPU (Pi) |
 | `<prefix>/ace` | humidity, temperature, drying, target, remaining time |
 | `<prefix>/slot/<n>` | spool, material, colour, remaining weight, moisture estimate, needs drying |
 | `<prefix>/notices` | count, errors, warnings, most important text |

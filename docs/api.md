@@ -50,8 +50,8 @@ A slot entry:
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/usage` | running print per slot (`live`), last print per slot, open items, purge statistics |
-| GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets, overhead, warnings |
+| GET | `/api/usage` | running print per slot (`live`), last print per slot, open items |
+| GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets (from the bridge's own parse of the print file), overhead, warnings |
 | GET | `/api/open` | open items |
 | POST | `/api/open/{id}` | *(paired)* `{"spool_id": 5}` book an open item onto a spool |
 | DELETE | `/api/open/{id}` | *(paired)* discard an open item |
@@ -94,15 +94,6 @@ A history entry:
 }
 ```
 
-`usage.purge` in `GET /api/orca/state` and `/api/usage` carries the purge model the plugin uses for
-its preview ([architecture](architecture.md#usage-preview-after-slicing)):
-
-```json
-{"jobs": 3, "overhead_per_load_mm": 118.4,
- "model": {"model": "colour", "flush_multiplier": 1.0, "flush_volume_min": 107.0, "flush_volume_max": 800.0,
-           "flush_source": "printer", "offset_mm": -3.4, "first_load_mm": 94.6, "learned_from": 1}}
-```
-
 `sources` tells where each value comes from: `filament`, `vorlage` (template),
 `override-filament` / `override-vorlage` (free Orca overrides). The base profile itself is resolved
 by the plugin inside Orca, so the values always match the installed Orca version.
@@ -129,13 +120,16 @@ Nothing is written to Spoolman; the commands go to the printer, so they need a p
 | GET | `/api/dryer` | humidity, ACE temperature, dryer state, highest allowed temperature with reasons, automation settings, last event |
 | POST | `/api/dryer/start` | *(paired)* `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
 | POST | `/api/dryer/stop` | *(paired)* stop drying |
-| POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing` |
+| POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing`, `start_delay_minutes` (humidity must stay above `start_above` this long, default 15) |
 | POST | `/api/dryer/schedule` | *(paired)* `{"at": <ISO time or epoch s>, "temp": <°C or null>, "hours": <h or null>}` — one planned start, at most a week ahead; the temperature is capped like a manual start |
 | DELETE | `/api/dryer/schedule` | *(paired)* remove the planned start |
 
-The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: GoKlipper's
-`filament_hub` object in the bridge's Moonraker subscription (the ACE reports about every 20 s);
-commands: Rinkhals' `MMU_DRYER_START` / `MMU_DRYER_STOP`.
+The dryer block is also part of `/api/slots` and `/api/app/state`. Data source: ACEPRO's
+`ace_instance_0` object in the bridge's Moonraker subscription; commands: `ACE_START_DRYING TEMP= DURATION=`
+/ `ACE_STOP_DRYING`. While drying, `run` describes the current run: `source` (`hand`, `plan`, `spule`,
+`auto`), `until` (epoch s), `until_iso`, `temp`, `restarts`. Runs started by hand, by plan or on insert
+last until `until` regardless of humidity; if the ACE stops early, the bridge restarts it with the
+remaining time (at most 3 times). Only the automation stops when the humidity falls below `stop_below`.
 
 ## Humidity and spool moisture
 
@@ -165,24 +159,24 @@ short form per spool as `moisture`. When the Spoolman fields exist, the bridge a
 
 ## ACE settings
 
-Settings the printer display hides, read from GoKlipper (`/printer/filament_hub/get_config`, every
-10 minutes and right after a change).
+Settings of the ACE driver (ACEPRO) the printer display does not show, read live from the `ace` object
+in the bridge's Moonraker subscription.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/ace?multiplier=` | `settings` (flush multiplier, `auto_refill`, `runout_detect`, presets, `printing`) and `purge`: the purge of every change between the loaded spools — with the current multiplier or the one given |
-| POST | `/api/ace/flush` | *(paired)* `{"multiplier": 0.1–3.0, "confirm_printing": false}` — via Rinkhals' `SET_ACE_FLUSH_MULTIPLIER` |
-| POST | `/api/ace/options` | *(paired)* `{"auto_refill": bool, "runout_detect": bool, "confirm_printing": false}` — via `filament_hub/set_config` |
+| GET | `/api/ace` | `settings`: `present`, `endless_spool`, `endless_mode` (`exact`, `material`, `next`), `endless_modes` (mode → description), `firmware`, `model`, `printing` |
+| POST | `/api/ace/options` | *(paired)* `{"endless_spool": bool}` and/or `{"endless_mode": "exact"\|"material"\|"next"}` — `ACE_ENABLE_ENDLESS_SPOOL` / `ACE_DISABLE_ENDLESS_SPOOL` / `ACE_SET_ENDLESS_SPOOL_MODE`; allowed while printing; the answer waits up to 2 s for the driver to report the new state |
+| POST | `/api/ace/flush` | **410** — the purge per colour change comes from Orca's flushing volumes (printer profile, see [installation](installation.md#orca-printer-profile)) |
 
-While a print runs, changes are refused with 409 unless `confirm_printing` is true (the UIs ask
-for an extra unlock first); a new multiplier applies from the next colour change. `/api/app/state`
-contains `ace` (the settings).
+For app 1.8.0 the settings also carry `auto_refill` (= endless spool), `runout_detect`, `flush_multiplier`
+(both `null`), `flush_multiplier_editable` (`false`) and `presets` (`{}`); `GET /api/ace` adds an empty
+`purge`. `/api/app/state` contains `ace` (the settings).
 
 ## Camera and print preview
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/camera` | camera state: `mode` (`snapshots`, `stream`, `idle`), `source`, `viewers`, `fps` (measured), `target_fps` and `throttled` (rate lowered because of the printer's CPU), last image time, error |
+| GET | `/api/camera` | camera state: `mode` (`snapshots`, `stream`, `idle`), `source`, `viewers`, `fps` (measured), `target_fps`, `throttled` (always `false` since 3.0), last image time, error |
 | GET | `/api/camera/stream.mjpg` | *(paired or camera key)* live MJPEG restream. Optional `?fps=5` caps the rate for this viewer |
 | GET | `/api/camera/snapshot.jpg` | *(paired or camera key)* the current camera image, taken from the running stream if there is one |
 | GET | `/api/camera/link` | *(paired)* `{"key": "…"}` — the camera key for links |
@@ -240,10 +234,11 @@ during a print, yellow); status line `ai`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/print/pause` | *(paired)* pause (Moonraker `printer.print.pause` → GoKlipper's `PAUSE`) |
+| POST | `/api/print/pause` | *(paired)* pause (Moonraker `printer.print.pause` → `PAUSE`) |
 | POST | `/api/print/resume` | *(paired)* resume |
-| POST | `/api/print/cancel` | *(paired)* `{"confirm": true}` required, otherwise **409** — Rinkhals forwards `CANCEL_PRINT` to Anycubic's own stop for MQTT prints |
-| POST | `/api/print/emergency_stop` | *(paired)* `{"confirm": true}` required — afterwards the printer must be **power-cycled** (Rinkhals refuses `FIRMWARE_RESTART`, GoKlipper would hang) |
+| POST | `/api/print/cancel` | *(paired)* `{"confirm": true}` required, otherwise **409** |
+| POST | `/api/print/emergency_stop` | *(paired)* `{"confirm": true}` required — afterwards Klipper is in shutdown until `firmware_restart` |
+| POST | `/api/print/firmware_restart` | *(paired)* `{"confirm": true}` required — `FIRMWARE_RESTART`, only when no print is running (standby, complete, cancelled, error, shutdown); the UIs offer it when Moonraker is connected but Klipper is not ready |
 | POST | `/api/print/tune` | *(paired)* any of `{"speed": 120, "flow": 98, "fans": {"part": 60, "box": 30, "filter": 0}, "nozzle": 240, "bed": 70}` — percent / °C; nozzle above 260 °C needs `confirm: true` |
 
 `tune` sends `M220`, `M221`, `M106` (part fan), `SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1`,
@@ -321,12 +316,13 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 
 ```json
 {"state": "printing", "file": "test-A-100.gcode", "progress": 0.42, "print_duration_s": 1260, "eta_s": 1740,
- "message": null, "active_slot": 1, "mmu_action": "Idle", "changing_filament": false,
+ "message": null, "active_slot": 1, "mmu_action": null, "changing_filament": false,
  "layer": 29, "layers": 65,
  "nozzle": {"temp": 239.6, "target": 240, "power": 0.45}, "bed": {"temp": 75, "target": 75, "power": 0.22},
  "fans": [{"key": "part", "name": "Bauteil", "speed": 0.6, "rpm": 5400},
           {"key": "box", "name": "Gehäuse", "speed": 0.3}, {"key": "filter", "name": "Luftfilter", "speed": 0}],
- "speed_factor": 1.0, "flow_factor": 1.0, "speed_mode": 1}
+ "speed_factor": 1.0, "flow_factor": 1.0, "speed_mode": null,
+ "moonraker_connected": true, "klippy_ready": true}
 ```
 
 `notices` holds what the overview shows under *Meldungen*:
@@ -349,8 +345,9 @@ and `air_filter_fan`; `gcode_move`: speed and extrude factor, speed mode). Nothi
 every move (position, live velocity) is subscribed. Missing objects are left out (`null` / empty).
 
 `state` is Moonraker's `print_stats.state` (`standby`, `printing`, `paused`, `complete`, `cancelled`,
-`error`) or `offline` when the printer is not reachable. `changing_filament` is derived from
-`mmu.action` (anything but idle while printing) — the exact Rinkhals values are still to be verified.
+`error`) or `offline` when Moonraker is not reachable or Klipper is not ready (`moonraker_connected`,
+`klippy_ready` tell which). `changing_filament` is true while ACEPRO changes tools (`ace.target_index` set);
+`mmu_action` then reads `Wechsel auf Slot N`.
 
 `POST /api/app/filament` (only what the user set; density/diameter default to the template):
 
@@ -383,4 +380,4 @@ provisional until the tag test shows what the ACE accepts (`TAG_SKU_PREFIX`, `TA
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/telemetry` | recorded prints (raw data) with a short summary |
-| GET | `/api/telemetry/{file}` | raw JSONL of one print (changes of `mmu`, `print_stats`, `virtual_sdcard`) |
+| GET | `/api/telemetry/{file}` | raw JSONL of one print (changes of `ace`, `print_stats`, `virtual_sdcard`) |

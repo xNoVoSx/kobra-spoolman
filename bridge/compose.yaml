@@ -21,7 +21,7 @@ services:
     volumes:
       - ./bridge-data:/data
     environment:
-      MOONRAKER_URL: "http://192.168.1.50:7125"   # <- IP deines Druckers (Rinkhals/Moonraker)
+      MOONRAKER_URL: "http://192.168.1.50:7125"   # <- IP des Klipper-Pi (Moonraker)
       SPOOLMAN_URL: "http://spoolman:8000"       # im selben Stack ueber den Servicenamen
       TZ: Europe/Berlin
       # KI-Fehldruck-Erkennung (optional, Dienst unten):

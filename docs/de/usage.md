@@ -79,12 +79,10 @@ scannen – die neue Spule wird damit verknüpft, oder die App schreibt ihr eine
 Auf der Slot-Karte **Spule wechseln** (bei leerem Slot **Spule zuordnen**) drücken und die Spule
 wählen. Spulen, die zu dem passen, was die ACE vom Tag liest, stehen oben und sind mit *passt* markiert.
 
-**Spulen ohne Anycubic-Tag:** Der Drucker kennt ihr Material nicht. Ordnest du so eine Spule zu, gibt
-die Bridge Material und Farbe aus Spoolman an die ACE – das Druckerdisplay zeigt sie sofort an (vor
-dem Einlegen zugeordnet: sobald die Spule drin ist; während eines Drucks: danach). Nur die Zuordnung
-macht das; zum erneuten Senden die Spule nochmal zuordnen. Ohne das (Bridge aus,
-`SET_ACE_SLOT_INFO=false`) am Display eintragen, sonst bricht der Druck beim Start ab
-(`index out of range`). Weboberfläche, App und Orca-Panel warnen bei solchen Slots.
+**Spulen ohne Tag:** Die ACE kennt ihr Material nicht. Ordnest du so eine Spule zu, gibt die Bridge
+Material, Farbe und Temperatur aus Spoolman an den ACE-Treiber (`ACE_SET_SLOT`; vor dem Einlegen zugeordnet:
+sobald die Spule drin ist; während eines Drucks: danach). Nur die Zuordnung macht das; zum erneuten Senden
+die Spule nochmal zuordnen. ACEPRO braucht die Werte für die Endlosspule und die Ladetemperatur.
 
 Spule herausnehmen: Meldet die ACE einen Slot eine Weile als leer, kommt die Spule automatisch ins
 Regal (während eines Drucks erst danach). Oder auf der Slot-Karte **Leeren** drücken.
@@ -118,8 +116,11 @@ Spulen; Tippen öffnet die Spule unter *Spulen*.
 Die Trockner-Karte zeigt Feuchte und aktuelle Temperatur der ACE; beim Trocknen dazu das Soll, das
 Filament, das die Grenze setzt, und die Restzeit. **Trocknen** / **Stoppen**
 geht von Hand; **Regeln** stellt die Automatik ein: Start, wenn die Feuchte über eine Schwelle steigt
-(Standard 20 %), Stopp unter einer zweiten (Standard 10 %) oder nach einer Höchstdauer, danach eine
-Pause; wahlweise auch während eines Drucks.
+(Standard 20 %) – und *Warten* Minuten am Stück darüber bleibt (Standard 15), damit ein kurz geöffneter
+Deckel nichts startet –, Stopp unter einer zweiten (Standard 10 %) oder nach einer Höchstdauer, danach eine
+Pause; wahlweise auch während eines Drucks. Ein Durchgang **von Hand, geplant oder nach dem Einlegen einer
+Spule** läuft immer die volle Zeit, egal wie trocken die ACE meldet; hört die ACE vorher auf, startet die
+Bridge sie mit der Restzeit neu. Nur die Automatik stoppt bei niedriger Feuchte.
 
 Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament verträgt** – Feld
 *Trocknen max.* am Filament, sonst an der Vorlage, sonst ein vorsichtiger Wert pro Material
@@ -193,19 +194,18 @@ Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeit
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*
 ersetzt ihn (der alte funktioniert dann nicht mehr).
 
-## ACE-Einstellungen und Spülen
+## ACE-Einstellungen
 
 Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay versteckt:
 
-- **Spül-Multiplikator** – wie viel die ACE bei einem Farbwechsel spült (`× 1,0` ist der Standard
-  der Firmware; Minimal 0,1 / Normal 1,0 / Maximum 3,0 oder ein eigener Wert). Daneben das Spülen
-  für jeden Wechsel zwischen deinen eingelegten Spulen, mit dem aktuellen und dem neuen Wert, in mm
-  und Gramm. Weniger Spülen spart Filament, kann aber Farben vermischen – an einem kleinen Druck testen.
-- **Automatisch nachladen** (Ersatzspule, wenn eine leer ist) und **Leer-Erkennung**.
+- **Endlosspule** – ist eine Spule leer, lädt die ACE eine passende andere und der Druck läuft weiter.
+  *Welche Spule passt?*: gleiche Farbe und gleiches Material, gleiches Material oder einfach die nächste
+  Spule. Auch während eines Drucks änderbar; gilt beim nächsten leeren Slot. Der Verbrauch läuft auf dem
+  neuen Slot weiter.
 - **Trocknen planen** – ein Start zu einer festen Zeit, z.B. heute um 22:00.
 
-Während eines Drucks sind die Felder gesperrt; **Freischalten** gibt sie nach einem Warnhinweis frei.
-Ein neuer Multiplikator gilt ab dem nächsten Farbwechsel.
+Die Spülmenge pro Farbwechsel stellst du in Orca ein (Spülmengen neben *Filament*); der Filamentwechsel-G-Code
+des Druckerprofils gibt sie an den ACE-Treiber, siehe [Installation](installation.md#orca-druckerprofil).
 
 ## Slicen und Drucken
 
@@ -225,13 +225,11 @@ Dateien, Makros und Druck starten bleiben in Mainsail/Fluidd (*Mainsail* auf der
 
 ### So wird die Verbrauchsvorschau berechnet
 
-Unter *Details* stehen zwei Tabellen, alle Werte in Gramm.
+Die Tabelle unter *Details* ist Orcas eigene Vorschau-Legende (Vorschau → Filament), alle Werte in Gramm.
 
 | Spalte | Quelle |
 |---|---|
-| *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Genau Orcas Vorschau-Legende (Vorschau → Filament): Modell, Stützen, Spülen und Reinigungsturm pro Filament, *Gesamt* ist die Summe. Leere Spalten fehlen wie in Orca. |
-| *Laden* | Spülen der Firmware beim Laden durch die ACE – Orca kennt es nicht. Gerechnet wird **pro Farbwechsel** genau wie die Firmware: Orcas Farbformel für die beiden Slot-Farben (so wie die ACE sie meldet) + 107 mm³, mal dem Multiplikator am Druckerdisplay; der erste Ladevorgang eines Drucks ist fest ≈ 95 mm. Den Multiplikator liest die Bridge vom Drucker, die kleinen Konstanten misst sie an jedem fertigen Orca-Druck nach. Die Wechsel (von → nach) zählt Orca; mit älterem orca-kobra-Build werden die Farben gemittelt, ohne Spül-Modell der Bridge gilt ein gemessener Mittelwert pro Ladevorgang. |
-| *Bedarf* | *Gesamt* + *Laden* |
+| *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Modell, Stützen, Spülen und Reinigungsturm pro Filament, *Gesamt* ist die Summe; leere Spalten fehlen wie in Orca. *Gereinigt* enthält das Laden (85 mm) und Spülen der ACE bei jedem Farbwechsel – das Druckerprofil meldet es Orca (`EXTERNAL_PURGE`). Fehlt es, obwohl der Druck die Farbe wechselt, sagt das Panel Bescheid. |
 | *Rest* | Restgewicht der dem Slot zugeordneten Spule, aus Spoolman |
 
 Filament N in Orca zählt gegen Slot N – dieselbe Zuordnung, die der Sync-Knopf setzt. Die Vorschau
@@ -264,8 +262,8 @@ nächsten Sync ihr Orca-Profil; Profile, die das Plugin nicht selbst angelegt ha
 Unter dem Druckstatus (Weboberfläche und App, nur gekoppelt): **Pause** / **Weiter**, **Abbrechen**
 (fragt nach, ein abgebrochener Druck lässt sich nicht fortsetzen), **Nachjustieren** – Tempo, Fluss,
 die drei Lüfter und die Solltemperatur von Düse und Bett, auch ohne Druck (z. B. zum Vorheizen) – und
-**Not-Aus**: zwei Sekunden gedrückt halten, dann bestätigen. Nach einem Not-Aus muss der Drucker aus-
-und wieder eingeschaltet werden; Rinkhals sperrt den Firmware-Neustart, weil GoKlipper sonst hängt.
+**Not-Aus**: zwei Sekunden gedrückt halten, dann bestätigen. Nach einem Not-Aus (oder einem Klipper-Fehler)
+zeigt die Leiste **Klipper neu laden** (`FIRMWARE_RESTART`, fragt nach); danach die Achsen neu referenzieren.
 
 ## Benachrichtigungen aufs Handy
 

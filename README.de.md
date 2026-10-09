@@ -20,7 +20,7 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 
 - **OrcaSlicer** hat ein passendes Filamentprofil, automatisch angelegt und aktuell gehalten; ein
   Klick auf Orcas Sync-Knopf setzt die richtigen Profile in die richtigen ACE-Slots.
-- Jeder Druck **bucht den Verbrauch pro Spule** in Spoolman – am Drucker gemessen, inklusive Spülen,
+- Jeder Druck **bucht den Verbrauch pro Spule** in Spoolman – am Drucker gemessen, inklusive Laden und Spülen,
   auf den Millimeter genau.
 - Eine **Weboberfläche** (Handy, Desktop, Ultrawide) und eine **Android-App** zeigen Drucker, die vier
   ACE-Slots und das Regal; du ordnest Spulen zu, legst Spulen und Filamente mit allen Orca-Werten an
@@ -55,8 +55,8 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 
 ```mermaid
 flowchart LR
-    subgraph Printer["Kobra S1 + ACE 2 Pro (Rinkhals)"]
-        MR[Moonraker<br/>mmu · print_stats · filament_hub · lane_data]
+    subgraph Printer["Kobra S1 + ACE 2 Pro · Klipper on a Raspberry Pi"]
+        MR[Moonraker<br/>ace · print_stats · lane_data]
     end
     SM[(Spoolman)]
     BR[ace-lane-bridge<br/>Docker · Weboberfläche]
@@ -68,7 +68,7 @@ flowchart LR
     App[Android-App<br/>NFC-Tags]
 
     MR -- "Live-Status (WebSocket)" --> BR
-    BR -- "lane_data, Slot-Daten, Trockner" --> MR
+    BR -- "lane_data, Slot-Daten (ACE_SET_SLOT), Trockner" --> MR
     BR <-->|"Spulen, Filamente, Verbrauch"| SM
     Web -- "gekoppelter Schlüssel" --> BR
     App -- "gekoppelter Schlüssel" --> BR
@@ -77,12 +77,12 @@ flowchart LR
     AG -- "Hochladen & Drucken" --> MR
 ```
 
-Die Bridge ist der **einzige** Client dieses Projekts am Drucker (der Kobra S1 verträgt nur wenige
-Moonraker-Clients); Browser, App und Orca-Plugin reden alle mit der Bridge.
+Die Bridge ist der **einzige** Client dieses Projekts an Moonraker und verteilt die Daten weiter: Browser,
+App, Orca-Plugin und Home Assistant reden alle mit der Bridge.
 
 | Baustein | Aufgabe |
 |---|---|
-| **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman. Weboberfläche, Slot-Zuordnung (automatisch per NFC-Tag), `lane_data` für Orca, Verbrauch messen und pro Spule buchen, offene Posten, Druckhistorie, Spülen pro Farbwechsel, Trockner-Automatik und ACE-Einstellungen, Feuchte-Verlauf und Feuchte-Schätzung pro Spule, Prüfung beim Druckstart, Kamera-Restream, 3D-Druckansicht, Drucksteuerung, Terminal und Logs, Meldungen, Einstellungen im Betrieb, Home Assistant über MQTT, Geräte koppeln, Schnittstelle für App und Plugin, liefert das App-Update aus. |
+| **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman. Weboberfläche, Slot-Zuordnung (automatisch per NFC-Tag), `lane_data` für Orca, Verbrauch messen und pro Spule buchen, offene Posten, Druckhistorie, Trockner-Automatik und ACE-Einstellungen (Endlosspule), Feuchte-Verlauf und Feuchte-Schätzung pro Spule, Prüfung beim Druckstart, Kamera-Restream, 3D-Druckansicht, Drucksteuerung, Terminal und Logs, Meldungen, Einstellungen im Betrieb, Home Assistant über MQTT, Geräte koppeln, Schnittstelle für App und Plugin, liefert das App-Update aus. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca-Plugin) | Ein Orca-Filamentprofil pro Spoolman-Filament (`SM000010` …), Seitenpanel mit Slots und Profilprüfung, Verbrauchsvorschau nach dem Slicen, Rücksync von Profiländerungen nach Spoolman. |
 | **[Android-App](android/)** | Drucker mit Kamera, 3D-Ansicht und Steuerung, Benachrichtigungen im Hintergrund, Widget, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner mit Feuchte-Verlauf und -Einstellungen, Feuchte der Spulen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), Koppeln per QR-Code, Updates über die Bridge. |
 | **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | KI-Fehldruck-Erkennung: Obicos Fehldruck-Modell mit ONNX Runtime (CPU, ~50 ms pro Bild), die Bridge bewertet die Ergebnisse über die Zeit. |
@@ -91,7 +91,12 @@ Moonraker-Clients); Browser, App und Orca-Plugin reden alle mit der Bridge.
 
 ## Voraussetzungen
 
-- Anycubic **Kobra S1** mit **ACE 2 Pro**, gerootet mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals) (Moonraker auf Port 7125 erreichbar).
+- Anycubic **Kobra S1** mit **ACE 2 Pro**, auf dem **Klipper auf einem Raspberry Pi** über den USB-Tunnel des
+  Druckers läuft ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu),
+  [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), mit dem ACE-Treiber
+  [ACEPRO](https://github.com/Kobra-S1/ACEPRO); Moonraker auf Port 7125 erreichbar. ACEPROs eigener
+  `lane_data`-Sync aus, Orcas Filamentwechsel-G-Code aus der [Installationsanleitung](docs/de/installation.md#orca-druckerprofil).
+  Bridge **2.x** ist für die Original-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals).
 - **Spoolman** 0.26 oder neuer.
 - Ein **Docker**-Host im selben Netz (Portainer, Compose, …).
 - **OrcaSlicer** mit Plugin-System (2.5.0-dev nightly). Die automatische Profilwahl braucht den
@@ -103,7 +108,7 @@ Moonraker-Clients); Browser, App und Orca-Plugin reden alle mit der Bridge.
 1. **Spoolman-Felder und Vorlagen** – einmalig:
    `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
 2. **Bridge** – in den Spoolman-Stack aufnehmen ([Compose-Beispiel](bridge/compose.yaml)) mit
-   `MOONRAKER_URL=http://<drucker-ip>:7125`.
+   `MOONRAKER_URL=http://<pi-ip>:7125`.
 3. **Browser koppeln** – `http://<docker-host>:7913` öffnen und den Einrichtungscode aus dem
    Bridge-Log eingeben (`Einrichtungscode: …`). Weitere Geräte bekommen einen Code unter
    *Geräte → Gerät hinzufügen*.
@@ -139,7 +144,7 @@ Mehr: **[docs/de/usage.md](docs/de/usage.md)**.
     <td align="center"><img src="docs/images/web-devices.png" width="420" alt="Gerät koppeln"><br><sub>Geräte: ein Schlüssel pro Gerät, Koppeln per Code oder QR</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/images/web-ace.png" width="420" alt="ACE-Seite"><br><sub>ACE: Spül-Multiplikator mit der Spülmenge jedes Farbwechsels, Nachladen, Leer-Erkennung, Temperaturgrenze</sub></td>
+    <td align="center"><img src="docs/images/web-ace.png" width="420" alt="ACE-Seite"><br><sub>ACE: Trockner, Feuchte-Verlauf, Endlosspule, Temperaturgrenze</sub></td>
     <td align="center"><img src="docs/images/web-terminal.png" width="420" alt="Terminal"><br><sub>Terminal: Antworten des Druckers und jeder Befehl mit Absender, Riskantes fragt nach</sub></td>
   </tr>
   <tr>
@@ -154,8 +159,8 @@ Auf einem 5120×1440-Ultrawide passt die ganze Übersicht auf einen Bildschirm �
 
 ## Gemessene Genauigkeit
 
-Ein echter Zweifarbdruck (4 Klingen weiß, Griff grün, ein Farbwechsel), nachgespielt durch die
-Verbrauchsmessung – die Aufzeichnung ist Teil der [Tests](tests/test_usage_replay.py):
+Ein echter Zweifarbdruck (4 Klingen weiß, Griff grün, ein Farbwechsel), gemessen mit Bridge 2.x auf der
+Original-Firmware:
 
 | | Slot 2 (weiß) | Slot 1 (grün) |
 |---|---|---|
@@ -164,7 +169,9 @@ Verbrauchsmessung – die Aufzeichnung ist Teil der [Tests](tests/test_usage_rep
 | Spülen (Firmware) | 451 mm beim Start | 195 mm beim Wechsel |
 | **In Spoolman gebucht** | **3055 mm ≈ 9,1 g** | **4970 mm ≈ 14,8 g** |
 
-Die Summe stimmt exakt mit dem Zähler `filament_used` des Druckers überein. Mehr in [docs/findings.md](docs/findings.md) (englisch).
+Die Summe stimmte exakt mit dem Zähler `filament_used` des Druckers überein. Unter Klipper (Bridge 3.0) bucht
+die Bridge `print_stats.filament_used` auf den Slot, den ACEPRO als geladen meldet – beim Wechsel bekommt der
+neue Slot das Laden bis zur Düse und das Spülen ([Test](tests/test_usage_acepro.py)). Mehr in [docs/findings.md](docs/findings.md) (englisch).
 
 ## Sicherheit
 
@@ -186,7 +193,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | [Architektur](docs/architecture.md) | Datenfluss, Verbrauchsmessung, Profilauflösung, Koppeln (englisch) |
 | [KI-Erkennung](docs/vision.md) | kobra-vision: wie Fehldrucke erkannt werden, Einrichtung, Bildersammlung, nächste Stufen (englisch) |
 | [Android-App](docs/android-app.md) | Was die App kann, NFC-Tags, bauen (englisch) |
-| [Befunde](docs/findings.md) | Was wir über Rinkhals, die ACE und Orcas Plugin-API gemessen haben (englisch) |
+| [Befunde](docs/findings.md) | Was wir über die ACE, Rinkhals (Bridge 2.x) und Orcas Plugin-API gemessen haben (englisch) |
 | [Changelog](CHANGELOG.md) | Versionsgeschichte (englisch) |
 
 ## Fahrplan
@@ -197,7 +204,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | 2 | Verbrauch pro Spule, Journal, offene Posten, Soll-Abgleich, Historie | ✅ fertig |
 | 3 | Orca-Profile aus Spoolman, Seitenpanel, Rücksync, gepatchter Orca-Build, Verbrauchsvorschau nach dem Slicen | ✅ fertig (Profile ohne Neustart nachladen ist zurückgestellt, siehe [Befunde](docs/findings.md)) |
 | 4 | Weboberfläche, Android-App, Koppeln, ACE-Trockner, NFC-Tags, Spulen beim Einlegen am Tag erkennen | ✅ fertig |
-| – | Spülen pro Farbwechsel: wie die Firmware für jeden Übergang gerechnet, Konstanten bei jedem Druck nachgeschärft | ✅ fertig |
+| – | Klipper auf einem Raspberry Pi mit ACEPRO (Bridge 3.0); Spülen pro Farbwechsel aus Orcas Spülmengen | ✅ fertig |
 | – | Druckermonitor (ersetzt OctoApp): Kamera-Restream, Drucksteuerung, Terminal, Logs, Benachrichtigungen aufs Handy | ✅ fertig (inkl. Widget, Prüfung beim Druckstart, 3D-Ansicht) |
 | – | KI-Fehldruck-Erkennung: Spaghetti (Stufe 1), Platte prüfen (2), umgefallene Teile (3) | ✅ Stufe 1 · 🔜 2 und 3 aus den gesammelten Bildern |
 | – | Feuchte der Spulen: Feuchte-Verlauf der ACE, Trocknungs-Protokoll, Schätzung pro Spule, Trocknen beim Einlegen, Raumsensor | ✅ fertig |

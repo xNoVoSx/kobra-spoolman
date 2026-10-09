@@ -7,7 +7,7 @@ davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 
 **Überblick**
 
-1. [Drucker: Rinkhals und Moonraker](#1-drucker-rinkhals-und-moonraker)
+1. [Drucker: Klipper, ACEPRO und Moonraker](#1-drucker-klipper-acepro-und-moonraker)
 2. [Spoolman und seine Zusatzfelder](#2-spoolman-und-seine-zusatzfelder)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
 4. [Das erste Gerät koppeln](#4-das-erste-gerät-koppeln)
@@ -18,13 +18,25 @@ davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 
 ---
 
-## 1. Drucker: Rinkhals und Moonraker
+## 1. Drucker: Klipper, ACEPRO und Moonraker
 
-- [Rinkhals](https://github.com/rinkhals-community/Rinkhals) auf dem Kobra S1 installieren. Moonraker muss unter
-  `http://<drucker-ip>:7125` erreichbar sein (im Browser `http://<drucker-ip>:7125/server/info` testen).
+Bridge 3.x arbeitet mit **Klipper auf einem Raspberry Pi**: Die Steuerplatinen des Kobra S1 werden per USB zum
+Pi getunnelt ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), Klipper-Fork
+[klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), die ACE 2 Pro hängt mit dem Treiber
+[ACEPRO](https://github.com/Kobra-S1/ACEPRO) am Pi. Einrichtung nach den Anleitungen dieser Projekte; für die Bridge:
+
+- Moonraker muss unter `http://<pi-ip>:7125` erreichbar sein (im Browser `http://<pi-ip>:7125/server/info` testen).
+- **ACEPROs eigener `lane_data`-Sync aus** – die Bridge schreibt `lane_data` mit den Spoolman-Profilnummern,
+  ACEPRO würde sie überschreiben. In `printer.cfg` nach dem ACE-Include:
+  ```ini
+  [ace]
+  moonraker_lane_sync_enabled: False
+  ```
 - **Moonrakers eigene Spoolman-Anbindung bleibt aus** (kein Abschnitt `[spoolman]` in
-  `moonraker.conf`), sonst wird doppelt gebucht. Die Bridge warnt, falls sie an ist.
-- Dem Drucker eine feste IP geben (DHCP-Reservierung) – alles andere zeigt darauf.
+  `moonraker.conf`), sonst wird doppelt gebucht.
+- Dem Pi eine feste IP geben (DHCP-Reservierung) – alles andere zeigt darauf.
+- Noch auf der Original-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals)? Dann Bridge
+  **2.21.1** und Plugin 0.5.2 (Tag `v2.21.1`).
 
 ## 2. Spoolman und seine Zusatzfelder
 
@@ -67,7 +79,7 @@ Den Dienst in deinen Stack aufnehmen (Portainer → Stacks, oder `docker compose
     volumes:
       - ./bridge-data:/data          # z.B. /docker/ace-lane-bridge/data
     environment:
-      MOONRAKER_URL: "http://<drucker-ip>:7125"
+      MOONRAKER_URL: "http://<pi-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"   # Servicename im selben Stack
       TZ: Europe/Berlin
     depends_on:
@@ -95,7 +107,7 @@ Praktisch beim Entwickeln. `bridge/app/` auf den Docker-Host kopieren (z.B. nach
       - /docker/ace-lane-bridge/app:/app:ro
       - /docker/ace-lane-bridge/data:/data
     environment:
-      MOONRAKER_URL: "http://<drucker-ip>:7125"
+      MOONRAKER_URL: "http://<pi-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"
       TZ: Europe/Berlin
 ```
@@ -146,11 +158,28 @@ Es nutzt den normalen Orca-Datenordner (`~/.config/OrcaSlicer`), deine Drucker u
 Eigener Build gewünscht? orca-kobra forken – der Workflow baut ihn für dich.
 Updates, Rückfall und Entfernen: [Installationsanleitung von orca-kobra](https://github.com/xNoVoSx/orca-kobra/blob/main/docs/de/installation.md).
 
-In Orca:
+### Orca-Druckerprofil
 
-- Den Drucker wie gewohnt anlegen (Anycubic Kobra S1 0.4 nozzle) und mit `http://<drucker-ip>` verbinden.
+- Den Drucker wie gewohnt anlegen (Anycubic Kobra S1 0.4 nozzle), G-Code-Variante **Klipper**, mit
+  `http://<pi-ip>` verbinden.
 - **Druckereinstellungen → Grundlegende Informationen → Erweitert** (Expertenmodus):
   **Printer Agent = Moonraker**.
+- **Druckereinstellungen → Maschinen-G-Code → Filamentwechsel-G-Code** – die Spülmenge jedes Farbwechsels kommt
+  aus Orcas Spülmengen (Dialog neben *Filament*), ACEPRO spült nach dem Laden genau so viel:
+  ```
+M104 S{max(old_filament_temp, new_filament_temp)}
+{if previous_extruder >= 0}{local purge_mm = flush_volumes_matrix[previous_extruder * size(filament_colour) + next_extruder] * flush_multiplier[0] / (0.785398 * filament_diameter[next_extruder] * filament_diameter[next_extruder])}
+ACE_SET_PURGE_AMOUNT PURGELENGTH={digits(purge_mm, 0, 1)}
+T[next_extruder]
+; EXTERNAL_PURGE {digits(purge_mm + 85, 0, 2)}
+{else}T[next_extruder]
+{endif}
+  ```
+  Die Matrix wird direkt gelesen, weil Orcas `flush_length` mit Reinigungsturm immer 0 ist.
+  `; EXTERNAL_PURGE` meldet Orca Laden (85 mm vom Kopf-Sensor bis zur Düse, ACEPROs
+  `toolhead_full_purge_length`) plus Spülen – so zeigen Orcas Legende und die Vorschau im Plugin den echten Verbrauch.
+- **Spülmengen:** Multiplikator zunächst 1,0, einzelne Übergänge in der Matrix anpassen. *Purge in prime tower*
+  (Drucker → Multimaterial) bleibt **aus**, sonst bekommt der Turm dieselbe Menge noch einmal.
 
 > [!TIP]
 > Ohne den orca-kobra-Build funktioniert alles andere trotzdem (Profile, Panel, Rücksync,

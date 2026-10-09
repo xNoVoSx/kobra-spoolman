@@ -5,6 +5,12 @@
 What we measured and learned while building this (Kobra S1, ACE 2 Pro, Rinkhals 20260901_01 on
 firmware 2.7.2.7, OrcaSlicer 2.5.0-dev, Spoolman 0.26.1, September 2026).
 
+> [!NOTE]
+> Most of this page describes the **stock firmware with Rinkhals (GoKlipper)**, the base of bridge 2.x.
+> Since bridge 3.0 the printer runs Klipper on a Raspberry Pi with the ACEPRO driver: no `mmu` object, no
+> firmware purge model, the purge comes from Orca's flushing volumes. The findings about the ACE itself,
+> the RFID tags, Spoolman and Orca's plugin API still apply.
+
 ## Consumption measurement (test print, 2026-09-24)
 
 Two-colour print, printed *by object*: four blades in slot 2 (white PLA), then a handle in slot 1

@@ -1,6 +1,6 @@
 # ace-lane-bridge
 
-The service between **Moonraker** (Kobra S1 + ACE 2 Pro with Rinkhals) and **Spoolman**:
+The service between **Moonraker** (Kobra S1 + ACE 2 Pro, Klipper on a Raspberry Pi with ACEPRO) and **Spoolman**:
 
 - web UI for phone, desktop and ultrawide (`http://<host>:7913`): slots, shelf, filaments, prints, dryer, devices
 - device pairing: one key per browser, app and Orca plugin; everything that writes needs one

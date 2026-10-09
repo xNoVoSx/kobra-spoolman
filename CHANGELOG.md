@@ -6,6 +6,40 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.0.0] – 2026-10-09
+
+**Breaking:** the printer now runs **Klipper on a Raspberry Pi** (USB tunnel to the Kobra S1's
+controllers) with the **ACEPRO** ACE driver instead of the stock firmware with Rinkhals (GoKlipper).
+`MOONRAKER_URL` points at the Pi. Set `[ace] moonraker_lane_sync_enabled: False` in `printer.cfg` and use
+the new change-filament G-code in Orca ([installation](docs/installation.md)). Stay on 2.21.1 for the
+stock firmware. Use with plugin 0.6.0 and app 1.9.0 (app 1.8.0 keeps working, without the new switches).
+
+### Changed
+- Slots, RFID tags and the active slot come from ACEPRO's `ace` / `ace_instance_0` objects. Assigning a
+  spool without tag sends material, colour and temperature with `ACE_SET_SLOT`.
+- Consumption: `print_stats.filament_used` is booked to the slot ACEPRO reports as loaded; during a
+  tool change after the unload to the incoming slot (load to the nozzle and purge). No debounce needed.
+  Needs the ACEPRO patch that syncs `gcode_move` after its direct extruder moves.
+- G-code targets per slot come from the bridge's own parse of the print file.
+- "Spool won't last" counts 85 mm load plus the purge the file sets per change (50 mm without).
+- Dryer via `ACE_START_DRYING` / `ACE_STOP_DRYING`. Runs started by hand, by plan or on insert last their
+  full time and are restarted with the remaining time if the ACE stops early (at most 3 times); only the
+  automation stops on low humidity. The automation starts only after the humidity has stayed above the
+  threshold for `start_delay_minutes` (default 15), so opening the lid starts nothing.
+- ACE card: endless spool on/off and its mode (`exact`, `material`, `next`), allowed while printing.
+- Camera: no CPU-based throttling any more (the printer has headroom now); the status shows the CPU of
+  the Klipper host.
+- Mainsail link defaults to port 80 on the Moonraker host.
+
+### Added
+- Print control: `firmware_restart` (*Klipper neu laden*) after an emergency stop or a Klipper error.
+- `moonraker_connected` and `klippy_ready` in the printer state.
+
+### Removed
+- GoKlipper-only parts: `mmu` subscription, firmware purge model (`purge.py`, `usage.purge`), flush
+  multiplier (`POST /api/ace/flush` answers 410), `runout_detect`, the `spoolman_support` check,
+  targets from `virtual_sdcard`.
+
 ## plugin 0.6.0 – 2026-10-09
 
 For bridge 3.0 (Klipper + ACEPRO).

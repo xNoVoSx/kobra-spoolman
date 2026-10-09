@@ -6,8 +6,9 @@
 
 1. **Spoolman is the single source of truth** for everything about filament: properties, Orca
    settings, remaining weight and where a spool is (`ACE Slot N` or the shelf).
-2. **No firmware patches.** The bridge only talks to Moonraker (Rinkhals) and Spoolman over their
-   public APIs. The ACE keeps working on its own (runout backup, RFID).
+2. **No firmware patches.** The bridge only talks to Moonraker (Klipper on a Raspberry Pi with the
+   ACEPRO driver) and Spoolman over their public APIs. The ACE keeps working on its own (endless spool,
+   RFID). Bridge 2.x did the same against the stock firmware with Rinkhals.
 3. **Measure, don't estimate.** Consumption comes from the printer's extrusion counter.
 4. **Nothing is lost silently.** Unbookable consumption becomes an open item; the bridge survives
    restarts mid-print.
@@ -59,22 +60,22 @@ Computed on every `/api/app/state` from what the bridge already holds — no ext
 printer. The print file parsed for the preview (`render.py`) also records the net extrusion per tool
 (retractions cancel out) with a checkpoint every 256 KB and at every tool change, plus the list of
 tool changes. From the current `file_position` the bridge gets what each tool still prints and which
-changes are still to come; the purge model adds the purge of those changes. Mapped to slots via
-`mmu.ttg_map` and compared with the assigned spool's remaining weight, this gives "spool won't last".
+changes are still to come; each change adds the load to the nozzle (85 mm) and the purge the file sets
+before it (`ACE_SET_PURGE_AMOUNT PURGELENGTH=`, from Orca's flushing volumes; 50 mm without). Tool T*n* is
+slot *n*+1; compared with the assigned spool's remaining weight, this gives "spool won't last". The same
+parse gives the per-slot G-code targets for the check at the end of a print.
 
 ## Camera restream (`bridge/app/acebridge/camera.py`)
 
-On the Kobra S1 a single MJPEG stream from Rinkhals' mjpg-streamer takes the whole CPU, while single
-snapshots up to ~5 per second cost nothing measurable ([findings](findings.md#camera-load-on-the-kobra-s1-2026-10-01)).
-The bridge therefore fetches snapshots one after another — only while someone watches, closed 20 s
-after the last viewer — and fans each frame out: web UI, app, Mainsail (camera link) and later the AI
-service. Each viewer always gets the newest frame; a slow viewer skips frames instead of queueing.
-The rate follows the printer's CPU from Moonraker's `notify_proc_stat_update` (pushed anyway, no extra
-request, mean over 10 s): +1 fps every 5 s below 90 %, −1 fps every 5 s above 97 % (1–10 fps by
-default). The thresholds are high on purpose: during a print GoKlipper alone keeps the S1 at 75–89 %,
-and snapshots cost next to nothing, so the camera should only give way when the printer is saturated. The UIs show the frame rate in the corner and *gedrosselt* when the bridge holds back;
-*Status* shows the printer CPU (yellow from 90 %, red from 97 %); it is never a message — nothing can
-be done about it during a print, and a printer that really hangs shows up as unreachable.
+The camera still runs on the printer (its own mjpg-streamer); its address comes from Moonraker's webcam
+list. Under the stock firmware a single MJPEG stream took the whole printer CPU, while single snapshots up
+to ~5 per second cost nothing measurable ([findings](findings.md#camera-load-on-the-kobra-s1-2026-10-01)).
+The bridge therefore fetches snapshots one after another by default (`CAMERA_STREAM=false`) — only while
+someone watches, closed 20 s after the last viewer — and fans each frame out: web UI, app, Mainsail
+(camera link) and the AI service. Each viewer always gets the newest frame; a slow viewer skips frames
+instead of queueing. With Klipper on the Pi the printer has plenty of headroom, so the rate is simply
+`CAMERA_FPS_MAX` (the CPU-based throttling of bridge 2.x is gone). *Status* shows the CPU of the Klipper
+host (the Pi).
 
 ## AI print-failure detection (`vision.py`, `vision/`)
 
@@ -102,24 +103,22 @@ Details: [vision.md](vision.md).
 
 ## Consumption algorithm (`bridge/app/acebridge/usage.py`)
 
-Based on a real test print (see [findings.md](findings.md)):
-
-- `print_stats.filament_used` counts every extruder move **including the firmware's own purge**
-  and matches Orca's model length to the millimetre.
+- `print_stats.filament_used` counts every extruder move — the print, and ACEPRO's load to the nozzle
+  and purge at a tool change (ACEPRO patch: `gcode_move.reset_last_position()` after its direct
+  extruder moves, so they show up at once).
 - Consumption = **signed** delta of `filament_used`; retracts cancel out.
-- Each delta belongs to the **last active slot** (`mmu.gate_status == -1`). Moments without an
-  active slot (unloading, ACE flicker) do not change that.
-- A new slot is confirmed after `GATE_DEBOUNCE_S`; consumption during that window goes to whichever
-  slot wins. Consumption before the first active slot goes to the first one.
-- Purge at a colour change therefore lands on the **newly loaded** filament — which is physically right.
-- Buckets are *(slot, spool)*: if the spool in a slot changes mid-print, both get their share.
+- Each delta belongs to the slot ACEPRO reports as loaded (`ace.current_index`); during a tool change
+  after the unload (`current_index = -1`) to the incoming slot (`ace.target_index`). So the unload
+  retract goes to the old filament, load and purge to the **newly loaded** one — which is physically right.
+  Consumption before the first loaded slot goes to the first one.
+- Buckets are *(slot, spool)*: if the spool in a slot changes mid-print, both get their share; with
+  endless spool the consumption simply follows the new slot.
 - Bookings: `PUT /api/v1/spool/{id}/use` with `use_length` (Spoolman converts using density and
   diameter). At every slot change, every `BOOK_INTERVAL_S` and at the end.
 - State (`data/usage/state.json`) is written atomically right after every successful booking, so a
   crash cannot book twice; on restart the bridge continues from the saved counter.
-- Target comparison: the firmware reports the G-code header per filament in
-  `virtual_sdcard.filament_used` (labelled "m", actually cm³) — used for warnings and the
-  purge statistics.
+- Target comparison: once the bridge has parsed the print file (`render.py`) it stores the extrusion per
+  tool as the job's targets; at the end a slot that measured clearly less than its target is reported.
 
 ## Orca profiles
 
@@ -151,22 +150,16 @@ On `SlicingJobComplete` (and on every panel refresh) the plugin reads
 volume plus density, the number of loads and the filament changes (`transitions`: from → to with
 counts). `build_forecast()` converts them to grams exactly like Orca's preview legend (*Gesamt* =
 model + support + flush + tower; Orca's own `total_volumes_per_extruder` attributes the tower
-differently at tool changes and is not used), adds the firmware purge and compares the sum with the
-spool's remaining weight. Filament N is counted against slot N.
+differently at tool changes and is not used) and compares that with the spool's remaining weight.
+Filament N is counted against slot N.
 
-**Firmware purge per colour change** (`bridge/app/acebridge/purge.py`, the same formula in the
-plugin): for prints via Moonraker the firmware ignores the slicer's flush matrix and computes
-`clamp(orca_colour_volume(from, to) + flush_volume_min, min, max) × flush_multiplier` — Orca's own
-`FlushVolCalculator` on the colours the ACE reports, see [findings](findings.md#the-firmwares-own-flush-setting).
-The bridge reads `flush_multiplier`, `flush_volume_min` and `flush_volume_max` from GoKlipper
-(`/printer/filament_hub/get_config`, every 10 minutes) and records every load of a print with its
-colours. From finished Orca prints (where *measured − G-code target* is the purge alone) it fits two
-small constants by least squares: an offset per change (≈ −3 mm) and the first load of a print
-(≈ 95 mm). `usage.purge.model` in `/api/orca/state` carries all of it. Fallbacks: an Orca build
-without `transitions` averages the changes from the other used colours; a bridge without the model
-gives the old measured average per load. When the plate's slice result becomes
-invalid the preview is hidden. Without patch 0003 the attribute is missing and the preview is
-simply not shown (feature detection, no version check).
+**ACE purge per colour change:** the printer profile's change-filament G-code sets the purge from Orca's
+flushing volumes (`ACE_SET_PURGE_AMOUNT`) and reports load + purge to Orca with `; EXTERNAL_PURGE <mm>`
+after the `T` line, so Orca counts it as *Flushed* on the new filament — Orca's legend and the preview
+show the real consumption without a model of their own. If a print changes colour but reports no purge
+at all, the panel says the printer profile is outdated. When the plate's slice result becomes invalid
+the preview is hidden. Without patch 0003 the attribute is missing and the preview is simply not shown
+(feature detection, no version check).
 
 ## Threads in the plugin
 

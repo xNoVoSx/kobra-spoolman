@@ -7,7 +7,7 @@ first OrcaSlicer build, which GitHub does for you.
 
 **Overview**
 
-1. [Printer: Rinkhals and Moonraker](#1-printer-rinkhals-and-moonraker)
+1. [Printer: Klipper, ACEPRO and Moonraker](#1-printer-klipper-acepro-and-moonraker)
 2. [Spoolman and its extra fields](#2-spoolman-and-its-extra-fields)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
 4. [Pair your first device](#4-pair-your-first-device)
@@ -18,13 +18,25 @@ first OrcaSlicer build, which GitHub does for you.
 
 ---
 
-## 1. Printer: Rinkhals and Moonraker
+## 1. Printer: Klipper, ACEPRO and Moonraker
 
-- Install [Rinkhals](https://github.com/rinkhals-community/Rinkhals) on the Kobra S1. Moonraker must be
-  reachable at `http://<printer-ip>:7125` (try `http://<printer-ip>:7125/server/info` in a browser).
+Bridge 3.x works with **Klipper on a Raspberry Pi**: the Kobra S1's own controllers are tunnelled to the
+Pi over USB ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), Klipper fork
+[klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), the ACE 2 Pro hangs on the Pi with the
+[ACEPRO](https://github.com/Kobra-S1/ACEPRO) driver. Follow those projects' guides; for the bridge:
+
+- Moonraker must be reachable at `http://<pi-ip>:7125` (try `http://<pi-ip>:7125/server/info` in a browser).
+- **ACEPRO's own `lane_data` sync off** — the bridge writes `lane_data` with the Spoolman profile IDs, ACEPRO
+  would overwrite it. In `printer.cfg`, after the ACE include:
+  ```ini
+  [ace]
+  moonraker_lane_sync_enabled: False
+  ```
 - **Moonraker's own Spoolman integration must stay off** (no `[spoolman]` section in
-  `moonraker.conf`), otherwise consumption is booked twice. The bridge warns you if it is on.
-- Give the printer a fixed IP address (DHCP reservation) — everything else points at it.
+  `moonraker.conf`), otherwise consumption is booked twice.
+- Give the Pi a fixed IP address (DHCP reservation) — everything else points at it.
+- Still on the stock firmware with [Rinkhals](https://github.com/rinkhals-community/Rinkhals)? Use bridge **2.21.1**
+  and plugin 0.5.2 (tag `v2.21.1`).
 
 ## 2. Spoolman and its extra fields
 
@@ -67,7 +79,7 @@ Add the service to your stack (Portainer → Stacks, or `docker compose`):
     volumes:
       - ./bridge-data:/data          # e.g. /docker/ace-lane-bridge/data
     environment:
-      MOONRAKER_URL: "http://<printer-ip>:7125"
+      MOONRAKER_URL: "http://<pi-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"   # service name inside the same stack
       TZ: Europe/Berlin
     depends_on:
@@ -94,7 +106,7 @@ Useful while developing. Copy `bridge/app/` to the Docker host (e.g. `/docker/ac
       - /docker/ace-lane-bridge/app:/app:ro
       - /docker/ace-lane-bridge/data:/data
     environment:
-      MOONRAKER_URL: "http://<printer-ip>:7125"
+      MOONRAKER_URL: "http://<pi-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"
       TZ: Europe/Berlin
 ```
@@ -145,10 +157,28 @@ It uses the normal Orca data folder (`~/.config/OrcaSlicer`), so your existing p
 profiles stay. Want your own build? Fork orca-kobra — the workflow builds it for you.
 Updates, fallback and uninstall: [orca-kobra installation guide](https://github.com/xNoVoSx/orca-kobra/blob/main/docs/installation.md).
 
-In Orca:
+### Orca printer profile
 
-- Add the printer as usual (Anycubic Kobra S1 0.4 nozzle) and connect it to `http://<printer-ip>`.
+- Add the printer as usual (Anycubic Kobra S1 0.4 nozzle), set the G-code flavour to **Klipper** and connect
+  it to `http://<pi-ip>`.
 - **Printer settings → Basic information → Advanced** (advanced mode): **Printer agent = Moonraker**.
+- **Printer settings → Machine G-code → Change filament G-code** — the purge of every colour change comes
+  from Orca's flushing volumes (the dialog next to *Filament*), ACEPRO purges that much after loading:
+  ```
+M104 S{max(old_filament_temp, new_filament_temp)}
+{if previous_extruder >= 0}{local purge_mm = flush_volumes_matrix[previous_extruder * size(filament_colour) + next_extruder] * flush_multiplier[0] / (0.785398 * filament_diameter[next_extruder] * filament_diameter[next_extruder])}
+ACE_SET_PURGE_AMOUNT PURGELENGTH={digits(purge_mm, 0, 1)}
+T[next_extruder]
+; EXTERNAL_PURGE {digits(purge_mm + 85, 0, 2)}
+{else}T[next_extruder]
+{endif}
+  ```
+  It reads the matrix directly because Orca's `flush_length` is always 0 when a prime tower is used.
+  `; EXTERNAL_PURGE` tells Orca about load (85 mm from the toolhead sensor to the nozzle, ACEPRO's
+  `toolhead_full_purge_length`) plus purge, so Orca's legend and the plugin's preview show the real
+  consumption.
+- **Flushing volumes:** multiplier 1.0 to start with, adjust single transitions in the matrix.
+  *Purge in prime tower* (printer → multimaterial) stays **off**, otherwise the tower gets the same amount again.
 
 > [!TIP]
 > Without the orca-kobra build everything else still works (profiles, panel, back-sync,
