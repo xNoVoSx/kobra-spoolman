@@ -167,3 +167,22 @@ def test_endless_spool_books_on_the_new_slot(cfg):
     feed(moon, tracker, rows)
     assert sm.booked(3) == pytest.approx(used, abs=0.1)
     assert sm.booked(5) == pytest.approx(385, abs=0.1)
+
+
+def test_targets_from_the_gcode_check_the_measurement(cfg):
+    """Sollwerte kommen aus der gelesenen Druckdatei (render.py e_total je Werkzeug, T<n> = Slot n)."""
+    moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
+    rows = print_rows()
+    feed(moon, tracker, rows[:3])                                     # Druck laeuft
+    tracker.set_targets("andere.gcode", {0: 1.0, 1: 9.0})            # Datei eines anderen Drucks: ignorieren
+    assert tracker.job["targets"] is None
+    # G-code will 5000 mm von Slot 1 (gemessen nur 4135) und 2500 mm von Slot 2; T3 fast nichts
+    tracker.set_targets("zwei.gcode", {0: 5000.0, 1: 2500.0, 3: 0.4})
+    tracker.set_targets("zwei.gcode", {0: 1.0})                       # zweites Mal: bleibt beim ersten
+    feed(moon, tracker, rows[3:])
+    job = tracker.history[0]
+    by = {s["slot"]: s for s in job["slots"]}
+    assert by[1]["target_mm"] == 5000.0 and by[2]["target_mm"] == 2500.0
+    assert by[2]["overhead_mm"] == pytest.approx(EXPECTED[2] - 2500, abs=0.5)
+    assert job["target_mm"] == 7500.0
+    assert len(job["warnings"]) == 1 and job["warnings"][0].startswith("Slot 1: gemessen 4135 mm")

@@ -25,7 +25,6 @@ import json
 import logging
 import math
 import os
-import re
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -49,48 +48,11 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def _numbers(raw: Any) -> List[float]:
-    if isinstance(raw, (list, tuple)):
-        vals = raw
-    else:
-        vals = re.findall(r"-?\d+(?:\.\d+)?", str(raw or ""))
-    out = []
-    for v in vals:
-        try:
-            out.append(float(v))
-        except (TypeError, ValueError):
-            out.append(0.0)
-    return out
-
-
-def parse_targets(vsd: Dict[str, Any], diameter: float) -> Optional[Dict[str, Any]]:
-    """Sollwerte aus dem G-code-Kopf, wie die Anycubic-Firmware sie in virtual_sdcard meldet.
-
-    filament_used heisst dort "... m", enthaelt aber cm3 (11.61 cm3 = 4.83 m bei 1,75 mm).
-    Die Einheit wird ueber das Verhaeltnis zu den Gramm bestimmt, damit eine spaetere
-    Firmware mit echten Metern nicht falsch gelesen wird.
-    """
-    vols = _numbers(vsd.get("filament_used"))
-    grams = _numbers(vsd.get("filament_used_g"))
-    if not vols or not any(vols):
-        return None
-    area = math.pi * (diameter / 2) ** 2  # mm2
-    per_gate = {}
-    unit = "cm3"
-    # Plausibilitaet: g / cm3 muss eine Dichte sein (0.8 - 2.2)
-    pairs = [(v, g) for v, g in zip(vols, grams, strict=False) if v > 0 and g > 0]
-    if pairs:
-        ratio = sum(g for _, g in pairs) / sum(v for v, _ in pairs)
-        if not 0.8 <= ratio <= 2.2:
-            unit = "m"
-    for i, v in enumerate(vols):
-        if v <= 0:
-            continue
-        mm = v * 1000.0 / area if unit == "cm3" else v * 1000.0
-        per_gate[str(i)] = {"mm": round(mm, 1), "g": grams[i] if i < len(grams) else None}
-    types = str(vsd.get("filament_type") or "").split(";")
-    return {"unit": unit, "per_gate": per_gate, "total_g": vsd.get("filament_total_g"),
-            "types": types}
+def targets_from_gcode(e_total: Dict[int, float]) -> Optional[Dict[str, Any]]:
+    """Sollwerte pro Slot aus der Druckdatei (render.py zaehlt die Extrusion je Werkzeug; T<n> = Slot n).
+    Das Spuelen der ACE steht nicht im G-code - gemessen wird also immer mindestens das Soll."""
+    per_gate = {str(t): {"mm": round(mm, 1), "g": None} for t, mm in sorted(e_total.items()) if mm > 1}
+    return {"source": "gcode", "per_gate": per_gate} if per_gate else None
 
 
 def group_transitions(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -215,7 +177,6 @@ class UsageTracker:
     # ================================================================== Job-Lebenszyklus
     def _new_job(self, status: Dict[str, Dict[str, Any]]) -> None:
         ps = status.get("print_stats", {}) or {}
-        vsd = status.get("virtual_sdcard", {}) or {}
         used = ps.get("filament_used")
         self.job = {
             "id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4],
@@ -232,16 +193,22 @@ class UsageTracker:
             "loads": 0,                # wie oft ein Slot aktiv wurde (erster + Wechsel)
             "changes": [],             # Slotwechsel
             "transitions": [],         # jedes Laden mit ACE-Farben (Farbwechsel-Statistik)
-            "slicer": vsd.get("slicer"),
-            "targets": parse_targets(vsd, self.cfg.default_diameter),
+            "targets": None,           # kommt, sobald die Bridge die Druckdatei gelesen hat (set_targets)
         }
         self._dirty = True
-        self._journal("job_start", job=self.job["id"], file=self.job["file"], used_start=self.job["used_start"],
-                      targets=self.job["targets"])
+        self._journal("job_start", job=self.job["id"], file=self.job["file"], used_start=self.job["used_start"])
         log.info("Druck gestartet: %s (Zaehler %.1f mm)", self.job["file"], self.job["used_start"])
         seen = acemodel.consuming_slot(status)
         if seen is not None:
             self._confirm_gate(seen)
+
+    def set_targets(self, file: str, e_total: Dict[int, float]) -> None:
+        """Die Bridge hat die Druckdatei gelesen (render.py): Sollwerte pro Slot fuer die Pruefung am Druckende."""
+        if not self.job or self.job["file"] != file or self.job.get("targets"):
+            return
+        self.job["targets"] = targets_from_gcode(e_total)
+        self._dirty = True
+        self._journal("job_targets", job=self.job["id"], targets=self.job["targets"])
 
     def _bucket(self, gate: int) -> Dict[str, Any]:
         assert self.job is not None
@@ -338,16 +305,6 @@ class UsageTracker:
                 if state in PRINTING_STATES:
                     self._new_job(status)
                 return
-
-            # Sollwerte kommen manchmal erst nach dem Start an und werden spaeter geleert
-            vsd_d = delta.get("virtual_sdcard") or {}
-            if vsd_d.get("slicer") and not self.job.get("slicer"):
-                self.job["slicer"] = vsd_d["slicer"]
-            if "filament_used" in vsd_d and not self.job.get("targets"):
-                t = parse_targets(status.get("virtual_sdcard", {}) or {}, self.cfg.default_diameter)
-                if t:
-                    self.job["targets"] = t
-                    self._dirty = True
 
             ps_d = delta.get("print_stats") or {}
             # Neuer Druck, obwohl der alte nie sauber endete (Zaehler zurueckgesetzt, andere Datei)
@@ -586,7 +543,6 @@ class UsageTracker:
             "changes": len(job["changes"]),
             "slots": sorted(per_slot.values(), key=lambda s: s["slot"]),
             "warnings": warnings,
-            "slicer": job.get("slicer"),
             "flush": job.get("flush"),
             "transitions": group_transitions(job.get("transitions") or []),
         }

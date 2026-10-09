@@ -77,7 +77,7 @@ class Config:
     book_usage: bool = field(default_factory=lambda: _bool("BOOK_USAGE", True))
     book_interval_s: float = field(default_factory=lambda: _float("BOOK_INTERVAL_S", 300.0))  # Zwischenbuchung im Druck
     book_min_mm: float = field(default_factory=lambda: _float("BOOK_MIN_MM", 10.0))           # kleinste Zwischenbuchung
-    gate_debounce_s: float = field(default_factory=lambda: _float("GATE_DEBOUNCE_S", 3.0))    # Flackern der ACE ignorieren
+    gate_debounce_s: float = field(default_factory=lambda: _float("GATE_DEBOUNCE_S", 3.0))    # RFID-Tag erst nach so vielen Sekunden im Slot zuordnen
     usage_tolerance: float = field(default_factory=lambda: _float("USAGE_TOLERANCE", 0.03))   # Abgleich mit Sollwerten
     job_history: int = field(default_factory=lambda: _int("JOB_HISTORY", 50))
     humidity_days: int = field(default_factory=lambda: _int("HUMIDITY_DAYS", 30))

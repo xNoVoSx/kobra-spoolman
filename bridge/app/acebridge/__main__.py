@@ -49,6 +49,7 @@ class Bridge:
         self.camera = Camera(cfg, self.moon, session)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
+        self.preview.on_ready = self.usage.set_targets
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.humidity = HumidityLog(cfg, self.moon)
         self.dryer.log_sink = self.humidity

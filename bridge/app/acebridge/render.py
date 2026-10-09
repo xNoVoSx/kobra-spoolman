@@ -17,7 +17,7 @@ import math
 import re
 import time
 from array import array
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import aiohttp
@@ -37,7 +37,7 @@ CHECKPOINT_BYTES = 256 * 1024    # Stuetzstellen fuer den Restverbrauch
 _MOVE = re.compile(r"^G[0123](?:\s|$)")
 _AXIS = re.compile(r"([XYZEF])(-?\d*\.?\d+)")
 _TOOL = re.compile(r"^T(\d+)\s*$")
-_PURGE = re.compile(r"^ACE_SET_PURGE_AMOUNT\b.*\bPURGELENGTH=(-?\d*\.?\d+)")   # Orca-Spuelskript vor jedem T
+_PURGE = re.compile(r"^ACE_SET_PURGE_AMOUNT\b.*\bPURGELENGTH=(-?\d*\.?\d+)")   # Orca-Wechsel-G-Code vor jedem T
 _THUMB = re.compile(r"^;\s*thumbnail(?:_PNG)?\s+begin\s+(\d+)x(\d+)\s+(\d+)", re.I)
 
 
@@ -471,6 +471,7 @@ class PrintPreview:
         self.moon = moon
         self.session = session
         self.file: Optional[str] = None
+        self.on_ready: Optional[Callable[[str, Dict[int, float]], None]] = None   # Datei gelesen -> Sollwerte
         self.status = "idle"            # idle | loading | ready | too_big | error | off
         self.error: Optional[str] = None
         self.model: Optional[GcodeModel] = None
@@ -530,6 +531,8 @@ class PrintPreview:
             ends = await asyncio.get_running_loop().run_in_executor(None, simplify, model, limit)
             self._ends, self._ends_key = ends, (len(model), limit)
             self.model, self.status = model, "ready"
+            if self.on_ready:
+                self.on_ready(name, dict(model.e_total))
             log.info("Vorschau: %s geladen (%d Strecken, %d Schichten, 3D: %d Strecken)", name, len(model),
                      len(model.layers), len(ends))
         except asyncio.CancelledError:

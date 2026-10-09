@@ -181,9 +181,12 @@ def test_preview_loads_the_running_file(gcode_server):
             status = {"print_stats": {"state": "printing", "filename": "sub dir/test.gcode"},
                       "virtual_sdcard": {"file_position": 100},
                       **ace_status([{"material": "PLA", "color": "FF0000"}, None])}
+            ready = []
+            p.on_ready = lambda name, e_total: ready.append((name, e_total))
             p.watch(status)
             await p._task
             assert p.status == "ready" and len(p.model) == 4
+            assert ready == [("sub dir/test.gcode", p.model.e_total)] and ready[0][1]   # Sollwerte fuer den Verbrauch
             # Werkzeug T<n> = Slot n: Slot 1 meldet Rot, Slot 2 ist leer -> Farbe aus dem G-Code
             assert p.colours(status)[0] == "FF0000" and p.colours(status)[1] != "FF0000"
             png = await p.render(status)
