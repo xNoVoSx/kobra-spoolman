@@ -251,6 +251,25 @@ class BridgeClient(
         call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(mapOf(key to value))),
             AceResponse.serializer()).settings
 
+    /** Auto-PA-Schalter in Klipper (null = unveraendert). */
+    suspend fun paSwitch(enabled: Boolean?, auto: Boolean?) {
+        val body = buildMap<String, JsonPrimitive> {
+            enabled?.let { put("enabled", JsonPrimitive(it)) }
+            auto?.let { put("auto", JsonPrimitive(it)) }
+        }
+        call("POST", "/api/pa/switch", json.encodeToString(JsonObject.serializer(), JsonObject(body)), ApiError.serializer())
+    }
+
+    /** PA jetzt messen (nur ohne Druck; Ergebnis kommt nach ~2 min ueber den Status). */
+    suspend fun paCalibrate(slot: Int) {
+        call("POST", "/api/pa/calibrate", "{\"slot\":$slot}", ApiError.serializer())
+    }
+
+    /** PA eines Filaments in Spoolman loeschen - beim naechsten Druck wird neu gemessen. */
+    suspend fun paForget(filamentId: Int) {
+        call("POST", "/api/pa/forget", "{\"filament_id\":$filamentId}", ApiError.serializer())
+    }
+
     suspend fun issueTag(spoolId: Int): TagIssue =
         call("POST", "/api/app/tag/issue", json.encodeToString(SpoolIdBody.serializer(), SpoolIdBody(spoolId)),
             TagIssue.serializer())

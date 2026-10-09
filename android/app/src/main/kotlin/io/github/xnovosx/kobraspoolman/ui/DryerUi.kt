@@ -83,6 +83,7 @@ fun DryerSheet(
     onPlan: (Double, Int?, Double?) -> Unit, onClearPlan: () -> Unit,
     onOption: (String, JsonPrimitive) -> Unit,
     humidity: @Composable () -> Unit = {},
+    pa: @Composable () -> Unit = {},
 ) {
     var temp by remember { mutableStateOf("") }
     var hours by remember { mutableStateOf(num(d.config.maxHours)) }
@@ -155,6 +156,7 @@ fun DryerSheet(
         DryPlanSection(d, onPlan, onClearPlan)
         humidity()
         ace?.let { AceSection(it, onOption) }
+        pa()
         Text("Die Temperatur richtet sich immer nach dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“ in " +
             "Spoolman, sonst Startwert je Material) und geht nie über das, was die ACE kann (ACE 2 Pro: ${req.aceMax} °C).",
             style = MaterialTheme.typography.bodySmall, color = K.Faint)

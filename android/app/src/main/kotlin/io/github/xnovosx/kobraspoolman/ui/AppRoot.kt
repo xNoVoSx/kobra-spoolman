@@ -259,7 +259,14 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 onPlan = { at, t, h -> dryerOpen = false; vm.dryerSchedule(at, t, h) },
                 onClearPlan = { vm.clearDryerSchedule() },
                 onOption = { k, v -> vm.setAceOption(k, v) },
-                humidity = { HumiditySection { h -> vm.humidity(h) } })
+                humidity = { HumiditySection { h -> vm.humidity(h) } },
+                pa = {
+                    state?.pa?.let { p ->
+                        PaSection(p, state?.printer?.state in setOf("printing", "paused"),
+                            onSwitch = { e, a -> vm.paSwitch(e, a) }, onCalibrate = { vm.paCalibrate(it) },
+                            onForget = { vm.paForget(it) })
+                    }
+                })
         }
     }
     val printer = state?.printer

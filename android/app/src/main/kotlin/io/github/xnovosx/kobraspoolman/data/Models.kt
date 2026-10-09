@@ -19,6 +19,8 @@ data class AppState(
     val shelf: List<SpoolInfo> = emptyList(),
     val dryer: Dryer? = null,
     val ace: AceSettings? = null,
+    /** Auto-PA (Klipper-Modul kobra_pa) - fehlt bei aelteren Bridges */
+    val pa: PaState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -204,6 +206,38 @@ data class AceSettings(
 
 @Serializable
 data class AceResponse(val settings: AceSettings = AceSettings())
+
+/** Auto-PA (GET /api/pa, auch in /api/app/state): Schalter in Klipper, PA je Slot aus Spoolman. */
+@Serializable
+data class PaState(
+    val present: Boolean = false,
+    val sync: Boolean = true,
+    val enabled: Boolean? = null,
+    val auto: Boolean? = null,
+    val patched: Boolean? = null,
+    val measuring: Boolean = false,
+    val calibrating: Int? = null,
+    val slots: List<PaSlot> = emptyList(),
+    val last: PaLast? = null,
+)
+
+/** state: table | needed | failed | empty | measuring; source: table (gemessen) | manual | null */
+@Serializable
+data class PaSlot(
+    val slot: Int,
+    @SerialName("filament_id") val filamentId: Int? = null,
+    val name: String? = null,
+    val state: String = "",
+    val source: String? = null,
+    val speeds: List<Double> = emptyList(),
+    val k: List<Double> = emptyList(),
+    @SerialName("k_ref") val kRef: Double? = null,
+    val date: String? = null,
+    val active: Boolean = false,
+)
+
+@Serializable
+data class PaLast(val t: Int = 0, val kind: String = "", val k: List<Double> = emptyList(), val message: String? = null)
 
 /** Stand der Druckvorschau (GET /api/print/info). */
 @Serializable

@@ -244,6 +244,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun paSwitch(enabled: Boolean? = null, auto: Boolean? = null) = launchSafe {
+        it.paSwitch(enabled, auto)
+        refresh()
+    }
+
+    fun paCalibrate(slot: Int) = launchSafe {
+        it.paCalibrate(slot)
+        _messages.send("PA-Messung läuft – Ergebnis in ~2 Minuten")
+        refresh()
+    }
+
+    fun paForget(filamentId: Int) = launchSafe {
+        it.paForget(filamentId)
+        _messages.send("PA verworfen – wird beim nächsten Druck neu gemessen")
+        refresh()
+    }
+
     fun dryerSchedule(atEpochS: Double, temp: Int?, hours: Double?) = launchSafe {
         it.dryerSchedule(atEpochS, temp, hours)
         _messages.send("Trocknen geplant")
