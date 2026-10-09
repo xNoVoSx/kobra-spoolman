@@ -1,5 +1,6 @@
 # ace-lane-bridge - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer
-FROM python:3.12-slim
+# Offizielles Python-Image ueber den AWS-Spiegel (gleicher Inhalt wie Docker Hub, ohne dessen Abruf-Limit fuer CI)
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 LABEL org.opencontainers.image.title="ace-lane-bridge" \
       org.opencontainers.image.description="Kobra S1 + ACE 2 Pro (Rinkhals/Moonraker) <-> Spoolman <-> OrcaSlicer: slot assignment, per-spool consumption booking, Orca profiles" \

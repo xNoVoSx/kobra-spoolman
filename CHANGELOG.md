@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.2.1] – 2026-10-09
+
+### Fixed
+- Docker images (bridge, kobra-vision) take the official Python base image from the AWS ECR Public mirror — Docker Hub
+  rate-limited the CI (`429 Too Many Requests`), so 3.2.0 got no image. Same content as 3.2.0 otherwise.
+
 ## [3.2.0] – 2026-10-09
 
 ### Added
