@@ -4,6 +4,7 @@ import { HumidityCard } from "./humidity.js";
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, del, get, post } from "./api.js";
 import { AceCard } from "./ace.js";
+import { PaCard } from "./pa.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
 import { NoticesCard } from "./notices.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
@@ -135,7 +136,7 @@ export function AcePage() {
     <h1 class="h1">ACE</h1>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
       <${DryerCard} big />
-      <${AceCard} />
+      <div class="col" style="gap:20px"><${AceCard} /><${PaCard} /></div>
     </div>
     ${d?.present && html`<section class="card pad col">
       <h2 class="h2">Temperaturgrenze</h2>
