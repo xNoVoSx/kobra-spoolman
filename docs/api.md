@@ -199,6 +199,17 @@ part's height with the load cell). `/api/app/state` contains `resume`; an interr
 | POST | `/api/resume/discard` | *(paired)* drop the saved print |
 | POST | `/api/resume/switch` | *(paired)* `{"enabled": bool}` — `KOBRA_POWERLOSS ENABLE=`, stored in the printer |
 
+## Clog detection
+
+For the Klipper module `kobra_clog` (compares, per 20 mm of extrusion, what the extruder fed with what the filament
+encoder saw). `/api/app/state` contains `clog`; a suspected clog is an error message `clog` (an alarm in the app) until
+the filament moves normally again or the print is paused/ended.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/clog` | `present`, `enabled`, `action` (`warn`/`pause`), `available` (encoder found), `suspect`, `alarm` (`extruder_mm`, `encoder_mm`, `ratio`, `action`, `time`), `alarms`, `min_ratio`, `last_ratio` |
+| POST | `/api/clog/switch` | *(paired)* `{"enabled": bool}` and/or `{"action": "warn"\|"pause"}` — `KOBRA_CLOG ENABLE= ACTION=`, stored in the printer |
+
 ## Camera and print preview
 
 | Method | Path | Purpose |

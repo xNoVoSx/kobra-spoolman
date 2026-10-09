@@ -266,6 +266,12 @@ class BridgeClient(
         else call("POST", "/api/resume/discard", "{}", ApiError.serializer())
     }
 
+    /** Verstopfung erkennen: enabled und/oder action (warn, pause); null = unveraendert. */
+    suspend fun clogSwitch(enabled: Boolean?, action: String?) {
+        val parts = listOfNotNull(enabled?.let { "\"enabled\":$it" }, action?.let { "\"action\":\"$it\"" })
+        call("POST", "/api/clog/switch", parts.joinToString(",", "{", "}"), ApiError.serializer())
+    }
+
     suspend fun resumeSwitch(enabled: Boolean) {
         call("POST", "/api/resume/switch", "{\"enabled\":$enabled}", ApiError.serializer())
     }

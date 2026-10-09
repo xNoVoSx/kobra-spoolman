@@ -255,6 +255,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun clogSwitch(enabled: Boolean? = null, action: String? = null) = launchSafe {
+        it.clogSwitch(enabled, action)
+        refresh()
+    }
+
     fun resumeSwitch(enabled: Boolean) = launchSafe {
         it.resumeSwitch(enabled)
         refresh()

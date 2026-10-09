@@ -6,6 +6,7 @@ import { post } from "./api.js";
 import { Toggle } from "./ace.js";
 import { useCamera } from "./media.js";
 import { S, guard, loadState, openDialog, toast } from "./store.js";
+import { cls } from "./util.js";
 
 export function ResumeCard() {
   const r = S.st?.resume;
@@ -66,4 +67,30 @@ export function PowerlossCard() {
     <${Toggle} label="Fortsetzen nach Stromausfall"
       hint="Der Drucker sichert im Druck laufend die Stelle; nach dem Einschalten fragt er, ob er weitermachen soll"
       value=${r.enabled} disabled=${busy} onChange=${set} /></section>`;
+}
+
+/** Schalter auf der ACE-Seite: Verstopfung erkennen (Klipper-Modul kobra_clog) an/aus, nur warnen oder pausieren. */
+export function ClogCard() {
+  const c = S.st?.clog;
+  const [busy, setBusy] = useState(false);
+  if (!c || !c.present) return null;
+  const set = guard(async (body) => {
+    setBusy(true);
+    try { await post("/api/clog/switch", body); await loadState(); }
+    catch (e) { if (e.status !== 401 && e.status !== 403) toast(e.message, "bad"); }
+    finally { setBusy(false); }
+  });
+  const opt = (val, label) => html`<button class=${cls("seg-btn", c.action === val && "on")} disabled=${busy || !c.enabled}
+    onClick=${() => set({ action: val })}>${label}</button>`;
+  return html`<section class="card pad col" aria-label="Verstopfung">
+    <${Toggle} label="Verstopfung erkennen"
+      hint="Vergleicht im Druck die Förderung des Extruders mit dem Encoder am Filament-Eingang"
+      value=${c.enabled} disabled=${busy} onChange=${(v) => set({ enabled: v })} />
+    <div class="row wrap" style="gap:8px;align-items:center">
+      <span class="small">Bei Verdacht</span>
+      <div class="seg">${opt("warn", "Nur warnen")}${opt("pause", "Pausieren")}</div></div>
+    ${c.available === false && html`<div class="small" style="color:var(--danger-text)">Kein Encoder gefunden – Erkennung inaktiv</div>`}
+    ${c.last_ratio != null && html`<div class="small faint">Zuletzt gemessen: ${Math.round(100 * c.last_ratio)} %
+      (Grenze ${Math.round(100 * (c.min_ratio || 0))} %)${c.alarms ? ` · ${c.alarms}× Verdacht seit Klipper-Start` : ""}</div>`}
+  </section>`;
 }

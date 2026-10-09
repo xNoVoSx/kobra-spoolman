@@ -23,6 +23,8 @@ data class AppState(
     val pa: PaState? = null,
     /** Fortsetzen nach Stromausfall (Klipper-Modul kobra_resume) - fehlt bei aelteren Bridges */
     val resume: ResumeState? = null,
+    /** Verstopfung erkennen (Klipper-Modul kobra_clog) - fehlt bei aelteren Bridges */
+    val clog: ClogState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -236,6 +238,19 @@ data class PaSlot(
     @SerialName("k_ref") val kRef: Double? = null,
     val date: String? = null,
     val active: Boolean = false,
+)
+
+@Serializable
+data class ClogState(
+    val present: Boolean = false,
+    val enabled: Boolean? = null,
+    /** warn oder pause */
+    val action: String? = null,
+    val available: Boolean? = null,
+    val suspect: Boolean = false,
+    val alarms: Int = 0,
+    @SerialName("min_ratio") val minRatio: Double? = null,
+    @SerialName("last_ratio") val lastRatio: Double? = null,
 )
 
 @Serializable

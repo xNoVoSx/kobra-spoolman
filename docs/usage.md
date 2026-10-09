@@ -210,6 +210,14 @@ probes the height on the last printed line with the load cell (instead of homing
 where it stopped, slower for the first minute. If the probed height does not fit it stops instead of guessing.
 **Verwerfen** drops it. Nothing happens without your confirmation. Switch: ACE page → *Fortsetzen nach Stromausfall*.
 
+## Clog detection
+
+With the Klipper module `kobra_clog` (not part of this repo) the printer compares, while printing, how much filament
+the extruder fed with what the encoder at the filament inlet saw. If the encoder sees far too little twice in a row,
+the overview and the app show **Verstopfung?** with the numbers — check the nozzle and the filament path. By default it
+only warns; ACE page → *Verstopfung erkennen* switches it off or to *Pausieren*. Tool changes are not checked (the ACE
+moves the filament itself).
+
 ## Z offset per filament
 
 Some filaments want the first layer a little higher or lower (e.g. PETG). Enter it in Spoolman as **Z-Versatz** (mm,

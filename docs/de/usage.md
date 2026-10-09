@@ -203,6 +203,14 @@ Hause, tastet die Höhe mit der Wiegezelle auf der zuletzt gedruckten Linie an (
 druckt an der Stelle weiter, die erste Minute langsamer. Passt die getastete Höhe nicht, bricht er ab statt zu raten.
 **Verwerfen** löscht die Sicherung. Ohne deine Bestätigung passiert nichts. Schalter: ACE-Seite → *Fortsetzen nach Stromausfall*.
 
+## Verstopfung erkennen
+
+Mit dem Klipper-Modul `kobra_clog` (nicht Teil dieses Repos) vergleicht der Drucker im Druck, wie viel Filament der
+Extruder gefördert hat, mit dem, was der Encoder am Filament-Eingang gesehen hat. Sieht der Encoder zweimal hintereinander
+viel zu wenig, zeigen Übersicht und App **Verstopfung?** mit den Zahlen – Düse und Filamentweg prüfen. Standard ist nur
+warnen; ACE-Seite → *Verstopfung erkennen* schaltet es aus oder auf *Pausieren*. Werkzeugwechsel werden nicht geprüft (dort
+bewegt die ACE das Filament selbst).
+
 ## Z-Versatz pro Filament
 
 Manche Filamente wollen die erste Schicht etwas höher oder tiefer (z. B. PETG). In Spoolman als **Z-Versatz** (mm,

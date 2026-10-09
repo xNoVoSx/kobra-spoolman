@@ -6,6 +6,18 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.4.0] – 2026-10-10
+
+### Added
+- Clog detection (Klipper module `kobra_clog`, not part of this repo): while printing, Klipper compares what the
+  extruder fed with what the filament encoder saw. A suspected clog shows up as an alarm until the filament moves
+  normally again; Klipper either only warns (default) or also pauses. Switch and reaction on the ACE page, API
+  `/api/clog`, `/api/clog/switch`.
+
+## app 1.12.0 – 2026-10-10
+
+- ACE-Fenster: Schalter „Verstopfung erkennen“ mit Auswahl „Nur warnen“/„Pausieren“
+
 ## [3.3.0] – 2026-10-10
 
 ### Added

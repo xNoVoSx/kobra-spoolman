@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.xnovosx.kobraspoolman.data.ClogState
 import io.github.xnovosx.kobraspoolman.data.ResumeState
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import kotlin.math.roundToInt
@@ -68,5 +69,36 @@ fun PowerlossSwitch(r: ResumeState, onSwitch: (Boolean) -> Unit) {
         }
         Switch(r.enabled == true, onSwitch,
             colors = SwitchDefaults.colors(checkedTrackColor = K.Accent, checkedThumbColor = K.OnAccent))
+    }
+}
+
+/** Schalter im ACE-Fenster: Verstopfung erkennen an/aus, bei Verdacht nur warnen oder pausieren. */
+@Composable
+fun ClogSwitch(c: ClogState, onSwitch: (Boolean) -> Unit, onAction: (String) -> Unit) {
+    if (!c.present) return
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text("Verstopfung erkennen", style = MaterialTheme.typography.bodyLarge)
+            Text("Vergleicht im Druck die Förderung des Extruders mit dem Encoder am Filament-Eingang",
+                style = MaterialTheme.typography.bodySmall, color = K.Muted)
+        }
+        Switch(c.enabled == true, onSwitch,
+            colors = SwitchDefaults.colors(checkedTrackColor = K.Accent, checkedThumbColor = K.OnAccent))
+    }
+    if (c.enabled == true) {
+        Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Bei Verdacht", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            Segmented(listOf("warn" to "Nur warnen", "pause" to "Pausieren"), c.action ?: "warn") {
+                if (it != c.action) onAction(it)
+            }
+        }
+    }
+    if (c.available == false) {
+        Text("Kein Encoder gefunden – Erkennung inaktiv", style = MaterialTheme.typography.bodySmall,
+            color = K.DangerText, modifier = Modifier.padding(top = 4.dp))
+    }
+    c.lastRatio?.let { r ->
+        Text("Zuletzt gemessen: ${(100 * r).roundToInt()} % (Grenze ${(100 * (c.minRatio ?: 0.0)).roundToInt()} %)",
+            style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }

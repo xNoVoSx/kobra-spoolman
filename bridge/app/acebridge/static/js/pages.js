@@ -5,7 +5,7 @@ import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.j
 import { auth, del, get, post } from "./api.js";
 import { AceCard } from "./ace.js";
 import { PaCard } from "./pa.js";
-import { PowerlossCard, ResumeCard } from "./resume.js";
+import { ClogCard, PowerlossCard, ResumeCard } from "./resume.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
 import { NoticesCard } from "./notices.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
@@ -138,7 +138,7 @@ export function AcePage() {
     <h1 class="h1">ACE</h1>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
       <${DryerCard} big />
-      <div class="col" style="gap:20px"><${AceCard} /><${PaCard} /><${PowerlossCard} /></div>
+      <div class="col" style="gap:20px"><${AceCard} /><${PaCard} /><${PowerlossCard} /><${ClogCard} /></div>
     </div>
     ${d?.present && html`<section class="card pad col">
       <h2 class="h2">Temperaturgrenze</h2>

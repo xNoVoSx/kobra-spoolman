@@ -20,6 +20,7 @@ import time
 from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
 from .pa import PaError
+from .clog import ClogError
 from .resume import ResumeError
 from .camera import CameraError
 from .console import LOG_BUFFER, check_command
@@ -326,6 +327,30 @@ def build_app(bridge: "Bridge") -> web.Application:
         except Exception:  # noqa: BLE001
             return _err(400, "Erwartet JSON {\"enabled\": true}")
         return await _resume_call(bridge.resume.switch(en))
+
+    # ---------------------------------------------------------------- Verstopfung erkennen
+    @r.get("/api/clog")
+    async def clog_state(_):
+        return web.json_response(bridge.clog.view())
+
+    @r.post("/api/clog/switch")
+    @need_device
+    async def clog_switch(request: web.Request):
+        try:
+            body = await request.json()
+            en, act = body.get("enabled"), body.get("action")
+            assert en is None or isinstance(en, bool)
+            assert act is None or isinstance(act, str)
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"enabled\": true, \"action\": \"warn\"|\"pause\"}")
+        try:
+            await bridge.clog.switch(en, act)
+            return web.json_response({"ok": True, **bridge.clog.view()})
+        except ClogError as e:
+            return _err(e.status, str(e))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Verstopfung: %s", e)
+            return _err(502, str(e))
 
     # ---------------------------------------------------------------- ACE-Einstellungen
     async def _ace_call(coro):

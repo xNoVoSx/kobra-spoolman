@@ -268,6 +268,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                             onForget = { vm.paForget(it) })
                     }
                     state?.resume?.let { r -> PowerlossSwitch(r) { vm.resumeSwitch(it) } }
+                    state?.clog?.let { c -> ClogSwitch(c, { vm.clogSwitch(enabled = it) }, { vm.clogSwitch(action = it) }) }
                 })
         }
     }
