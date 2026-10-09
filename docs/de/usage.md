@@ -242,6 +242,9 @@ Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay v
   Spule. Auch während eines Drucks änderbar; gilt beim nächsten leeren Slot. Der Verbrauch läuft auf dem
   neuen Slot weiter.
 - **Trocknen planen** – ein Start zu einer festen Zeit, z.B. heute um 22:00.
+- **Pressure Advance**, **Fortsetzen nach Stromausfall** und **Verstopfung erkennen** – die Schalter der
+  Klipper-Module am Drucker, siehe die Abschnitte unten. Jede Karte erscheint nur, wenn der Drucker das
+  Modul hat; jeder Schalter wird im Drucker gespeichert.
 
 Die Spülmenge pro Farbwechsel stellst du in Orca ein (Spülmengen neben *Filament*); der Filamentwechsel-G-Code
 des Druckerprofils gibt sie an den ACE-Treiber, siehe [Installation](installation.md#orca-druckerprofil).
@@ -319,7 +322,7 @@ Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt d
   Druck fertig, Alarm, Hinweis.
 - **Alarm** (mit Kamerabild): Druckerfehler, Pause oder Abbruch, die nicht von dir kamen (eine Pause aus
   Weboberfläche oder App ist kein Alarm), hängender Farbwechsel, fallende Düsentemperatur, Drucker oder
-  Bridge weg im Druck, Spule reicht nicht.
+  Bridge weg im Druck, Spule reicht nicht, unterbrochener Druck nach Stromausfall, Verdacht auf Verstopfung.
 - **Hinweis**: nur, was du tun kannst – unbekannter Tag im Slot, Slot ohne Material, Spoolman länger als
   5 Minuten weg. Drucker-CPU, *fast leer*, offene Buchungen und Feuchte bleiben unter *Meldungen* in der App.
 
@@ -335,7 +338,8 @@ Kamerabild, Fortschritt, Rest- und Fertig-Zeit; Antippen öffnet die App.
 *Einstellungen* in der Weboberfläche ändert die Bridge im laufenden Betrieb – Kamera, Druckvorschau, Slots
 und RFID, Feuchte der Spulen, Meldungen, Verbrauch, Daten – ohne Neustart und ohne Portainer. Die Umgebung
 des Stacks gibt nur die Startwerte; *zurücksetzen* stellt sie wieder her. Siehe
-[Konfiguration](../configuration.md#changing-settings-at-runtime).
+[Konfiguration](../configuration.md#changing-settings-at-runtime). Unten listet *Neu in der Bridge* die Änderungen
+der letzten zehn Versionen (alle: [Changelog](../../CHANGELOG.md), englisch).
 
 <p align="center"><img src="../images/web-settings.png" width="760" alt="Einstellungen der Bridge"></p>
 

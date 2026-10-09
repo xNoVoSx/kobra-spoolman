@@ -32,6 +32,10 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
   Handy – und Spulen mit unseren NFC-Tags werden beim Einlegen **von selbst ihrem Slot zugeordnet**.
 - Eine optionale **KI** beobachtet laufende Drucke und schlägt mit Kamerabild Alarm, wenn ein Druck zu
   Spaghetti wird – auf der CPU, ohne Last am Drucker ([vision.md](docs/vision.md), englisch).
+- Zusammen mit Klipper-Modulen am Drucker (nicht Teil dieses Repos) steuern die Filamentdaten den Druck
+  selbst: **Auto-PA**, von der Wiegezelle gemessen und pro Filament gespeichert, **Z-Versatz pro
+  Filament**, **Fortsetzen nach Stromausfall** (tastet die Höhe auf dem Teil an, fragt immer vorher) und
+  **Verstopfung erkennen** (Extruder gegen Filament-Encoder) – jedes mit eigenem Aus-Schalter.
 - Die Bridge **weiß, wie feucht jede Spule ist** – Feuchte-Verlauf der ACE, jede Trocknung, eine
   Feuchte-Schätzung pro Spule aus dem, wo sie lag –, trocknet Spulen beim Einlegen von selbst und prüft
   beim Druckstart, ob die eingelegten Spulen zur Datei passen.
@@ -206,6 +210,8 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | 4 | Weboberfläche, Android-App, Koppeln, ACE-Trockner, NFC-Tags, Spulen beim Einlegen am Tag erkennen | ✅ fertig |
 | – | Klipper auf einem Raspberry Pi mit ACEPRO (Bridge 3.0); Spülen pro Farbwechsel aus Orcas Spülmengen | ✅ fertig |
 | – | Druckermonitor (ersetzt OctoApp): Kamera-Restream, Drucksteuerung, Terminal, Logs, Benachrichtigungen aufs Handy | ✅ fertig (inkl. Widget, Prüfung beim Druckstart, 3D-Ansicht) |
+| – | Filament-Automatik: Auto-PA pro Filament (Wiegezelle, je Geschwindigkeit), Z-Versatz pro Filament | ✅ fertig (3.1, 3.2) |
+| – | Überwachung: Fortsetzen nach Stromausfall, Verstopfung erkennen | ✅ fertig (3.3, 3.4) · als Nächstes Spülmengen lernen |
 | – | KI-Fehldruck-Erkennung: Spaghetti (Stufe 1), Platte prüfen (2), umgefallene Teile (3) | ✅ Stufe 1 · 🔜 2 und 3 aus den gesammelten Bildern |
 | – | Feuchte der Spulen: Feuchte-Verlauf der ACE, Trocknungs-Protokoll, Schätzung pro Spule, Trocknen beim Einlegen, Raumsensor | ✅ fertig |
 | 5 | Home Assistant über MQTT (Drucker, Slots, Restgewicht, Feuchte, Meldungen), Raumsensor | ✅ fertig |

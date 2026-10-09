@@ -197,6 +197,9 @@ The **ACE** page (app: tap the dryer card) shows what the printer display hides:
   goes on. *Welche Spule passt?*: same colour and material, same material, or simply the next spool.
   Allowed while printing; applies at the next runout. The consumption follows the new slot.
 - **Trocknen planen** — one start at a set time, e.g. tonight at 22:00.
+- **Pressure Advance**, **Fortsetzen nach Stromausfall** and **Verstopfung erkennen** — the switches of
+  the printer's Klipper modules, see the sections below. Each card only shows when the printer has the
+  module; every switch is stored in the printer.
 
 The purge per colour change is set in Orca (flushing volumes next to *Filament*); the printer profile's
 change-filament G-code passes it to the ACE driver, see [installation](installation.md#orca-printer-profile).
@@ -313,7 +316,8 @@ took about two thirds of the printer's CPU). It only asks the bridge, so the pri
   finished, alarm, hint.
 - **Alarm** (with a camera picture): printer error, a pause or cancel you did not make yourself (a
   pause from the web UI or the app is no alarm), a stuck colour change, a falling nozzle temperature,
-  printer or bridge gone during a print, a spool that won't last.
+  printer or bridge gone during a print, a spool that won't last, an interrupted print after a power
+  loss, a suspected clog.
 - **Hint**: only what you can act on — an unknown tag in a slot, a slot without material, Spoolman
   unreachable for more than 5 minutes. Printer CPU, *fast leer*, open bookings and humidity stay in
   the app's *Meldungen*.
@@ -330,6 +334,7 @@ picture, progress, remaining and finish time; tapping it opens the app.
 *Einstellungen* in the web UI changes the bridge while it runs — camera, print preview, slots and RFID,
 spool moisture, notices, consumption, data — no restart and no Portainer. The stack's environment
 only gives the start values; *zurücksetzen* goes back to them. See [configuration](configuration.md#changing-settings-at-runtime).
+At the bottom, *Neu in der Bridge* lists the changes of the last ten versions (all of them: [changelog](../CHANGELOG.md)).
 
 <p align="center"><img src="images/web-settings.png" width="760" alt="Bridge settings"></p>
 

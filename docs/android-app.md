@@ -81,6 +81,15 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
 - **ACE dryer** — humidity/temperature card; start, stop and the automation rules; the humidity
   history (6 h – 30 days, set point while drying, prints and dryings as bands) and the list of dryings
   with who started them and why.
+- **ACE window** (*Mehr → ACE & Trockner*) — besides the dryer: endless spool on/off and its mode;
+  **Pressure Advance** (Auto-PA on/off, measure automatically on/off, the PA of each slot with its state,
+  *Jetzt messen*, *Neu messen*); **Fortsetzen nach Stromausfall** on/off; **Verstopfung erkennen** on/off
+  with *Nur warnen* / *Pausieren*. Every switch is stored in the printer. A switch only shows when the
+  printer has the matching Klipper module ([usage](usage.md#pressure-advance-auto-pa)).
+- **Druck unterbrochen** — after a power loss the start screen shows the interrupted print (file, layer,
+  live camera picture) and an alarm: *Fortsetzen* (asks first; the printer heats, probes the height on
+  the part and continues) or *Verwerfen*. A suspected clog is an alarm too (*Verstopfung?* with the
+  numbers), until the filament moves normally again.
 - **Widget** — *Einstellungen → Widget auf den Startbildschirm*: camera picture, progress, remaining and
   finish time, refreshed by the monitoring service (no extra requests).
 - **Pairing and devices** — scan the QR code from *Geräte → Gerät hinzufügen* (web UI or another

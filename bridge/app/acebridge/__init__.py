@@ -6,6 +6,49 @@ __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.4.0", "2026-10-10", [
+        "Verstopfung erkennen: Klipper vergleicht im Druck die Förderung des Extruders mit dem Encoder am Filament-Eingang; "
+        "bei Verdacht rote Meldung und Alarm in der App, bis wieder normal gefördert wird",
+        "ACE-Seite: Schalter „Verstopfung erkennen“, bei Verdacht nur warnen (Standard) oder pausieren",
+        "App 1.12.0: derselbe Schalter im ACE-Fenster",
+    ]),
+    ("3.3.0", "2026-10-10", [
+        "Fortsetzen nach Stromausfall: Karte „Druck unterbrochen“ mit Live-Bild und Alarm in der App; Fortsetzen nur mit "
+        "Rückfrage – der Drucker heizt erst auf Drucktemperatur, hebt langsam an, tastet die Höhe auf dem Teil an und "
+        "druckt an der Stelle weiter; Verwerfen löscht die Sicherung",
+        "ACE-Seite: Schalter „Fortsetzen nach Stromausfall“",
+        "App 1.11.0: Karte „Druck unterbrochen“ auf der Startseite, Schalter im ACE-Fenster",
+    ]),
+    ("3.2.2", "2026-10-10", [
+        "Direkt nach dem Start (Spoolman noch nicht geladen) schreibt die Bridge keine Slots ohne Filament mehr an den "
+        "Drucker – Orcas Sync konnte sonst falsche Profile wählen, Auto-PA hielt alle Slots für leer",
+    ]),
+    ("3.2.1", "2026-10-09", [
+        "Docker-Image wieder gebaut (Basis-Image jetzt vom AWS-Spiegel, Docker Hub hatte den Bau gedrosselt); "
+        "sonst wie 3.2.0",
+    ]),
+    ("3.2.0", "2026-10-09", [
+        "Z-Versatz pro Filament: Spoolman-Feld „Z-Versatz“ (erbt von der Vorlage), wird beim Druckstart zur ersten "
+        "Schicht addiert (±0,5 mm); abschaltbar unter Einstellungen → Erste Schicht",
+        "Wechsel-G-Code: mit Orcas „Purge in prime tower“ spült die ACE nichts zusätzlich (nie doppelt)",
+    ]),
+    ("3.1.0", "2026-10-09", [
+        "Auto-PA: der Drucker misst Pressure Advance mit der Wiegezelle je Geschwindigkeit, der Wert landet am Filament "
+        "in Spoolman (auch für Orca) und gilt beim nächsten Druck; fehlt er, misst der Drucker selbst",
+        "ACE-Seite: Karte „Pressure Advance“ – an/aus, automatisch messen an/aus, PA je Slot, jetzt messen, neu messen",
+        "Orca sah jeden Slot doppelt (alte Einträge des ACE-Treibers) – werden jetzt aufgeräumt",
+        "App 1.10.0: Abschnitt „Pressure Advance“ im ACE-Fenster",
+    ]),
+    ("3.0.0", "2026-10-09", [
+        "Drucker läuft jetzt mit Klipper auf dem Raspberry Pi und dem ACE-Treiber ACEPRO statt Original-Firmware",
+        "Verbrauch pro Spule aus Klipper, beim Wechsel bekommt der neue Slot Laden und Spülen",
+        "Spülen pro Farbwechsel aus Orcas Spülmengen; Spül-Multiplikator entfällt",
+        "Trockner: von Hand, geplant oder beim Einlegen gestartet läuft bis zum Ende; Automatik startet erst nach "
+        "15 min über der Schwelle (Deckel öffnen startet nichts)",
+        "ACE-Karte: Endlosspule an/aus und Modus; Steuerung: „Klipper neu laden“ nach Not-Aus oder Fehler",
+        "Kamera ohne CPU-Drosselung; Status zeigt die CPU des Pi",
+        "Orca-Plugin 0.6.0 und App 1.9.0 empfohlen",
+    ]),
     ("2.21.1", "2026-10-06", [
         "Rücksync aus Orca löscht nie mehr ein Spoolman-Feld, nur weil ein Wert unlesbar ist (Düsentemperatur war weg)",
         "Orca-Plugin 0.5.2 empfohlen: Profile aus Orca 2.5 laden wieder, Rücksync nimmt den Wert der aktiven Extruder-Variante",

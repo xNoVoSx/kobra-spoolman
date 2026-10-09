@@ -97,7 +97,7 @@ def build_app(bridge: "Bridge") -> web.Application:
             "uptime_s": int(time.time() - STARTED),
             "python": platform.python_version(),
             "links": cfg.links(),
-            "changelog": [{"version": v, "date": d, "items": i} for v, d, i in CHANGELOG[:5]],
+            "changelog": [{"version": v, "date": d, "items": i} for v, d, i in CHANGELOG[:10]],
             "settings": {
                 "booking": cfg.book_usage, "book_interval_s": cfg.book_interval_s, "book_min_mm": cfg.book_min_mm,
                 "gate_debounce_s": cfg.gate_debounce_s, "usage_tolerance": cfg.usage_tolerance,

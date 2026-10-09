@@ -31,7 +31,7 @@ sequenceDiagram
     B->>M: lane_data[1] = {material, color, filament_id: SM000011}
     O->>M: sync button reads lane_data (patched Moonraker agent)
     Note over B,M: Printing
-    M-->>B: notify_status_update (filament_used, gate_status)
+    M-->>B: notify_status_update (print_stats.filament_used, ace current_index)
     B->>S: PUT spool/{id}/use {use_length}
 ```
 
@@ -84,6 +84,23 @@ recognition; the bridge sends it one picture every 10 s while printing (newest r
 single snapshot — it never starts the camera pump for this), judges the result over time like Obico
 (EWM against a baseline, safe start, warn/fail thresholds), raises messages, stores frames and labels.
 Details: [vision.md](vision.md).
+
+## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`)
+
+Since 3.0 the printer runs real Klipper, so features that need the printer's timing live in Klipper modules
+(kept in a separate, private repo, not part of this one). The bridge is their link to Spoolman and to the
+UIs: it subscribes to their status objects (optional — a missing module only hides its card), turns them
+into messages and cards, and switches them through G-code commands. Every module stores its own on/off
+switch in the printer (`save_variables`), so it also works without the bridge.
+
+| Bridge | Klipper object | Direction |
+|---|---|---|
+| `pa.py` | `kobra_pa` | Spoolman `pa_table` → `KOBRA_PA_SET` per slot; measured result → back to the filament (`pa_table`, `pressure_advance`) |
+| `filament_z.py` | `KOBRA_START` variable `slot_z` | Spoolman `z_offset` (or the template's) of each loaded slot → printer; the print start applies the start filament's value |
+| `resume.py` | `kobra_resume` | interrupted print → alarm + card; *Fortsetzen* sends `KOBRA_RESUME CONFIRM=1` only after confirmation |
+| `clog.py` | `kobra_clog` | `suspect` → alarm until the filament moves normally again; switch and reaction (`warn`/`pause`) |
+
+Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.
 
 ## Web UI (`bridge/app/acebridge/static/`)
 

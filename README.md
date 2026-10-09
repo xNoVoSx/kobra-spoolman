@@ -35,6 +35,10 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 - The bridge **keeps track of how wet every spool is** — ACE humidity history, every drying, a
   moisture estimate per spool from where it was — dries spools by itself when they are loaded and
   checks at print start whether the loaded spools fit the file.
+- Together with Klipper modules on the printer (not part of this repo) the filament data drives the
+  print itself: **Auto-PA** measured by the load cell and kept per filament, a **Z offset per
+  filament**, **resume after a power loss** (probes the height on the part, always asks first) and
+  **clog detection** (extruder vs. filament encoder) — each one with its own off switch.
 - Live **3D view** of the running print in the spool colours, **Home Assistant** over MQTT, a
   **home-screen widget**, and every bridge setting changeable in the web UI.
 
@@ -209,6 +213,8 @@ Keep the bridge inside your home network; it has no TLS.
 | 4 | Web UI, Android app, pairing, ACE dryer, NFC tags, spools recognised by their tag when loaded | ✅ done |
 | — | Klipper on a Raspberry Pi with ACEPRO (bridge 3.0); purge per colour change from Orca's flushing volumes | ✅ done |
 | — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done (incl. home-screen widget, print start check, 3D view) |
+| — | Filament automation: Auto-PA per filament (load cell, per speed), Z offset per filament | ✅ done (3.1, 3.2) |
+| — | Monitoring: resume after a power loss, clog detection | ✅ done (3.3, 3.4) · learning purge volumes next |
 | — | AI print-failure detection: spaghetti (stage 1), plate check (2), knocked-over parts (3) | ✅ stage 1 · 🔜 2 and 3 from the collected pictures |
 | — | Spool moisture: ACE humidity history, drying log, estimate per spool, automatic drying when loaded, room sensor | ✅ done |
 | 5 | Home Assistant via MQTT (printer, slots, remaining weight, moisture, messages), room humidity sensor | ✅ done |
