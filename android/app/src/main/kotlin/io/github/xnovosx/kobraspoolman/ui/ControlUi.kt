@@ -56,14 +56,25 @@ private const val HOLD_MS = 2000
 
 /**
  * Drucksteuerung unter dem Druckstatus: Pause/Weiter, Abbrechen (Rueckfrage), Nachjustieren, Not-Aus
- * (2 s halten + Rueckfrage; danach Drucker aus/an, Rinkhals sperrt den Firmware-Neustart).
+ * (2 s halten + Rueckfrage). Ist Klipper nicht bereit (Not-Aus, Fehler), Moonraker aber da: nur "Klipper neu laden".
  */
 @Composable
 fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Unit) {
-    if (p.state == "offline") return
+    var ask by remember { mutableStateOf<String?>(null) }
+    if (p.state == "offline") {
+        if (!p.moonrakerConnected || p.klippyReady) return
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Klipper ist nicht bereit.", style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.weight(1f))
+            PrimaryButton("Klipper neu laden", { ask = "firmware_restart" })
+        }
+        if (ask == "firmware_restart") ConfirmDialog("Klipper neu laden?",
+            "Klipper ist nicht bereit (Not-Aus oder Fehler). Neu laden dauert einige Sekunden; die Achsen müssen danach " +
+                "neu referenziert werden.", "Neu laden",
+            onOk = { ask = null; onAction("firmware_restart", "Klipper wird neu geladen") }, onDismiss = { ask = null })
+        return
+    }
     val printing = p.state == "printing"
     val paused = p.state == "paused"
-    var ask by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (printing || paused) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (printing) SecondaryButton("Pause", { onAction("pause", "Pausiert") }, Modifier.weight(1f))
@@ -81,7 +92,7 @@ fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Uni
                 "Ein abgebrochener Druck lässt sich nicht fortsetzen.", "Druck abbrechen",
             onOk = { ask = null; onAction("cancel", "Druck abgebrochen") }, onDismiss = { ask = null })
         "emergency_stop" -> ConfirmDialog("Not-Aus auslösen?",
-            "Stoppt sofort alle Motoren und Heizungen. Danach muss der Drucker aus- und wieder eingeschaltet werden.",
+            "Stoppt sofort alle Motoren und Heizungen. Danach Klipper neu laden (der Knopf erscheint hier).",
             "Not-Aus", onOk = { ask = null; onAction("emergency_stop", "Not-Aus ausgelöst") }, onDismiss = { ask = null })
     }
 }

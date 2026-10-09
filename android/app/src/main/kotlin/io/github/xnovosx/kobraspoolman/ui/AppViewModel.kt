@@ -22,7 +22,6 @@ import io.github.xnovosx.kobraspoolman.data.Device
 import io.github.xnovosx.kobraspoolman.data.PairingCode
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.data.PrintInfo
-import io.github.xnovosx.kobraspoolman.data.PurgePreview
 import io.github.xnovosx.kobraspoolman.data.FieldSpec
 import io.github.xnovosx.kobraspoolman.data.FilamentDraft
 import io.github.xnovosx.kobraspoolman.data.NewSpool
@@ -48,6 +47,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
 
 /** Was die Oberflaeche nach einem Scan tun soll. */
 sealed interface ScanResult {
@@ -237,23 +237,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
-    private val _purgePreview = MutableStateFlow<PurgePreview?>(null)
-    val purgePreview: StateFlow<PurgePreview?> = _purgePreview
-
-    /** Spuel-Vorschau fuer die eingelegten Farben laden (multiplier = gewuenschter Wert, null = aktueller). */
-    fun loadPurgePreview(multiplier: Double?) = launchSafe(showBusy = false) {
-        _purgePreview.value = it.ace(multiplier).purge
-    }
-
-    fun setFlushMultiplier(value: Double, confirmPrinting: Boolean) = launchSafe {
-        it.setFlushMultiplier(value, confirmPrinting)
-        _messages.send("Spülen am Drucker auf × ${Format.decimal(value, 1)} gesetzt")
-        refresh()
-    }
-
-    fun setAceOption(key: String, value: Boolean, confirmPrinting: Boolean) = launchSafe {
-        it.setAceOption(key, value, confirmPrinting)
-        _messages.send("Am Drucker gespeichert")
+    /** Endlosspule an/aus (endless_spool) oder Modus (endless_mode: exact | material | next). */
+    fun setAceOption(key: String, value: JsonPrimitive) = launchSafe {
+        it.setAceOption(key, value)
+        _messages.send("ACE: gespeichert")
         refresh()
     }
 

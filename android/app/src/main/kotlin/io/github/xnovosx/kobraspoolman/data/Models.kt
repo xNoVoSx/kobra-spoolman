@@ -188,43 +188,22 @@ data class Notice(val level: String, val text: String, val key: String = "")
 @Serializable
 data class StatusLine(val key: String, val label: String, val state: String, val detail: String? = null, val seen: Double? = null)
 
-/** ACE-Einstellungen vom Drucker (GoKlipper filament_hub, GET /api/ace, auch in /api/app/state). */
+/** Einstellungen des ACE-Treibers (Klipper + ACEPRO, GET /api/ace, auch in /api/app/state). */
 @Serializable
 data class AceSettings(
     val present: Boolean = false,
-    @SerialName("flush_multiplier") val flushMultiplier: Double? = null,
-    @SerialName("flush_multiplier_editable") val flushMultiplierEditable: Boolean = true,
-    @SerialName("auto_refill") val autoRefill: Boolean? = null,
-    @SerialName("runout_detect") val runoutDetect: Boolean? = null,
+    @SerialName("endless_spool") val endlessSpool: Boolean? = null,
+    @SerialName("endless_mode") val endlessMode: String? = null,
+    /** Modus -> Beschreibung, z. B. "material" -> "gleiches Material" */
+    @SerialName("endless_modes") val endlessModes: Map<String, String> = emptyMap(),
+    val firmware: String? = null,
+    val model: String? = null,
     @SerialName("read_at") val readAt: String? = null,
     val printing: Boolean = false,
-    val presets: Map<String, Double> = emptyMap(),
-)
-
-/** Spuelen pro Farbwechsel mit den eingelegten Spulen (Vorschau der Bridge). */
-@Serializable
-data class PurgePair(
-    @SerialName("from_slot") val fromSlot: Int,
-    @SerialName("to_slot") val toSlot: Int,
-    @SerialName("to_name") val toName: String = "",
-    @SerialName("from_color") val fromColor: String? = null,
-    @SerialName("to_color") val toColor: String? = null,
-    val mm: Double = 0.0,
-    val g: Double = 0.0,
 )
 
 @Serializable
-data class PurgePreview(
-    @SerialName("flush_multiplier") val flushMultiplier: Double = 1.0,
-    @SerialName("first_load_mm") val firstLoadMm: Double = 95.0,
-    val pairs: List<PurgePair> = emptyList(),
-)
-
-@Serializable
-data class AceResponse(val settings: AceSettings = AceSettings(), val purge: PurgePreview = PurgePreview())
-
-@Serializable
-data class FlushChange(val multiplier: Double, @SerialName("confirm_printing") val confirmPrinting: Boolean)
+data class AceResponse(val settings: AceSettings = AceSettings())
 
 /** Stand der Druckvorschau (GET /api/print/info). */
 @Serializable
@@ -253,6 +232,17 @@ data class Dryer(
     val config: DryerConfig = DryerConfig(),
     @SerialName("last_event") val lastEvent: DryerEvent? = null,
     val schedule: DrySchedule? = null,
+    /** laufender Durchgang (nur waehrend des Trocknens) */
+    val run: DryerRun? = null,
+)
+
+/** source: hand | plan | spule | auto. Nicht-automatische Laeufe halten bis until, egal wie trocken. */
+@Serializable
+data class DryerRun(
+    val source: String = "",
+    val until: Double? = null,
+    val temp: Double? = null,
+    val restarts: Int = 0,
 )
 
 @Serializable
@@ -274,6 +264,8 @@ data class DryerConfig(
     @SerialName("max_hours") val maxHours: Double = 6.0,
     @SerialName("pause_minutes") val pauseMinutes: Double = 60.0,
     @SerialName("while_printing") val whilePrinting: Boolean = true,
+    /** so lange muss die Feuchte am Stueck ueber startAbove liegen (Deckel kurz offen zaehlt nicht) */
+    @SerialName("start_delay_minutes") val startDelayMinutes: Double = 15.0,
 )
 
 @Serializable
@@ -326,6 +318,8 @@ data class Printer(
     val fans: List<Fan> = emptyList(),
     @SerialName("speed_factor") val speedFactor: Double? = null,
     @SerialName("flow_factor") val flowFactor: Double? = null,
+    @SerialName("moonraker_connected") val moonrakerConnected: Boolean = false,
+    @SerialName("klippy_ready") val klippyReady: Boolean = false,
 )
 
 /** Heizung: Ist, Soll (0 = aus), Leistung 0..1. */

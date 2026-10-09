@@ -79,7 +79,7 @@ fun SlotsScreen(
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName,
                 if (state.printer.state == "printing" || state.printer.state == "paused") state.uses else emptyList())
         }
-        if (state.canWrite && state.printer.state != "offline") item { ControlRow(state.printer, onPrintAction, onTune) }
+        if (state.canWrite) item { ControlRow(state.printer, onPrintAction, onTune) }
         state.slots.chunked(2).forEach { row ->
             item {
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -91,7 +91,7 @@ fun SlotsScreen(
                 }
             }
         }
-        state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer, state.ace?.flushMultiplier) } }
+        state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer) } }
         if (!state.canWrite) item {
             Hint("Nur lesen: Die App ist nicht gekoppelt. Koppeln unter Einstellungen.")
         }

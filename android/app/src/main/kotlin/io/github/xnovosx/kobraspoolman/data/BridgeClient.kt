@@ -187,7 +187,7 @@ class BridgeClient(
         call("DELETE", "/api/auth/devices/$id", null, ApiError.serializer())
     }
 
-    /** pause, resume, cancel, emergency_stop - die App hat vorher selbst nachgefragt (confirm). */
+    /** pause, resume, cancel, emergency_stop, firmware_restart - die App hat vorher selbst nachgefragt (confirm). */
     suspend fun printAction(action: String) {
         call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
     }
@@ -246,19 +246,10 @@ class BridgeClient(
         call("DELETE", "/api/dryer/schedule", null, ApiError.serializer())
     }
 
-    /** ACE-Einstellungen und Spuel-Vorschau; mit multiplier fuer einen gewuenschten Wert. */
-    suspend fun ace(multiplier: Double? = null): AceResponse =
-        call("GET", "/api/ace" + (multiplier?.let { "?multiplier=$it" } ?: ""), null, AceResponse.serializer())
-
-    suspend fun setFlushMultiplier(value: Double, confirmPrinting: Boolean) {
-        call("POST", "/api/ace/flush", json.encodeToString(FlushChange.serializer(), FlushChange(value, confirmPrinting)),
-            ApiError.serializer())
-    }
-
-    suspend fun setAceOption(key: String, value: Boolean, confirmPrinting: Boolean) {
-        call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(mapOf(
-            key to JsonPrimitive(value), "confirm_printing" to JsonPrimitive(confirmPrinting)))), ApiError.serializer())
-    }
+    /** Endlosspule (endless_spool: Boolean) oder ihr Modus (endless_mode: exact | material | next). */
+    suspend fun setAceOption(key: String, value: JsonPrimitive): AceSettings =
+        call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(mapOf(key to value))),
+            AceResponse.serializer()).settings
 
     suspend fun issueTag(spoolId: Int): TagIssue =
         call("POST", "/api/app/tag/issue", json.encodeToString(SpoolIdBody.serializer(), SpoolIdBody(spoolId)),

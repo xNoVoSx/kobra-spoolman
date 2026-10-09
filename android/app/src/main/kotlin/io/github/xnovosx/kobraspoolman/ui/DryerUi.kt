@@ -32,19 +32,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.AceSettings
 import io.github.xnovosx.kobraspoolman.data.Dryer
-import io.github.xnovosx.kobraspoolman.data.PurgePreview
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
+import kotlinx.serialization.json.JsonPrimitive
 
 private val DryingBg = Color(0xFF231A10)
 private val DryingLine = Color(0xFF6B4A18)
+
+private val RUN_SOURCE = mapOf("hand" to "von Hand", "plan" to "geplant", "spule" to "nach dem Einlegen")
 
 private fun num(v: Double?): String = v?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "?"
 
 /** Karte auf der Startseite: Feuchte, Temperatur, Trockner-Zustand. Tippen oeffnet die Steuerung. */
 @Composable
-fun DryerCard(d: Dryer, onOpen: () -> Unit, flushMultiplier: Double? = null) {
+fun DryerCard(d: Dryer, onOpen: () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     Row(
         Modifier.fillMaxWidth().clip(shape).background(if (d.drying) DryingBg else K.Surface)
@@ -65,8 +67,8 @@ fun DryerCard(d: Dryer, onOpen: () -> Unit, flushMultiplier: Double? = null) {
                 style = MaterialTheme.typography.bodyMedium, color = if (d.drying) K.Accent else K.Text)
             val sub = buildList {
                 if (d.drying && d.remainingMin != null) add("noch ${Format.duration(d.remainingMin * 60)}")
+                if (d.drying) d.run?.source?.let { RUN_SOURCE[it] }?.let { add(it) }
                 add(if (d.config.enabled) "Automatik ab ${num(d.config.startAbove)} %" else "Automatik aus")
-                flushMultiplier?.let { add("Spülen × ${Format.decimal(it, 1)}") }
             }.joinToString(" · ")
             Text(sub, style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
@@ -76,10 +78,10 @@ fun DryerCard(d: Dryer, onOpen: () -> Unit, flushMultiplier: Double? = null) {
 /** Inhalt des Trockner-Fensters: jetzt trocknen + Automatik. */
 @Composable
 fun DryerSheet(
-    d: Dryer, ace: AceSettings?, preview: PurgePreview?,
+    d: Dryer, ace: AceSettings?,
     onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, onSaveConfig: (DryerConfig) -> Unit,
     onPlan: (Double, Int?, Double?) -> Unit, onClearPlan: () -> Unit,
-    onPreview: (Double?) -> Unit, onSetFlush: (Double, Boolean) -> Unit, onOption: (String, Boolean, Boolean) -> Unit,
+    onOption: (String, JsonPrimitive) -> Unit,
     humidity: @Composable () -> Unit = {},
 ) {
     var temp by remember { mutableStateOf("") }
@@ -89,6 +91,7 @@ fun DryerSheet(
     var stopBelow by remember { mutableStateOf(num(d.config.stopBelow)) }
     var maxHours by remember { mutableStateOf(num(d.config.maxHours)) }
     var pause by remember { mutableStateOf(num(d.config.pauseMinutes)) }
+    var delay by remember { mutableStateOf(num(d.config.startDelayMinutes)) }
     val req = d.required
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
@@ -104,6 +107,10 @@ fun DryerSheet(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NumField("Temperatur (°C)", temp, { temp = it }, Modifier.weight(1f), placeholder = req.temp?.toString())
             NumField("Dauer (h)", hours, { hours = it }, Modifier.weight(1f))
+        }
+        d.run?.takeIf { d.drying && it.source != "auto" }?.let { r ->
+            Hint("Läuft ${RUN_SOURCE[r.source] ?: r.source} bis zum Ende der Zeit – auch wenn die ACE schon trocken " +
+                "meldet. Hört die ACE vorher auf, startet die Bridge sie mit der Restzeit neu.")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PrimaryButton(if (d.drying) "Neu starten" else "Trocknen starten",
@@ -125,6 +132,11 @@ fun DryerSheet(
             NumField("Höchstdauer (h)", maxHours, { maxHours = it }, Modifier.weight(1f))
             NumField("Pause danach (min)", pause, { pause = it }, Modifier.weight(1f))
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            NumField("Warten (min)", delay, { delay = it }, Modifier.weight(1f))
+            Text("So lange muss die Feuchte am Stück über der Schwelle liegen – Deckel kurz offen startet nichts.",
+                style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.weight(1f))
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Auch während eines Drucks", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Switch(c.whilePrinting, { c = c.copy(whilePrinting = it) },
@@ -136,12 +148,13 @@ fun DryerSheet(
                 stopBelow = stopBelow.replace(',', '.').toDoubleOrNull() ?: c.stopBelow,
                 maxHours = maxHours.replace(',', '.').toDoubleOrNull() ?: c.maxHours,
                 pauseMinutes = pause.replace(',', '.').toDoubleOrNull() ?: c.pauseMinutes,
+                startDelayMinutes = delay.replace(',', '.').toDoubleOrNull() ?: c.startDelayMinutes,
             ))
         }, Modifier.fillMaxWidth())
         d.lastEvent?.let { Text("Zuletzt: ${it.text}", style = MaterialTheme.typography.bodySmall, color = K.Muted) }
         DryPlanSection(d, onPlan, onClearPlan)
         humidity()
-        ace?.let { AceSection(it, preview, onPreview, onSetFlush, onOption) }
+        ace?.let { AceSection(it, onOption) }
         Text("Die Temperatur richtet sich immer nach dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“ in " +
             "Spoolman, sonst Startwert je Material) und geht nie über das, was die ACE kann (ACE 2 Pro: ${req.aceMax} °C).",
             style = MaterialTheme.typography.bodySmall, color = K.Faint)

@@ -176,7 +176,7 @@ fun MoreScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { ScreenHeader("Mehr") }
         update?.let { u -> item { UpdateCard(u, updateProgress, onInstall) } }
-        if (hasAce) item { MoreRow(KIcons.Dryer, "ACE & Trockner", "Trocknen, Spülen, Nachladen", onAce) }
+        if (hasAce) item { MoreRow(KIcons.Dryer, "ACE & Trockner", "Trocknen, Endlosspule", onAce) }
         item { MoreRow(KIcons.Eye, "KI", "Fehldruck-Erkennung: Zustand, Einstellungen, Ereignisse", onAi) }
         item { MoreRow(KIcons.Clock, "Drucke", "Verbrauch pro Druck und Spule", onJobs) }
         item { MoreRow(KIcons.Terminal, "Protokoll", "Gesendete Befehle, Antworten, was die Bridge macht", onProtocol) }

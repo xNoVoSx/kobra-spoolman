@@ -4,14 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +17,6 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,96 +29,45 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.AceSettings
 import io.github.xnovosx.kobraspoolman.data.Dryer
-import io.github.xnovosx.kobraspoolman.data.PurgePreview
 import io.github.xnovosx.kobraspoolman.ui.theme.K
-import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
-import io.github.xnovosx.kobraspoolman.ui.theme.spoolColor
-import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonPrimitive
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 
-private val PRESET_LABEL = mapOf("minimal" to "Minimal", "normal" to "Normal", "maximum" to "Maximum")
+private val MODE_LABEL = mapOf("exact" to "Gleiche Farbe", "material" to "Gleiches Material", "next" to "Nächste Spule")
 
 /**
- * Einstellungen der ACE, die das Druckerdisplay versteckt: Spuel-Multiplikator mit Vorschau fuer die
- * eingelegten Farben, automatisches Nachladen, Leer-Erkennung. Waehrend eines Drucks erst nach "Freischalten".
+ * Einstellungen des ACE-Treibers, die das Druckerdisplay nicht zeigt: Endlosspule und ihr Modus. Beides gilt erst
+ * beim naechsten leeren Slot und darf auch waehrend eines Drucks geaendert werden. Die Spuelmengen kommen aus Orca.
  */
 @Composable
-fun AceSection(
-    ace: AceSettings,
-    preview: PurgePreview?,
-    onPreview: (Double?) -> Unit,
-    onSetFlush: (Double, Boolean) -> Unit,
-    onOption: (String, Boolean, Boolean) -> Unit,
-) {
-    var unlocked by remember(ace.printing) { mutableStateOf(false) }
-    var text by remember(ace.flushMultiplier) { mutableStateOf(Format.decimal(ace.flushMultiplier, 1)) }
-    val wanted = Format.parseDecimal(text)
-    val valid = wanted != null && wanted in 0.1..3.0
-    val changed = valid && ace.flushMultiplier != null && abs(wanted!! - ace.flushMultiplier) > 0.001
-    val locked = ace.printing && !unlocked
-    LaunchedEffect(wanted) { delay(250); onPreview(if (valid) wanted else null) }
-
-    SectionLabel("Spülen und Einstellungen der ACE", Modifier.padding(top = 12.dp))
+fun AceSection(ace: AceSettings, onOption: (String, JsonPrimitive) -> Unit) {
+    SectionLabel("Einstellungen der ACE", Modifier.padding(top = 12.dp))
     if (!ace.present) {
-        Hint("Die Bridge konnte die Einstellungen noch nicht vom Drucker lesen.")
+        Hint("Der ACE-Treiber meldet keine verbundene ACE.")
         return
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text("Spülen (Multiplikator)", style = MaterialTheme.typography.bodySmall, color = K.Muted)
-            Text("× ${Format.decimal(ace.flushMultiplier, 1)}", fontFamily = PlexMono, style = MaterialTheme.typography.headlineSmall)
-        }
-        if (locked) SecondaryButton("Freischalten", { unlocked = true })
-    }
-    if (ace.printing && unlocked) Hint("Druck läuft: Der neue Wert gilt ab dem nächsten Farbwechsel. Weniger Spülen spart " +
-        "Filament, kann aber Farben vermischen.")
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ace.presets.forEach { (key, value) ->
-            val on = ace.flushMultiplier?.let { abs(it - value) < 0.001 } == true
-            Text("${PRESET_LABEL[key] ?: key} ${Format.decimal(value, 1)}",
-                style = MaterialTheme.typography.labelMedium, color = if (on) K.Accent else K.Muted,
-                modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, if (on) K.Accent else K.LineStrong, RoundedCornerShape(50))
-                    .background(if (on) K.AccentSoft else K.Surface)
-                    .clickable(enabled = !locked, role = Role.Button) { onSetFlush(value, unlocked) }
-                    .padding(horizontal = 12.dp, vertical = 8.dp))
-        }
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(text, { v -> text = v.filter { it.isDigit() || it == ',' || it == '.' } }, label = { Text("Multiplikator") },
-            singleLine = true, enabled = !locked, modifier = Modifier.width(150.dp), shape = RoundedCornerShape(12.dp),
-            isError = text.isNotBlank() && !valid, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-        PrimaryButton("Übernehmen", { wanted?.let { onSetFlush(it, unlocked) } }, Modifier.weight(1f), enabled = changed && !locked)
-    }
-    preview?.takeIf { it.pairs.isNotEmpty() }?.let { p ->
-        val sorted = p.pairs.sortedBy { it.mm }
-        Text(if (changed) "Mit × ${Format.decimal(wanted, 1)} pro Farbwechsel:" else "Pro Farbwechsel mit den eingelegten Spulen:",
-            style = MaterialTheme.typography.bodySmall, color = K.Muted)
-        listOf("teuerster" to sorted.last(), "günstigster" to sorted.first()).distinctBy { it.second }.forEach { (label, pair) ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(label, style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.width(86.dp))
-                Dot(pair.fromColor); Text("→", color = K.Muted); Dot(pair.toColor)
-                Text("Slot ${pair.fromSlot} → ${pair.toSlot}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                Text("${pair.mm.toInt()} mm · ${Format.decimal(pair.g, 1)} g", fontFamily = PlexMono,
-                    style = MaterialTheme.typography.bodySmall)
+    OptionRow("Endlosspule", "Ist eine Spule leer, lädt die ACE eine passende andere und druckt weiter",
+        ace.endlessSpool, true) { onOption("endless_spool", JsonPrimitive(it)) }
+    if (ace.endlessSpool == true) {
+        Text("Welche Spule passt?", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ace.endlessModes.keys.forEach { key ->
+                val on = ace.endlessMode == key
+                Text(MODE_LABEL[key] ?: key,
+                    style = MaterialTheme.typography.labelMedium, color = if (on) K.Accent else K.Muted,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, if (on) K.Accent else K.LineStrong, RoundedCornerShape(50))
+                        .background(if (on) K.AccentSoft else K.Surface)
+                        .clickable(enabled = !on, role = Role.Button) { onOption("endless_mode", JsonPrimitive(key)) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp))
             }
         }
-        Text("Erster Ladevorgang eines Drucks ≈ ${p.firstLoadMm.toInt()} mm. Gerechnet wie die Firmware.",
-            style = MaterialTheme.typography.bodySmall, color = K.Faint)
     }
-    OptionRow("Automatisch nachladen", "Ist eine Spule leer, lädt die ACE eine passende Ersatzspule",
-        ace.autoRefill, !locked) { onOption("auto_refill", it, unlocked) }
-    OptionRow("Leer-Erkennung", "Die ACE erkennt, wenn eine Spule zu Ende ist",
-        ace.runoutDetect, !locked) { onOption("runout_detect", it, unlocked) }
-}
-
-@Composable
-private fun Dot(hex: String?) {
-    Box(Modifier.size(12.dp).clip(CircleShape).background(spoolColor(hex)))
+    Text("Spülmengen pro Farbwechsel stellst du in Orca ein (Spülmengen-Dialog neben „Filament“)." +
+        (ace.firmware?.let { " ACE-Firmware $it." } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Faint)
 }
 
 @Composable

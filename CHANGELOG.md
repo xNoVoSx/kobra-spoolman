@@ -6,6 +6,28 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## plugin 0.6.0 – 2026-10-09
+
+For bridge 3.0 (Klipper + ACEPRO).
+
+### Changed
+- Consumption preview shows Orca's own numbers (same as Orca's legend). The ACE purge per colour
+  change is part of "Flushed": the printer profile's change-filament G-code reports load + purge to
+  Orca with `; EXTERNAL_PURGE`. If a print changes colour but Orca reports no purge, the panel says
+  the printer profile is outdated.
+
+### Removed
+- Own purge model (firmware formula, measured average per load) and the slot hint "no material on
+  the printer" — both GoKlipper-only.
+
+## app 1.9.0 – 2026-10-09
+
+- ACE: Endlosspule an/aus und Modus (gleiche Farbe, gleiches Material, nächste Spule); Spül-Multiplikator
+  entfällt (Spülmengen kommen aus Orca)
+- Trockner: „Warten (min)“ – Automatik startet erst, wenn die Feuchte so lange über der Schwelle liegt;
+  Hinweis, wenn ein Durchgang von Hand, geplant oder nach dem Einlegen bis zum Ende läuft
+- Steuerung: „Klipper neu laden“ nach Not-Aus oder Fehler
+
 ## [2.21.1] – 2026-10-06
 
 Use with plugin 0.5.2.
