@@ -20,6 +20,7 @@ import time
 from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
 from .pa import PaError
+from .resume import ResumeError
 from .camera import CameraError
 from .console import LOG_BUFFER, check_command
 from .control import ControlError, check_action, tune_commands
@@ -281,6 +282,50 @@ def build_app(bridge: "Bridge") -> web.Application:
         except Exception:  # noqa: BLE001
             return _err(400, "Erwartet JSON {\"filament_id\": 5}")
         return await _pa_call(bridge.pa.forget(fid))
+
+    # ---------------------------------------------------------------- Fortsetzen nach Stromausfall
+    async def _resume_call(coro):
+        try:
+            await coro
+            return web.json_response({"ok": True, **bridge.resume.view()})
+        except ResumeError as e:
+            return _err(e.status, str(e))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Fortsetzen: %s", e)
+            return _err(502, str(e))
+
+    @r.get("/api/resume")
+    async def resume_state(_):
+        return web.json_response(bridge.resume.view())
+
+    @r.post("/api/resume")
+    @need_device
+    async def resume_start(request: web.Request):
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            body = {}
+        if body.get("confirm") is not True:
+            return _err(409, "Erst das Teil prüfen – dann mit {\"confirm\": true} fortsetzen")
+
+        async def go():
+            bridge.resume.start()
+        return await _resume_call(go())
+
+    @r.post("/api/resume/discard")
+    @need_device
+    async def resume_discard(_):
+        return await _resume_call(bridge.resume.discard())
+
+    @r.post("/api/resume/switch")
+    @need_device
+    async def resume_switch(request: web.Request):
+        try:
+            en = (await request.json()).get("enabled")
+            assert isinstance(en, bool)
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"enabled\": true}")
+        return await _resume_call(bridge.resume.switch(en))
 
     # ---------------------------------------------------------------- ACE-Einstellungen
     async def _ace_call(coro):

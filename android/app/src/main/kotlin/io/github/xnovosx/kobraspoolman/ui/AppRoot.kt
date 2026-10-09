@@ -151,6 +151,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onSpool = { nav.navigate("spool/$it") },
                     onEmptySlot = { fillSlot = it },
                     onDryer = { dryerOpen = true },
+                    onResume = { vm.resume(it) },
                     fetchImage = { vm.image(it) },
                     printInfo = { vm.printInfo() },
                     camera = { vm.cameraStream() },
@@ -266,6 +267,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                             onSwitch = { e, a -> vm.paSwitch(e, a) }, onCalibrate = { vm.paCalibrate(it) },
                             onForget = { vm.paForget(it) })
                     }
+                    state?.resume?.let { r -> PowerlossSwitch(r) { vm.resumeSwitch(it) } }
                 })
         }
     }

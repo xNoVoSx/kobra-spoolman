@@ -21,6 +21,8 @@ data class AppState(
     val ace: AceSettings? = null,
     /** Auto-PA (Klipper-Modul kobra_pa) - fehlt bei aelteren Bridges */
     val pa: PaState? = null,
+    /** Fortsetzen nach Stromausfall (Klipper-Modul kobra_resume) - fehlt bei aelteren Bridges */
+    val resume: ResumeState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -234,6 +236,23 @@ data class PaSlot(
     @SerialName("k_ref") val kRef: Double? = null,
     val date: String? = null,
     val active: Boolean = false,
+)
+
+@Serializable
+data class ResumeState(
+    val present: Boolean = false,
+    val enabled: Boolean? = null,
+    val pending: ResumePending? = null,
+    val running: Boolean = false,
+    val error: String? = null,
+)
+
+@Serializable
+data class ResumePending(
+    val file: String = "",
+    val layer: Int? = null,
+    val layers: Int? = null,
+    val progress: Double? = null,
 )
 
 @Serializable

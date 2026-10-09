@@ -260,6 +260,16 @@ class BridgeClient(
         call("POST", "/api/pa/switch", json.encodeToString(JsonObject.serializer(), JsonObject(body)), ApiError.serializer())
     }
 
+    /** Unterbrochenen Druck fortsetzen (nur nach Pruefung des Teils) bzw. verwerfen. */
+    suspend fun resume(start: Boolean) {
+        if (start) call("POST", "/api/resume", "{\"confirm\":true}", ApiError.serializer())
+        else call("POST", "/api/resume/discard", "{}", ApiError.serializer())
+    }
+
+    suspend fun resumeSwitch(enabled: Boolean) {
+        call("POST", "/api/resume/switch", "{\"enabled\":$enabled}", ApiError.serializer())
+    }
+
     /** PA jetzt messen (nur ohne Druck; Ergebnis kommt nach ~2 min ueber den Status). */
     suspend fun paCalibrate(slot: Int) {
         call("POST", "/api/pa/calibrate", "{\"slot\":$slot}", ApiError.serializer())

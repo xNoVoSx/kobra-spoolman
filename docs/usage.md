@@ -201,6 +201,15 @@ The **ACE** page (app: tap the dryer card) shows what the printer display hides:
 The purge per colour change is set in Orca (flushing volumes next to *Filament*); the printer profile's
 change-filament G-code passes it to the ACE driver, see [installation](installation.md#orca-printer-profile).
 
+## Resume after a power loss
+
+With the Klipper module `kobra_resume` (not part of this repo) the printer keeps saving the position it has really
+printed. After a power loss the overview shows **Druck unterbrochen** with the live picture (and the app raises an
+alarm): check that the part is still stuck to the bed, then **Fortsetzen** — the printer heats the bed, homes X/Y,
+probes the height on the last printed line with the load cell (instead of homing Z onto the part), purges and continues
+where it stopped, slower for the first minute. If the probed height does not fit it stops instead of guessing.
+**Verwerfen** drops it. Nothing happens without your confirmation. Switch: ACE page → *Fortsetzen nach Stromausfall*.
+
 ## Z offset per filament
 
 Some filaments want the first layer a little higher or lower (e.g. PETG). Enter it in Spoolman as **Z-Versatz** (mm,

@@ -6,6 +6,18 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.3.0] – 2026-10-10
+
+### Added
+- Resume after a power loss (Klipper module `kobra_resume`, not part of this repo): an interrupted print shows up as an
+  alarm and a card with the live camera picture; *Fortsetzen* (confirmation required) lets the printer probe the part's
+  height with the load cell and continue where it stopped, *Verwerfen* drops it. API `/api/resume`, switch on the ACE page.
+
+## app 1.11.0 – 2026-10-10
+
+- Startseite: Karte „Druck unterbrochen“ nach einem Stromausfall – fortsetzen (mit Rückfrage) oder verwerfen
+- ACE-Fenster: Schalter „Fortsetzen nach Stromausfall“
+
 ## [3.2.2] – 2026-10-10
 
 ### Fixed

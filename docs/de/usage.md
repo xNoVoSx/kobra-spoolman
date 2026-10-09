@@ -194,6 +194,15 @@ Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeit
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*
 ersetzt ihn (der alte funktioniert dann nicht mehr).
 
+## Fortsetzen nach Stromausfall
+
+Mit dem Klipper-Modul `kobra_resume` (nicht Teil dieses Repos) sichert der Drucker laufend die Stelle, die er wirklich
+gedruckt hat. Nach einem Stromausfall zeigt die Übersicht **Druck unterbrochen** mit Live-Bild (die App meldet einen
+Alarm): prüfen, ob das Teil noch fest auf dem Bett ist, dann **Fortsetzen** – der Drucker heizt das Bett, fährt X/Y nach
+Hause, tastet die Höhe mit der Wiegezelle auf der zuletzt gedruckten Linie an (statt Z aufs Teil zu homen), spült und
+druckt an der Stelle weiter, die erste Minute langsamer. Passt die getastete Höhe nicht, bricht er ab statt zu raten.
+**Verwerfen** löscht die Sicherung. Ohne deine Bestätigung passiert nichts. Schalter: ACE-Seite → *Fortsetzen nach Stromausfall*.
+
 ## Z-Versatz pro Filament
 
 Manche Filamente wollen die erste Schicht etwas höher oder tiefer (z. B. PETG). In Spoolman als **Z-Versatz** (mm,

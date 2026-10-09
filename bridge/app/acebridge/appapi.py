@@ -559,6 +559,7 @@ class AppApi:
                 "dryer": b.dryer.state(),
                 "ace": b.ace.state(),
                 "pa": b.pa.view() if getattr(b, "pa", None) else None,
+                "resume": b.resume.view() if getattr(b, "resume", None) else None,
                 "usage": {"live": b.usage.live(), "open": b.usage.open},
                 "uses": file_usage(b),                    # Slots, die die laufende Druckdatei benutzt
                 "warnings": b.safety_warnings() + b.slots.warnings,

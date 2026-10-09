@@ -249,6 +249,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun resume(start: Boolean) = launchSafe {
+        it.resume(start)
+        _messages.send(if (start) "Fortsetzen gestartet – heizen, antasten, weiterdrucken" else "Unterbrochener Druck verworfen")
+        refresh()
+    }
+
+    fun resumeSwitch(enabled: Boolean) = launchSafe {
+        it.resumeSwitch(enabled)
+        refresh()
+    }
+
     fun paCalibrate(slot: Int) = launchSafe {
         it.paCalibrate(slot)
         _messages.send("PA-Messung läuft – Ergebnis in ~2 Minuten")

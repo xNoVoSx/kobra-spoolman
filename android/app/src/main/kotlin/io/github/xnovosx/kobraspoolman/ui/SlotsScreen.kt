@@ -49,6 +49,7 @@ fun SlotsScreen(
     onSpool: (Int) -> Unit,
     onEmptySlot: (Int) -> Unit,
     onDryer: () -> Unit,
+    onResume: (Boolean) -> Unit = {},
     fetchImage: suspend (String) -> ByteArray? = { null },
     printInfo: suspend () -> PrintInfo? = { null },
     camera: () -> Flow<ByteArray> = { emptyFlow() },
@@ -74,6 +75,9 @@ fun SlotsScreen(
         if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // aeltere Bridge
         // Startseite: Kamera oben, darunter der Druck, dann die Slots und die ACE - der Rest steckt in den Tabs
         if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera, viewerUrl) }
+        state.resume?.takeIf { it.pending != null || it.running || it.error != null }?.let { r ->
+            item { ResumeCard(r, state.canWrite, onResume) }
+        }
         item {
             val active = state.slots.firstOrNull { it.slot == state.printer.activeSlot }?.spool
             StatusCard(state.printer, active?.name?.ifBlank { null } ?: active?.displayName,

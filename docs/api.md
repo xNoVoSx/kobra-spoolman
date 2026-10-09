@@ -186,6 +186,19 @@ ones. `/api/app/state` contains `pa`.
 | POST | `/api/pa/calibrate` | *(paired)* `{"slot": 1}` — measure the loaded slot now (~2 min, not while printing); the result arrives through the status |
 | POST | `/api/pa/forget` | *(paired)* `{"filament_id": 5}` — delete the filament's PA so the next print measures again |
 
+## Resume after power loss
+
+For the Klipper module `kobra_resume` (saves the last executed file position while printing; resumes by probing the
+part's height with the load cell). `/api/app/state` contains `resume`; an interrupted print is also an error message
+`resume` (an alarm in the app).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/resume` | `present`, `enabled`, `pending` (`file`, `pos`, `progress`, `layer`, `layers`, `tool`, `saved_at`), `running`, `error`, `result` |
+| POST | `/api/resume` | *(paired)* `{"confirm": true}` required, otherwise **409** — `KOBRA_RESUME CONFIRM=1` in the background (heat, home X/Y, probe Z on the part, purge, continue; several minutes) |
+| POST | `/api/resume/discard` | *(paired)* drop the saved print |
+| POST | `/api/resume/switch` | *(paired)* `{"enabled": bool}` — `KOBRA_POWERLOSS ENABLE=`, stored in the printer |
+
 ## Camera and print preview
 
 | Method | Path | Purpose |

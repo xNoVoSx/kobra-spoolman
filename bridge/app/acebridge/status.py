@@ -138,6 +138,12 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     elif state == "error":
         out.append(_msg("error", "Druckerfehler" + (f": {ps['message']}" if ps.get("message") else ""), "error"))
 
+    rs = getattr(bridge, "resume", None)
+    if rs is not None and rs.message():
+        out.append(_msg("error", rs.message(), "resume"))
+    elif rs is not None and rs.error:
+        out.append(_msg("error", f"Fortsetzen abgebrochen: {rs.error}", "resume"))
+
     for w in bridge.safety_warnings():
         out.append(_msg("error", w, "safety"))
     for w in bridge.slots.warnings:
