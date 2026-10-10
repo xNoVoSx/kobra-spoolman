@@ -143,6 +143,9 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
         out.append(_msg("error", rs.message(), "resume"))
     elif rs is not None and rs.error:
         out.append(_msg("error", f"Fortsetzen abgebrochen: {rs.error}", "resume"))
+    usb = getattr(bridge, "usb", None)
+    if usb is not None and usb.message():
+        out.append(_msg("error", usb.message(), "usb"))
     cl = getattr(bridge, "clog", None)
     if cl is not None and cl.message():
         out.append(_msg("error", cl.message(), "clog"))
@@ -264,6 +267,9 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
         lines.append({"key": "printer", "label": "Drucker", "state": "warn", "detail": "Klipper nicht bereit"})
     else:
         lines.append({"key": "printer", "label": "Drucker", "state": "ok", "detail": "Moonraker verbunden"})
+    usb = getattr(bridge, "usb", None)
+    if usb is not None and usb.available():
+        lines.append({"key": "usb", "label": "USB-Tunnel", **usb.summary()})
     cpu = printer_cpu(bridge)
     if cpu is not None:
         lines.append({"key": "cpu", "label": "Klipper-CPU (Pi)", "detail": f"{cpu:.0f} %",

@@ -670,6 +670,7 @@ function StartPrint({ path, close, act }) {
 function System({ st, busy, act, confirm }) {
   const [tab, setTab] = useState("msg");
   const [info, setInfo] = useState(null);
+  const usb = useUsb();
   useEffect(() => { get("/api/system").then(setInfo).catch(() => setInfo({})); }, []);
   const msgs = st.notices?.messages || [];
   const printing = PRINTING.has(st.printer?.state);
@@ -687,6 +688,7 @@ function System({ st, busy, act, confirm }) {
         <div class="disp-tile disp-mini"><div class="disp-lbl">Bridge</div><div class="disp-val" style="font-size:17px">${info?.bridge || st.version || "–"}</div></div>
         <div class="disp-tile disp-mini"><div class="disp-lbl">Klipper-Version</div><div class="disp-val" style="font-size:13px">${info?.klipper || "–"}</div></div>
       </div>
+      ${usb?.available && html`<${UsbTile} usb=${usb} />`}
       <div style="flex:1"></div>
       <div class="disp-btns">
         <button type="button" class="disp-btn" disabled=${busy || printing} onClick=${() => confirm({ title: "Klipper neu laden?", ok: "Neu laden",
@@ -717,13 +719,39 @@ function Prompt({ st, busy, act }) {
   </div>`;
 }
 
+// USB-Tunnel Drucker <-> Pi (Waechter kobra-usb-watch): Zustand alle 10 s, solange die Seite offen ist
+function useUsb() {
+  const [usb, setUsb] = useState(null);
+  useEffect(() => {
+    const load = () => get("/api/usb").then(setUsb).catch(() => {});
+    load();
+    const id = setInterval(load, 10000);
+    return () => clearInterval(id);
+  }, []);
+  return usb;
+}
+
+const USB_COLOUR = { ok: "var(--ok-text)", warn: "var(--accent-text)", bad: "var(--danger-text)", off: "var(--muted)" };
+
+function UsbTile({ usb }) {
+  const last = usb.events?.length ? usb.events[usb.events.length - 1] : null;
+  const at = last ? new Date(last.at * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
+  return html`<div class="disp-tile disp-mini" style="margin-top:8px">
+    <div class="disp-lbl">USB-Tunnel Drucker ↔ Pi</div>
+    <div class="disp-val" style=${`font-size:17px;color:${USB_COLOUR[usb.state] || "var(--text)"}`}>${usb.detail}</div>
+    ${last && html`<div class="disp-note" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${at} · ${last.text}</div>`}
+  </div>`;
+}
+
 function KlippyDown({ busy, confirm }) {
   const [info, setInfo] = useState(null);
+  const usb = useUsb();
   useEffect(() => { get("/api/system").then(setInfo).catch(() => setInfo(null)); }, []);
   return html`<div class="disp-over" role="alertdialog" aria-label="Klipper nicht bereit">
     <section class="disp-dialog danger">
       <h2>Klipper ist nicht bereit</h2>
-      <p class="muted" style="white-space:pre-line;max-height:190px;overflow:hidden">${info?.klippy_message || "Not-Aus, Fehler oder Verbindung zu den Platinen weg."}</p>
+      <p class="muted" style="white-space:pre-line;max-height:150px;overflow:hidden">${info?.klippy_message || "Not-Aus, Fehler oder Verbindung zu den Platinen weg."}</p>
+      ${usb?.available && html`<p style=${`color:${USB_COLOUR[usb.state] || "var(--text)"}`}>USB-Tunnel: ${usb.detail}${usb.state === "warn" && usb.switches?.auto_restart ? " – Klipper wird danach selbst neu geladen" : ""}</p>`}
       <div class="disp-btns">
         <button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => confirm({ title: "Klipper neu laden?", ok: "Neu laden",
           text: "Die Achsen müssen danach neu gehomt werden.", action: () => post("/api/print/firmware_restart", { confirm: true }) })}>Klipper neu laden</button>

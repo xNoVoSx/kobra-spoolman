@@ -336,6 +336,12 @@ def build_app(bridge: "Bridge") -> web.Application:
     async def switches_state(_):
         return web.json_response(bridge.switches.view())
 
+    @r.get("/api/usb")
+    async def usb_state(_):
+        """USB-Tunnel Drucker <-> Pi: Zustand des Waechters, Schalter, letzte Ereignisse (Schalten ueber /api/switch)."""
+        await bridge.usb.tick(force=True)
+        return web.json_response(bridge.usb.view())
+
     @r.post("/api/switch")
     @need_device
     async def switch_set(request: web.Request):

@@ -73,6 +73,17 @@ class Moonraker:
         ) as r:
             r.raise_for_status()
 
+    async def db_get(self, namespace: str, key: str) -> Any:
+        """Ein Wert aus Moonrakers Datenbank (None, wenn es ihn nicht gibt)."""
+        async with self.session.get(
+            f"{self.cfg.moonraker_url}/server/database/item", params={"namespace": namespace, "key": key},
+            headers=self._headers(), timeout=aiohttp.ClientTimeout(total=10),
+        ) as r:
+            if r.status == 404:
+                return None
+            r.raise_for_status()
+            return ((await r.json()).get("result") or {}).get("value")
+
     async def db_keys(self, namespace: str) -> list:
         """Schluessel eines Namensraums der Moonraker-Datenbank ([] wenn es ihn nicht gibt)."""
         async with self.session.get(

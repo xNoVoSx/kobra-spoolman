@@ -23,6 +23,7 @@ from .telemetry import Recorder
 from .auth import CameraKey, Devices
 from .console import LOG_BUFFER, Console
 from .phase import ChangeSteps
+from .usb import UsbTunnel
 from .dryer import Dryer
 from .usage import UsageTracker
 from .humidity import HumidityLog
@@ -58,7 +59,8 @@ class Bridge:
         self.filament_z = FilamentZSync(cfg, self.moon, self.sm, self.slots)
         self.resume = Resume(self.moon, self.slots)
         self.clog = Clog(self.moon)
-        self.switches = Switches(self.moon)
+        self.usb = UsbTunnel(self.moon)                           # USB-Waechter am Pi (Moonraker-Datenbank)
+        self.switches = Switches(self.moon, self.usb)
         self.machine = Machine(self.moon, self.sm, self.slots)
         self.files = Files(self.moon, self.slots)
         self.camera = Camera(cfg, self.moon, session)
@@ -198,6 +200,7 @@ class Bridge:
                 await self.ace.refresh()
                 await self.pa.tick()         # Auto-PA: Spoolman-Stand der Slots an Klipper (nur bei Aenderung)
                 await self.filament_z.tick()  # Z-Versatz je Slot an KOBRA_START (nur bei Aenderung)
+                await self.usb.tick()        # Zustand des USB-Waechters am Pi (alle 30 s)
             except Exception:  # noqa: BLE001
                 log.exception("Ticker-Fehler")
 

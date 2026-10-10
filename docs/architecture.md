@@ -103,6 +103,7 @@ switch in the printer (`save_variables`), so it also works without the bridge.
 | `files.py`, `prompts.py` | Moonraker files, `action:prompt_*` | display: print files with slot check and start; macro prompts (buttons send only the G-code the macro gave them) |
 | `clog.py` | `kobra_clog` | `suspect` → alarm until the filament moves normally again; switch and reaction (`warn`/`pause`) |
 | `phase.py` | `kobra_phase` (+ `kobra_pa`, `ace`, console) | print phase text for web, app, display and MQTT (`printer.phase`); read only |
+| `usb.py` | Moonraker database `kobra_usb` (USB watchdog service on the Klipper computer) | state every 30 s → status line, message after giving up; switches written to `kobra_usb.switches` |
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.
 

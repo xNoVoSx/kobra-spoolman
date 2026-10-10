@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
+    from .usb import UsbTunnel
 
 SUBSCRIBE = {
     "kobra_io": ["sound", "light_auto", "events", "light", "available", "error"],
@@ -20,7 +21,7 @@ SUBSCRIBE = {
     "kobra_debug": ["enabled"],
 }
 
-GROUPS = [("print", "Drucken"), ("watch", "Überwachung"), ("io", "Licht & Töne")]
+GROUPS = [("print", "Drucken"), ("watch", "Überwachung"), ("io", "Licht & Töne"), ("system", "System")]
 CLOG_ACTIONS = [("warn", "Nur warnen"), ("pause", "Pausieren")]
 ENDLESS_MODES = [("exact", "Gleiche Farbe"), ("material", "Gleiches Material"), ("next", "Nächste Spule")]
 SOUND_EVENTS = [("done", "Ton: Druck fertig"), ("error", "Ton: Pause, Fehler, Abbruch"), ("clog", "Ton: Verstopfung"),
@@ -106,7 +107,7 @@ def items(st: St) -> List[Dict[str, Any]]:
             ch("clog_action", "watch", "Bei Verdacht", CLOG_ACTIONS, cl.get("action") or "warn")
     dbg = st.get("kobra_debug")
     if dbg:
-        sw("debug", "watch", "Diagnose-Protokoll", "Ausführliches Klipper-Log unserer Module (Entwicklung)",
+        sw("debug", "system", "Diagnose-Protokoll", "Ausführliches Klipper-Log unserer Module (Entwicklung)",
            dbg.get("enabled"))
     io = st.get("kobra_io")
     if io:
@@ -142,14 +143,25 @@ def _commands(key: str) -> Optional[Callable[[Any], str]]:
 
 
 class Switches:
-    def __init__(self, moon: "Moonraker"):
+    def __init__(self, moon: "Moonraker", usb: Optional["UsbTunnel"] = None):
         self.moon = moon
+        self.usb = usb              # Schalter des USB-Waechters am Pi (Moonraker-Datenbank, nicht Klipper)
 
     def view(self) -> Dict[str, Any]:
         st = self.moon.status if self.moon.klippy_ready else {}
-        return {"groups": [{"key": k, "title": t} for k, t in GROUPS], "items": items(st)}
+        all_items = items(st) + (self.usb.items() if self.usb is not None else [])
+        used = {i["group"] for i in all_items}
+        # Gruppen ohne Schalter weglassen (z. B. "System" ohne Diagnose-Modul und USB-Waechter) - Display: kein leerer Reiter
+        groups = [{"key": k, "title": t} for k, t in GROUPS if k in used or k in ("print", "watch")]
+        return {"groups": groups, "items": all_items}
 
     async def set(self, key: str, value: Any) -> Dict[str, Any]:
+        if key.startswith("usb_") and self.usb is not None:
+            from .usb import UsbError
+            try:
+                return await self.usb.set(key, value)
+            except UsbError as e:
+                raise SwitchError(e.status, str(e)) from e
         if not self.moon.klippy_ready:
             raise SwitchError(503, "Klipper ist nicht bereit")
         cur = {i["key"]: i for i in items(self.moon.status)}

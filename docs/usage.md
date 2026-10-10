@@ -318,8 +318,9 @@ is left empty on purpose: the printer's viewer app swallows touches there (hold 
 - **Druck** — opens by itself when a print starts: the file's preview picture, progress, layer, running/remaining/
   finish time, temperatures, speed and flow, the slots the file uses; pause/resume, *Nachjustieren* (speed, flow),
   cancel (asks first).
-- **Schalter** — every switch of the printer's Klipper modules in three tabs (*Drucken*, *Überwachung*,
-  *Licht & Töne*), plus the AI. They are stored in the printer, so web UI, app and Mainsail show the same.
+- **Schalter** — every switch of the printer's Klipper modules in tabs (*Drucken*, *Überwachung*, *Licht & Töne*,
+  *System*), plus the AI. They are stored in the printer, so web UI, app and Mainsail show the same. *System* holds the
+  *Diagnose-Protokoll* and the three switches of the USB tunnel watchdog (see below).
 - **Steuerung** — temperatures (presets from the loaded spools or the number pad), moving (home, jog with 0.1–50 mm
   steps, motors off), filament (load a slot through the ACE, unload, extrude when hot), fans, *Bettnetze messen*,
   Klipper restart and an emergency stop you hold for 1.5 s. Moving and loading are locked while printing.
@@ -327,8 +328,15 @@ is left empty on purpose: the printer's viewer app swallows touches there (hold 
   slots and start it. After a print: *Erneut drucken*.
 - **Nachjustieren** (while printing) — speed and flow, the first layer's height (±0.01–0.05 mm, *Für … übernehmen*
   adds it to the filament's *Z-Versatz* in Spoolman) and *Objekte* to skip a failed part.
-- **System** — all messages, IP and versions, Klipper restart, Pi reboot/shutdown. Macro prompts (e.g. filament
-  runout) and a Klipper error appear over everything.
+- **System** — all messages, IP and versions, the USB tunnel's state with its last event, Klipper restart, Pi
+  reboot/shutdown. Macro prompts (e.g. filament runout) and a Klipper error appear over everything; the Klipper error
+  screen also says what the USB tunnel is doing.
+
+**USB tunnel watchdog.** The printer and the Klipper computer talk over a USB cable; after switching the printer off and
+on, that connection sometimes does not come up. A watchdog service on the Klipper computer (set up outside this repo)
+then reconnects by itself and reloads Klipper. The bridge shows its state (status line *USB-Tunnel*: connected, printer
+off, connecting … attempt n, or an error message after giving up) and its switches: *USB selbst neu anstecken*,
+*Klipper danach neu laden*, *USB langsam, robust* (12 Mbit/s, only if the connection still fails often).
 - Pause has no confirmation; *Abbrechen* appears once paused and asks first; the emergency stop always asks first.
 - After a power loss the whole screen asks whether to resume ([see above](#resume-after-a-power-loss)).
 
@@ -408,7 +416,7 @@ Portainer); *Drucker* shows the end of the printer's log files (`moonraker.log`,
 print log (console messages such as the start sequence, tool changes and Auto-PA, plus state changes: print state,
 tool, target temperatures, layer, Auto-PA, clog, resume), the download button the raw data. The last 30 prints are kept
 (*Einstellungen → Daten*). The printer's own detailed log of our Klipper modules is the switch *Diagnose-Protokoll*
-(*Schalter → Überwachung*).
+(*Schalter → System*).
 
 <p align="center"><img src="images/web-terminal.png" width="760" alt="Terminal"></p>
 

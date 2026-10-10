@@ -325,8 +325,9 @@ beendet den Viewer).
 - **Druck** – kommt bei Druckstart von selbst: Vorschaubild der Datei, Fortschritt, Schicht, Zeiten (läuft, Rest,
   fertig um), Temperaturen, Tempo und Fluss, die benutzten Slots; Pause/Weiter, *Nachjustieren* (Tempo, Fluss),
   Abbrechen (mit Rückfrage).
-- **Schalter** – alle Schalter der Klipper-Module am Drucker in drei Reitern (*Drucken*, *Überwachung*,
-  *Licht & Töne*) und die KI. Gespeichert im Drucker, Weboberfläche, App und Mainsail zeigen denselben Stand.
+- **Schalter** – alle Schalter der Klipper-Module am Drucker in Reitern (*Drucken*, *Überwachung*, *Licht & Töne*,
+  *System*) und die KI. Gespeichert im Drucker, Weboberfläche, App und Mainsail zeigen denselben Stand. Unter *System*:
+  *Diagnose-Protokoll* und die drei Schalter des USB-Wächters (siehe unten).
 - **Steuerung** – Temperaturen (Schnellwahl aus den eingelegten Spulen oder Ziffernfeld), Bewegen (homen, joggen mit
   0,1–50 mm, Motoren aus), Filament (Slot über die ACE laden, entladen, extrudieren, wenn heiß), Lüfter,
   *Bettnetze messen*, Klipper neu laden und Not-Aus (1,5 s gedrückt halten). Bewegen und Laden sind im Druck gesperrt.
@@ -334,8 +335,15 @@ beendet den Viewer).
   Slots und startet den Druck. Nach dem Druck: *Erneut drucken*.
 - **Nachjustieren** (im Druck) – Tempo und Fluss, Höhe der ersten Schicht (±0,01–0,05 mm, *Für … übernehmen* addiert
   sie zum *Z-Versatz* des Filaments in Spoolman) und *Objekte*, um ein misslungenes Teil zu überspringen.
-- **System** – alle Meldungen, IP und Versionen, Klipper neu laden, Pi neu starten/herunterfahren. Rückfragen von
-  Makros (z. B. Filament leer) und ein Klipper-Fehler erscheinen über allem.
+- **System** – alle Meldungen, IP und Versionen, Zustand des USB-Tunnels mit dem letzten Ereignis, Klipper neu laden,
+  Pi neu starten/herunterfahren. Rückfragen von Makros (z. B. Filament leer) und ein Klipper-Fehler erscheinen über
+  allem; die Klipper-Fehlermeldung sagt auch, was der USB-Tunnel gerade macht.
+
+**USB-Wächter.** Drucker und Klipper-Rechner sprechen über ein USB-Kabel; nach Drucker aus/an kommt die Verbindung
+manchmal nicht zustande. Ein Wächter-Dienst am Klipper-Rechner (Einrichtung außerhalb dieses Repos) steckt dann selbst
+neu an und lädt Klipper neu. Die Bridge zeigt seinen Zustand (Statuszeile *USB-Tunnel*: verbunden, Drucker aus,
+verbindet … Versuch n, nach Aufgeben eine Fehlermeldung) und seine Schalter: *USB selbst neu anstecken*, *Klipper
+danach neu laden*, *USB langsam, robust* (12 Mbit/s, nur wenn die Verbindung trotzdem oft scheitert).
 - Pause ohne Rückfrage; *Abbrechen* erscheint erst in der Pause und fragt nach; Not-Aus fragt immer nach.
 - Nach einem Stromausfall fragt der ganze Bildschirm, ob fortgesetzt werden soll ([siehe oben](#fortsetzen-nach-stromausfall)).
 
@@ -416,7 +424,7 @@ Portainer); *Drucker* zeigt das Ende der Logdateien des Druckers (`moonraker.log
 lesbares Druckprotokoll (Konsolenmeldungen wie Start-Ablauf, Filamentwechsel und Auto-PA, dazu Zustandswechsel:
 Druckstatus, Werkzeug, Soll-Temperaturen, Schicht, Auto-PA, Verstopfung, Fortsetzen), der Download-Knopf die Rohdaten.
 Es bleiben die letzten 30 Drucke (*Einstellungen → Daten*). Das ausführliche Log unserer Klipper-Module am Drucker ist
-der Schalter *Diagnose-Protokoll* (*Schalter → Überwachung*).
+der Schalter *Diagnose-Protokoll* (*Schalter → System*).
 
 <p align="center"><img src="../images/web-terminal.png" width="760" alt="Terminal"></p>
 
