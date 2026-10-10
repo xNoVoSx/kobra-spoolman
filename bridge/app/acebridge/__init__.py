@@ -1,11 +1,14 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.6.0"
+__version__ = "3.6.1"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.6.1", "2026-10-10", [
+        "ACE-Feuchte und Firmware fehlten nach einem Neustart des Druckers, wenn die ACE später verbunden war als Klipper",
+    ]),
     ("3.6.0", "2026-10-10", [
         "Display: neuer Bereich Steuerung – Temperaturen (Schnellwahl aus den eingelegten Spulen, Ziffernfeld), "
         "Bewegen (homen, joggen 0,1–50 mm, Motoren aus), Filament (Slot laden, entladen, extrudieren), Lüfter, "

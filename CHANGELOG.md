@@ -6,6 +6,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.6.1] – 2026-10-10
+
+### Fixed
+- ACE humidity and firmware stayed empty after a printer restart when the ACE connected later than Klipper: the
+  bridge subscribed to the ACE objects with "all fields", and Klipper freezes that field list at the first query.
+  The fields are now subscribed explicitly.
+
 ## [3.6.0] – 2026-10-10
 
 ### Added

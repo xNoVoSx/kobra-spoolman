@@ -16,9 +16,15 @@ import re
 from typing import Any, Dict, Optional
 
 # Abo bei Moonraker (Felder: None = alle)
+# Felder ausdruecklich, nicht None ("alle"): Klipper friert bei None die Feldliste beim ersten Abfragen ein
+# (webhooks.py: subscription[obj] = list(res.keys())). Abonniert die Bridge, waehrend die ACE nach einem Neustart noch
+# nicht verbunden ist, kaemen humidity/firmware sonst nie (10.10.: Feuchte "–" nach Tunnel-Neustart).
 SUBSCRIBE = {
-    "ace": None,
-    "ace_instance_0": None,
+    "ace": ["ace_instances", "ace_pro_enabled", "current_index", "target_index", "endless_spool_enabled",
+            "endless_spool_match_mode", "toolhead_sensor", "rdm_sensor"],
+    "ace_instance_0": ["status", "status_code", "connection_state", "slots", "dryer_status", "temp", "humidity",
+                       "feed_assist_count", "feed_assist_slot", "cont_assist_time", "rfid_sync_enabled", "firmware",
+                       "model", "protocol", "instance", "usb_port", "usb_path"],
     "filament_switch_sensor filament_runout_nozzle": ["filament_detected"],
     "filament_tracker filament_runout_rdm": ["filament_detected", "encoder_pulse", "filament_distance"],
 }
