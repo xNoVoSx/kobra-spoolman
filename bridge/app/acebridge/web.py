@@ -21,6 +21,7 @@ from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
 from .pa import PaError
 from .clog import ClogError
+from .switches import SwitchError
 from .resume import ResumeError
 from .camera import CameraError
 from .console import LOG_BUFFER, check_command
@@ -327,6 +328,28 @@ def build_app(bridge: "Bridge") -> web.Application:
         except Exception:  # noqa: BLE001
             return _err(400, "Erwartet JSON {\"enabled\": true}")
         return await _resume_call(bridge.resume.switch(en))
+
+    # ---------------------------------------------------------------- Schalter der Klipper-Module (Display, Web, App)
+    @r.get("/api/switches")
+    async def switches_state(_):
+        return web.json_response(bridge.switches.view())
+
+    @r.post("/api/switch")
+    @need_device
+    async def switch_set(request: web.Request):
+        try:
+            body = await request.json()
+            key = body["key"]
+            assert isinstance(key, str)
+        except Exception:  # noqa: BLE001
+            return _err(400, "Erwartet JSON {\"key\": \"pa\", \"value\": true}")
+        try:
+            return web.json_response(await bridge.switches.set(key, body.get("value")))
+        except SwitchError as e:
+            return _err(e.status, str(e))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Schalter %s: %s", key, e)
+            return _err(502, str(e))
 
     # ---------------------------------------------------------------- Verstopfung erkennen
     @r.get("/api/clog")

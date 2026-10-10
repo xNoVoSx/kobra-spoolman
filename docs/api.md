@@ -199,6 +199,22 @@ part's height with the load cell). `/api/app/state` contains `resume`; an interr
 | POST | `/api/resume/discard` | *(paired)* drop the saved print |
 | POST | `/api/resume/switch` | *(paired)* `{"enabled": bool}` — `KOBRA_POWERLOSS ENABLE=`, stored in the printer |
 
+## Switches of the Klipper modules
+
+One list for every switch of the printer's Klipper modules (`kobra_pa`, `KOBRA_FILAMENT_Z`, ACEPRO endless spool,
+`kobra_resume`, `kobra_clog`, `kobra_io` light and sounds). State from the subscription; a module that is missing has
+no entries. The bridge only ever sends the command listed for a key — never free G-code.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/switches` | `groups` (`print`, `watch`, `io`), `items`: `key`, `group`, `kind` (`switch` with `on`, `choice` with `options` and `current`), `title`, `hint`, `sensitive` |
+| POST | `/api/switch` | *(paired)* `{"key": "pa", "value": true}` — 404 unknown or missing key, 409 locked, 503 Klipper not ready |
+
+Keys: `pa`, `pa_auto`, `filament_z`, `endless`, `endless_mode` (`exact`/`material`/`next`), `powerloss`, `clog`,
+`clog_action` (`warn`/`pause`), `light`, `light_auto`, `sound`, `sound_done|error|clog|change|prompt`.
+
+`GET /display` serves the view for the printer's touchscreen (800×480).
+
 ## Clog detection
 
 For the Klipper module `kobra_clog` (compares, per 20 mm of extrusion, what the extruder fed with what the filament

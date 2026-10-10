@@ -307,6 +307,23 @@ die drei Lüfter und die Solltemperatur von Düse und Bett, auch ohne Druck (z. 
 **Not-Aus**: zwei Sekunden gedrückt halten, dann bestätigen. Nach einem Not-Aus (oder einem Klipper-Fehler)
 zeigt die Leiste **Klipper neu laden** (`FIRMWARE_RESTART`, fragt nach); danach die Achsen neu referenzieren.
 
+## Das Display des Druckers
+
+`http://<docker-host>:7913/display` ist eine Ansicht für den Touchscreen des Kobra S1 (800×480, Finger): ein
+Kiosk-Browser auf dem Klipper-Pi zeigt sie auf dem Original-Display (Einrichtung außerhalb dieses Repos). Leiste
+links: *Start*, *Druck*, *Schalter* und das Licht.
+
+- **Start** – Düse, Bett, ACE-Feuchte, die vier Slots mit Spulenfarbe und Gewicht, der Trockner.
+- **Druck** – kommt bei Druckstart von selbst: Vorschaubild der Datei, Fortschritt, Schicht, Zeiten (läuft, Rest,
+  fertig um), Temperaturen, Tempo und Fluss, die benutzten Slots; Pause/Weiter, *Nachjustieren* (Tempo, Fluss),
+  Abbrechen (mit Rückfrage).
+- **Schalter** – alle Schalter der Klipper-Module am Drucker in drei Reitern (*Drucken*, *Überwachung*,
+  *Licht & Töne*) und die KI. Gespeichert im Drucker, Weboberfläche, App und Mainsail zeigen denselben Stand.
+- Nach einem Stromausfall fragt der ganze Bildschirm, ob fortgesetzt werden soll ([siehe oben](#fortsetzen-nach-stromausfall)).
+
+Lesen geht ohne Schlüssel; zum Schalten wird das Display einmal gekoppelt wie jedes Gerät: unter
+*Geräte → Gerät hinzufügen* einen Code erzeugen und am Ziffernfeld des Displays eintippen.
+
 ## Benachrichtigungen aufs Handy
 
 <p align="center"><img src="../images/app-notification.png" width="420" alt="Druck-Benachrichtigung"></p>

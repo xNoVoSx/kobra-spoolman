@@ -1,11 +1,18 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.4.0"
+__version__ = "3.5.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.5.0", "2026-10-10", [
+        "Ansicht fürs Display des Druckers (/display, 800×480): Start mit Slots und Trockner, Druckansicht mit "
+        "Vorschaubild der Datei (kommt bei Druckstart von selbst), alle Schalter, Frage nach Stromausfall",
+        "Alle Schalter der Klipper-Module an einer Stelle (/api/switches): Auto-PA, Z-Versatz, Endlosspule, "
+        "Stromausfall, Verstopfung, Licht und Töne",
+        "Das Display koppelt sich wie jedes Gerät mit einem Code (Ziffernfeld)",
+    ]),
     ("3.4.0", "2026-10-10", [
         "Verstopfung erkennen: Klipper vergleicht im Druck die Förderung des Extruders mit dem Encoder am Filament-Eingang; "
         "bei Verdacht rote Meldung und Alarm in der App, bis wieder normal gefördert wird",

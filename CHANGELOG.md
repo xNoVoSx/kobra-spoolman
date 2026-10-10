@@ -6,6 +6,17 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.5.0] – 2026-10-10
+
+### Added
+- View for the printer's own touchscreen: `GET /display` (800×480, made for fingers) — start screen with slots and
+  dryer, a print screen that opens by itself when a print starts (the file's preview picture, progress, times,
+  temperatures, pause/resume, fine-tuning, cancel), every switch, and the power-loss question. Shown by a kiosk
+  browser on the Klipper Pi; pairs with a code like any device (device kind `display`).
+- `GET /api/switches`, `POST /api/switch`: every switch of the Klipper modules in one list (Auto-PA, Z offset per
+  filament, endless spool, power-loss resume, clog detection, light and sounds of the `kobra_io` module). The bridge
+  only sends the command listed for a key.
+
 ## [3.4.0] – 2026-10-10
 
 ### Added

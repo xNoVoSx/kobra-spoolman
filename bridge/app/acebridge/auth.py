@@ -27,7 +27,7 @@ log = logging.getLogger("auth")
 CODE_TTL_S = 300
 MAX_FAILS = 5
 LOCK_S = 60
-KINDS = ("app", "web", "plugin", "other")
+KINDS = ("app", "web", "plugin", "display", "other")
 
 
 def _hash(token: str) -> str:

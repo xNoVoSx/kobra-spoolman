@@ -39,6 +39,8 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
   print itself: **Auto-PA** measured by the load cell and kept per filament, a **Z offset per
   filament**, **resume after a power loss** (probes the height on the part, always asks first) and
   **clog detection** (extruder vs. filament encoder) — each one with its own off switch.
+- A view for the **printer's own touchscreen** (`/display`, 800×480): status, a print screen that opens by itself
+  with the file's preview, and every switch — shown by a kiosk browser on the Klipper Pi.
 - Live **3D view** of the running print in the spool colours, **Home Assistant** over MQTT, a
   **home-screen widget**, and every bridge setting changeable in the web UI.
 

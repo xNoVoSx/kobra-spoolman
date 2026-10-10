@@ -36,6 +36,9 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
   selbst: **Auto-PA**, von der Wiegezelle gemessen und pro Filament gespeichert, **Z-Versatz pro
   Filament**, **Fortsetzen nach Stromausfall** (tastet die Höhe auf dem Teil an, fragt immer vorher) und
   **Verstopfung erkennen** (Extruder gegen Filament-Encoder) – jedes mit eigenem Aus-Schalter.
+- Eine Ansicht fürs **Display des Druckers** (`/display`, 800×480): Status, eine Druckansicht, die bei Druckstart
+  von selbst kommt, mit dem Vorschaubild der Datei, und alle Schalter – angezeigt von einem Kiosk-Browser auf dem
+  Klipper-Pi.
 - Die Bridge **weiß, wie feucht jede Spule ist** – Feuchte-Verlauf der ACE, jede Trocknung, eine
   Feuchte-Schätzung pro Spule aus dem, wo sie lag –, trocknet Spulen beim Einlegen von selbst und prüft
   beim Druckstart, ob die eingelegten Spulen zur Datei passen.

@@ -98,6 +98,7 @@ switch in the printer (`save_variables`), so it also works without the bridge.
 | `pa.py` | `kobra_pa` | Spoolman `pa_table` → `KOBRA_PA_SET` per slot; measured result → back to the filament (`pa_table`, `pressure_advance`) |
 | `filament_z.py` | `KOBRA_START` variable `slot_z` | Spoolman `z_offset` (or the template's) of each loaded slot → printer; the print start applies the start filament's value |
 | `resume.py` | `kobra_resume` | interrupted print → alarm + card; *Fortsetzen* sends `KOBRA_RESUME CONFIRM=1` only after confirmation |
+| `switches.py` | all of them | one list of the modules' switches for display, web and app (`/api/switches`); sends only listed commands |
 | `clog.py` | `kobra_clog` | `suspect` → alarm until the filament moves normally again; switch and reaction (`warn`/`pause`) |
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.

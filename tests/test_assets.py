@@ -56,3 +56,13 @@ def test_viewer_page_for_the_app():
     status, cache, html = client_call(fn)
     assert status == 200 and cache == "no-cache"
     assert f'src="assets/{assets.TAG}/js/viewer-page.js"' in html and '"static/' not in html
+
+
+def test_display_page_for_the_printer_screen():
+    async def fn(c):
+        r = await c.get("/display")
+        return r.status, r.headers["Cache-Control"], await r.text()
+    status, cache, html = client_call(fn)
+    assert status == 200 and cache == "no-cache"
+    assert f'src="assets/{assets.TAG}/js/display.js"' in html and f'href="assets/{assets.TAG}/display.css"' in html
+    assert 'width=800, height=480' in html and '"static/' not in html

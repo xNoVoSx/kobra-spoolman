@@ -51,6 +51,12 @@ async def viewer(_: web.Request) -> web.Response:
     return web.Response(text=index_html(page="viewer.html"), content_type="text/html", headers={"Cache-Control": NO_CACHE})
 
 
+async def display(_: web.Request) -> web.Response:
+    """Drucker-Display (800x480, Kiosk-Browser auf dem Klipper-Pi)."""
+    return web.Response(text=index_html(page="display.html"), content_type="text/html",
+                        headers={"Cache-Control": NO_CACHE})
+
+
 async def asset(request: web.Request) -> web.StreamResponse:
     """assets/<tag>/<pfad>: aktueller TAG -> unveraenderlich; alter TAG (alte, offene Seite) -> ohne Cache."""
     rel = request.match_info["path"]
@@ -64,6 +70,7 @@ async def asset(request: web.Request) -> web.StreamResponse:
 def add_routes(app: web.Application) -> None:
     app.router.add_get("/", index)
     app.router.add_get("/viewer", viewer)
+    app.router.add_get("/display", display)
     app.router.add_get("/assets/{tag}/{path:.+}", asset)
     # alte Adressen (Lizenzen, Links): weiter erreichbar, aber immer frisch pruefen
     app.router.add_static("/static", STATIC, append_version=False)

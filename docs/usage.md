@@ -301,6 +301,23 @@ the nozzle/bed target, also without a print (e.g. to preheat) — and **Not-Aus*
 seconds, then confirm. After an emergency stop (or a Klipper error) the bar shows **Klipper neu laden**
 (`FIRMWARE_RESTART`, asks first); home the axes again afterwards.
 
+## The printer's own display
+
+`http://<docker-host>:7913/display` is a view made for the Kobra S1's touchscreen (800×480, fingers): a kiosk
+browser on the Klipper Pi shows it on the original display (setup outside this repo). Left bar: *Start*, *Druck*,
+*Schalter* and the light.
+
+- **Start** — nozzle, bed, ACE humidity, the four slots with their spool colour and weight, the dryer.
+- **Druck** — opens by itself when a print starts: the file's preview picture, progress, layer, running/remaining/
+  finish time, temperatures, speed and flow, the slots the file uses; pause/resume, *Nachjustieren* (speed, flow),
+  cancel (asks first).
+- **Schalter** — every switch of the printer's Klipper modules in three tabs (*Drucken*, *Überwachung*,
+  *Licht & Töne*), plus the AI. They are stored in the printer, so web UI, app and Mainsail show the same.
+- After a power loss the whole screen asks whether to resume ([see above](#resume-after-a-power-loss)).
+
+Reading needs no key; to switch something the display is paired once like any device: create a code under
+*Geräte → Gerät hinzufügen* and type it on the display's number pad.
+
 ## Notifications on the phone
 
 <p align="center"><img src="images/app-notification.png" width="420" alt="Print notification"></p>
