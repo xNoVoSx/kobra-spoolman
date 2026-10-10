@@ -68,7 +68,6 @@ class MqttBridge:
         self.sent: Dict[str, str] = {}               # zuletzt gesendet je Thema (nur bei Aenderung neu)
         self.room: Optional[Dict[str, Any]] = None    # {"rh", "temp", "at"}
         self._client_factory = client_factory
-        self._last_publish = 0.0
         self.prefix = self.cfg.mqtt_prefix.strip("/") or "kobra-spoolman"
 
     # ------------------------------------------------------------ Inhalte
@@ -184,7 +183,6 @@ class MqttBridge:
                 await client.publish(full, text, retain=True)
                 self.sent[full] = text
                 n += 1
-        self._last_publish = self.clock()
         return n
 
     async def run(self) -> None:

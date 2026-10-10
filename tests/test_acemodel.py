@@ -59,10 +59,14 @@ def test_trockner_und_feuchte():
     assert d["remaining_min"] == 9.1 and d["duration_min"] == 10.0
 
 
-def test_endlosspule_und_sensoren():
+def test_endlosspule():
     assert acemodel.endless_spool(STATUS) == {"enabled": True, "mode": "exact"}
-    s = acemodel.sensors(STATUS)
-    assert s["toolhead"] is True and s["rdm"] is True and s["rdm_pulses"] == 5885
+
+
+def test_no_encoder_subscription():
+    # Encoder-Pulse aendern sich im Druck laufend - die Bridge braucht sie nicht (kobra_clog meldet fertige Werte)
+    subscribed = {f for fields in acemodel.SUBSCRIBE.values() for f in fields}
+    assert not {"encoder_pulse", "filament_distance"} & subscribed
 
 
 def test_hilfsfunktionen():

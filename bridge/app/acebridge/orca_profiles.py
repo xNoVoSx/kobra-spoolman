@@ -47,11 +47,8 @@ FIELD_MAP: List[Tuple[str, str, Callable[[Any], Any]]] = [
 ]
 ORCA_TO_SOURCE = {orca: (src, typ) for src, orca, typ in FIELD_MAP}
 
-# Kennwerte, die immer vom Filament selbst kommen (nie aus der Vorlage).
 # Farbe: Orca verwirft filament_colour in Filament-Presets ("incorrect keys ... removed") und nimmt
 # beim Auswaehlen default_filament_colour (PresetComboBoxes.cpp).
-IDENTITY_KEYS = ("filament_type", "default_filament_colour", "filament_density", "filament_diameter",
-                 "filament_cost", "filament_vendor", "filament_id")
 # Ruecksync nimmt beide Farbschluessel an (filament_colour aus aelteren Plugin-Staenden)
 COLOUR_KEYS = ("default_filament_colour", "filament_colour")
 

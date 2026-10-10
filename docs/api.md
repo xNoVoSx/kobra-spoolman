@@ -166,11 +166,11 @@ in the bridge's Moonraker subscription.
 |---|---|---|
 | GET | `/api/ace` | `settings`: `present`, `endless_spool`, `endless_mode` (`exact`, `material`, `next`), `endless_modes` (mode → description), `firmware`, `model`, `printing` |
 | POST | `/api/ace/options` | *(paired)* `{"endless_spool": bool}` and/or `{"endless_mode": "exact"\|"material"\|"next"}` — `ACE_ENABLE_ENDLESS_SPOOL` / `ACE_DISABLE_ENDLESS_SPOOL` / `ACE_SET_ENDLESS_SPOOL_MODE`; allowed while printing; the answer waits up to 2 s for the driver to report the new state |
-| POST | `/api/ace/flush` | **410** — the purge per colour change comes from Orca's flushing volumes (printer profile, see [installation](installation.md#orca-printer-profile)) |
 
-For app 1.8.0 the settings also carry `auto_refill` (= endless spool), `runout_detect`, `flush_multiplier`
-(both `null`), `flush_multiplier_editable` (`false`) and `presets` (`{}`); `GET /api/ace` adds an empty
-`purge`. `/api/app/state` contains `ace` (the settings).
+The purge per colour change comes from Orca's flushing volumes (printer profile, see
+[installation](installation.md#orca-printer-profile)); there is no flush multiplier any more (`/api/ace/flush` and the
+app-1.8 fields `auto_refill`, `flush_multiplier`, `purge` were removed in 3.10.0). `/api/app/state` contains `ace` (the
+settings).
 
 ## Auto-PA (pressure advance)
 

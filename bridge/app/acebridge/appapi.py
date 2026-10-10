@@ -46,7 +46,6 @@ SPOOL_NATIVE: Dict[str, Callable[[Any], Any]] = {
     "initial_weight": float, "spool_weight": float, "price": float, "lot_nr": str, "comment": str,
 }
 # Zusatzfelder, die die Bridge selbst verwaltet (nie direkt aus der App)
-SPOOL_MANAGED_EXTRA = {"nfc_uid", "tag_nr"}
 
 # Orca-Schluessel je Spoolman-Feld (fuer die Beschriftung in der App)
 ORCA_KEY = {src.split(":", 1)[1]: orca for src, orca, _ in FIELD_MAP}

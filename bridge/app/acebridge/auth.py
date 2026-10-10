@@ -53,7 +53,6 @@ class Devices:
         self.codes: Dict[str, float] = {}          # Kopplungscode -> gueltig bis
         self.setup_code: Optional[str] = None
         self._fails: List[float] = []
-        self._dirty_seen = 0.0
         self._load()
         if not self.devices:
             self.setup_code = _code()

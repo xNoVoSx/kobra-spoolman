@@ -71,7 +71,6 @@ class Console:
         self.clock = clock
         self.lines: Deque[Dict[str, Any]] = collections.deque(maxlen=KEEP_LINES)
         self._ids = itertools.count(1)
-        self.commands: Dict[str, str] = {}      # aus printer/gcode/help, fuer die Vervollstaendigung
         self.listeners: List[Callable[[Dict[str, Any]], None]] = []   # z. B. Druck-Aufzeichnung (telemetry)
 
     def add(self, kind: str, text: str, source: Optional[str] = None, at: Optional[float] = None) -> None:

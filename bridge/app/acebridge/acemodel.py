@@ -4,8 +4,7 @@ Einzige Stelle, die die Moonraker-Objekte des Treibers liest. Alle anderen Teile
 Trockner, Web, App, MQTT) arbeiten mit den Woerterbuechern von hier.
 
 Objekte (Stand ACEPRO dev c89fe17, Beispiel: tests/data/acepro_status_2026-10-09.json):
-- `ace`:            current_index (geladenes Werkzeug, -1 = keins), target_index, endless_spool_enabled/_match_mode,
-                    toolhead_sensor, rdm_sensor
+- `ace`:            current_index (geladenes Werkzeug, -1 = keins), target_index, endless_spool_enabled/_match_mode
 - `ace_instance_0`: slots[] (status "ready"/"empty"/"shifting"…, color [R,G,B], material, temp, rfid, sku),
                     dryer_status (remain_time/duration in Sekunden), temp, humidity, connection_state, firmware
 """
@@ -21,12 +20,10 @@ from typing import Any, Dict, Optional
 # nicht verbunden ist, kaemen humidity/firmware sonst nie (10.10.: Feuchte "–" nach Tunnel-Neustart).
 SUBSCRIBE = {
     "ace": ["ace_instances", "ace_pro_enabled", "current_index", "target_index", "endless_spool_enabled",
-            "endless_spool_match_mode", "toolhead_sensor", "rdm_sensor"],
+            "endless_spool_match_mode"],
     "ace_instance_0": ["status", "status_code", "connection_state", "slots", "dryer_status", "temp", "humidity",
                        "feed_assist_count", "feed_assist_slot", "cont_assist_time", "rfid_sync_enabled", "firmware",
                        "model", "protocol", "instance", "usb_port", "usb_path"],
-    "filament_switch_sensor filament_runout_nozzle": ["filament_detected"],
-    "filament_tracker filament_runout_rdm": ["filament_detected", "encoder_pulse", "filament_distance"],
 }
 
 SLOTS_PER_ACE = 4
@@ -158,10 +155,3 @@ def endless_spool(status: Dict[str, Any]) -> Dict[str, Any]:
     return {"enabled": bool(ace.get("endless_spool_enabled")),
             "mode": ace.get("endless_spool_match_mode") or "exact"}
 
-
-def sensors(status: Dict[str, Any]) -> Dict[str, Any]:
-    """Kopf-Sensor und RDM (Ruecklauf-Modul) am Drucker."""
-    nozzle = status.get("filament_switch_sensor filament_runout_nozzle") or {}
-    rdm = status.get("filament_tracker filament_runout_rdm") or {}
-    return {"toolhead": nozzle.get("filament_detected"), "rdm": rdm.get("filament_detected"),
-            "rdm_pulses": rdm.get("encoder_pulse"), "rdm_distance_mm": rdm.get("filament_distance")}

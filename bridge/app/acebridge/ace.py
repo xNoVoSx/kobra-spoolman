@@ -5,9 +5,8 @@ Schreiben (G-Code des Treibers, gilt sofort, auch waehrend eines Drucks):
 - Endlosspule:   ACE_ENABLE_ENDLESS_SPOOL / ACE_DISABLE_ENDLESS_SPOOL
 - Modus:         ACE_SET_ENDLESS_SPOOL_MODE MODE=exact|material|next
 
-Entfallen mit Bridge 3.0 (GoKlipper): Spuel-Multiplikator (die Spuelmengen kommen aus Orcas Matrix, der
-Filamentwechsel-G-Code gibt sie an den Treiber), `runout_detect` (der Treiber ueberwacht Runout immer).
-Fuer App 1.8.0 bleibt die Form der Antwort gleich: `auto_refill` = Endlosspule, Spuelvorschau leer.
+Die Spuelmengen kommen aus Orcas Matrix (der Filamentwechsel-G-Code gibt sie an den Treiber), Runout ueberwacht
+der Treiber immer - beides ist hier kein Schalter.
 """
 
 from __future__ import annotations
@@ -57,24 +56,18 @@ class AceSettings:
             "model": dry.get("model"),
             "printing": self.slots.printing,
             "read_at": time.strftime("%Y-%m-%dT%H:%M:%S") if present else None,
-            # Form fuer App 1.8.0 (GoKlipper-Felder): auto_refill war dort die Endlosspule
-            "auto_refill": endless["enabled"] if present else None,
-            "runout_detect": None,
-            "flush_multiplier": None,
-            "flush_multiplier_editable": False,
-            "presets": {},
         }
 
     def _check(self) -> None:
         if not self.moon.klippy_ready or not acemodel.connected(self.moon.status):
             raise AceError(503, "ACE nicht verbunden")
 
-    async def set_options(self, changes: Dict[str, Any], confirm_printing: bool = False) -> Dict[str, Any]:
-        """Endlosspule an/aus (endless_spool, alt: auto_refill) und Modus (endless_mode). confirm_printing wird
-        nicht mehr gebraucht - beides ist unkritisch und gilt beim naechsten Runout."""
+    async def set_options(self, changes: Dict[str, Any]) -> Dict[str, Any]:
+        """Endlosspule an/aus (endless_spool) und Modus (endless_mode) - unkritisch, auch im Druck, gilt beim naechsten
+        Runout."""
         cmds, want = [], {}
         for k, v in changes.items():
-            if k in ("endless_spool", "auto_refill"):
+            if k == "endless_spool":
                 if not isinstance(v, bool):
                     raise AceError(400, f"{k}: true oder false")
                 cmds.append("ACE_ENABLE_ENDLESS_SPOOL" if v else "ACE_DISABLE_ENDLESS_SPOOL")
@@ -84,8 +77,6 @@ class AceSettings:
                     raise AceError(400, "Modus: " + ", ".join(MODES))
                 cmds.append(f"ACE_SET_ENDLESS_SPOOL_MODE MODE={v}")
                 want["mode"] = v
-            elif k == "runout_detect":
-                raise AceError(400, "Runout überwacht der ACE-Treiber immer – kein Schalter mehr")
             else:
                 raise AceError(400, f"Unbekannte Einstellung {k}")
         if not cmds:
@@ -105,10 +96,3 @@ class AceSettings:
                 return
             await asyncio.sleep(0.1)
 
-    async def set_flush_multiplier(self, value: Any, confirm_printing: bool = False) -> Dict[str, Any]:
-        raise AceError(410, "Den Spül-Multiplikator gibt es nicht mehr – die Spülmengen kommen aus Orca "
-                            "(Spülmengen-Dialog neben „Filament“)")
-
-    def purge_preview(self, multiplier: Any = None) -> Dict[str, Any]:
-        """Leer: die Spuelmengen stehen in Orca (Matrix). Form fuer App 1.8.0 (Zahlenfelder weggelassen)."""
-        return {"pairs": [], "source": "orca"}

@@ -45,9 +45,7 @@ def test_reads_endless_spool_from_the_driver(ace):
     st = a.state()
     assert st["present"] and st["endless_spool"] is True and st["endless_mode"] == "exact"
     assert st["firmware"] == "V1.1.36" and set(st["endless_modes"]) == {"exact", "material", "next"}
-    # Form fuer App 1.8.0: auto_refill = Endlosspule, keine Zahl-Felder mit null
-    assert st["auto_refill"] is True and st["flush_multiplier_editable"] is False and st["presets"] == {}
-    assert a.purge_preview() == {"pairs": [], "source": "orca"}
+    assert "flush_multiplier" not in st and "auto_refill" not in st     # GoKlipper-Felder sind weg (11.10.)
 
 
 def test_switch_endless_spool_and_mode(ace):
@@ -55,8 +53,8 @@ def test_switch_endless_spool_and_mode(ace):
     st = asyncio.run(a.set_options({"endless_spool": False, "endless_mode": "material"}))
     assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL\nACE_SET_ENDLESS_SPOOL_MODE MODE=material"]
     assert st["endless_spool"] is False and st["endless_mode"] == "material"     # Antwort zeigt den neuen Stand
-    st = asyncio.run(a.set_options({"auto_refill": True}))                # Schalter der App 1.8.0
-    assert moon.sent[-1] == "ACE_ENABLE_ENDLESS_SPOOL" and st["auto_refill"] is True
+    st = asyncio.run(a.set_options({"endless_spool": True}))
+    assert moon.sent[-1] == "ACE_ENABLE_ENDLESS_SPOOL" and st["endless_spool"] is True
 
 
 def test_answer_does_not_hang_when_the_driver_stays_silent(ace, monkeypatch):
@@ -76,14 +74,11 @@ def test_allowed_while_printing(ace):
 
 def test_rejects_unknown_and_removed_settings(ace):
     a, moon = ace
-    for body, status in (({"endless_mode": "egal"}, 400), ({"runout_detect": True}, 400), ({"x": 1}, 400),
-                         ({"endless_spool": "ja"}, 400), ({}, 400)):
+    for body, status in (({"endless_mode": "egal"}, 400), ({"runout_detect": True}, 400), ({"auto_refill": True}, 400),
+                         ({"x": 1}, 400), ({"endless_spool": "ja"}, 400), ({}, 400)):
         with pytest.raises(AceError) as e:
             asyncio.run(a.set_options(body))
         assert e.value.status == status
-    with pytest.raises(AceError) as e:
-        asyncio.run(a.set_flush_multiplier(1.0))
-    assert e.value.status == 410 and "Orca" in str(e.value)
     assert moon.sent == []
 
 

@@ -507,7 +507,7 @@ def build_app(bridge: "Bridge") -> web.Application:
     # ---------------------------------------------------------------- ACE-Einstellungen
     async def _ace_call(coro):
         try:
-            return web.json_response({"ok": True, "settings": await coro, "purge": bridge.ace.purge_preview()})
+            return web.json_response({"ok": True, "settings": await coro})
         except AceError as e:
             return _err(e.status, str(e))
         except Exception as e:  # noqa: BLE001
@@ -516,22 +516,7 @@ def build_app(bridge: "Bridge") -> web.Application:
 
     @r.get("/api/ace")
     async def ace_state(request: web.Request):
-        mult = request.query.get("multiplier")
-        try:
-            mult_f = float(mult.replace(",", ".")) if mult else None
-        except ValueError:
-            return _err(400, "multiplier muss eine Zahl sein")
-        return web.json_response({"settings": bridge.ace.state(), "purge": bridge.ace.purge_preview(mult_f)})
-
-    @r.post("/api/ace/flush")
-    @need_device
-    async def ace_flush(request: web.Request):
-        try:
-            body = await request.json()
-        except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"multiplier\": 1.0, \"confirm_printing\": false}")
-        return await _ace_call(bridge.ace.set_flush_multiplier(body.get("multiplier"),
-                                                                bool(body.get("confirm_printing"))))
+        return web.json_response({"settings": bridge.ace.state()})
 
     @r.post("/api/ace/options")
     @need_device
@@ -542,8 +527,8 @@ def build_app(bridge: "Bridge") -> web.Application:
                 raise TypeError
         except Exception:  # noqa: BLE001
             return _err(400, "Erwartet JSON {\"endless_spool\": true, \"endless_mode\": \"exact\"}")
-        confirm = bool(body.pop("confirm_printing", False))
-        return await _ace_call(bridge.ace.set_options(body, confirm))
+        body.pop("confirm_printing", None)            # aeltere Clients schicken es noch mit - wird nicht gebraucht
+        return await _ace_call(bridge.ace.set_options(body))
 
     # ---------------------------------------------------------------- Kamera und Druckvorschau
     def camera_allowed(request: web.Request) -> bool:

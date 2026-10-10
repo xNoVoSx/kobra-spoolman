@@ -330,9 +330,6 @@ class MoistureModel:
             await self._write(int(sid_s), values)
             e["synced_at"], e["synced_score"] = now, s
 
-    def fields_missing(self, have: set) -> List[str]:
-        return [k for k in ("moisture", "last_in_ace", "last_dried") if k not in have]
-
 
 __all__ = ["MoistureModel", "material_params", "absorb", "dry", "hours_needed", "parse_locations", "U_WARN",
            "DEFAULT_DRY_TEMP"]
