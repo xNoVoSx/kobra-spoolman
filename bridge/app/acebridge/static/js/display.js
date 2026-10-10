@@ -8,6 +8,7 @@ import { auth, get, post } from "./api.js";
 import { duration, fileName, finishAt, hex, printerLook } from "./util.js";
 
 const POLL_MS = 2000;
+const UI_TAG = document.querySelector('meta[name="ui-tag"]')?.content || null;   // neue Bridge -> neu laden
 const PRINTING = new Set(["printing", "paused"]);
 
 // ------------------------------------------------------------ Symbole (Linien, wie im Entwurf)
@@ -41,6 +42,7 @@ function Display() {
   async function load() {
     try {
       const [s, w] = await Promise.all([get("/api/app/state"), get("/api/switches")]);
+      if (UI_TAG && s.ui && s.ui !== UI_TAG) { location.reload(); return; }
       setSt(s); setSw(w); setDown(false);
       const ps = s.printer?.state;
       if (ps === "printing" && prevState.current && !PRINTING.has(prevState.current)) setPage("print");
