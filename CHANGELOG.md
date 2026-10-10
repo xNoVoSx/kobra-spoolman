@@ -6,6 +6,23 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.11.0] – 2026-10-11
+
+### Added
+- USB tunnel watchdog in the web UI (card on the *ACE* page) and the app (section in the ACE window): state, last
+  event, the three switches. `/api/app/state` has `usb` (the `/api/usb` view, `null` without a watchdog).
+
+### Changed
+- *ACE* page: dryer, power-loss resume, clog detection and USB tunnel on the left, ACE and pressure advance on the right.
+- Internal: `web.py` (1226 lines) split into areas `api_*.py` with shared helpers in `webcommon.py` (same routes, same
+  order); every state file is written through `storage.py` (temporary file, fsync, rename — before, only the usage
+  files were synced to disk).
+
+## app 1.14.0 – 2026-10-11
+
+### Added
+- ACE window: section *USB-Tunnel* with the watchdog's state and its three switches (needs bridge 3.11.0).
+
 ## [3.10.0] – 2026-10-11
 
 ### Added

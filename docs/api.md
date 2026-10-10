@@ -441,6 +441,8 @@ applies, e.g. paused or finished): `heat_bed`, `soak`, `wipe`, `cool`, `home_z`,
 `kobra_pa.measuring`, `ace.target_index`, ACEPRO console messages for the step of a tool change, `print_stats.info`.
 Outside a print only `change`, `pa` and `resume` are shown. The MQTT topic `printer` carries `phase` as well.
 
+`usb` (since 3.11.0) is the USB tunnel watchdog as in `GET /api/usb` — `null` when no watchdog reports.
+
 `POST /api/app/filament` (only what the user set; density/diameter default to the template):
 
 ```json

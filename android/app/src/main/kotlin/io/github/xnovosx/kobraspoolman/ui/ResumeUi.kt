@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.ClogState
+import io.github.xnovosx.kobraspoolman.data.UsbState
 import io.github.xnovosx.kobraspoolman.data.ResumeState
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import kotlin.math.roundToInt
@@ -100,5 +101,37 @@ fun ClogSwitch(c: ClogState, onSwitch: (Boolean) -> Unit, onAction: (String) -> 
     c.lastRatio?.let { r ->
         Text("Zuletzt gemessen: ${(100 * r).roundToInt()} % (Grenze ${(100 * (c.minRatio ?: 0.0)).roundToInt()} %)",
             style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+private val USB_SWITCHES = listOf(
+    Triple("usb_watch", "watch", "USB selbst neu anstecken" to "Drucker an, aber nicht verbunden → der Klipper-Rechner steckt sich neu an"),
+    Triple("usb_auto_restart", "auto_restart", "Klipper danach neu laden" to "Wenn Klipper die Platinen verloren hat (nie im Druck)"),
+    Triple("usb_full_speed", "full_speed", "USB langsam, robust" to "12 Mbit/s – nur wenn die Verbindung trotz Wächter oft scheitert"),
+)
+
+/** ACE-Fenster: USB-Tunnel Drucker <-> Klipper-Rechner - Zustand und die drei Schalter des Waechters. */
+@Composable
+fun UsbSection(u: UsbState, onSwitch: (String, Boolean) -> Unit) {
+    if (!u.available) return
+    val colour = when (u.state) {
+        "ok" -> K.Ok
+        "bad" -> K.DangerText
+        "warn" -> K.Accent
+        else -> K.Muted
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
+        Text("USB-Tunnel", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(u.detail, style = MaterialTheme.typography.bodySmall, color = colour)
+    }
+    USB_SWITCHES.forEach { (key, field, texts) ->
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(texts.first, style = MaterialTheme.typography.bodyMedium)
+                Text(texts.second, style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            }
+            Switch(u.switches[field] == true, { onSwitch(key, it) }, enabled = u.alive,
+                colors = SwitchDefaults.colors(checkedTrackColor = K.Accent, checkedThumbColor = K.OnAccent))
+        }
     }
 }

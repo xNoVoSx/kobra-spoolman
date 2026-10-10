@@ -86,8 +86,10 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
 - **ACE window** (*Mehr → ACE & Trockner*) — besides the dryer: endless spool on/off and its mode;
   **Pressure Advance** (Auto-PA on/off, measure automatically on/off, the PA of each slot with its state,
   *Jetzt messen*, *Neu messen*); **Fortsetzen nach Stromausfall** on/off; **Verstopfung erkennen** on/off
-  with *Nur warnen* / *Pausieren*. Every switch is stored in the printer. A switch only shows when the
-  printer has the matching Klipper module ([usage](usage.md#pressure-advance-auto-pa)).
+  with *Nur warnen* / *Pausieren*; **USB-Tunnel** (app ≥ 1.14.0): the watchdog's state and its three switches
+  (reconnect by itself, reload Klipper afterwards, 12 Mbit/s). Every switch is stored in the printer (the USB ones in
+  Moonraker's database on the Klipper computer). A switch only shows when the printer has the matching Klipper module
+  or service ([usage](usage.md#pressure-advance-auto-pa)).
 - **Druck unterbrochen** — after a power loss the start screen shows the interrupted print (file, layer,
   live camera picture) and an alarm: *Fortsetzen* (asks first; the printer heats, probes the height on
   the part and continues) or *Verwerfen*. A suspected clog is an alarm too (*Verstopfung?* with the

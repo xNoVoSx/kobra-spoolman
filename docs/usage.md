@@ -336,7 +336,8 @@ is left empty on purpose: the printer's viewer app swallows touches there (hold 
 on, that connection sometimes does not come up. A watchdog service on the Klipper computer (set up outside this repo)
 then reconnects by itself and reloads Klipper. The bridge shows its state (status line *USB-Tunnel*: connected, printer
 off, connecting … attempt n, or an error message after giving up) and its switches: *USB selbst neu anstecken*,
-*Klipper danach neu laden*, *USB langsam, robust* (12 Mbit/s, only if the connection still fails often).
+*Klipper danach neu laden*, *USB langsam, robust* (12 Mbit/s, only if the connection still fails often) — on the display
+under *Schalter → System*, in the web UI as the card *USB-Tunnel* on the *ACE* page, in the app in the ACE window.
 - Pause has no confirmation; *Abbrechen* appears once paused and asks first; the emergency stop always asks first.
 - After a power loss the whole screen asks whether to resume ([see above](#resume-after-a-power-loss)).
 

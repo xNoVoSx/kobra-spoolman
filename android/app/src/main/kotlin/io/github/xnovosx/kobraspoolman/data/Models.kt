@@ -25,6 +25,8 @@ data class AppState(
     val resume: ResumeState? = null,
     /** Verstopfung erkennen (Klipper-Modul kobra_clog) - fehlt bei aelteren Bridges */
     val clog: ClogState? = null,
+    /** USB-Tunnel-Waechter am Klipper-Rechner (Bridge >= 3.11.0) - null ohne Waechter */
+    val usb: UsbState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -239,6 +241,20 @@ data class PaSlot(
     val date: String? = null,
     val active: Boolean = false,
 )
+
+/** USB-Tunnel Drucker <-> Klipper-Rechner: state ok|warn|bad|off, detail als Text, Schalter watch/auto_restart/full_speed. */
+@Serializable
+data class UsbState(
+    val available: Boolean = false,
+    val alive: Boolean = false,
+    val state: String = "off",
+    val detail: String = "",
+    val switches: Map<String, Boolean> = emptyMap(),
+    val events: List<UsbEvent> = emptyList(),
+)
+
+@Serializable
+data class UsbEvent(val at: Long = 0, val text: String = "")
 
 @Serializable
 data class ClogState(

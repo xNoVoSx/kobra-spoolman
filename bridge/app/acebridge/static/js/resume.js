@@ -70,6 +70,34 @@ export function PowerlossCard() {
 }
 
 /** Schalter auf der ACE-Seite: Verstopfung erkennen (Klipper-Modul kobra_clog) an/aus, nur warnen oder pausieren. */
+// USB-Tunnel Drucker <-> Klipper-Rechner: Zustand des Waechters und seine drei Schalter (Moonraker-Datenbank)
+const USB_COLOUR = { ok: "var(--ok-text)", warn: "var(--accent-text)", bad: "var(--danger-text)", off: "var(--muted)" };
+const USB_SWITCHES = [
+  ["usb_watch", "watch", "USB selbst neu anstecken", "Drucker an, aber nicht verbunden → der Klipper-Rechner steckt sich neu an"],
+  ["usb_auto_restart", "auto_restart", "Klipper danach neu laden", "Wenn Klipper die Platinen verloren hat (nie im Druck)"],
+  ["usb_full_speed", "full_speed", "USB langsam, robust (12 Mbit/s)", "Nur wenn die Verbindung trotz Wächter oft scheitert"],
+];
+
+export function UsbCard() {
+  const u = S.st?.usb;
+  const [busy, setBusy] = useState(false);
+  if (!u) return null;
+  const set = guard(async (key, value) => {
+    setBusy(true);
+    try { await post("/api/switch", { key, value }); await loadState(); }
+    catch (e) { if (e.status !== 401 && e.status !== 403) toast(e.message, "bad"); }
+    finally { setBusy(false); }
+  });
+  const last = u.events?.length ? u.events[u.events.length - 1] : null;
+  return html`<section class="card pad col" aria-label="USB-Tunnel">
+    <div class="row" style="gap:8px;align-items:baseline"><b>USB-Tunnel</b>
+      <span class="small" style=${{ color: USB_COLOUR[u.state] || "var(--text)" }}>${u.detail}</span></div>
+    ${USB_SWITCHES.map(([key, field, label, hint]) => html`<${Toggle} label=${label} hint=${hint}
+      value=${!!u.switches?.[field]} disabled=${busy || !u.alive} onChange=${(v) => set(key, v)} />`)}
+    ${last && html`<div class="small faint">${new Date(last.at * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} · ${last.text}</div>`}
+  </section>`;
+}
+
 export function ClogCard() {
   const c = S.st?.clog;
   const [busy, setBusy] = useState(false);

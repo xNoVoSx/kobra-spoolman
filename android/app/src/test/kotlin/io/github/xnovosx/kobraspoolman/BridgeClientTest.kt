@@ -35,6 +35,21 @@ class BridgeClientTest {
         assertEquals("Bearer geheim", req.headers["Authorization"])   // Geraet auch beim Lesen erkennbar
     }
 
+    @Test fun usb_watchdog_state_and_switch() = runTest {
+        reply(200, """{"version":"3.11.0","printer":{"state":"standby"},"slots":[],"shelf":[],
+            "usb":{"available":true,"alive":true,"state":"warn","detail":"verbindet … Versuch 2/10","gadget":"default",
+            "switches":{"watch":true,"auto_restart":true,"full_speed":false},
+            "events":[{"at":1791674913,"text":"neu anstecken, Versuch 2/10"}],"at":1791674920}}""")
+        val st = client().state()
+        assertEquals("warn", st.usb!!.state)
+        assertEquals(true, st.usb!!.switches["watch"])
+        assertEquals("neu anstecken, Versuch 2/10", st.usb!!.events.single().text)
+        server.takeRequest()
+        reply(200, """{"ok":true,"key":"usb_full_speed","value":true}""")
+        client().setSwitch("usb_full_speed", true)
+        assertEquals("""{"key":"usb_full_speed","value":true}""", server.takeRequest().body!!.utf8())
+    }
+
     @Test fun writes_send_token_and_json() = runTest {
         reply(201, """{"spool":{"spool_id":9,"display_name":"x"}}""")
         val sp = client().createSpool(NewSpool(filamentId = 20, initialWeight = 1000.0, slot = 2))

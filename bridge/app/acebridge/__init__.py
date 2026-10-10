@@ -1,11 +1,17 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.10.0"
+__version__ = "3.11.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.11.0", "2026-10-11", [
+        "USB-Tunnel jetzt auch in Web (ACE-Seite) und App (ACE-Fenster): Zustand, letztes Ereignis und die drei Schalter",
+        "ACE-Seite: Trockner, Fortsetzen, Verstopfung und USB-Tunnel links, ACE und Pressure Advance rechts",
+        "Intern aufgeräumt: Schnittstelle in Bereiche aufgeteilt, alle Zustandsdateien werden gleich sicher geschrieben",
+        "App 1.14.0: Abschnitt USB-Tunnel im ACE-Fenster",
+    ]),
     ("3.10.0", "2026-10-11", [
         "USB-Tunnel zwischen Drucker und Klipper-Rechner: Statuszeile (verbunden, Drucker aus, verbindet … Versuch n), "
         "Meldung, wenn der Wächter aufgibt, Kachel unter Display → System, Hinweis in der Klipper-Fehlermeldung",

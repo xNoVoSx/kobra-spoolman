@@ -125,3 +125,23 @@ def test_status_line_and_notice(cfg):
     n = notices(b, NOW)
     assert {x["key"]: x for x in n["status"]}["usb"]["state"] == "ok"
     assert not any(m["key"] == "usb" for m in n["messages"])
+
+
+def test_app_state_carries_usb(cfg):
+    """/api/app/state: Feld usb (Web-Karte, App) - None ohne Waechter; Schalten ueber /api/switch."""
+    from test_appapi import FakeBridge
+    from aiohttp.test_utils import TestClient, TestServer
+
+    from acebridge.web import build_app
+    cfg.app_token = "geheim"
+    b = FakeBridge(cfg)
+    b.usb = UsbTunnel(b.moon, clock=lambda: NOW)
+
+    async def get():
+        async with TestClient(TestServer(build_app(b))) as client:
+            resp = await client.get("/api/app/state", headers={"Authorization": "Bearer geheim"})
+            return (await resp.json())["usb"]
+    assert asyncio.run(get()) is None
+    b.usb.state = watcher_state(state="default", tries=2)
+    usb = asyncio.run(get())
+    assert usb["state"] == "warn" and usb["switches"]["watch"] is True and usb["events"]

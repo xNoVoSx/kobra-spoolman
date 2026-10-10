@@ -260,6 +260,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun setSwitch(key: String, value: Boolean) = launchSafe {
+        it.setSwitch(key, value)
+        refresh()
+    }
+
     fun resumeSwitch(enabled: Boolean) = launchSafe {
         it.resumeSwitch(enabled)
         refresh()

@@ -272,6 +272,11 @@ class BridgeClient(
         call("POST", "/api/clog/switch", parts.joinToString(",", "{", "}"), ApiError.serializer())
     }
 
+    /** Schalter aus /api/switches (z. B. usb_watch) setzen. */
+    suspend fun setSwitch(key: String, value: Boolean) {
+        call("POST", "/api/switch", "{\"key\":\"$key\",\"value\":$value}", ApiError.serializer())
+    }
+
     suspend fun resumeSwitch(enabled: Boolean) {
         call("POST", "/api/resume/switch", "{\"enabled\":$enabled}", ApiError.serializer())
     }

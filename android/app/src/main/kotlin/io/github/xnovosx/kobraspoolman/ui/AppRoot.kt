@@ -269,6 +269,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     }
                     state?.resume?.let { r -> PowerlossSwitch(r) { vm.resumeSwitch(it) } }
                     state?.clog?.let { c -> ClogSwitch(c, { vm.clogSwitch(enabled = it) }, { vm.clogSwitch(action = it) }) }
+                    state?.usb?.let { u -> UsbSection(u) { key, v -> vm.setSwitch(key, v) } }
                 })
         }
     }

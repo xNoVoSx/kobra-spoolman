@@ -343,7 +343,8 @@ beendet den Viewer).
 manchmal nicht zustande. Ein Wächter-Dienst am Klipper-Rechner (Einrichtung außerhalb dieses Repos) steckt dann selbst
 neu an und lädt Klipper neu. Die Bridge zeigt seinen Zustand (Statuszeile *USB-Tunnel*: verbunden, Drucker aus,
 verbindet … Versuch n, nach Aufgeben eine Fehlermeldung) und seine Schalter: *USB selbst neu anstecken*, *Klipper
-danach neu laden*, *USB langsam, robust* (12 Mbit/s, nur wenn die Verbindung trotzdem oft scheitert).
+danach neu laden*, *USB langsam, robust* (12 Mbit/s, nur wenn die Verbindung trotzdem oft scheitert) – am Display unter
+*Schalter → System*, im Web als Karte *USB-Tunnel* auf der Seite *ACE*, in der App im ACE-Fenster.
 - Pause ohne Rückfrage; *Abbrechen* erscheint erst in der Pause und fragt nach; Not-Aus fragt immer nach.
 - Nach einem Stromausfall fragt der ganze Bildschirm, ob fortgesetzt werden soll ([siehe oben](#fortsetzen-nach-stromausfall)).
 
