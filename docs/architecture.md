@@ -107,6 +107,16 @@ switch in the printer (`save_variables`), so it also works without the bridge.
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.
 
+## HTTP API (`web.py`, `api_*.py`, `appapi.py`)
+
+`web.build_app` creates the aiohttp app (CORS, health, slots, spools) and lets each area add its routes:
+`api_modules` (dryer, Auto-PA, resume, switches incl. USB watchdog and purge log, clog, ACE), `api_display`
+(machine control, printer files, macro prompts, system), `api_camera` (camera, print preview), `api_data` (moisture,
+settings, consumption, recordings), `api_vision` (AI), `api_orca` (Orca plugin), `api_control` (print control,
+console, logs); `appapi.py` is the Android app's API. Shared helpers (`need_device`, `paired`, camera access, JSON body)
+live in `webcommon.Ctx`. Every state file in `DATA_DIR` is written through `storage.save_json`/`save_lines`
+(temporary file, fsync, rename — never half a file).
+
 ## Web UI (`bridge/app/acebridge/static/`)
 
 - Served by the bridge itself at `/`; no build step: [Preact](https://preactjs.com/) with

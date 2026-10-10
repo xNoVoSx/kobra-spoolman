@@ -12,7 +12,8 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from acebridge.auth import CameraKey, Devices
 from acebridge.camera import Camera, CameraError, read_mjpeg
-from acebridge.web import build_app, send_mjpeg
+from acebridge.web import build_app
+from acebridge.webcommon import send_mjpeg
 
 JPEG = b"\xff\xd8 fake jpeg \xff\xd9"
 
