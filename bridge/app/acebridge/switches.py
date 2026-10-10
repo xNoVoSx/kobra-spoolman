@@ -17,6 +17,7 @@ SUBSCRIBE = {
     "kobra_io": ["sound", "light_auto", "events", "light", "available", "error"],
     "save_variables": ["variables"],
     "gcode_macro KOBRA_START": ["use_filament_z"],
+    "kobra_debug": ["enabled"],
 }
 
 GROUPS = [("print", "Drucken"), ("watch", "Überwachung"), ("io", "Licht & Töne")]
@@ -103,6 +104,10 @@ def items(st: St) -> List[Dict[str, Any]]:
            cl.get("enabled"))
         if cl.get("enabled"):
             ch("clog_action", "watch", "Bei Verdacht", CLOG_ACTIONS, cl.get("action") or "warn")
+    dbg = st.get("kobra_debug")
+    if dbg:
+        sw("debug", "watch", "Diagnose-Protokoll", "Ausführliches Klipper-Log unserer Module (Entwicklung)",
+           dbg.get("enabled"))
     io = st.get("kobra_io")
     if io:
         ok = bool(io.get("available"))
@@ -129,6 +134,7 @@ def _commands(key: str) -> Optional[Callable[[Any], str]]:
         "light": _bool_cmd("KOBRA_IO LIGHT=%d"),
         "light_auto": _bool_cmd("KOBRA_IO LIGHT_AUTO=%d"),
         "sound": _bool_cmd("KOBRA_IO SOUND=%d"),
+        "debug": _bool_cmd("KOBRA_DEBUG ENABLE=%d"),
     }
     for ev, _ in SOUND_EVENTS:
         fixed["sound_" + ev] = _bool_cmd("KOBRA_IO EVENT=" + ev + " ON=%d")

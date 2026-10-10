@@ -15,7 +15,9 @@ import itertools
 import logging
 import re
 import time
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any, Callable, Deque, Dict, List, Optional
+
+log = logging.getLogger("console")
 
 KEEP_LINES = 500
 KEEP_LOG = 2000
@@ -70,14 +72,21 @@ class Console:
         self.lines: Deque[Dict[str, Any]] = collections.deque(maxlen=KEEP_LINES)
         self._ids = itertools.count(1)
         self.commands: Dict[str, str] = {}      # aus printer/gcode/help, fuer die Vervollstaendigung
+        self.listeners: List[Callable[[Dict[str, Any]], None]] = []   # z. B. Druck-Aufzeichnung (telemetry)
 
     def add(self, kind: str, text: str, source: Optional[str] = None, at: Optional[float] = None) -> None:
         """kind: command | response | error"""
         text = (text or "").rstrip()
         if not text:
             return
-        self.lines.append({"id": next(self._ids), "time": round(at if at is not None else self.clock(), 3),
-                           "kind": kind, "text": text, "source": source})
+        entry = {"id": next(self._ids), "time": round(at if at is not None else self.clock(), 3),
+                 "kind": kind, "text": text, "source": source}
+        self.lines.append(entry)
+        for listener in self.listeners:
+            try:
+                listener(entry)
+            except Exception:  # noqa: BLE001 - eine Aufzeichnung darf die Konsole nie stoeren
+                log.exception("Konsolen-Empfaenger")
 
     def seed(self, store: List[Dict[str, Any]]) -> None:
         """Vorlauf aus server.gcode_store - nur, wenn noch nichts da ist (nach Reconnect nicht doppelt)."""

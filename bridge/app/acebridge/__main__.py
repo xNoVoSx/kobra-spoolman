@@ -77,6 +77,7 @@ class Bridge:
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
         self.moon.console = self.console
+        self.console.listeners.append(self.recorder.on_console)   # Konsole in die Druck-Aufzeichnung
         self._print_state = ""
         # zuletzt ueber die Bridge ausgeloeste Druckaktion - die App meldet eigene Pausen nicht als Alarm
         self.last_control: Optional[Dict[str, Any]] = None

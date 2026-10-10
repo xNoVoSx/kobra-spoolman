@@ -23,6 +23,7 @@ log = logging.getLogger("telemetry")
 PRINTING_STATES = ("printing", "paused")
 FLUSH_INTERVAL_S = 2.0
 TAIL_AFTER_END_S = 30.0
+TEMP_REPORT = re.compile(r"^(ok\s*)?(B|T\d?):\s*-?\d")   # "B:112.0 /110.0 T0:..." (M105-Antworten)
 
 
 class Recorder:
@@ -48,7 +49,7 @@ class Recorder:
         self._path = os.path.join(self.dir, time.strftime("%Y-%m-%d_%H-%M-%S_") + safe + ".jsonl")
         self._fh = open(self._path, "w", encoding="utf-8")
         self._start = time.time()
-        self._write({"t": 0, "type": "start", "status": status})
+        self._write({"t": 0, "type": "start", "at": round(self._start, 3), "status": status})
         self._used_start = (status.get("print_stats", {}) or {}).get("filament_used")
         self._used_updates = 0
         self._gate_changes = []
@@ -134,6 +135,15 @@ class Recorder:
             self._end_at = time.time() + TAIL_AFTER_END_S
         elif time.time() >= self._end_at:
             self._close(status)
+
+    def on_console(self, entry: Dict[str, Any]) -> None:
+        """Konsolenzeile (G-Code-Antwort, gesendeter Befehl, Fehler) in die laufende Aufzeichnung - ohne die
+        sekuendlichen Temperaturmeldungen."""
+        if self._fh is None or TEMP_REPORT.match(entry.get("text") or ""):
+            return
+        self._flush(force=True)                     # Reihenfolge: erst die Zustaende davor
+        self._write({"t": round(float(entry.get("time") or time.time()) - self._start, 2), "type": "console",
+                     "kind": entry.get("kind"), "text": entry.get("text"), "source": entry.get("source")})
 
     def tick(self, status: Dict[str, Dict[str, Any]]) -> None:
         """Regelmaessig aufrufen, damit die Nachlaufzeit auch ohne neue Updates endet."""

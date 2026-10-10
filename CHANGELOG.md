@@ -6,6 +6,16 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.8.0] – 2026-10-10
+
+### Added
+- Print log: *Logs → Druck-Aufzeichnungen → Protokoll* renders each recorded print readably (console messages of the
+  start sequence, tool changes, Auto-PA, plus state changes: print state, tool, target temperatures, layer, Auto-PA,
+  clog, resume). `GET /api/telemetry/{file}/log`.
+- The print recordings now include the printer console (G-code responses, commands sent, errors), without the
+  temperature reports.
+- Switch `debug` (*Diagnose-Protokoll*): the Klipper modules' detailed log (`KOBRA_DEBUG`), on during development.
+
 ## [3.7.0] – 2026-10-10
 
 ### Added

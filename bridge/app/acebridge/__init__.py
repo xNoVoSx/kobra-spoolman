@@ -1,11 +1,17 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.7.0"
+__version__ = "3.8.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.8.0", "2026-10-10", [
+        "Druckprotokoll: Logs → Druck-Aufzeichnungen → „Protokoll“ zeigt jeden Druck lesbar – Start-Ablauf, "
+        "Filamentwechsel, Auto-PA, Konsolenmeldungen, Temperaturen, Schicht, Verstopfung, Fortsetzen",
+        "Die Aufzeichnungen enthalten jetzt auch die Konsole des Druckers (ohne Temperatur-Meldungen)",
+        "Schalter „Diagnose-Protokoll“ (Überwachung): ausführliches Klipper-Log unserer Module, in der Entwicklung an",
+    ]),
     ("3.7.0", "2026-10-10", [
         "Display: Dateien am Drucker mit Vorschaubild, Druck starten mit Blick auf die Slots, „Erneut drucken“ nach dem Druck",
         "Display: erste Schicht im Druck feinjustieren (Z ±0,01–0,05 mm) und für das Filament in Spoolman übernehmen; "

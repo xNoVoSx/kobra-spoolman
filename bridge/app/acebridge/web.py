@@ -17,7 +17,7 @@ import platform
 import re
 import time
 
-from . import CHANGELOG, __app_name__, __description__, __version__, assets
+from . import CHANGELOG, __app_name__, __description__, __version__, assets, printlog
 from .ace import AceError
 from .pa import PaError
 from .clog import ClogError
@@ -1047,6 +1047,18 @@ def build_app(bridge: "Bridge") -> web.Application:
     @r.get("/api/telemetry")
     async def telemetry(_):
         return web.json_response({"files": bridge.recorder.list_files()})
+
+    @r.get("/api/telemetry/{name}/log")
+    async def telemetry_log(request: web.Request):
+        """Lesbares Druckprotokoll einer Aufzeichnung (Konsole + wichtige Zustandswechsel)."""
+        path = bridge.recorder.path_for(request.match_info["name"])
+        if not path:
+            return _err(404, "nicht gefunden")
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = printlog.render(f)
+        name = request.match_info["name"].removesuffix(".jsonl") + ".txt"
+        return web.Response(text=text, content_type="text/plain", charset="utf-8",
+                            headers={"Content-Disposition": f'inline; filename="{name}"'})
 
     @r.get("/api/telemetry/{name}")
     async def telemetry_file(request: web.Request):

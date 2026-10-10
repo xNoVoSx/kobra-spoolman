@@ -211,7 +211,8 @@ no entries. The bridge only ever sends the command listed for a key — never fr
 | POST | `/api/switch` | *(paired)* `{"key": "pa", "value": true}` — 404 unknown or missing key, 409 locked, 503 Klipper not ready |
 
 Keys: `pa`, `pa_auto`, `filament_z`, `endless`, `endless_mode` (`exact`/`material`/`next`), `powerloss`, `clog`,
-`clog_action` (`warn`/`pause`), `light`, `light_auto`, `sound`, `sound_done|error|clog|change|prompt`.
+`clog_action` (`warn`/`pause`), `light`, `light_auto`, `sound`, `sound_done|error|clog|change|prompt`, `debug`
+(`KOBRA_DEBUG`, detailed log of the Klipper modules).
 
 `GET /display` serves the view for the printer's touchscreen (800×480).
 
@@ -462,4 +463,5 @@ provisional until the tag test shows what the ACE accepts (`TAG_SKU_PREFIX`, `TA
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/telemetry` | recorded prints (raw data) with a short summary |
-| GET | `/api/telemetry/{file}` | raw JSONL of one print (changes of `ace`, `print_stats`, `virtual_sdcard`) |
+| GET | `/api/telemetry/{file}` | raw JSONL of one print (all subscribed changes, plus console lines `type: console` without temperature reports) |
+| GET | `/api/telemetry/{file}/log` | readable print log of that recording (text): console messages and state changes |

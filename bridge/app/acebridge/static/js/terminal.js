@@ -165,14 +165,30 @@ function PrinterLogs() {
 
 function Recordings() {
   const [files, setFiles] = useState(null);
+  const [open, setOpen] = useState(null);       // Name des angezeigten Druckprotokolls
+  const [text, setText] = useState("");
   useEffect(() => { get("/api/telemetry").then((r) => setFiles(r.files || r)).catch((e) => toast(e.message, "bad")); }, []);
+  const show = async (name) => {
+    setOpen(name); setText("lade …");
+    try {
+      const r = await fetch("api/telemetry/" + encodeURIComponent(name) + "/log", { cache: "no-store" });
+      setText(r.ok ? await r.text() : `Fehler ${r.status}`);
+    } catch { setText("Bridge nicht erreichbar"); }
+  };
+  if (open) return html`<section class="card col" style="gap:10px;padding:14px 18px">
+    <div class="row" style="gap:8px"><b class="grow m small ell">${open}</b>
+      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(open) + "/log"} download>Protokoll laden</a>
+      <button class="btn sm" onClick=${() => setOpen(null)}>Zurück</button></div>
+    <pre class="term-out m log-pre">${text}</pre>
+  </section>`;
   return html`<section class="card">
     ${files == null && html`<div class="empty-state">lade …</div>`}
     ${files && !files.length && html`<div class="empty-state">Noch keine Aufzeichnungen.</div>`}
     ${(files || []).map((f, i) => html`<div class="row" style=${{ padding: "12px 18px", borderTop: i ? "1px solid var(--line)" : "0" }}>
       <span class="m small grow ell">${f.name}</span>${f.recording && html`<span class="chip ok">läuft</span>`}
       <span class="small muted">${size(f.size)}</span>
-      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(f.name)} download><${Icon} name="download" small /></a></div>`)}
+      <button class="btn sm" onClick=${() => show(f.name)}>Protokoll</button>
+      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(f.name)} download title="Rohdaten (JSONL)"><${Icon} name="download" small /></a></div>`)}
   </section>`;
 }
 

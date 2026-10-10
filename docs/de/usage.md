@@ -404,7 +404,11 @@ nach. Senden geht nur auf gekoppelten Geräten.
 
 **Logs**: *Bridge* ist das Log der Bridge (Filter nach Stufe, Suche, Download – kein Umweg über
 Portainer); *Drucker* zeigt das Ende der Logdateien des Druckers (`moonraker.log`, …; nur die letzten
-200 KB, auf Wunsch mehr); *Druck-Aufzeichnungen* sind die Rohdaten jedes Drucks zum Herunterladen.
+200 KB, auf Wunsch mehr); *Druck-Aufzeichnungen* sind die Aufzeichnungen jedes Drucks: *Protokoll* zeigt ein
+lesbares Druckprotokoll (Konsolenmeldungen wie Start-Ablauf, Filamentwechsel und Auto-PA, dazu Zustandswechsel:
+Druckstatus, Werkzeug, Soll-Temperaturen, Schicht, Auto-PA, Verstopfung, Fortsetzen), der Download-Knopf die Rohdaten.
+Es bleiben die letzten 30 Drucke (*Einstellungen → Daten*). Das ausführliche Log unserer Klipper-Module am Drucker ist
+der Schalter *Diagnose-Protokoll* (*Schalter → Überwachung*).
 
 <p align="center"><img src="../images/web-terminal.png" width="760" alt="Terminal"></p>
 

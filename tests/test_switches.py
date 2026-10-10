@@ -88,3 +88,12 @@ def test_locked_and_missing(env):
     with pytest.raises(SwitchError) as e:
         asyncio.run(sw.set("pa", True))
     assert e.value.status == 503 and moon.sent == []
+
+
+def test_debug_switch(env):
+    sw, moon = env
+    moon.merge({"kobra_debug": {"enabled": True}})
+    items = {i["key"]: i for i in sw.view()["items"]}
+    assert items["debug"]["on"] and items["debug"]["group"] == "watch"
+    asyncio.run(sw.set("debug", False))
+    assert moon.sent[-1] == "KOBRA_DEBUG ENABLE=0"

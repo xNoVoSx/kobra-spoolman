@@ -397,7 +397,11 @@ paired device.
 
 **Logs**: *Bridge* is the bridge's own log (filter by level, search, download — no detour through
 Portainer); *Drucker* shows the end of the printer's log files (`moonraker.log`, …; only the last
-200 KB, more on request); *Druck-Aufzeichnungen* are the raw recordings of each print for download.
+200 KB, more on request); *Druck-Aufzeichnungen* are the recordings of each print: *Protokoll* shows a readable
+print log (console messages such as the start sequence, tool changes and Auto-PA, plus state changes: print state,
+tool, target temperatures, layer, Auto-PA, clog, resume), the download button the raw data. The last 30 prints are kept
+(*Einstellungen → Daten*). The printer's own detailed log of our Klipper modules is the switch *Diagnose-Protokoll*
+(*Schalter → Überwachung*).
 
 <p align="center"><img src="images/web-terminal.png" width="760" alt="Terminal"></p>
 
