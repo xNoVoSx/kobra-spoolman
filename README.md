@@ -217,7 +217,8 @@ Keep the bridge inside your home network; it has no TLS.
 | — | Klipper on a Raspberry Pi with ACEPRO (bridge 3.0); purge per colour change from Orca's flushing volumes | ✅ done |
 | — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done (incl. home-screen widget, print start check, 3D view) |
 | — | Filament automation: Auto-PA per filament (load cell, per speed), Z offset per filament | ✅ done (3.1, 3.2) |
-| — | Monitoring: resume after a power loss, clog detection | ✅ done (3.3, 3.4) · learning purge volumes next |
+| — | Monitoring: resume after a power loss, clog detection, USB tunnel watchdog | ✅ done (3.3, 3.4, 3.10) |
+| — | Purge volumes per colour pair: log every change (3.10), then learn the volume without colour residue | ✅ log · 🔜 learning (needs feedback per print) |
 | — | AI print-failure detection: spaghetti (stage 1), plate check (2), knocked-over parts (3) | ✅ stage 1 · 🔜 2 and 3 from the collected pictures |
 | — | Spool moisture: ACE humidity history, drying log, estimate per spool, automatic drying when loaded, room sensor | ✅ done |
 | 5 | Home Assistant via MQTT (printer, slots, remaining weight, moisture, messages), room humidity sensor | ✅ done |

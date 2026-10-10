@@ -215,7 +215,8 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | – | Klipper auf einem Raspberry Pi mit ACEPRO (Bridge 3.0); Spülen pro Farbwechsel aus Orcas Spülmengen | ✅ fertig |
 | – | Druckermonitor (ersetzt OctoApp): Kamera-Restream, Drucksteuerung, Terminal, Logs, Benachrichtigungen aufs Handy | ✅ fertig (inkl. Widget, Prüfung beim Druckstart, 3D-Ansicht) |
 | – | Filament-Automatik: Auto-PA pro Filament (Wiegezelle, je Geschwindigkeit), Z-Versatz pro Filament | ✅ fertig (3.1, 3.2) |
-| – | Überwachung: Fortsetzen nach Stromausfall, Verstopfung erkennen | ✅ fertig (3.3, 3.4) · als Nächstes Spülmengen lernen |
+| – | Überwachung: Fortsetzen nach Stromausfall, Verstopfung erkennen, USB-Wächter | ✅ fertig (3.3, 3.4, 3.10) |
+| – | Spülmengen je Farbpaar: jeden Wechsel protokollieren (3.10), dann die Menge ohne Farbreste lernen | ✅ Protokoll · 🔜 Lernen (braucht Rückmeldung je Druck) |
 | – | KI-Fehldruck-Erkennung: Spaghetti (Stufe 1), Platte prüfen (2), umgefallene Teile (3) | ✅ Stufe 1 · 🔜 2 und 3 aus den gesammelten Bildern |
 | – | Feuchte der Spulen: Feuchte-Verlauf der ACE, Trocknungs-Protokoll, Schätzung pro Spule, Trocknen beim Einlegen, Raumsensor | ✅ fertig |
 | 5 | Home Assistant über MQTT (Drucker, Slots, Restgewicht, Feuchte, Meldungen), Raumsensor | ✅ fertig |
