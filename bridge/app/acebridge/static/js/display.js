@@ -87,11 +87,11 @@ function Display() {
 
   return html`<div class="disp">
     <nav class="disp-rail" aria-label="Bereiche">
+      <!-- Ecke oben links (60x60 px) gehoert der Viewer-App am Drucker: Beruehrungen dort werden fuer "5 s halten =
+           beenden" verschluckt (fb-vnc-viewer, VIEWER_EXIT_CORNER_PX). Deshalb dort nichts zum Druecken. -->
+      <div class="disp-corner" aria-hidden="true"><span class="dot" style=${`background:${look.dot}`}></span></div>
       ${PAGES.map(([k, i, l]) =>
         html`<button type="button" class=${"disp-nav" + (page === k ? " on" : "")} aria-label=${l} onClick=${() => setPage(k)}><${Icon} name=${i} /></button>`)}
-      <div class="grow"></div>
-      ${light && html`<button type="button" class=${"disp-nav lit" + (light.on ? " on" : "")} aria-label=${light.on ? "Licht aus" : "Licht an"}
-        disabled=${!light.sensitive || busy} onClick=${() => flip("light", !light.on)}><${Icon} name="light" /></button>`}
     </nav>
     <main class="disp-main">
       <header class="disp-head">
@@ -99,6 +99,8 @@ function Display() {
         <span class="disp-chip disp-chip-phase" style=${`color:${look.fg};background:${look.bg};border-color:${look.line}`}>${p.phase || look.label}</span>
         ${down && html`<span class="disp-chip" style="color:var(--danger-text);border-color:var(--danger-line)">Bridge weg</span>`}
         <div class="grow"></div>
+        ${light && html`<button type="button" class=${"disp-hbtn" + (light.on ? " on" : "")} aria-label=${light.on ? "Licht aus" : "Licht an"}
+          disabled=${!light.sensitive || busy} onClick=${() => flip("light", !light.on)}><${Icon} name="light" /></button>`}
         <span class="disp-clock">${now}</span>
       </header>
       ${!["switch", "system"].includes(page) && errors.slice(0, 1).map((m) => html`<div class="disp-alert">${m.text}</div>`)}
@@ -179,7 +181,7 @@ function Print({ st, busy, act, confirm, setDlg }) {
         <span class="disp-note m">Slot ${uses.map((u) => u.slot).join(" · ")}</span></div>`}
     </section>
     <div class="disp-pcol">
-      <div class="disp-note">${p.changing_filament ? "Wechselt Filament …" : active ? `Slot ${active}` : ""}${active && st.slots?.[active - 1]?.spool ? " · " + st.slots[active - 1].spool.name : ""}</div>
+      <div class="disp-note">${p.changing_filament && !p.phase ? "Wechselt Filament …" : active ? `Slot ${active}` : ""}${active && st.slots?.[active - 1]?.spool ? " · " + st.slots[active - 1].spool.name : ""}</div>
       <div class="disp-big"><span class="pct">${pct(p.progress)} %</span>${p.layers ? html`<span class="lay">Schicht ${p.layer ?? "?"} / ${p.layers}</span>` : ""}</div>
       <div class="disp-bar"><div style=${`width:${pct(p.progress)}%`}></div></div>
       <div class="disp-grid3" style="gap:8px">

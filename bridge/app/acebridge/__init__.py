@@ -12,6 +12,8 @@ CHANGELOG = [
         "„Wechsel auf Slot 2 · lädt“, „Spült“, „Misst Pressure Advance“, „Druckt · Schicht 34/120“",
         "Braucht kobra-klipper mit dem Modul kobra_phase (neuer Startablauf); ohne bleibt es bei Wechsel, PA und Schicht",
         "App 1.13.0: Druckphase auf der Startseite, in der Live-Benachrichtigung und im Widget",
+        "Display: Ecke oben links bleibt frei – die Viewer-App am Drucker verschluckt dort jede Berührung (5 s halten = "
+        "beenden), der Start-Knopf ließ sich deshalb schlecht drücken; Licht-Knopf jetzt oben rechts neben der Uhr",
     ]),
     ("3.8.0", "2026-10-10", [
         "Druckprotokoll: Logs → Druck-Aufzeichnungen → „Protokoll“ zeigt jeden Druck lesbar – Start-Ablauf, "

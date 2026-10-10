@@ -317,7 +317,9 @@ zeigt die Leiste **Klipper neu laden** (`FIRMWARE_RESTART`, fragt nach); danach 
 
 `http://<docker-host>:7913/display` ist eine Ansicht für den Touchscreen des Kobra S1 (800×480, Finger): ein
 Kiosk-Browser auf dem Klipper-Pi zeigt sie auf dem Original-Display (Einrichtung außerhalb dieses Repos). Leiste
-links: *Start*, *Druck*, *Schalter* und das Licht.
+links: *Start*, *Druck*, *Dateien*, *Steuerung*, *Schalter*, *System*; der Licht-Knopf sitzt oben rechts neben der Uhr.
+Die Ecke oben links bleibt absichtlich frei: dort verschluckt die Viewer-App am Drucker jede Berührung (5 s halten
+beendet den Viewer).
 
 - **Start** – Düse, Bett, ACE-Feuchte, die vier Slots mit Spulenfarbe und Gewicht, der Trockner.
 - **Druck** – kommt bei Druckstart von selbst: Vorschaubild der Datei, Fortschritt, Schicht, Zeiten (läuft, Rest,

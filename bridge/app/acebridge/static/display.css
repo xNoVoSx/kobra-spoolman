@@ -10,11 +10,16 @@
 .disp-rail { width: 84px; flex: none; background: var(--sunken); border-right: 1px solid var(--line); display: flex;
   flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; }
 .disp-rail .grow { flex: 1; }
+/* frei fuer den Notausgang der Viewer-App (60x60 oben links), nur ein Statuspunkt */
+.disp-corner { width: 62px; height: 56px; flex: none; display: flex; align-items: center; justify-content: center; }
+.disp-corner .dot { width: 10px; height: 10px; border-radius: 50%; }
+.disp-hbtn { width: 54px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  color: var(--accent); background: var(--surface2); border: 1px solid var(--line-strong); padding: 0; }
+.disp-hbtn.on { background: var(--accent-soft); border-color: var(--accent-line); }
+.disp-hbtn svg { width: 26px; height: 26px; }
 .disp-nav { width: 62px; height: 58px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
   color: var(--muted); background: transparent; border: 1px solid transparent; padding: 0; }
 .disp-nav.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
-.disp-nav.lit { color: var(--accent); background: var(--surface2); border-color: var(--line-strong); }
-.disp-nav.lit.on { background: var(--accent-soft); border-color: var(--accent-line); }
 .disp-nav svg { width: 28px; height: 28px; }
 .disp-nav .dot { position: absolute; }
 

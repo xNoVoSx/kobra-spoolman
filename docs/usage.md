@@ -311,7 +311,8 @@ seconds, then confirm. After an emergency stop (or a Klipper error) the bar show
 
 `http://<docker-host>:7913/display` is a view made for the Kobra S1's touchscreen (800×480, fingers): a kiosk
 browser on the Klipper Pi shows it on the original display (setup outside this repo). Left bar: *Start*, *Druck*,
-*Schalter* and the light.
+*Dateien*, *Steuerung*, *Schalter*, *System*; the light button sits top right next to the clock. The top-left corner
+is left empty on purpose: the printer's viewer app swallows touches there (hold 5 s to leave the viewer).
 
 - **Start** — nozzle, bed, ACE humidity, the four slots with their spool colour and weight, the dryer.
 - **Druck** — opens by itself when a print starts: the file's preview picture, progress, layer, running/remaining/

@@ -17,6 +17,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   ACEPRO console messages (sub-step of a tool change) and `print_stats.info` (layer). `acebridge/phase.py`.
 - Web: the printer card shows the phase in place of the state; display: in the status chip at the top (every page).
 
+### Fixed
+- Display: the top-left corner stays free. The printer's KlipperScreen viewer app swallows every touch that starts in
+  its 60×60 px hold-to-exit corner (`VIEWER_EXIT_CORNER_PX`), so the *Start* button there was hard to hit. The rail now
+  starts below it (only a status dot in the corner); the light button moved to the header next to the clock.
+
 ## app 1.13.0 – 2026-10-11
 
 ### Added
