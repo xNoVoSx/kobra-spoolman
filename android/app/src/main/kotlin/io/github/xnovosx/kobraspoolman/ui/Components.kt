@@ -111,7 +111,8 @@ fun StatusCard(p: Printer, activeName: String?, uses: List<SlotUse> = emptyList(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.size(10.dp).clip(CircleShape).background(c.dot))
-            Text(Format.stateLabel(p), style = MaterialTheme.typography.titleMedium, color = c.fg)
+            Text(Format.headline(p), style = MaterialTheme.typography.titleMedium, color = c.fg, maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
             Text(p.file ?: p.message.orEmpty(), style = MaterialTheme.typography.labelMedium, color = K.Muted,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (p.progress != null) Text(Format.percent(p.progress), fontFamily = PlexMono, color = K.Text,

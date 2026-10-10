@@ -18,6 +18,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
+from . import phase
 from .status import notices, printer_cpu
 
 if TYPE_CHECKING:
@@ -91,7 +92,8 @@ class MqttBridge:
             "layer": info.get("current_layer"), "layers": info.get("total_layer"),
             "nozzle": _f(ext.get("temperature")), "nozzle_target": _f(ext.get("target")),
             "bed": _f(bed.get("temperature")), "bed_target": _f(bed.get("target")),
-            "active_slot": active, "cpu": _f(printer_cpu(b), 0)}}
+            "active_slot": active, "cpu": _f(printer_cpu(b), 0),
+            "phase": (phase.describe(st, getattr(b, "phase_steps", None)) or {}).get("text") if b.moon.connected else None}}
         d = b.dryer.state()
         out["ace"] = {"humidity": d.get("humidity"), "temp": d.get("temp"), "drying": bool(d.get("drying")),
                       "target": d.get("target_temp"), "remaining_min": d.get("remaining_min")}
@@ -133,6 +135,7 @@ class MqttBridge:
                                                        "state_topic": f"{self.prefix}/{topic}", "value_template": tpl,
                                                        "device": dev, **avail, **extra}))
         ent("sensor", "state", "Druckerstatus", "printer", "{{ value_json.state }}", icon="mdi:printer-3d")
+        ent("sensor", "phase", "Druckphase", "printer", "{{ value_json.phase or '' }}", icon="mdi:progress-wrench")
         ent("sensor", "progress", "Fortschritt", "printer", "{{ value_json.progress }}", unit_of_measurement="%", icon="mdi:progress-clock")
         ent("sensor", "eta", "Restzeit", "printer", "{{ value_json.eta_min }}", unit_of_measurement="min", device_class="duration")
         ent("sensor", "finish", "Fertig um", "printer", "{{ value_json.finish }}", device_class="timestamp")

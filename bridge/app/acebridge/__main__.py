@@ -22,6 +22,7 @@ from .spoolman import Spoolman
 from .telemetry import Recorder
 from .auth import CameraKey, Devices
 from .console import LOG_BUFFER, Console
+from .phase import ChangeSteps
 from .dryer import Dryer
 from .usage import UsageTracker
 from .humidity import HumidityLog
@@ -78,6 +79,8 @@ class Bridge:
         self.console = Console()
         self.moon.console = self.console
         self.console.listeners.append(self.recorder.on_console)   # Konsole in die Druck-Aufzeichnung
+        self.phase_steps = ChangeSteps()                          # Teilschritt beim Werkzeugwechsel (Druckphase)
+        self.console.listeners.append(self.phase_steps.on_console)
         self._print_state = ""
         # zuletzt ueber die Bridge ausgeloeste Druckaktion - die App meldet eigene Pausen nicht als Alarm
         self.last_control: Optional[Dict[str, Any]] = None

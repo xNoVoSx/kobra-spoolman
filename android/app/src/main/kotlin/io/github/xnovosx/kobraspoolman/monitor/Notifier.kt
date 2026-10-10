@@ -117,6 +117,7 @@ object Notifier {
         val file = p.file?.substringAfterLast('/')?.removeSuffix(".gcode") ?: "Druck"
         val title = if (p.state == "paused") "Pausiert · $pct %" else "$pct % · $file"
         val text = listOfNotNull(
+            Format.extraPhase(p),
             p.etaS?.let { "noch ${Format.duration(it)}" },
             p.etaS?.let { "fertig ${Format.finishAt(it)}" },
             if (p.layer != null && p.layers != null) "Schicht ${p.layer}/${p.layers}" else null,

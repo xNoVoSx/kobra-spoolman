@@ -81,6 +81,7 @@
 .disp-mini .disp-val { font-size: 20px; }
 .disp-mini .disp-val small { font-size: 13px; }
 .disp-note { font: 500 13px var(--sans); color: var(--muted); }
+.disp-chip-phase { max-width: 440px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Schalter */
 .disp-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); }

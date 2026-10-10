@@ -177,6 +177,12 @@ Bridge* (für schwache Geräte) oder *Automatisch*, das nach den Fähigkeiten de
 
 ## Einen Druck beobachten
 
+Statt nur *Druckt* sagen Druckerkarte, App, Display und Home Assistant, **was der Drucker gerade macht**:
+*Heizt Bett 63/100 °C*, *Vorheizen 5/15 min*, *Wischt Düse*, *Kühlt Düse zum Tasten*, *Tastet Z*, *Misst Bettnetz*,
+*Heizt Düse*, *Wechsel auf Slot 2 · lädt* (heizt, entlädt, lädt, spült), *Spült*, *Misst Pressure Advance*,
+*Reinigungslinie*, danach *Druckt · Schicht 34/120*. Die Schritte des Druckstarts kommen vom Klipper-Modul
+`kobra_phase` des Druckers (dort abschaltbar); ohne es zeigt die Karte weiterhin Wechsel, Auto-PA und Schicht.
+
 Die Druckerkarte zeigt **Modell** – die Druckdatei, von der Bridge gezeichnet in den Farben deiner
 eingelegten Spulen, Gedrucktes kräftig, der Rest als Schatten, mit aktueller Schicht – und **Kamera**,
 die Druckerkamera live (nur auf gekoppelten Geräten), mit der Bildrate in der Ecke. Unter dem Bild:

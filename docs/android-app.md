@@ -25,7 +25,9 @@ Tabs at the bottom: **Start · Meldungen · (scan) · Filament · Mehr**.
 
 - **Start** — only what matters while printing: the camera (the model only during a print), below
   it the print (*Bereit*, *Druckt* with file, progress, running/remaining/finish time, *Pausiert*,
-  *Fehler*, *Offline*) with nozzle, bed, fans, speed and flow, then the four ACE slots and the ACE
+  *Fehler*, *Offline*; while printing the print phase instead, e.g. *Vorheizen 5/15 min*, *Wechsel auf Slot 2 · lädt*,
+  *Druckt · Schicht 34/120* — also in the live notification and the widget, app ≥ 1.13.0) with nozzle, bed, fans,
+  speed and flow, then the four ACE slots and the ACE
   line (humidity, dryer). Below the print: pause/resume, cancel, *Nachjustieren* (speed,
   flow, fans, temperatures) and an emergency stop you hold for two seconds; after an emergency stop or a
   Klipper error *Klipper neu laden*. During a print the model

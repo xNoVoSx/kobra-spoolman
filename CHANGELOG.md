@@ -6,6 +6,22 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.9.0] – 2026-10-11
+
+### Added
+- Print phase instead of just *Druckt*: `phase` and `phase_key` in `/api/app/state` → `printer` (and `phase` in the
+  MQTT `printer` topic, Home Assistant sensor *Druckphase*). Text such as *Heizt Bett 63/100 °C*, *Vorheizen 5/15 min*,
+  *Wischt Düse*, *Tastet Z*, *Misst Bettnetz*, *Heizt Düse*, *Wechsel auf Slot 2 · lädt*, *Spült*,
+  *Misst Pressure Advance*, *Druckt · Schicht 34/120*. Sources, all from the existing subscription: the Klipper module
+  `kobra_phase` (start sequence, heat soak, tool changes, resume), `kobra_pa.measuring`, `ace.target_index`, the
+  ACEPRO console messages (sub-step of a tool change) and `print_stats.info` (layer). `acebridge/phase.py`.
+- Web: the printer card shows the phase in place of the state; display: in the status chip at the top (every page).
+
+## app 1.13.0 – 2026-10-11
+
+### Added
+- Print phase on the home screen, in the live notification and in the widget (needs bridge 3.9.0).
+
 ## [3.8.0] – 2026-10-10
 
 ### Added

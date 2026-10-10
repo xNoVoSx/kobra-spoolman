@@ -28,7 +28,8 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 - Changes you make to a profile in Orca are **written back to Spoolman** after you confirm.
 - After slicing, the Orca panel shows **what each spool needs** for the plate and warns if one is too short.
 - The bridge is also a **printer monitor that replaces OctoApp**: camera restream that spares the
-  printer's CPU, pause/cancel/fine-tuning, terminal and logs, notifications on the phone — and
+  printer's CPU, **what the printer is doing right now** (*Vorheizen 5/15 min*, *Wechsel auf Slot 2 · lädt*,
+  *Druckt · Schicht 34/120*), pause/cancel/fine-tuning, terminal and logs, notifications on the phone — and
   spools with our NFC tags are **assigned to their slot by themselves** when loaded.
 - An optional **AI** watches running prints and raises an alarm with a camera picture when a print
   turns into spaghetti — on the CPU, without any load on the printer ([vision.md](docs/vision.md)).

@@ -36,7 +36,7 @@ export function PrinterCard({ compact, tall }) {
   <section class="card pad printer" style=${{ background: look.bg, borderColor: look.line }} aria-label="Drucker">
     <div class="row">
       <span class="dot" style=${{ background: look.dot }}></span>
-      <span class="state" style=${{ color: look.fg }}>${look.label}</span>
+      <span class="state" style=${{ color: look.fg }} title=${p?.phase ? look.label : ""}>${p?.phase || look.label}</span>
       <span class="m small muted ell grow" title=${p?.file || ""}>${p?.file ? fileName(p.file) : ""}</span>
       ${pct != null && html`<span class="m pct" style=${{ color: look.fg }}>${pct} %</span>`}
       ${ui && html`<a class="btn sm ghost" href=${ui} target="_blank" rel="noopener" title="Mainsail öffnen" style=${{ borderColor: look.line, color: look.fg }}><${Icon} name="link" small />Mainsail</a>`}

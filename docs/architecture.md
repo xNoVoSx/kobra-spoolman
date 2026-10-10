@@ -85,7 +85,7 @@ single snapshot — it never starts the camera pump for this), judges the result
 (EWM against a baseline, safe start, warn/fail thresholds), raises messages, stores frames and labels.
 Details: [vision.md](vision.md).
 
-## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`)
+## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`, `phase.py`)
 
 Since 3.0 the printer runs real Klipper, so features that need the printer's timing live in Klipper modules
 (kept in a separate, private repo, not part of this one). The bridge is their link to Spoolman and to the
@@ -102,6 +102,7 @@ switch in the printer (`save_variables`), so it also works without the bridge.
 | `machine.py` | toolhead, T0–T3, ACEPRO | display control: home, jog, extrude, load/unload, fixed macros — fixed commands with limits, locked while printing |
 | `files.py`, `prompts.py` | Moonraker files, `action:prompt_*` | display: print files with slot check and start; macro prompts (buttons send only the G-code the macro gave them) |
 | `clog.py` | `kobra_clog` | `suspect` → alarm until the filament moves normally again; switch and reaction (`warn`/`pause`) |
+| `phase.py` | `kobra_phase` (+ `kobra_pa`, `ace`, console) | print phase text for web, app, display and MQTT (`printer.phase`); read only |
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.
 

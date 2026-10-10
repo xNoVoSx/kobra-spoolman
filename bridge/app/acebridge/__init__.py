@@ -1,11 +1,18 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.8.0"
+__version__ = "3.9.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.9.0", "2026-10-11", [
+        "Druckphase statt nur „Druckt“: Web, App, Display und Home Assistant zeigen, was der Drucker gerade macht – "
+        "„Heizt Bett 63/100 °C“, „Vorheizen 5/15 min“, „Wischt Düse“, „Tastet Z“, „Misst Bettnetz“, "
+        "„Wechsel auf Slot 2 · lädt“, „Spült“, „Misst Pressure Advance“, „Druckt · Schicht 34/120“",
+        "Braucht kobra-klipper mit dem Modul kobra_phase (neuer Startablauf); ohne bleibt es bei Wechsel, PA und Schicht",
+        "App 1.13.0: Druckphase auf der Startseite, in der Live-Benachrichtigung und im Widget",
+    ]),
     ("3.8.0", "2026-10-10", [
         "Druckprotokoll: Logs → Druck-Aufzeichnungen → „Protokoll“ zeigt jeden Druck lesbar – Start-Ablauf, "
         "Filamentwechsel, Auto-PA, Konsolenmeldungen, Temperaturen, Schicht, Verstopfung, Fortsetzen",

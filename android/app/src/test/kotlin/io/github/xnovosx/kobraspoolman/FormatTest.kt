@@ -25,6 +25,14 @@ class FormatTest {
         assertEquals("Wechselt Filament", Format.stateLabel(Printer(state = "printing", changingFilament = true)))
         assertEquals("Bereit", Format.stateLabel(Printer(state = "standby")))
         assertEquals("Offline", Format.stateLabel(Printer()))
+        // Druckphase der Bridge (ab 3.9.0) ersetzt die Ueberschrift; "Druckt · Schicht" nicht doppelt in der Benachrichtigung
+        val soak = Printer(state = "printing", phase = "Vorheizen 5/15 min", phaseKey = "soak")
+        assertEquals("Vorheizen 5/15 min", Format.headline(soak))
+        assertEquals("Vorheizen 5/15 min", Format.extraPhase(soak))
+        val layer = Printer(state = "printing", phase = "Druckt · Schicht 3/80", phaseKey = "printing")
+        assertEquals("Druckt · Schicht 3/80", Format.headline(layer))
+        assertEquals(null, Format.extraPhase(layer))
+        assertEquals("Pausiert", Format.headline(Printer(state = "paused")))
     }
 
     @Test fun bridge_url_is_normalized() {

@@ -174,6 +174,12 @@ or *Automatisch*, which picks by what the device can do.
 
 ## Watching a print
 
+Instead of just *Druckt*, the printer card, the app, the display and Home Assistant say **what the printer is doing**:
+*Heizt Bett 63/100 °C*, *Vorheizen 5/15 min*, *Wischt Düse*, *Kühlt Düse zum Tasten*, *Tastet Z*, *Misst Bettnetz*,
+*Heizt Düse*, *Wechsel auf Slot 2 · lädt* (heats, unloads, loads, purges), *Spült*, *Misst Pressure Advance*,
+*Reinigungslinie*, then *Druckt · Schicht 34/120*. The steps of the print start come from the printer's Klipper module
+`kobra_phase` (it can be switched off there); without it the card still shows tool changes, Auto-PA and the layer.
+
 The printer card shows **Modell** — the print file drawn by the bridge in the colours of your
 loaded spools, printed part solid, the rest as a shadow, with the current layer — and **Kamera**,
 the printer camera live (only on paired devices), with the frame rate in the corner. Below the image:

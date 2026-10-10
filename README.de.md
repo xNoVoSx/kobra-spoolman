@@ -28,7 +28,8 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 - Änderst du ein Profil in Orca, landet die Änderung nach Rückfrage **in Spoolman**.
 - Nach dem Slicen zeigt das Orca-Panel, **wie viel jede Spule braucht**, und warnt, wenn eine nicht reicht.
 - Die Bridge ist auch ein **Druckermonitor, der OctoApp ersetzt**: Kamera-Restream, der die
-  Drucker-CPU schont, Pause/Abbrechen/Nachjustieren, Terminal und Logs, Benachrichtigungen aufs
+  Drucker-CPU schont, **was der Drucker gerade macht** (*Vorheizen 5/15 min*, *Wechsel auf Slot 2 · lädt*,
+  *Druckt · Schicht 34/120*), Pause/Abbrechen/Nachjustieren, Terminal und Logs, Benachrichtigungen aufs
   Handy – und Spulen mit unseren NFC-Tags werden beim Einlegen **von selbst ihrem Slot zugeordnet**.
 - Eine optionale **KI** beobachtet laufende Drucke und schlägt mit Kamerabild Alarm, wenn ein Druck zu
   Spaghetti wird – auf der CPU, ohne Last am Drucker ([vision.md](docs/vision.md), englisch).

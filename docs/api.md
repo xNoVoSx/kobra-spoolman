@@ -400,7 +400,7 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 ```json
 {"state": "printing", "file": "test-A-100.gcode", "progress": 0.42, "print_duration_s": 1260, "eta_s": 1740,
  "message": null, "active_slot": 1, "mmu_action": null, "changing_filament": false,
- "layer": 29, "layers": 65,
+ "layer": 29, "layers": 65, "phase": "Druckt · Schicht 29/65", "phase_key": "printing",
  "nozzle": {"temp": 239.6, "target": 240, "power": 0.45}, "bed": {"temp": 75, "target": 75, "power": 0.22},
  "fans": [{"key": "part", "name": "Bauteil", "speed": 0.6, "rpm": 5400},
           {"key": "box", "name": "Gehäuse", "speed": 0.3}, {"key": "filter", "name": "Luftfilter", "speed": 0}],
@@ -431,6 +431,13 @@ every move (position, live velocity) is subscribed. Missing objects are left out
 `error`) or `offline` when Moonraker is not reachable or Klipper is not ready (`moonraker_connected`,
 `klippy_ready` tell which). `changing_filament` is true while ACEPRO changes tools (`ace.target_index` set);
 `mmu_action` then reads `Wechsel auf Slot N`.
+
+`phase` (since 3.9.0) says what the printer is doing right now, `phase_key` which step it is (`null` = only the state
+applies, e.g. paused or finished): `heat_bed`, `soak`, `wipe`, `cool`, `home_z`, `mesh`, `heat_nozzle`, `change`,
+`purge`, `pa`, `prime`, `resume`, `printing`. Texts are German (*Vorheizen 5/15 min*, *Wechsel auf Slot 2 · lädt*,
+*Druckt · Schicht 29/65*). Sources: Klipper module `kobra_phase` (start sequence, heat soak, tool change, resume),
+`kobra_pa.measuring`, `ace.target_index`, ACEPRO console messages for the step of a tool change, `print_stats.info`.
+Outside a print only `change`, `pa` and `resume` are shown. The MQTT topic `printer` carries `phase` as well.
 
 `POST /api/app/filament` (only what the user set; density/diameter default to the template):
 

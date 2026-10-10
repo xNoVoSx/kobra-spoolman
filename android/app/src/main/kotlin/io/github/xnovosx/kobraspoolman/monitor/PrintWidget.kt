@@ -65,6 +65,7 @@ class PrintWidget : AppWidgetProvider() {
             val sub = when {
                 monitorOff -> "Überwachung aus – in der App unter Einstellungen einschalten"
                 running && p != null -> listOfNotNull(
+                    Format.extraPhase(p),
                     p.etaS?.let { "noch ${Format.duration(it)}" },
                     p.etaS?.let { "fertig ${Format.finishAt(it)}" },
                     if (p.layer != null && p.layers != null) "Schicht ${p.layer}/${p.layers}" else null,

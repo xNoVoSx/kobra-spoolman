@@ -58,6 +58,12 @@ object Format {
     /** Zustand fuer Farben/Beschriftung; Filamentwechsel hat eine eigene Anzeige. */
     fun stateKey(p: Printer): String = if (p.state == "printing" && p.changingFilament) "changing" else p.state
 
+    /** Ueberschrift: die Druckphase der Bridge, sonst der Zustand. */
+    fun headline(p: Printer): String = p.phase ?: stateLabel(p)
+
+    /** Druckphase nur, wenn sie mehr sagt als "Druckt · Schicht" (fuer Benachrichtigung/Widget). */
+    fun extraPhase(p: Printer): String? = p.phase?.takeIf { p.phaseKey != null && p.phaseKey != "printing" }
+
     fun stateLabel(p: Printer): String = when (stateKey(p)) {
         "printing" -> "Druckt"
         "changing" -> "Wechselt Filament"

@@ -190,7 +190,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 
 .printer { display: flex; flex-direction: column; gap: 12px; }
-.printer .state { font: 700 19px var(--grotesk); }
+.printer .state { font: 700 19px var(--grotesk); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
 .printer .bar { flex: none; }
 .printer .pct { white-space: nowrap; font-size: 19px; }
 .times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }

@@ -388,6 +388,9 @@ data class Printer(
     @SerialName("flow_factor") val flowFactor: Double? = null,
     @SerialName("moonraker_connected") val moonrakerConnected: Boolean = false,
     @SerialName("klippy_ready") val klippyReady: Boolean = false,
+    /** Was gerade passiert ("Vorheizen 5/15 min", "Wechsel auf Slot 2 · lädt", "Druckt · Schicht 3/80"); ab Bridge 3.9.0. */
+    val phase: String? = null,
+    @SerialName("phase_key") val phaseKey: String? = null,
 )
 
 /** Heizung: Ist, Soll (0 = aus), Leistung 0..1. */

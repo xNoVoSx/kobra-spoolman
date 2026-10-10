@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 
 from aiohttp import web
 
-from . import __version__, acemodel, appupdate
+from . import __version__, acemodel, appupdate, phase
 from .assets import TAG as UI_TAG
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
@@ -308,7 +308,7 @@ def tag_content(spool: Dict[str, Any], templates: List[Dict[str, Any]], tag_nr: 
 
 # ====================================================================== Druckerstatus
 def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_ready: bool,
-                  active_slot: Optional[int]) -> Dict[str, Any]:
+                  active_slot: Optional[int], steps: Optional[phase.ChangeSteps] = None) -> Dict[str, Any]:
     """Status fuer die App aus dem Moonraker-Abo der Bridge (keine zusaetzliche Last am Drucker)."""
     ps = status.get("print_stats") or {}
     vsd = status.get("virtual_sdcard") or {}
@@ -327,6 +327,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
     action = f"Wechsel auf Slot {target + 1}" if target is not None else ""
     shows_file = running or state in ("complete", "cancelled", "error")
     info = ps.get("info") or {}
+    ph = phase.describe(status, steps) if state != "offline" else None
     return {
         "state": state,
         "file": (ps.get("filename") or None) if shows_file else None,
@@ -342,6 +343,9 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         "changing_filament": target is not None,
         "layer": info.get("current_layer") if running and info.get("total_layer") else None,
         "layers": info.get("total_layer") if running and info.get("total_layer") else None,
+        # was gerade passiert ("Vorheizen 5/15 min", "Wechsel auf Slot 2 · lädt" ...), None = nur der Status
+        "phase": ph["text"] if ph else None,
+        "phase_key": ph["key"] if ph else None,
         **machine_state(status),
     }
 
@@ -550,7 +554,8 @@ class AppApi:
             return web.json_response({
                 "version": __version__,
                 "ui": UI_TAG,
-                "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active),
+                "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active,
+                                         getattr(b, "phase_steps", None)),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"], "by_tag": s.get("by_tag", False),
