@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optiona
 import aiohttp
 
 from . import __version__, acemodel, clog, pa, resume, switches
+from .prompts import Prompts
 from .config import Config
 
 if TYPE_CHECKING:
@@ -51,6 +52,7 @@ class Moonraker:
         self._pending: Dict[int, asyncio.Future] = {}
         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
         self.console: Optional["Console"] = None   # gesetzt von der Bridge
+        self.prompts = Prompts()                    # Rueckfragen von Makros (action:prompt_*) fuer das Display
         self.cpu_samples: Deque[Tuple[float, float]] = collections.deque(maxlen=180)   # (monotonic, CPU %)
         self.components: list = []   # Moonraker-Komponenten (fuer die Warnung bei aktivem [spoolman])
 
@@ -108,6 +110,13 @@ class Moonraker:
             r.raise_for_status()
             data = await r.json(content_type=None)
         return data.get("result", data) if isinstance(data, dict) else data
+
+    async def get_bytes(self, path: str, timeout: float = 10) -> bytes:
+        """Datei von Moonraker (z. B. Vorschaubild einer Druckdatei)."""
+        async with self.session.get(f"{self.cfg.moonraker_url}{path}", headers=self._headers(),
+                                    timeout=aiohttp.ClientTimeout(total=timeout)) as r:
+            r.raise_for_status()
+            return await r.read()
 
     async def post_json(self, path: str, body: Dict[str, Any], timeout: float = 10) -> Any:
         """Schreibende HTTP-Abfrage an Moonraker."""
@@ -249,8 +258,9 @@ class Moonraker:
                 if isinstance(cpu, (int, float)):
                     self.cpu_samples.append((time.monotonic(), float(cpu)))
             elif method == "notify_gcode_response":
-                if self.console is not None:
-                    for line in data.get("params") or []:
+                for line in data.get("params") or []:
+                    self.prompts.feed(str(line))
+                    if self.console is not None:
                         self.console.add("response", str(line))
             elif method == "notify_klippy_ready":
                 log.info("Klippy bereit - abonniere neu")
@@ -258,6 +268,7 @@ class Moonraker:
             elif method in ("notify_klippy_shutdown", "notify_klippy_disconnected"):
                 log.warning("Klippy %s", method.removeprefix("notify_klippy_"))
                 self.klippy_ready = False
+                self.prompts.close()
 
     async def _safe_subscribe(self) -> None:
         try:

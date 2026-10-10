@@ -322,6 +322,13 @@ links: *Start*, *Druck*, *Schalter* und das Licht.
 - **Steuerung** – Temperaturen (Schnellwahl aus den eingelegten Spulen oder Ziffernfeld), Bewegen (homen, joggen mit
   0,1–50 mm, Motoren aus), Filament (Slot über die ACE laden, entladen, extrudieren, wenn heiß), Lüfter,
   *Bettnetze messen*, Klipper neu laden und Not-Aus (1,5 s gedrückt halten). Bewegen und Laden sind im Druck gesperrt.
+- **Dateien** – die Druckdateien am Drucker mit Vorschau, Zeit und Farben; antippen zeigt die Werkzeuge neben den
+  Slots und startet den Druck. Nach dem Druck: *Erneut drucken*.
+- **Nachjustieren** (im Druck) – Tempo und Fluss, Höhe der ersten Schicht (±0,01–0,05 mm, *Für … übernehmen* addiert
+  sie zum *Z-Versatz* des Filaments in Spoolman) und *Objekte*, um ein misslungenes Teil zu überspringen.
+- **System** – alle Meldungen, IP und Versionen, Klipper neu laden, Pi neu starten/herunterfahren. Rückfragen von
+  Makros (z. B. Filament leer) und ein Klipper-Fehler erscheinen über allem.
+- Pause ohne Rückfrage; *Abbrechen* erscheint erst in der Pause und fragt nach; Not-Aus fragt immer nach.
 - Nach einem Stromausfall fragt der ganze Bildschirm, ob fortgesetzt werden soll ([siehe oben](#fortsetzen-nach-stromausfall)).
 
 Lesen geht ohne Schlüssel; zum Schalten wird das Display einmal gekoppelt wie jedes Gerät: unter

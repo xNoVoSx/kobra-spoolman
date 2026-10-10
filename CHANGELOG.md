@@ -6,6 +6,26 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.7.0] – 2026-10-10
+
+### Added
+- Display: *Dateien* — the printer's print files (newest first, preview picture, time, weight, colours per tool,
+  page buttons instead of swiping); tapping one shows its tools next to the slots (material and colour hints) and
+  starts it after confirmation. *Erneut drucken* on the finished/cancelled screen.
+- Display: *Nachjustieren* has tabs *Tempo & Fluss*, *Erste Schicht (Z)* (live Z offset ±0.01/0.025/0.05 mm; the
+  sum of this print can be added to the loaded filament's *Z-Versatz* in Spoolman) and *Objekte* (skip one object,
+  `EXCLUDE_OBJECT`).
+- Display: macro prompts (`action:prompt_*`, e.g. *Filament Runout*) with their buttons; a large Klipper error screen
+  with *Klipper neu laden*; *System* with all messages, IP and versions, Pi reboot/shutdown (confirmation, not while
+  printing).
+- API: `GET /api/files`, `/api/files/thumb`, `/api/files/check`, `POST /api/files/start` (paired, confirmation);
+  `POST /api/machine/zadjust`, `/api/machine/exclude`, `/api/machine-z/save`; `prompt` in `/api/app/state`,
+  `POST /api/prompt`, `/api/prompt/close`; `GET /api/system`, `POST /api/system/reboot|shutdown`.
+
+### Changed
+- Display: no mouse cursor; an off button per heater; *Abbrechen* only appears once the print is paused; the
+  emergency stop asks for confirmation everywhere (no more holding).
+
 ## [3.6.1] – 2026-10-10
 
 ### Fixed

@@ -1,11 +1,19 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.6.1"
+__version__ = "3.7.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.7.0", "2026-10-10", [
+        "Display: Dateien am Drucker mit Vorschaubild, Druck starten mit Blick auf die Slots, „Erneut drucken“ nach dem Druck",
+        "Display: erste Schicht im Druck feinjustieren (Z ±0,01–0,05 mm) und für das Filament in Spoolman übernehmen; "
+        "einzelne Objekte überspringen",
+        "Display: Rückfragen von Makros (z. B. Filament Runout), Klipper-Fehler groß mit „Klipper neu laden“, alle Meldungen, "
+        "IP und Versionen, Pi neu starten/herunterfahren",
+        "Display: kein Mauszeiger, Aus-Knopf je Heizung, Abbrechen erst in der Pause, Not-Aus überall mit Rückfrage",
+    ]),
     ("3.6.1", "2026-10-10", [
         "ACE-Feuchte und Firmware fehlten nach einem Neustart des Druckers, wenn die ACE später verbunden war als Klipper",
     ]),

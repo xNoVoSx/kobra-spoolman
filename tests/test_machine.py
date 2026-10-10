@@ -110,3 +110,35 @@ def test_long_actions_in_background_and_errors(env):
     with pytest.raises(MachineError) as e:                 # kurze Aktion: Fehler direkt
         run(m.run("motors_off", {}, "Display"))
     assert e.value.status == 400
+
+
+def test_zadjust_exclude_and_save(env):
+    from types import SimpleNamespace
+    m, moon = env
+    saved = []
+
+    async def patch(fid, data):
+        saved.append((fid, data))
+    fil = {"id": 8, "name": "PETG Lavendel", "extra": {"z_offset": "0.02"}}
+    m.sm = SimpleNamespace(templates=lambda: [], patch_filament=patch)
+    m.slots = SimpleNamespace(assignments=lambda: ({1: {"filament": fil}}, []))
+    moon.merge({"print_stats": {"state": "printing"}, "ace": {"current_index": 0}})
+    run(m.view())                                            # Druck beginnt: Summe 0
+    run(m.run("zadjust", {"delta": 0.025}, "Display"))
+    run(m.run("zadjust", {"delta": -0.01}, "Display"))
+    assert moon.sent[-2:] == ["SET_GCODE_OFFSET Z_ADJUST=+0.025 MOVE=1", "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1"]
+    assert m.z_session == 0.015
+    with pytest.raises(MachineError):
+        run(m.run("zadjust", {"delta": 0.5}, "Display"))
+    res = run(m.save_z())
+    assert res["new"] == 0.035 and saved == [(8, {"extra": {"z_offset": "0.035"}})] and m.z_session == 0
+    with pytest.raises(MachineError):                        # nichts mehr nachgestellt
+        run(m.save_z())
+    with pytest.raises(MachineError) as e:                   # Objekt nur mit Rueckfrage
+        run(m.run("exclude", {"name": "Teil_2"}, "Display"))
+    assert e.value.confirm
+    run(m.run("exclude", {"name": "Teil_2", "confirm": True}, "Display"))
+    assert moon.sent[-1] == "EXCLUDE_OBJECT NAME=Teil_2"
+    for bad in ("Teil 2", "A;M104 S300", ""):
+        with pytest.raises(MachineError):
+            run(m.run("exclude", {"name": bad, "confirm": True}, "Display"))

@@ -100,6 +100,7 @@ switch in the printer (`save_variables`), so it also works without the bridge.
 | `resume.py` | `kobra_resume` | interrupted print → alarm + card; *Fortsetzen* sends `KOBRA_RESUME CONFIRM=1` only after confirmation |
 | `switches.py` | all of them | one list of the modules' switches for display, web and app (`/api/switches`); sends only listed commands |
 | `machine.py` | toolhead, T0–T3, ACEPRO | display control: home, jog, extrude, load/unload, fixed macros — fixed commands with limits, locked while printing |
+| `files.py`, `prompts.py` | Moonraker files, `action:prompt_*` | display: print files with slot check and start; macro prompts (buttons send only the G-code the macro gave them) |
 | `clog.py` | `kobra_clog` | `suspect` → alarm until the filament moves normally again; switch and reaction (`warn`/`pause`) |
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.

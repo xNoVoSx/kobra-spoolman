@@ -222,6 +222,23 @@ Keys: `pa`, `pa_auto`, `filament_z`, `endless`, `endless_mode` (`exact`/`materia
 | GET | `/api/machine` | `ready`, `position` [x, y, z], `homed` (e.g. `xyz`), `move_allowed`, `extrude_allowed`, `steps`, `extrude_steps`, `slots`, `macros` (`key`, `label`, `confirm`), `running`, `error` |
 | POST | `/api/machine/{action}` | *(paired)* `home` `{"axes": "all"\|"xy"\|"z"}`, `jog` `{"axis": "x", "dist": -10}` (±0.1/1/10/50, Z ≤ 10, axis must be homed), `motors_off`, `extrude` `{"mm": 10}` (±5/10/50, nozzle ≥ 170 °C), `load` `{"slot": 2}` (`T1`), `unload` (`ACE_SMART_UNLOAD`), `macro` `{"key": "bed_mesh_all", "confirm": true}` |
 
+Also `zadjust` `{"delta": 0.025}` (±0.01/0.025/0.05, allowed while printing; the sum since the print started is in
+`z_session`) and `exclude` `{"name": "PART_1", "confirm": true}` (only while printing). `POST /api/machine-z/save`
+adds `z_session` to the loaded filament's `z_offset` in Spoolman (clamped to ±0.5 mm). `GET /api/machine` also has
+`z_offset`, `z_steps`, `z_session`, `z_filament`, `objects` (`name`, `excluded`, `current`).
+
+## Print files, prompts, system (display)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/files` | newest 60 `.gcode` files: `path`, `modified`, `est_s`, `weight_g`, `layer_height`, `thumb`, `tools` (`slot`, `type`, `color`) |
+| GET | `/api/files/thumb?path=` | the file's preview picture (≤ 300 px) |
+| GET | `/api/files/check?path=` | the file's tools next to the slots with `hints` (no spool, material, colour) and `ok` |
+| POST | `/api/files/start` | *(paired)* `{"path": "...", "confirm": true}` — only when idle |
+| POST | `/api/prompt` | *(paired)* `{"id": 0}` — sends the G-code the macro gave that button, closes the prompt; `/api/prompt/close` closes it. The open prompt is `prompt` in `/api/app/state` (`title`, `text`, `rows`, `footer`) |
+| GET | `/api/system` | `bridge`, `ips`, `host`, `os`, `klipper`, `klippy_state`, `klippy_message` |
+| POST | `/api/system/reboot` · `/api/system/shutdown` | *(paired)* the Klipper Pi, `{"confirm": true}`, not while printing |
+
 Refused while printing (409) except `extrude` when paused; 503 when Klipper is not ready. `home`, `load`, `unload`
 and `macro` run in the background (`started: true`); a failure shows in `error`. Temperatures and fans:
 `POST /api/print/tune`; emergency stop and Klipper restart: `POST /api/print/{action}`.

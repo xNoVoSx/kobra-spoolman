@@ -316,6 +316,13 @@ browser on the Klipper Pi shows it on the original display (setup outside this r
 - **Steuerung** — temperatures (presets from the loaded spools or the number pad), moving (home, jog with 0.1–50 mm
   steps, motors off), filament (load a slot through the ACE, unload, extrude when hot), fans, *Bettnetze messen*,
   Klipper restart and an emergency stop you hold for 1.5 s. Moving and loading are locked while printing.
+- **Dateien** — the print files on the printer with preview, time and colours; tap one to see its tools next to the
+  slots and start it. After a print: *Erneut drucken*.
+- **Nachjustieren** (while printing) — speed and flow, the first layer's height (±0.01–0.05 mm, *Für … übernehmen*
+  adds it to the filament's *Z-Versatz* in Spoolman) and *Objekte* to skip a failed part.
+- **System** — all messages, IP and versions, Klipper restart, Pi reboot/shutdown. Macro prompts (e.g. filament
+  runout) and a Klipper error appear over everything.
+- Pause has no confirmation; *Abbrechen* appears once paused and asks first; the emergency stop always asks first.
 - After a power loss the whole screen asks whether to resume ([see above](#resume-after-a-power-loss)).
 
 Reading needs no key; to switch something the display is paired once like any device: create a code under
