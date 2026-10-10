@@ -6,6 +6,17 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.6.0] – 2026-10-10
+
+### Added
+- Display: *Steuerung* — temperatures (presets from the loaded spools, number pad), moving (home all/XY/Z, jog
+  0.1–50 mm, Z at most 10 mm per tap, motors off, position), filament (load a slot through the ACE, unload, extrude
+  ±10/50 mm when hot), fans, a fixed set of macros (*Bettnetze messen*), Klipper restart and an emergency stop you hold.
+- `GET /api/machine` (position and homed axes, queried only while the page is open), `POST /api/machine/{action}`
+  (`home`, `jog`, `motors_off`, `extrude`, `load`, `unload`, `macro`; paired). Only fixed commands with limits;
+  moving, loading and macros are refused while printing, extruding is allowed when paused. Long actions run in the
+  background. Temperatures and fans keep using `/api/print/tune`.
+
 ## [3.5.1] – 2026-10-10
 
 ### Fixed

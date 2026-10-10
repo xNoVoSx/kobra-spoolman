@@ -120,6 +120,13 @@ class Moonraker:
             data = await r.json(content_type=None)
         return data.get("result", data) if isinstance(data, dict) else data
 
+    async def query(self, objects: Dict[str, Any], timeout: float = 5) -> Dict[str, Any]:
+        """Einmalige Abfrage (printer.objects.query) - fuer Werte, die nicht dauernd abonniert werden sollen."""
+        if self._ws is None or not self.klippy_ready:
+            raise ConnectionError("Moonraker nicht bereit")
+        res = await self._call("printer.objects.query", {"objects": objects}, timeout=timeout)
+        return (res or {}).get("status") or {}
+
     async def gcode(self, script: str, timeout: float = 15, source: str = "Bridge") -> None:
         """G-Code ueber die bestehende WebSocket-Verbindung.
         source: wer sendet - steht so in der Konsole."""

@@ -313,6 +313,9 @@ browser on the Klipper Pi shows it on the original display (setup outside this r
   cancel (asks first).
 - **Schalter** — every switch of the printer's Klipper modules in three tabs (*Drucken*, *Überwachung*,
   *Licht & Töne*), plus the AI. They are stored in the printer, so web UI, app and Mainsail show the same.
+- **Steuerung** — temperatures (presets from the loaded spools or the number pad), moving (home, jog with 0.1–50 mm
+  steps, motors off), filament (load a slot through the ACE, unload, extrude when hot), fans, *Bettnetze messen*,
+  Klipper restart and an emergency stop you hold for 1.5 s. Moving and loading are locked while printing.
 - After a power loss the whole screen asks whether to resume ([see above](#resume-after-a-power-loss)).
 
 Reading needs no key; to switch something the display is paired once like any device: create a code under

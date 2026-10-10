@@ -31,6 +31,7 @@ from .filament_z import FilamentZSync
 from .pa import OBJ as PA_OBJ, PaSync
 from .printcheck import PrintGuard
 from .clog import Clog
+from .machine import Machine
 from .switches import Switches
 from .resume import Resume
 from .runtime_settings import RuntimeSettings
@@ -56,6 +57,7 @@ class Bridge:
         self.resume = Resume(self.moon, self.slots)
         self.clog = Clog(self.moon)
         self.switches = Switches(self.moon)
+        self.machine = Machine(self.moon)
         self.camera = Camera(cfg, self.moon, session)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)

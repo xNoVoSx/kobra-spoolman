@@ -319,6 +319,9 @@ links: *Start*, *Druck*, *Schalter* und das Licht.
   Abbrechen (mit Rückfrage).
 - **Schalter** – alle Schalter der Klipper-Module am Drucker in drei Reitern (*Drucken*, *Überwachung*,
   *Licht & Töne*) und die KI. Gespeichert im Drucker, Weboberfläche, App und Mainsail zeigen denselben Stand.
+- **Steuerung** – Temperaturen (Schnellwahl aus den eingelegten Spulen oder Ziffernfeld), Bewegen (homen, joggen mit
+  0,1–50 mm, Motoren aus), Filament (Slot über die ACE laden, entladen, extrudieren, wenn heiß), Lüfter,
+  *Bettnetze messen*, Klipper neu laden und Not-Aus (1,5 s gedrückt halten). Bewegen und Laden sind im Druck gesperrt.
 - Nach einem Stromausfall fragt der ganze Bildschirm, ob fortgesetzt werden soll ([siehe oben](#fortsetzen-nach-stromausfall)).
 
 Lesen geht ohne Schlüssel; zum Schalten wird das Display einmal gekoppelt wie jedes Gerät: unter

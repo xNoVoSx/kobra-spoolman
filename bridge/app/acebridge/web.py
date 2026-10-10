@@ -21,6 +21,7 @@ from . import CHANGELOG, __app_name__, __description__, __version__, assets
 from .ace import AceError
 from .pa import PaError
 from .clog import ClogError
+from .machine import MachineError
 from .switches import SwitchError
 from .resume import ResumeError
 from .camera import CameraError
@@ -350,6 +351,26 @@ def build_app(bridge: "Bridge") -> web.Application:
         except Exception as e:  # noqa: BLE001
             log.warning("Schalter %s: %s", key, e)
             return _err(502, str(e))
+
+    # ---------------------------------------------------------------- Steuerung (homen, joggen, laden, Makros)
+    @r.get("/api/machine")
+    async def machine_state(_):
+        return web.json_response(await bridge.machine.view())
+
+    @r.post("/api/machine/{action}")
+    async def machine_action(request: web.Request):
+        try:
+            dev = bridge.devices.require(request.headers.get("Authorization"))
+        except AuthError as e:
+            return _err(e.status, str(e))
+        body = await _body(request)
+        try:
+            return web.json_response(await bridge.machine.run(request.match_info["action"], body,
+                                                              source=dev.get("name") or "Display"))
+        except MachineError as e:
+            if e.confirm:
+                return web.json_response({"error": str(e), "confirm": True}, status=409)
+            return _err(e.status, str(e))
 
     # ---------------------------------------------------------------- Verstopfung erkennen
     @r.get("/api/clog")

@@ -215,6 +215,17 @@ Keys: `pa`, `pa_auto`, `filament_z`, `endless`, `endless_mode` (`exact`/`materia
 
 `GET /display` serves the view for the printer's touchscreen (800×480).
 
+## Machine control
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/machine` | `ready`, `position` [x, y, z], `homed` (e.g. `xyz`), `move_allowed`, `extrude_allowed`, `steps`, `extrude_steps`, `slots`, `macros` (`key`, `label`, `confirm`), `running`, `error` |
+| POST | `/api/machine/{action}` | *(paired)* `home` `{"axes": "all"\|"xy"\|"z"}`, `jog` `{"axis": "x", "dist": -10}` (±0.1/1/10/50, Z ≤ 10, axis must be homed), `motors_off`, `extrude` `{"mm": 10}` (±5/10/50, nozzle ≥ 170 °C), `load` `{"slot": 2}` (`T1`), `unload` (`ACE_SMART_UNLOAD`), `macro` `{"key": "bed_mesh_all", "confirm": true}` |
+
+Refused while printing (409) except `extrude` when paused; 503 when Klipper is not ready. `home`, `load`, `unload`
+and `macro` run in the background (`started: true`); a failure shows in `error`. Temperatures and fans:
+`POST /api/print/tune`; emergency stop and Klipper restart: `POST /api/print/{action}`.
+
 ## Clog detection
 
 For the Klipper module `kobra_clog` (compares, per 20 mm of extrusion, what the extruder fed with what the filament

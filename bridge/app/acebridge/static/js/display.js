@@ -18,6 +18,7 @@ const ICONS = {
   switch: html`<rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="16" cy="12" r="3"/>`,
   light: html`<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/>`,
   power: html`<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>`,
+  control: html`<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>`,
 };
 const Icon = ({ name, size = 28 }) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -62,6 +63,7 @@ function Display() {
     try { await fn(); await load(); }
     catch (e) {
       if (e.status === 401 || e.status === 403) { auth.clear(); setDlg({ kind: "pair", then: fn }); }
+      else if (e.status === 409 && fn.retry) setDlg({ kind: "confirm", title: "Wirklich?", text: e.message, ok: "Ja", action: fn.retry });
       else setDlg({ kind: "info", title: "Nicht ausgeführt", text: e.message });
     } finally { setBusy(false); }
   }
@@ -80,7 +82,7 @@ function Display() {
 
   return html`<div class="disp">
     <nav class="disp-rail" aria-label="Bereiche">
-      ${[["start", "home", "Start"], ["print", "print", "Druck"], ["switch", "switch", "Schalter"]].map(([k, i, l]) =>
+      ${[["start", "home", "Start"], ["print", "print", "Druck"], ["control", "control", "Steuerung"], ["switch", "switch", "Schalter"]].map(([k, i, l]) =>
         html`<button type="button" class=${"disp-nav" + (page === k ? " on" : "")} aria-label=${l} onClick=${() => setPage(k)}><${Icon} name=${i} /></button>`)}
       <div class="grow"></div>
       ${light && html`<button type="button" class=${"disp-nav lit" + (light.on ? " on" : "")} aria-label=${light.on ? "Licht aus" : "Licht an"}
@@ -88,7 +90,7 @@ function Display() {
     </nav>
     <main class="disp-main">
       <header class="disp-head">
-        <h1>${page === "switch" ? "Schalter" : "Kobra S1"}</h1>
+        <h1>${page === "switch" ? "Schalter" : page === "control" ? "Steuerung" : "Kobra S1"}</h1>
         <span class="disp-chip" style=${`color:${look.fg};background:${look.bg};border-color:${look.line}`}>${look.label}</span>
         ${down && html`<span class="disp-chip" style="color:var(--danger-text);border-color:var(--danger-line)">Bridge weg</span>`}
         <div class="grow"></div>
@@ -98,6 +100,7 @@ function Display() {
       ${page === "start" && html`<${Start} ...${ctx} />`}
       ${page === "print" && html`<${Print} ...${ctx} />`}
       ${page === "switch" && html`<${Switches} ...${ctx} />`}
+      ${page === "control" && html`<${Control} ...${ctx} />`}
     </main>
     <${Resume} ...${ctx} />
     ${dlg && html`<${Dialog} dlg=${dlg} close=${() => setDlg(null)} act=${act} st=${st} />`}
@@ -193,6 +196,140 @@ function Print({ st, busy, act, confirm, setDlg }) {
   </div>`;
 }
 
+// ------------------------------------------------------------ Steuerung
+/** Aufruf, der bei einer Rueckfrage der Bridge (409 + confirm) nach Bestaetigung mit confirm: true wiederholt wird. */
+function withConfirm(path, body) {
+  const fn = () => post(path, body);
+  fn.retry = () => post(path, { ...body, confirm: true });
+  return fn;
+}
+
+function Control(ctx) {
+  const [tab, setTab] = useState("temp");
+  const [m, setM] = useState(null);
+  async function loadM() { try { setM(await get("/api/machine")); } catch { /* Anzeige bleibt */ } }
+  useEffect(() => { loadM(); const t = setInterval(loadM, POLL_MS); return () => clearInterval(t); }, []);
+  const act = (fn) => ctx.act(async () => { await fn(); await loadM(); });
+  const tabs = [["temp", "Temperatur"], ["move", "Bewegen"], ["fil", "Filament"], ["more", "Mehr"]];
+  const sub = { ...ctx, m, act };
+  return html`
+    <div class="disp-tabs" role="tablist" aria-label="Steuerung">
+      ${tabs.map(([k, l]) => html`<button type="button" role="tab" aria-selected=${tab === k} class=${tab === k ? "on" : ""}
+        onClick=${() => setTab(k)}>${l}</button>`)}
+    </div>
+    ${m?.running && html`<div class="disp-alert warn">Läuft: ${m.running} …</div>`}
+    ${m?.error && !m.running && html`<div class="disp-alert">${m.error}</div>`}
+    ${tab === "temp" && html`<${Temps} ...${sub} />`}
+    ${tab === "move" && html`<${Move} ...${sub} />`}
+    ${tab === "fil" && html`<${Filament} ...${sub} />`}
+    ${tab === "more" && html`<${More} ...${sub} />`}`;
+}
+
+function Temps({ st, busy, act, setDlg }) {
+  const p = st.printer || {};
+  const tune = (body) => act(withConfirm("/api/print/tune", body));
+  // Schnellwahl aus den eingelegten Spulen (Spoolman), jede Kombination einmal
+  const seen = new Set();
+  const presets = (st.slots || []).map((s) => s.spool).filter((sp) => sp?.nozzle_temp)
+    .filter((sp) => { const k = `${sp.nozzle_temp}/${sp.bed_temp}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  const ask = (label, key, cur, max) => setDlg({ kind: "number", title: label, value: cur || 0, max,
+    action: (v) => tune({ [key]: v }) });
+  const card = (label, key, t, max) => html`<button type="button" class="disp-tile disp-tempbtn" disabled=${busy}
+    onClick=${() => ask(`${label}: Soll (°C)`, key, t?.target, max)}>
+    <div class="disp-lbl">${label} · antippen zum Einstellen</div>
+    <div class="disp-val" style="font-size:34px">${deg(t?.temp)}<small> / ${deg(t?.target)} °C</small></div></button>`;
+  return html`
+    <div class="disp-grid2">${card("Düse", "nozzle", p.nozzle, 300)}${card("Bett", "bed", p.bed, 120)}</div>
+    <div class="disp-lbl">Aus den eingelegten Spulen</div>
+    <div class="disp-presets">
+      ${presets.map((sp) => html`<button type="button" class="disp-btn" disabled=${busy}
+        onClick=${() => tune({ nozzle: sp.nozzle_temp, bed: sp.bed_temp || 0 })}>
+        <span class="disp-dot" style=${`width:16px;height:16px;display:inline-block;vertical-align:-2px;margin-right:8px;background:${hex(sp.color) || "var(--surface2)"}`}></span>
+        ${sp.material} ${sp.nozzle_temp}/${sp.bed_temp ?? "–"}</button>`)}
+      <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => tune({ nozzle: 0, bed: 0 })}>Alles aus</button>
+    </div>`;
+}
+
+function Move({ m, busy, act }) {
+  const [step, setStep] = useState(10);
+  const ok = m?.move_allowed && !busy && !m?.running;
+  const jog = (axis, sign) => act(() => post("/api/machine/jog", { axis, dist: sign * (axis === "z" ? Math.min(step, 10) : step) }));
+  const pos = m?.position;
+  const homed = m?.homed || "";
+  const key = (label, axis, sign, extra = "") => html`<button type="button" class=${"disp-btn disp-jog " + extra}
+    disabled=${!ok || !homed.includes(axis)} aria-label=${label} onClick=${() => jog(axis, sign)}>${label}</button>`;
+  return html`<div class="disp-move">
+    <div class="disp-pad">
+      <span></span>${key("Y+", "y", 1)}<span></span>
+      ${key("X−", "x", -1)}<button type="button" class="disp-btn disp-jog" disabled=${!ok} onClick=${() => act(() => post("/api/machine/home", { axes: "xy" }))}>⌂ XY</button>${key("X+", "x", 1)}
+      <span></span>${key("Y−", "y", -1)}<span></span>
+    </div>
+    <div class="disp-zcol">${key("Z+", "z", 1)}<button type="button" class="disp-btn disp-jog" disabled=${!ok}
+      onClick=${() => act(() => post("/api/machine/home", { axes: "z" }))}>⌂ Z</button>${key("Z−", "z", -1)}</div>
+    <div class="disp-mside">
+      <div class="disp-tile"><div class="disp-lbl">Position${homed.length < 3 ? " · nicht alles gehomt" : ""}</div>
+        <div class="disp-val" style="font-size:18px">${pos ? `X ${pos[0]}  Y ${pos[1]}  Z ${pos[2]}` : "–"}</div></div>
+      <div class="disp-lbl">Schritt (mm)</div>
+      <div class="disp-steps">${(m?.steps || [0.1, 1, 10, 50]).map((s) => html`<button type="button"
+        class=${"disp-btn" + (s === step ? " acc" : "")} onClick=${() => setStep(s)}>${String(s).replace(".", ",")}</button>`)}</div>
+      <div class="disp-btns">
+        <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/home", { axes: "all" }))}>Alle homen</button>
+        <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/motors_off", {}))}>Motoren aus</button>
+      </div>
+      ${!m?.move_allowed && html`<div class="disp-note">Während des Drucks gesperrt.</div>`}
+    </div>
+  </div>`;
+}
+
+function Filament({ st, m, busy, act }) {
+  const p = st.printer || {};
+  const ok = m?.move_allowed && !busy && !m?.running;
+  const okE = m?.extrude_allowed && !busy && !m?.running;
+  const cold = (p.nozzle?.temp ?? 0) < 170;
+  return html`
+    <div class="disp-lbl">Slot laden (wechselt über die ACE, heizt selbst)</div>
+    <div class="disp-grid4">${(st.slots || []).map((s) => {
+      const sp = s.spool, color = hex(sp?.color || s.ace?.color);
+      return html`<button type="button" class=${"disp-slot" + (s.ace?.active ? " on" : "")} style="min-height:118px"
+        disabled=${!ok || !s.ace?.present} onClick=${() => act(() => post("/api/machine/load", { slot: s.slot }))}>
+        <div class="hd"><span>Slot ${s.slot}</span>${s.ace?.active && html`<span class="disp-tag">geladen</span>`}</div>
+        <div class=${"disp-swatch" + (color ? "" : " empty")} style=${(color ? `background:${color};` : "") + "width:36px;height:36px"}></div>
+        <div class="name">${sp?.name || (s.ace?.present ? s.ace.material : "leer")}</div></button>`;
+    })}</div>
+    <div class="disp-btns">
+      <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/unload", {}))}>Entladen</button>
+      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: -10 }))}>10 mm zurück</button>
+      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 10 }))}>10 mm vor</button>
+      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 50 }))}>50 mm vor</button>
+    </div>
+    ${cold && html`<div class="disp-note">Extrudieren erst ab 170 °C Düse (Reiter Temperatur).</div>`}`;
+}
+
+function More({ st, m, busy, act, confirm }) {
+  const p = st.printer || {};
+  const ok = m?.move_allowed && !busy && !m?.running;
+  const fan = (f) => html`<div class="disp-tile disp-fan"><b>${f.name}</b><span class="disp-val" style="font-size:22px">${pct(f.speed)}<small> %</small></span>
+    <div class="disp-fanbtns">${[0, 50, 100].map((v) => html`<button type="button" class="disp-btn" disabled=${busy}
+      onClick=${() => act(() => post("/api/print/tune", { fans: { [f.key]: v } }))}>${v}</button>`)}</div></div>`;
+  const hold = useRef(null);
+  const down = () => { hold.current = setTimeout(() => { hold.current = null;
+    act(() => post("/api/print/emergency_stop", { confirm: true })); }, 1500); };
+  const up = () => { if (hold.current) { clearTimeout(hold.current); hold.current = null; } };
+  return html`
+    <div class="disp-lbl">Lüfter (%)</div>
+    <div class="disp-grid3">${(p.fans || []).map(fan)}</div>
+    <div style="flex:1"></div>
+    <div class="disp-btns">
+      ${(m?.macros || []).map((mc) => html`<button type="button" class="disp-btn"
+        disabled=${!ok} onClick=${() => confirm({ title: mc.label + "?", text: mc.confirm, ok: "Starten",
+          action: () => post("/api/machine/macro", { key: mc.key, confirm: true }) })}>${mc.label}</button>`)}
+      <button type="button" class="disp-btn" disabled=${busy || p.state === "printing"}
+        onClick=${() => confirm({ title: "Klipper neu laden?", text: "Dauert einige Sekunden; die Achsen müssen danach neu gehomt werden.",
+          ok: "Neu laden", action: () => post("/api/print/firmware_restart", { confirm: true }) })}>Klipper neu laden</button>
+      <button type="button" class="disp-btn danger" onPointerDown=${down} onPointerUp=${up} onPointerLeave=${up}>Not-Aus · halten</button>
+    </div>`;
+}
+
 // ------------------------------------------------------------ Schalter
 const GROUP_KI = "watch";
 
@@ -282,6 +419,7 @@ function Resume({ st, busy, confirm }) {
 function Dialog({ dlg, close, act, st }) {
   if (dlg.kind === "pair") return html`<${Pair} then=${dlg.then} close=${close} act=${act} />`;
   if (dlg.kind === "tune") return html`<${Tune} close=${close} act=${act} p=${st.printer || {}} />`;
+  if (dlg.kind === "number") return html`<${NumberPad} dlg=${dlg} close=${close} />`;
   const ok = () => { close(); if (dlg.action) act(dlg.action); };
   return html`<div class="disp-over" role="dialog" aria-label=${dlg.title}>
     <section class=${"disp-dialog" + (dlg.danger ? " danger" : "")}>
@@ -321,6 +459,33 @@ function Pair({ then, close, act }) {
           <div style="flex:1"></div>
           <div class="disp-btns">
             <button type="button" class="disp-btn acc" disabled=${code.length !== 6 || busy} onClick=${pair}>Koppeln</button>
+            <button type="button" class="disp-btn" onClick=${close}>Zurück</button>
+          </div>
+        </div>
+        <div class="disp-keys" aria-label="Ziffern">
+          ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "<"].map((k) => html`<button type="button"
+            aria-label=${k === "<" ? "Löschen" : k === "C" ? "Alles löschen" : k} onClick=${() => press(k)}>${k === "<" ? "⌫" : k}</button>`)}
+        </div>
+      </div>
+    </section>
+  </div>`;
+}
+
+function NumberPad({ dlg, close }) {
+  const [v, setV] = useState(String(Math.round(dlg.value || 0)));
+  const press = (k) => setV((c) => (k === "<" ? c.slice(0, -1) : k === "C" ? "" : (c === "0" ? k : c + k).slice(0, 3)));
+  const n = parseInt(v || "0", 10);
+  const bad = n > dlg.max;
+  return html`<div class="disp-over" role="dialog" aria-label=${dlg.title}>
+    <section class="disp-dialog" style="height:100%">
+      <div class="disp-split">
+        <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+          <h2>${dlg.title}</h2>
+          <div class="disp-code">${v || "0"} °C</div>
+          ${bad && html`<div class="disp-alert">Höchstens ${dlg.max} °C</div>`}
+          <div style="flex:1"></div>
+          <div class="disp-btns">
+            <button type="button" class="disp-btn acc" disabled=${bad} onClick=${() => { close(); dlg.action(n); }}>Übernehmen</button>
             <button type="button" class="disp-btn" onClick=${close}>Zurück</button>
           </div>
         </div>
