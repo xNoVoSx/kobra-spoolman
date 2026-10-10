@@ -186,3 +186,28 @@ def test_targets_from_the_gcode_check_the_measurement(cfg):
     assert by[2]["overhead_mm"] == pytest.approx(EXPECTED[2] - 2500, abs=0.5)
     assert job["target_mm"] == 7500.0
     assert len(job["warnings"]) == 1 and job["warnings"][0].startswith("Slot 1: gemessen 4135 mm")
+
+
+def test_purge_log_per_colour_pair(cfg):
+    """Spuelwerte lernen, Teil 1: jede Spuelmenge, die Orca vor einem Wechsel setzt, landet mit Farbe/Material
+    vorher/nachher im Spuelprotokoll (ueber Drucke hinweg); der erste Ladevorgang im Druckstart zaehlt nicht."""
+    moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
+    rows = print_rows()
+    change_at = next(i for i, r in enumerate(rows)
+                     if r["type"] == "delta" and r["d"].get("ace") == {"current_index": 1, "target_index": 0})
+    tracker.on_console({"text": "// ACE: Purge settings updated - Length: 120.5mm, Speed: 300mm/min"})   # vor dem Start:
+    feed(moon, tracker, rows[:change_at])          # ... gilt NICHT fuer den ersten Ladevorgang (Druckstart)
+    tracker.on_console({"text": "// ACE: Purge settings updated - Length: 64.2mm, Speed: 300mm/min"})
+    feed(moon, tracker, rows[change_at:])
+    job = tracker.history[0]
+    assert [(t["from_slot"], t["to_slot"], t["purge_mm"]) for t in job["transitions"]] == [(None, 2, None), (2, 1, 64.2)]
+    pairs = tracker.purge_pairs()
+    assert len(pairs) == 1
+    p = pairs[0]
+    assert (p["from_color"], p["from_material"], p["to_color"], p["to_material"]) == ("C52E79", "PETG", "685BC7", "PETG")
+    assert p["count"] == 1 and p["purge_mm"] == [64.2] and p["last_file"] == "zwei.gcode"
+    # zweiter Druck mit demselben Wechsel: zaehlt weiter, ohne gesetzte Menge (z. B. Purge in prime tower) -> keine Zahl
+    moon2, sm2, tracker2 = make(cfg, [spool(3, 1), spool(4, 2)])
+    feed(moon2, tracker2, print_rows())
+    p = tracker2.purge_pairs()[0]
+    assert p["count"] == 2 and p["purge_mm"] == [64.2]

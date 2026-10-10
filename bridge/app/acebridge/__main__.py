@@ -83,6 +83,7 @@ class Bridge:
         self.console.listeners.append(self.recorder.on_console)   # Konsole in die Druck-Aufzeichnung
         self.phase_steps = ChangeSteps()                          # Teilschritt beim Werkzeugwechsel (Druckphase)
         self.console.listeners.append(self.phase_steps.on_console)
+        self.console.listeners.append(self.usage.on_console)      # Spuelmenge je Farbwechsel (Spuelprotokoll)
         self._print_state = ""
         # zuletzt ueber die Bridge ausgeloeste Druckaktion - die App meldet eigene Pausen nicht als Alarm
         self.last_control: Optional[Dict[str, Any]] = None

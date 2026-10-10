@@ -25,6 +25,7 @@ import json
 import logging
 import math
 import os
+import re
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -55,6 +56,11 @@ def targets_from_gcode(e_total: Dict[int, float]) -> Optional[Dict[str, Any]]:
     return {"source": "gcode", "per_gate": per_gate} if per_gate else None
 
 
+# Spuelmenge, die Orcas Filamentwechsel-G-Code vor jedem T setzt (ACE_SET_PURGE_AMOUNT -> Antwort von ACEPRO)
+PURGE_RX = re.compile(r"ACE: Purge settings updated - Length: ([0-9.]+)mm")
+PURGE_LOG_KEEP = 2000          # Zeilen im Spuelprotokoll (ueber alle Drucke)
+
+
 def group_transitions(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Gleiche Wechsel (von, nach, Farben) zusammenfassen: [{..., "count": n}]."""
     out: Dict[tuple, Dict[str, Any]] = {}
@@ -78,6 +84,8 @@ class UsageTracker:
         self.state_path = os.path.join(self.dir, "state.json")
         self.history_path = os.path.join(self.dir, "jobs.json")
         self.journal_path = os.path.join(self.dir, "journal.jsonl")
+        self.purge_path = os.path.join(self.dir, "purge.jsonl")   # jeder Farbwechsel mit Spuelmenge (Spuelwerte lernen)
+        self._purge_set: Optional[float] = None                     # zuletzt von Orca gesetzte Spuelmenge (mm)
         self._lock = asyncio.Lock()
         self._dirty = False
         self._last_save = 0.0
@@ -112,6 +120,52 @@ class UsageTracker:
         if self.job:
             log.info("Offener Druck aus letztem Lauf gefunden: %s (Zaehler %.1f mm)",
                      self.job.get("file"), self.job.get("last_used") or 0)
+
+    # ================================================================== Spuelprotokoll (Spuelwerte lernen, Teil 1)
+    def on_console(self, entry: Dict[str, Any]) -> None:
+        """Konsolen-Empfaenger: merkt sich die Spuelmenge, die Orca vor dem naechsten Wechsel setzt."""
+        m = PURGE_RX.search(entry.get("text") or "")
+        if m:
+            self._purge_set = float(m.group(1))
+
+    def _log_purge(self, rec: Dict[str, Any]) -> None:
+        try:
+            with open(self.purge_path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            if os.path.getsize(self.purge_path) > PURGE_LOG_KEEP * 400:     # grob: kuerzen, wenn zu lang
+                with open(self.purge_path, encoding="utf-8") as fh:
+                    lines = fh.readlines()[-PURGE_LOG_KEEP:]
+                self._atomic_lines(self.purge_path, lines)
+        except OSError as e:
+            log.warning("Spuelprotokoll: %s", e)
+
+    def _atomic_lines(self, path: str, lines: List[str]) -> None:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.writelines(lines)
+        os.replace(tmp, path)
+
+    def purge_pairs(self) -> List[Dict[str, Any]]:
+        """Spuelprotokoll je Farbpaar (Farbe + Material vorher/nachher): Anzahl, Spuelmengen, zuletzt."""
+        pairs: Dict[tuple, Dict[str, Any]] = {}
+        try:
+            with open(self.purge_path, encoding="utf-8") as fh:
+                rows = [json.loads(line) for line in fh if line.strip()]
+        except FileNotFoundError:
+            return []
+        except (OSError, ValueError) as e:
+            log.warning("Spuelprotokoll lesen: %s", e)
+            return []
+        for r in rows:
+            key = (r.get("from_color"), r.get("from_material"), r.get("to_color"), r.get("to_material"))
+            p = pairs.setdefault(key, {"from_color": key[0], "from_material": key[1], "to_color": key[2],
+                                       "to_material": key[3], "count": 0, "purge_mm": [], "last_at": None,
+                                       "last_file": None})
+            p["count"] += 1
+            if r.get("purge_mm") is not None:
+                p["purge_mm"] = (p["purge_mm"] + [r["purge_mm"]])[-10:]
+            p["last_at"], p["last_file"] = r.get("at"), r.get("file")
+        return sorted(pairs.values(), key=lambda p: (-p["count"], p["last_at"] or ""))
 
     def _atomic_write(self, path: str, data: Any) -> None:
         tmp = path + ".tmp"
@@ -235,10 +289,19 @@ class UsageTracker:
             return
         job["gate"] = gate
         job["loads"] += 1
+        src = self.slots.ace_gate(old) if old is not None else {}
+        dst = self.slots.ace_gate(gate)
+        # Spuelmenge nur bei echtem Wechsel (der erste Ladevorgang im Druckstart spuelt nach G9111, nicht nach Orca)
+        purge, self._purge_set = (self._purge_set if old is not None else None), None
         job.setdefault("transitions", []).append({
             "from_slot": old + 1 if old is not None else None, "to_slot": gate + 1,
-            "from_color": self.slots.ace_gate(old)["color"] if old is not None else None,
-            "to_color": self.slots.ace_gate(gate)["color"]})
+            "from_color": src.get("color") if old is not None else None,
+            "to_color": dst.get("color"), "purge_mm": purge})
+        if old is not None:
+            self._log_purge({"at": _now_iso(), "file": job.get("file"), "from_slot": old + 1, "to_slot": gate + 1,
+                             "from_color": src.get("color"), "to_color": dst.get("color"),
+                             "from_material": src.get("material"), "to_material": dst.get("material"),
+                             "purge_mm": purge})
         if job["pre_mm"]:
             self._add(gate, job["pre_mm"])
             job["pre_mm"] = 0.0

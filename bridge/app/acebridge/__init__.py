@@ -1,11 +1,21 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.9.0"
+__version__ = "3.10.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.10.0", "2026-10-11", [
+        "USB-Tunnel zwischen Drucker und Klipper-Rechner: Statuszeile (verbunden, Drucker aus, verbindet … Versuch n), "
+        "Meldung, wenn der Wächter aufgibt, Kachel unter Display → System, Hinweis in der Klipper-Fehlermeldung",
+        "Display: neuer Schalter-Reiter „System“ mit den drei Schaltern des USB-Wächters und dem Diagnose-Protokoll – "
+        "„Überwachung“ passt wieder ohne Scrollen",
+        "Spülprotokoll: jeder Farbwechsel mit der Spülmenge aus Orca, je Farbpaar über alle Drucke (Grundlage, um "
+        "Spülmengen zu lernen)",
+        "Aufgeräumt: Reste des Spül-Multiplikators aus der GoKlipper-Zeit entfernt, unnötiges Abo des Filament-Encoders "
+        "(änderte sich im Druck ständig) gestrichen",
+    ]),
     ("3.9.0", "2026-10-11", [
         "Druckphase statt nur „Druckt“: Web, App, Display und Home Assistant zeigen, was der Drucker gerade macht – "
         "„Heizt Bett 63/100 °C“, „Vorheizen 5/15 min“, „Wischt Düse“, „Tastet Z“, „Misst Bettnetz“, "

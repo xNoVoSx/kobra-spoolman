@@ -51,7 +51,8 @@ A slot entry:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/usage` | running print per slot (`live`), last print per slot, open items |
-| GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets (from the bridge's own parse of the print file), overhead, warnings |
+| GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets (from the bridge's own parse of the print file), overhead, warnings; `transitions` (from/to slot and colour, `purge_mm` set by Orca for that change, `count`) |
+| GET | `/api/purge` | purge log per colour pair across prints (`data/usage/purge.jsonl`, last 2000 changes): `from_color`, `from_material`, `to_color`, `to_material`, `count`, `purge_mm` (last 10 values Orca set — `ACE: Purge settings updated` on the console; `0` with *Purge in prime tower*), `last_at`, `last_file`. Groundwork for learning purge volumes per pair |
 | GET | `/api/open` | open items |
 | POST | `/api/open/{id}` | *(paired)* `{"spool_id": 5}` book an open item onto a spool |
 | DELETE | `/api/open/{id}` | *(paired)* discard an open item |

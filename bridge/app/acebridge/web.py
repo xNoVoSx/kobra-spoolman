@@ -336,6 +336,11 @@ def build_app(bridge: "Bridge") -> web.Application:
     async def switches_state(_):
         return web.json_response(bridge.switches.view())
 
+    @r.get("/api/purge")
+    async def purge_pairs(_):
+        """Spuelprotokoll je Farbpaar (Farbe/Material vorher -> nachher): Anzahl, letzte Spuelmengen (Orca-Matrix)."""
+        return web.json_response({"pairs": bridge.usage.purge_pairs()})
+
     @r.get("/api/usb")
     async def usb_state(_):
         """USB-Tunnel Drucker <-> Pi: Zustand des Waechters, Schalter, letzte Ereignisse (Schalten ueber /api/switch)."""

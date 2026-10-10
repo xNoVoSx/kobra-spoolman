@@ -6,6 +6,29 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.10.0] – 2026-10-11
+
+### Added
+- USB tunnel watchdog (a service on the Klipper computer that reconnects the printer's USB link after a power cycle and
+  reloads Klipper): `GET /api/usb`, status line *USB-Tunnel*, an error message when it gives up, a tile under
+  display → *System* and a hint on the display's Klipper error screen. Its switches (`usb_watch`, `usb_auto_restart`,
+  `usb_full_speed`) are in `/api/switches`, stored in Moonraker's database (`kobra_usb`). `acebridge/usb.py`.
+- Purge log: every colour change with the purge length Orca set for it (console `ACE: Purge settings updated`), kept
+  across prints in `data/usage/purge.jsonl`; `GET /api/purge` groups it per colour/material pair; `transitions` in
+  `/api/jobs` carry `purge_mm`. Groundwork for learning purge volumes.
+- Replay test of a real print under Klipper + ACEPRO (`tests/test_replay_acepro.py`, the bridge's own recording of
+  10.10.): bookings per spool must match what was booked in Spoolman.
+
+### Changed
+- Display switches: new tab *System* (USB watchdog, *Diagnose-Protokoll*); *Überwachung* fits without scrolling again.
+  Switch groups without items are left out of `/api/switches`.
+
+### Removed
+- Leftovers of the flush multiplier from the GoKlipper era: `POST /api/ace/flush` and the app-1.8 fields
+  `auto_refill`, `runout_detect`, `flush_multiplier`, `presets`, `purge` in `/api/ace` (no client uses them).
+- The bridge no longer subscribes to the filament encoder (`encoder_pulse`, `filament_distance` changed on every
+  pulse while printing and were unused) or the head/RDM sensor fields.
+
 ## [3.9.0] – 2026-10-11
 
 ### Added
