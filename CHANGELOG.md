@@ -6,6 +6,12 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.5.1] – 2026-10-10
+
+### Fixed
+- Display: the slot cards show the spool's name as in Spoolman (names that start with the material, such as
+  "ASA+ Grau", were split into "ASA + Grau").
+
 ## [3.5.0] – 2026-10-10
 
 ### Added

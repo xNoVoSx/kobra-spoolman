@@ -135,8 +135,7 @@ function Slot({ s }) {
   return html`<div class=${"disp-slot" + (ace.active ? " on" : "")}>
     <div class="hd"><span>Slot ${s.slot}</span>${ace.active && html`<span class="disp-tag">geladen</span>`}</div>
     <div class=${"disp-swatch" + (color ? "" : " empty")} style=${color ? `background:${color}` : ""}></div>
-    <div class="name">${sp ? `${sp.material || ""} ${sp.name?.replace(sp.material || "", "").trim() || ""}`.trim()
-      : ace.present ? (ace.material || "Unbekannt") : "leer"}</div>
+    <div class="name">${sp ? (sp.name || sp.material || "Spule") : ace.present ? (ace.material || "Unbekannt") : "leer"}</div>
     <div class=${"sub" + (low ? " warn" : "")}>${sp ? `${rest != null ? Math.round(rest) + " g" : "–"} · ${low ? "fast leer" : sp.vendor || ""}` : ace.present ? "ohne Spule" : ""}</div>
   </div>`;
 }

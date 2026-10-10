@@ -1,11 +1,14 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.5.0"
+__version__ = "3.5.1"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.5.1", "2026-10-10", [
+        "Display: Spulenname wie in Spoolman (\"ASA+ Grau\" statt \"ASA + Grau\")",
+    ]),
     ("3.5.0", "2026-10-10", [
         "Ansicht fürs Display des Druckers (/display, 800×480): Start mit Slots und Trockner, Druckansicht mit "
         "Vorschaubild der Datei (kommt bei Druckstart von selbst), alle Schalter, Frage nach Stromausfall",
