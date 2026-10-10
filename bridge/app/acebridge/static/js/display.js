@@ -185,12 +185,13 @@ function Print({ st, busy, act, confirm, setDlg }) {
       <div class="grow" style="flex:1"></div>
       ${running && html`<div class="disp-btns">
         ${paused
-          ? html`<button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => act(() => post("/api/print/resume", {}))}>Weiter</button>`
-          : html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => act(() => post("/api/print/pause", {}))}>Pause</button>`}
-        <button type="button" class="disp-btn" disabled=${busy} onClick=${() => setDlg({ kind: "tune" })}>Nachjustieren</button>
-        <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => confirm({ title: "Druck abbrechen?", ok: "Abbrechen", danger: true,
-          text: `${fileName(file)} wird abgebrochen. Das lässt sich nicht rückgängig machen.`,
-          action: () => post("/api/print/cancel", { confirm: true }) })}>Abbrechen</button>
+          ? html`<button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => act(() => post("/api/print/resume", {}))}>Weiter</button>
+            <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => confirm({ title: "Druck abbrechen?", ok: "Abbrechen", danger: true,
+              text: `${fileName(file)} wird abgebrochen. Das lässt sich nicht rückgängig machen.`,
+              action: () => post("/api/print/cancel", { confirm: true }) })}>Abbrechen</button>`
+          : html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => act(() => post("/api/print/pause", {}))}>Pause</button>
+            <button type="button" class="disp-btn" disabled=${busy} onClick=${() => setDlg({ kind: "tune" })}>Nachjustieren</button>`}
+        <${EStop} confirm=${confirm} />
       </div>`}
     </div>
   </div>`;
@@ -234,10 +235,12 @@ function Temps({ st, busy, act, setDlg }) {
     .filter((sp) => { const k = `${sp.nozzle_temp}/${sp.bed_temp}`; if (seen.has(k)) return false; seen.add(k); return true; });
   const ask = (label, key, cur, max) => setDlg({ kind: "number", title: label, value: cur || 0, max,
     action: (v) => tune({ [key]: v }) });
-  const card = (label, key, t, max) => html`<button type="button" class="disp-tile disp-tempbtn" disabled=${busy}
-    onClick=${() => ask(`${label}: Soll (°C)`, key, t?.target, max)}>
-    <div class="disp-lbl">${label} · antippen zum Einstellen</div>
-    <div class="disp-val" style="font-size:34px">${deg(t?.temp)}<small> / ${deg(t?.target)} °C</small></div></button>`;
+  const card = (label, key, t, max) => html`<div class="disp-tile disp-temp">
+    <button type="button" class="disp-tempbtn" disabled=${busy} onClick=${() => ask(`${label}: Soll (°C)`, key, t?.target, max)}>
+      <div class="disp-lbl">${label} · antippen zum Einstellen</div>
+      <div class="disp-val" style="font-size:34px">${deg(t?.temp)}<small> / ${deg(t?.target)} °C</small></div></button>
+    <button type="button" class="disp-btn danger disp-off" disabled=${busy || !t?.target} aria-label=${label + " aus"}
+      onClick=${() => tune({ [key]: 0 })}>Aus</button></div>`;
   return html`
     <div class="disp-grid2">${card("Düse", "nozzle", p.nozzle, 300)}${card("Bett", "bed", p.bed, 120)}</div>
     <div class="disp-lbl">Aus den eingelegten Spulen</div>
@@ -311,10 +314,6 @@ function More({ st, m, busy, act, confirm }) {
   const fan = (f) => html`<div class="disp-tile disp-fan"><b>${f.name}</b><span class="disp-val" style="font-size:22px">${pct(f.speed)}<small> %</small></span>
     <div class="disp-fanbtns">${[0, 50, 100].map((v) => html`<button type="button" class="disp-btn" disabled=${busy}
       onClick=${() => act(() => post("/api/print/tune", { fans: { [f.key]: v } }))}>${v}</button>`)}</div></div>`;
-  const hold = useRef(null);
-  const down = () => { hold.current = setTimeout(() => { hold.current = null;
-    act(() => post("/api/print/emergency_stop", { confirm: true })); }, 1500); };
-  const up = () => { if (hold.current) { clearTimeout(hold.current); hold.current = null; } };
   return html`
     <div class="disp-lbl">Lüfter (%)</div>
     <div class="disp-grid3">${(p.fans || []).map(fan)}</div>
@@ -326,7 +325,7 @@ function More({ st, m, busy, act, confirm }) {
       <button type="button" class="disp-btn" disabled=${busy || p.state === "printing"}
         onClick=${() => confirm({ title: "Klipper neu laden?", text: "Dauert einige Sekunden; die Achsen müssen danach neu gehomt werden.",
           ok: "Neu laden", action: () => post("/api/print/firmware_restart", { confirm: true }) })}>Klipper neu laden</button>
-      <button type="button" class="disp-btn danger" onPointerDown=${down} onPointerUp=${up} onPointerLeave=${up}>Not-Aus · halten</button>
+      <${EStop} confirm=${confirm} />
     </div>`;
 }
 
@@ -369,6 +368,13 @@ function Switches({ st, sw, items, busy, act, flip }) {
       ${items.length === 0 && html`<div class="disp-empty">Klipper ist nicht bereit</div>`}
       <div class="disp-note">Alle Schalter gelten auch in Web, App und Mainsail – gespeichert im Drucker.</div>
     </div>`;
+}
+
+/** Not-Aus: immer bedienbar (auch wenn gerade etwas laeuft), mit Rueckfrage. */
+function EStop({ confirm }) {
+  return html`<button type="button" class="disp-btn danger" onClick=${() => confirm({ title: "Not-Aus?", ok: "Not-Aus", danger: true,
+    text: "Alles stoppt sofort: Motoren, Heizungen, Druck. Der Druck ist verloren; danach Klipper neu laden.",
+    action: () => post("/api/print/emergency_stop", { confirm: true }) })}>Not-Aus …</button>`;
 }
 
 const Toggle = ({ title, hint, on, disabled, onClick }) => html`<button type="button" class="disp-toggle" aria-pressed=${!!on}
