@@ -13,6 +13,7 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .config import Config
@@ -162,10 +163,7 @@ class RuntimeSettings:
 
     def _save(self) -> None:
         os.makedirs(self.cfg.data_dir, exist_ok=True)
-        tmp = _path(self.cfg) + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self.saved, f, indent=1)
-        os.replace(tmp, _path(self.cfg))
+        save_json(_path(self.cfg), self.saved, indent=1)
 
     def _check_pairs(self) -> None:
         """Zusammengehoerige Werte: mindestens <= hoechstens."""

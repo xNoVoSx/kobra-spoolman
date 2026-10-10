@@ -11,6 +11,7 @@ import os
 import re
 from dataclasses import asdict, dataclass, field, fields
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .config import Config
@@ -146,10 +147,7 @@ def load(path: str, default: VisionSettings) -> VisionSettings:
 
 def save(path: str, s: VisionSettings) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(s.to_dict(), f, indent=1)
-    os.replace(tmp, path)
+    save_json(path, s.to_dict(), indent=1)
 
 
 def in_quiet(s: VisionSettings, minutes_of_day: int) -> bool:

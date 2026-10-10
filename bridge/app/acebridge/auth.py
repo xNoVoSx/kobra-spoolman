@@ -21,6 +21,7 @@ import secrets
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional
+from .storage import save_json
 
 log = logging.getLogger("auth")
 
@@ -69,10 +70,7 @@ class Devices:
             self.devices = []
 
     def _save(self) -> None:
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"devices": self.devices}, fh, indent=1)
-        os.replace(tmp, self.path)
+        save_json(self.path, {"devices": self.devices}, indent=1)
 
     def announce(self) -> None:
         """Beim Start: Einrichtungscode ins Log, wenn noch nichts gekoppelt ist."""
@@ -195,10 +193,7 @@ class CameraKey:
 
     def rotate(self) -> str:
         self.key = secrets.token_urlsafe(24)
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"key": self.key}, fh)
-        os.replace(tmp, self.path)
+        save_json(self.path, {"key": self.key})
         log.info("Neuer Kamera-Schlüssel erzeugt (alte Kamera-Links gelten nicht mehr)")
         return self.key
 

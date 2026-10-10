@@ -29,6 +29,7 @@ from .slots import base_type
 from .auth import AuthError
 from .spoolman import NFC_UID_FIELD, TAG_NR_FIELD, extra_value
 from .status import file_usage, notices
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -796,10 +797,7 @@ class AppApi:
             names = sorted({str(n) for n in body.get("names") or [] if isinstance(n, str) and n.strip()})
             if not names:
                 raise AppError(400, "names fehlt")
-            tmp = self.bases_file + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as fh:
-                json.dump({"names": names}, fh, ensure_ascii=False)
-            os.replace(tmp, self.bases_file)
+            save_json(self.bases_file, {"names": names})
             return web.json_response({"ok": True, "count": len(names)})
 
         return r

@@ -28,6 +28,7 @@ from .dryer import DEFAULT_DRY_TEMP, filament_dry_temp, hub_state
 from .profiles import find_template
 from .slots import base_type
 from .spoolman import extra_value
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .config import Config
@@ -146,10 +147,7 @@ class MoistureModel:
 
     def _save(self) -> None:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"spools": self.state}, f)
-        os.replace(tmp, self.path)
+        save_json(self.path, {"spools": self.state})
 
     # ------------------------------------------------------------ Hilfen
     def _templates(self) -> List[Dict[str, Any]]:

@@ -32,6 +32,7 @@ import aiohttp
 from . import vision_settings as vs
 from .camera import CameraError
 from .vision_data import Dataset
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .camera import Camera
@@ -173,10 +174,8 @@ class Vision:
 
     def _save(self) -> None:
         os.makedirs(self.dir, exist_ok=True)
-        tmp = self._path("state.json.tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"long": self.pred.long, "lifetime": self.pred.lifetime, "events": self.events[-EVENTS_KEPT:]}, f)
-        os.replace(tmp, self._path("state.json"))
+        save_json(self._path("state.json"),
+                  {"long": self.pred.long, "lifetime": self.pred.lifetime, "events": self.events[-EVENTS_KEPT:]})
 
     def _save_frame(self, img: bytes, kind: str, extra: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """Bild in den Ordner des Drucks. Rueckgabe: "<druck>/<bild>" oder None."""

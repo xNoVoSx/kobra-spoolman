@@ -22,6 +22,7 @@ import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .spoolman import extra_value
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .config import Config
@@ -108,10 +109,7 @@ class PaSync:
             return 0.0
 
     def _save(self) -> None:
-        tmp = self._file + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"done": self.done}, fh)
-        os.replace(tmp, self._file)
+        save_json(self._file, {"done": self.done})
 
     # ------------------------------------------------------------ Zustand
     @property

@@ -28,6 +28,7 @@ from . import acemodel
 from .profiles import find_template
 from .slots import base_type
 from .spoolman import extra_value
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .config import Config
@@ -152,10 +153,7 @@ class Dryer:
             self.config = DryerConfig()
 
     def _save(self) -> None:
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"config": asdict(self.config), "schedule": self.schedule, "run": self.run}, fh, indent=1)
-        os.replace(tmp, self.path)
+        save_json(self.path, {"config": asdict(self.config), "schedule": self.schedule, "run": self.run}, indent=1)
 
     def set_config(self, changes: Dict[str, Any]) -> DryerConfig:
         data = asdict(self.config)

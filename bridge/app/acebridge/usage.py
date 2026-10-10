@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from . import acemodel
 from .config import Config
+from .storage import save_json, save_lines
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
@@ -135,15 +136,9 @@ class UsageTracker:
             if os.path.getsize(self.purge_path) > PURGE_LOG_KEEP * 400:     # grob: kuerzen, wenn zu lang
                 with open(self.purge_path, encoding="utf-8") as fh:
                     lines = fh.readlines()[-PURGE_LOG_KEEP:]
-                self._atomic_lines(self.purge_path, lines)
+                save_lines(self.purge_path, lines)
         except OSError as e:
             log.warning("Spuelprotokoll: %s", e)
-
-    def _atomic_lines(self, path: str, lines: List[str]) -> None:
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            fh.writelines(lines)
-        os.replace(tmp, path)
 
     def purge_pairs(self) -> List[Dict[str, Any]]:
         """Spuelprotokoll je Farbpaar (Farbe + Material vorher/nachher): Anzahl, Spuelmengen, zuletzt."""
@@ -167,14 +162,6 @@ class UsageTracker:
             p["last_at"], p["last_file"] = r.get("at"), r.get("file")
         return sorted(pairs.values(), key=lambda p: (-p["count"], p["last_at"] or ""))
 
-    def _atomic_write(self, path: str, data: Any) -> None:
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, ensure_ascii=False, indent=1)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-
     def save(self, force: bool = False) -> None:
         if not (self._dirty or force):
             return
@@ -182,7 +169,7 @@ class UsageTracker:
         if not force and now - self._last_save < SAVE_INTERVAL_S:
             return
         try:
-            self._atomic_write(self.state_path, {"job": self.job, "open": self.open})
+            save_json(self.state_path, {"job": self.job, "open": self.open}, indent=1)
             self._dirty = False
             self._last_save = now
         except OSError as e:
@@ -546,7 +533,7 @@ class UsageTracker:
         self.history.insert(0, summary)
         del self.history[self.cfg.job_history:]
         try:
-            self._atomic_write(self.history_path, self.history)
+            save_json(self.history_path, self.history, indent=1)
         except OSError as e:
             log.error("Historie speichern fehlgeschlagen: %s", e)
         self._journal("job_end", **{k: v for k, v in summary.items() if k != "slots"}, slots=summary["slots"])

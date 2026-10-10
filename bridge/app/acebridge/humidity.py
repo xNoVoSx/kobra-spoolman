@@ -17,6 +17,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from .dryer import hub_state
+from .storage import save_json
 
 if TYPE_CHECKING:
     from .config import Config
@@ -62,10 +63,7 @@ class HumidityLog:
 
     def _save(self) -> None:
         os.makedirs(self.dir, exist_ok=True)
-        tmp = self._sessions_path() + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"sessions": self.sessions[-SESSIONS_KEPT:], "open": self.open}, f)
-        os.replace(tmp, self._sessions_path())
+        save_json(self._sessions_path(), {"sessions": self.sessions[-SESSIONS_KEPT:], "open": self.open})
 
     def _day(self, t: float) -> str:
         return time.strftime("%Y-%m-%d", time.localtime(t))
