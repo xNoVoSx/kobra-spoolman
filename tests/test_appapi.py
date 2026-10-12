@@ -25,20 +25,20 @@ from acebridge.slots import SlotManager
 from acebridge.web import build_app
 
 FIELDS = [
-    {"key": "vorlage", "field_type": "choice", "choices": ["Vorlage PETG", "Vorlage PLA"]},
+    {"key": "vorlage", "field_type": "choice", "choices": ["Template PETG", "Template PLA"]},
     {"key": "orca_basis", "field_type": "text"},
     {"key": "nozzle_temp_first_layer", "field_type": "integer"},
     {"key": "flow_ratio", "field_type": "float"},
     {"key": "air_filtration", "field_type": "boolean"},
 ]
-VENDORS = [{"id": 1, "name": "Vorlage"}, {"id": 2, "name": "Sunlu"}]
-TPL_PETG = {"id": 10, "name": "Vorlage PETG", "material": "PETG", "density": 1.27, "diameter": 1.75,
-            "settings_extruder_temp": 255, "settings_bed_temp": 80, "vendor": {"id": 1, "name": "Vorlage"},
+VENDORS = [{"id": 1, "name": "Template"}, {"id": 2, "name": "Sunlu"}]
+TPL_PETG = {"id": 10, "name": "Template PETG", "material": "PETG", "density": 1.27, "diameter": 1.75,
+            "settings_extruder_temp": 255, "settings_bed_temp": 80, "vendor": {"id": 1, "name": "Template"},
             "extra": {"nozzle_temp_first_layer": "255", "bed_temp_first_layer": "80"}}
 LAVENDEL = {"id": 20, "name": "PETG 2.0 Lavendelviolett", "material": "PETG", "density": 1.27, "diameter": 1.75,
             "weight": 1000, "spool_weight": 160, "color_hex": "685BC7", "settings_extruder_temp": 250,
             "settings_bed_temp": 75, "vendor": {"id": 2, "name": "Sunlu"},
-            "extra": {"flow_ratio": "0.95", "vorlage": "\"Vorlage PETG\""}}
+            "extra": {"flow_ratio": "0.95", "vorlage": "\"Template PETG\""}}
 
 
 # ====================================================================== reine Funktionen
@@ -56,7 +56,7 @@ def test_filament_body_validation():
     for bad, msg in (({"material": "PETG"}, "name"), ({"name": "x"}, "material"),
                      ({"name": "x", "material": "PETG", "color_hex": "lila"}, "colour"),
                      ({"name": "x", "material": "PETG", "extra": {"gibtsnicht": 1}}, "extra field"),
-                     ({"name": "x", "material": "PETG", "extra": {"vorlage": "Vorlage ABS"}}, "allowed"),
+                     ({"name": "x", "material": "PETG", "extra": {"vorlage": "Template ABS"}}, "allowed"),
                      ({"name": "x", "material": "PETG", "vendor_id": 99}, "vendor"),
                      ({"name": "x", "material": "PETG", "remaining_weight": 5}, "cannot set"),
                      ({"name": "x", "material": "EXOTISCH"}, "density")):
@@ -78,7 +78,7 @@ def test_copy_keeps_product_line_values_but_not_name_and_colour():
                               [TPL_PETG])
     assert body["name"] == "PETG 2.0 Mintgrün" and body["color_hex"] == "3FA46A" and body["vendor_id"] == 2
     assert body["settings_extruder_temp"] == 250 and body["weight"] == 1000
-    assert body["extra"] == {"flow_ratio": "0.95", "vorlage": "\"Vorlage PETG\""}
+    assert body["extra"] == {"flow_ratio": "0.95", "vorlage": "\"Template PETG\""}
 
 
 def test_tag_numbers_and_uids():
@@ -157,10 +157,10 @@ class MemSpoolman:
         return next((f for f in self.filaments if f["id"] == fid), None)
 
     def templates(self):
-        return [f for f in self.filaments if (f.get("vendor") or {}).get("name") == "Vorlage"]
+        return [f for f in self.filaments if (f.get("vendor") or {}).get("name") == "Template"]
 
     def is_template(self, fil):
-        return (fil.get("vendor") or {}).get("name") == "Vorlage"
+        return (fil.get("vendor") or {}).get("name") == "Template"
 
     async def fields(self, entity, refresh=False):
         return self.field_defs[entity]
@@ -280,7 +280,7 @@ def test_state_catalog_and_spool_detail(api):
     assert call("GET", "/api/app/state")[1]["can_write"] is True                     # mit Schluessel
     status, cat = call("GET", "/api/app/catalog", token=None)
     assert [v["name"] for v in cat["vendors"]] == ["Sunlu"]            # Vorlagen-Hersteller ausgeblendet
-    assert cat["templates"][0]["name"] == "Vorlage PETG"
+    assert cat["templates"][0]["name"] == "Template PETG"
     assert {f["key"]: f["orca_key"] for f in cat["fields"]}["flow_ratio"] == "filament_flow_ratio"
     assert cat["filaments"][0]["display_name"] == "Sunlu PETG 2.0 Lavendelviolett"
     status, det = call("GET", "/api/app/spool/1", token=None)
@@ -356,7 +356,7 @@ def test_copy_and_archive(api):
     assert call("POST", "/api/app/filament/10/copy", {"name": "x"})[0] == 404       # Vorlage ist kein Filament
     status, _ = call("POST", "/api/app/spool/1/archive")
     assert status == 200 and bridge.sm.spools[0]["archived"] is True
-    assert bridge.sm.spools[0]["location"] == "Regal"
+    assert bridge.sm.spools[0]["location"] == "Shelf"
 
 
 def test_tag_issue_link_lookup(api):

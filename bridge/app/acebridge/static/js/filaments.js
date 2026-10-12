@@ -51,7 +51,9 @@ function templateFor(values, templates) {
   const m = (values.material || "").trim().toUpperCase();
   if (!m) return null;
   const same = templates.filter((t) => (t.material || "").trim().toUpperCase() === m);
-  return same.find((x) => (x.name || "").toUpperCase() === "VORLAGE " + m) || same.sort((a, b) => a.id - b.id)[0] || null;
+  // "<template vendor> <material>": "Template PETG", or "Vorlage PETG" in installs before 3.12
+  const names = ["TEMPLATE " + m, "VORLAGE " + m];
+  return same.find((x) => names.includes((x.name || "").toUpperCase())) || same.sort((a, b) => a.id - b.id)[0] || null;
 }
 
 function initial(fil) {

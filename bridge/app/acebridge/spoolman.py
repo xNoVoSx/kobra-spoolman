@@ -58,6 +58,7 @@ class Spoolman:
             self.spools = await self._get("/spool", allow_archived="false")
             self.filaments = await self._get("/filament")
             self.vendors = await self._get("/vendor")
+            self.resolve_names()
             if not self.connected:
                 log.info("Spoolman reachable: %d spools, %d filaments", len(self.spools), len(self.filaments))
             self.connected = True
@@ -69,6 +70,21 @@ class Spoolman:
             self.connected = False
             self.version = None
             return False
+
+    def resolve_names(self) -> None:
+        """Shelf location and template vendor when not set in the configuration: keep the names an existing install
+        uses (German before 3.12), else the English defaults. Decided once, at the first answer of Spoolman."""
+        from .config import SHELF_NAMES, TEMPLATE_VENDORS
+        if self.cfg.template_vendor_auto:
+            names = {(v.get("name") or "") for v in self.vendors}
+            self.cfg.template_vendor = next((n for n in TEMPLATE_VENDORS if n in names), TEMPLATE_VENDORS[0])
+            self.cfg.template_vendor_auto = False
+            log.info("Template vendor in Spoolman: %s", self.cfg.template_vendor)
+        if self.cfg.shelf_location_auto:
+            used = {(s.get("location") or "") for s in self.spools}
+            self.cfg.shelf_location = next((n for n in SHELF_NAMES if n in used), SHELF_NAMES[0])
+            self.cfg.shelf_location_auto = False
+            log.info("Shelf location in Spoolman: %s", self.cfg.shelf_location)
 
     async def patch_spool(self, spool_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.cfg.dry_run:

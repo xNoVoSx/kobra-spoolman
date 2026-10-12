@@ -23,7 +23,7 @@ class TagSpoolman(SlotSpoolman):
         return True
 
 
-def spool(sid, name, tag=None, loc="Regal"):
+def spool(sid, name, tag=None, loc="Shelf"):
     return {"id": sid, "location": loc, "extra": {"tag_nr": str(tag)} if tag else {},
             "filament": {"id": sid, "name": name, "material": "PETG", "color_hex": "685bc7", "vendor": {"name": "Sunlu"}}}
 
@@ -68,7 +68,7 @@ def test_already_loaded_tag_is_assigned_at_start_after_debounce(make):
     """Lavendel liegt schon im Slot (Tag schon gelesen): nach dem Bridge-Start ohne Herausnehmen zuordnen."""
     sm, _ = make(status([34532, 0, 102, 0]), [spool(1, "Lavendel", 34532), spool(2, "Magenta")])
     run(sm.auto_by_tag(now=100))
-    assert loc(sm, 1) == "Regal"                                  # erst entprellen
+    assert loc(sm, 1) == "Shelf"                                  # erst entprellen
     run(sm.auto_by_tag(now=104))
     assert loc(sm, 1) == "ACE Slot 1" and sm.by_tag == {0: 34532}
     assert "Lavendel recognised by RFID" in sm.tag_events[-1]["text"]
@@ -79,7 +79,7 @@ def test_new_spool_replaces_old_and_manual_choice_is_kept(make):
     sm, moon = make(status([0, 0]), [spool(1, "Lavendel", 34532), spool(2, "Magenta", 4711, loc="ACE Slot 1")])
     moon.merge(status([34532, 0]))
     settle(sm, 10)
-    assert loc(sm, 1) == "ACE Slot 1" and loc(sm, 2) == "Regal"   # alte Spule ins Regal
+    assert loc(sm, 1) == "ACE Slot 1" and loc(sm, 2) == "Shelf"   # alte Spule ins Regal
     run(sm.assign(1, 2))                                           # bewusst von Hand anders
     settle(sm, 30)
     assert loc(sm, 2) == "ACE Slot 1"                              # nicht zurueckgedreht
@@ -99,7 +99,7 @@ def test_spool_moves_from_other_slot(make):
 def test_unknown_tag_is_learned_on_manual_assignment(make):
     sm, _ = make(status([55555, 0]), [spool(1, "Lavendel"), spool(2, "Magenta", 4711)])
     settle(sm, 0)
-    assert sm.unknown_tags == {0: 55555} and loc(sm, 1) == "Regal"
+    assert sm.unknown_tags == {0: 55555} and loc(sm, 1) == "Shelf"
     run(sm.assign(1, 1))
     assert sm.sm.spool(1)["extra"]["tag_nr"] == "55555" and sm.unknown_tags == {}
     assert sm.by_tag == {0: 55555}
@@ -117,7 +117,7 @@ def test_can_be_switched_off(make, cfg):
     sm, _ = make(status([34532]), [spool(1, "Lavendel", 34532)])
     cfg.auto_assign_by_tag = False
     settle(sm, 0)
-    assert loc(sm, 1) == "Regal"
+    assert loc(sm, 1) == "Shelf"
 
 
 def test_waits_for_spoolman_and_rechecks_unknown_numbers(make):

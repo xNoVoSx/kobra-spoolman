@@ -33,7 +33,10 @@ def find_template(filament: Dict[str, Any], templates: List[Dict[str, Any]]) -> 
     exact = [t for t in templates if (t.get("material") or "").strip().upper() == material]
     if not exact:
         return None
-    preferred = next((t for t in exact if (t.get("name") or "").upper() == f"VORLAGE {material}"), None)
+    # "<template vendor> <material>" ("Template PETG", or "Vorlage PETG" in installs before 3.12)
+    names = {f"{(t.get('vendor') or {}).get('name') or ''} {material}".strip().upper() for t in exact}
+    names |= {f"TEMPLATE {material}", f"VORLAGE {material}"}
+    preferred = next((t for t in exact if (t.get("name") or "").upper() in names), None)
     return preferred or sorted(exact, key=lambda t: t.get("id", 0))[0]
 
 

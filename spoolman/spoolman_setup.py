@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Spoolman-Setup fuer das Kobra-S1-Projekt (ace-lane-bridge / Orca-Plugin).
+Spoolman setup for kobra-spoolman (ace-lane-bridge / Orca plugin).
 
-Legt per Spoolman-API an:
-  * Zusatzfelder fuer Filamente (Orca-Einstellungen) und Spulen (NFC-Kennung)
-  * den Hersteller "Vorlage" mit sieben Materialvorlagen
-    (Startwerte aus den Orca-Generic-Profilen, Stand OrcaSlicer main 2026-09)
+Creates via the Spoolman API:
+  * extra fields for filaments (Orca settings) and spools (NFC ID)
+  * the vendor "Template" with seven material templates
+    (start values from Orca's generic profiles, OrcaSlicer main 2026-09)
 
-Das Skript legt nur NEU an. Vorhandene Felder, Hersteller und Filamente
-werden nicht veraendert und nichts wird geloescht. Mehrfaches Ausfuehren ist
-unkritisch.
+The script only creates things. Existing fields, vendors and filaments are not changed and nothing is deleted.
+Running it more than once is harmless. An install from before 3.12 with the German vendor "Vorlage" keeps it.
 
-Aufruf:
-  python3 spoolman_setup.py                 # zeigt Plan, fragt nach
-  python3 spoolman_setup.py --dry-run       # nur anzeigen
-  python3 spoolman_setup.py --yes           # ohne Rueckfrage
+Usage:
+  python3 spoolman_setup.py                 # shows the plan, asks
+  python3 spoolman_setup.py --dry-run       # show only
+  python3 spoolman_setup.py --yes           # without asking
   python3 spoolman_setup.py --url http://<spoolman-host>:7912
+  python3 spoolman_setup.py --language de   # names in Spoolman in German (fields, vendor, templates)
 
-Nur Python-Standardbibliothek, getestet gegen Spoolman 0.26.1.
+Python standard library only, tested against Spoolman 0.26.1.
 """
 
 from __future__ import annotations
@@ -33,55 +33,63 @@ import urllib.request
 DEFAULT_URL = os.environ.get("SPOOLMAN_URL", "http://localhost:7912")
 
 # ---------------------------------------------------------------------------
-# Zusatzfelder. WICHTIG: keine default_value setzen, sonst bekommt jedes neue
-# Filament den Wert eingetragen und die Vererbung (leer = von Vorlage/Orca)
-# waere kaputt.
-# key -> (Name, Typ, Einheit, Reihenfolge)  |  Kommentar = Orca-Schluessel
+# Extra fields. IMPORTANT: set no default_value, else every new filament gets the value and the inheritance
+# (empty = from the template/Orca) would be broken. The keys are fixed (the bridge reads them); the names are what
+# Spoolman shows.
+# key -> ({language: name}, type, unit, order)  |  comment = Orca key
 # ---------------------------------------------------------------------------
 FILAMENT_FIELDS = [
-    ("orca_basis",                  "Orca-Basisprofil",               "text",    None,       1),   # Name des Orca-Systemprofils
-    ("vorlage",                     "Vorlage",                        "choice",  None,       2),   # leer = automatisch nach Material
-    ("nozzle_temp_first_layer",     "Düse erste Schicht",             "integer", "°C",       10),  # nozzle_temperature_initial_layer
-    ("bed_temp_first_layer",        "Bett erste Schicht",             "integer", "°C",       11),  # textured_plate_temp_initial_layer
-    ("bed_temp_smooth",             "Bett glatte PEI",                "integer", "°C",       12),  # hot_plate_temp
-    ("bed_temp_smooth_first_layer", "Bett glatte PEI erste Schicht",  "integer", "°C",       13),  # hot_plate_temp_initial_layer
-    ("chamber_temp",                "Kammertemperatur",               "integer", "°C",       14),  # chamber_temperature
-    ("dry_temp",                    "Trocknen max.",                  "integer", "°C",       15),  # ACE-Trockner, kein Orca-Wert
-    ("dry_hours",                   "Trocknen Dauer",                 "float",   "h",        16),  # Mindestdauer bei "Trocknen max." (Bridge)
-    ("open_days",                   "Offen bis Trocknen",             "float",   "Tage",     17),  # bei 50 % rF bis "trocknen empfohlen"
-    ("fan_min",                     "Bauteillüfter min",              "integer", "%",        20),  # fan_min_speed
-    ("fan_max",                     "Bauteillüfter max",              "integer", "%",        21),  # fan_max_speed
-    ("fan_off_first_layers",        "Lüfter aus erste Schichten",     "integer", "Schichten",22),  # close_fan_the_first_x_layers
-    ("overhang_fan",                "Überhang-Lüfter",                "integer", "%",        23),  # overhang_fan_speed
-    ("aux_fan",                     "Hilfslüfter",                    "integer", "%",        24),  # additional_cooling_fan_speed
-    ("air_filtration",              "Luftfilterung (Abluft)",         "boolean", None,       30),  # activate_air_filtration
-    ("exhaust_fan_print",           "Abluft während Druck",           "integer", "%",        31),  # during_print_exhaust_fan_speed
-    ("exhaust_fan_done",            "Abluft nach Druck",              "integer", "%",        32),  # complete_print_exhaust_fan_speed
-    ("flow_ratio",                  "Flow Ratio",                     "float",   None,       40),  # filament_flow_ratio
-    ("pressure_advance",            "Pressure Advance",               "float",   None,       41),  # pressure_advance (+enable)
-    ("pa_table",                    "PA-Tabelle (Auto-PA)",           "text",    None,       43),  # Messung kobra_pa (Bridge schreibt)
-    ("z_offset",                    "Z-Versatz",                      "float",   "mm",       44),  # KOBRA_START, erste Schicht (+ = weiter weg)
-    ("max_volumetric_speed",        "Max. Volumenstrom",              "float",   "mm³/s",    42),  # filament_max_volumetric_speed
-    ("retraction_length",           "Retraction Länge",               "float",   "mm",       50),  # filament_retraction_length
-    ("retraction_speed",            "Retraction Geschwindigkeit",     "integer", "mm/s",     51),  # filament_retraction_speed
-    ("z_hop",                       "Z-Hop",                          "float",   "mm",       52),  # filament_z_hop
-    ("orca_overrides",              "Orca-Overrides",                 "text",    None,       90),  # "schluessel = wert" je Zeile
+    ("orca_basis",                  {"en": "Orca base profile", "de": "Orca-Basisprofil"},                    "text",    None,    1),   # name of the Orca system profile
+    ("vorlage",                     {"en": "Template", "de": "Vorlage"},                                       "choice",  None,    2),   # empty = automatic by material
+    ("nozzle_temp_first_layer",     {"en": "Nozzle first layer", "de": "Düse erste Schicht"},                 "integer", "°C",    10),  # nozzle_temperature_initial_layer
+    ("bed_temp_first_layer",        {"en": "Bed first layer", "de": "Bett erste Schicht"},                    "integer", "°C",    11),  # textured_plate_temp_initial_layer
+    ("bed_temp_smooth",             {"en": "Bed smooth PEI", "de": "Bett glatte PEI"},                        "integer", "°C",    12),  # hot_plate_temp
+    ("bed_temp_smooth_first_layer", {"en": "Bed smooth PEI first layer", "de": "Bett glatte PEI erste Schicht"}, "integer", "°C", 13),  # hot_plate_temp_initial_layer
+    ("chamber_temp",                {"en": "Chamber temperature", "de": "Kammertemperatur"},                  "integer", "°C",    14),  # chamber_temperature
+    ("dry_temp",                    {"en": "Dry max.", "de": "Trocknen max."},                                "integer", "°C",    15),  # ACE dryer, no Orca value
+    ("dry_hours",                   {"en": "Dry duration", "de": "Trocknen Dauer"},                           "float",   "h",     16),  # minimum duration at "Dry max." (bridge)
+    ("open_days",                   {"en": "Open until drying", "de": "Offen bis Trocknen"},                  "float",   {"en": "days", "de": "Tage"}, 17),  # at 50 % RH until "drying recommended"
+    ("fan_min",                     {"en": "Part fan min", "de": "Bauteillüfter min"},                        "integer", "%",     20),  # fan_min_speed
+    ("fan_max",                     {"en": "Part fan max", "de": "Bauteillüfter max"},                        "integer", "%",     21),  # fan_max_speed
+    ("fan_off_first_layers",        {"en": "Fan off first layers", "de": "Lüfter aus erste Schichten"},       "integer", {"en": "layers", "de": "Schichten"}, 22),  # close_fan_the_first_x_layers
+    ("overhang_fan",                {"en": "Overhang fan", "de": "Überhang-Lüfter"},                          "integer", "%",     23),  # overhang_fan_speed
+    ("aux_fan",                     {"en": "Auxiliary fan", "de": "Hilfslüfter"},                             "integer", "%",     24),  # additional_cooling_fan_speed
+    ("air_filtration",              {"en": "Air filtration (exhaust)", "de": "Luftfilterung (Abluft)"},       "boolean", None,    30),  # activate_air_filtration
+    ("exhaust_fan_print",           {"en": "Exhaust during print", "de": "Abluft während Druck"},            "integer", "%",     31),  # during_print_exhaust_fan_speed
+    ("exhaust_fan_done",            {"en": "Exhaust after print", "de": "Abluft nach Druck"},                 "integer", "%",     32),  # complete_print_exhaust_fan_speed
+    ("flow_ratio",                  {"en": "Flow ratio", "de": "Flow Ratio"},                                 "float",   None,    40),  # filament_flow_ratio
+    ("pressure_advance",            {"en": "Pressure advance", "de": "Pressure Advance"},                     "float",   None,    41),  # pressure_advance (+enable)
+    ("pa_table",                    {"en": "PA table (auto PA)", "de": "PA-Tabelle (Auto-PA)"},               "text",    None,    43),  # measured by kobra_pa (the bridge writes it)
+    ("z_offset",                    {"en": "Z offset", "de": "Z-Versatz"},                                    "float",   "mm",    44),  # KOBRA_START, first layer (+ = further away)
+    ("max_volumetric_speed",        {"en": "Max. volumetric speed", "de": "Max. Volumenstrom"},               "float",   "mm³/s", 42),  # filament_max_volumetric_speed
+    ("retraction_length",           {"en": "Retraction length", "de": "Retraction Länge"},                    "float",   "mm",    50),  # filament_retraction_length
+    ("retraction_speed",            {"en": "Retraction speed", "de": "Retraction Geschwindigkeit"},           "integer", "mm/s",  51),  # filament_retraction_speed
+    ("z_hop",                       {"en": "Z hop", "de": "Z-Hop"},                                           "float",   "mm",    52),  # filament_z_hop
+    ("orca_overrides",              {"en": "Orca overrides", "de": "Orca-Overrides"},                         "text",    None,    90),  # "key = value" per line
 ]
 
 SPOOL_FIELDS = [
-    ("nfc_uid",                     "NFC-Kennung",                    "text",    None,       10),  # UID des Tags (setzt die Bridge/App)
-    ("tag_nr",                      "Tag-Nummer",                     "integer", None,       11),  # Nummer in der SKU selbst beschriebener Tags
-    ("moisture",                    "Feuchte-Schätzung",              "integer", "%",        20),  # 100 = trocknen empfohlen (setzt die Bridge)
-    ("last_in_ace",                 "Zuletzt im ACE",                 "datetime", None,      21),  # wann sie herausgenommen wurde
-    ("last_dried",                  "Zuletzt getrocknet",             "datetime", None,      22),
-    ("last_dried_info",             "Zuletzt getrocknet mit",         "text",    None,       23),  # Temperatur
+    ("nfc_uid",                     {"en": "NFC ID", "de": "NFC-Kennung"},                                    "text",    None,    10),  # tag UID (set by the bridge/app)
+    ("tag_nr",                      {"en": "Tag number", "de": "Tag-Nummer"},                                 "integer", None,    11),  # number in the SKU of self-written tags
+    ("moisture",                    {"en": "Moisture estimate", "de": "Feuchte-Schätzung"},                   "integer", "%",     20),  # 100 = drying recommended (set by the bridge)
+    ("last_in_ace",                 {"en": "Last in the ACE", "de": "Zuletzt im ACE"},                        "datetime", None,   21),  # when it was taken out
+    ("last_dried",                  {"en": "Last dried", "de": "Zuletzt getrocknet"},                         "datetime", None,   22),
+    ("last_dried_info",             {"en": "Last dried with", "de": "Zuletzt getrocknet mit"},                "text",    None,    23),  # temperature
 ]
 
-VENDOR_NAME = "Vorlage"
+# template vendor per language; templates are named "<vendor> <name>" ("Template PETG")
+VENDOR_NAMES = {"en": "Template", "de": "Vorlage"}
+TEXTS = {
+    "en": {"vendor_comment": "Material templates for the Orca plugin - do not use as real spools",
+           "template_comment": "Material template. Empty fields inherit from the Orca base profile."},
+    "de": {"vendor_comment": "Materialvorlagen für das Orca-Plugin - nicht als echte Spulen verwenden",
+           "template_comment": "Materialvorlage. Leere Felder erben vom Orca-Basisprofil."},
+}
 
+# start values per template (name without the vendor prefix)
 TEMPLATES = [
     {
-        "name": "Vorlage PLA",
+        "name": "PLA",
         "material": "PLA",
         "density": 1.24,
         "diameter": 1.75,
@@ -107,7 +115,7 @@ TEMPLATES = [
         }
     },
     {
-        "name": "Vorlage PLA Silk",
+        "name": "PLA Silk",
         "material": "PLA",
         "density": 1.24,
         "diameter": 1.75,
@@ -134,7 +142,7 @@ TEMPLATES = [
         }
     },
     {
-        "name": "Vorlage PETG",
+        "name": "PETG",
         "material": "PETG",
         "density": 1.27,
         "diameter": 1.75,
@@ -159,7 +167,7 @@ TEMPLATES = [
         }
     },
     {
-        "name": "Vorlage ASA",
+        "name": "ASA",
         "material": "ASA",
         "density": 1.04,
         "diameter": 1.75,
@@ -184,7 +192,7 @@ TEMPLATES = [
         }
     },
     {
-        "name": "Vorlage TPU",
+        "name": "TPU",
         "material": "TPU",
         "density": 1.24,
         "diameter": 1.75,
@@ -211,7 +219,7 @@ TEMPLATES = [
         }
     },
     {
-        "name": "Vorlage PLA-CF",
+        "name": "PLA-CF",
         "material": "PLA-CF",
         "density": 1.24,
         "diameter": 1.75,
@@ -237,7 +245,7 @@ TEMPLATES = [
         }
     },
     {
-        "name": "Vorlage PETG-CF",
+        "name": "PETG-CF",
         "material": "PETG-CF",
         "density": 1.27,
         "diameter": 1.75,
@@ -282,9 +290,9 @@ class Api:
                 return json.loads(raw) if raw else None
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")
-            raise SystemExit(f"FEHLER {method} {path}: HTTP {e.code}\n{detail}") from None
+            raise SystemExit(f"ERROR {method} {path}: HTTP {e.code}\n{detail}") from None
         except urllib.error.URLError as e:
-            raise SystemExit(f"FEHLER: Spoolman unter {self.base} nicht erreichbar ({e.reason})") from None
+            raise SystemExit(f"ERROR: Spoolman at {self.base} not reachable ({e.reason})") from None
 
     def get(self, path, query=None):
         return self._req("GET", path, query=query)
@@ -305,87 +313,101 @@ def field_body(name, ftype, unit, order, choices=None):
     return body
 
 
+def pick(value, lang):
+    """A name or unit in the chosen language (plain strings are the same in every language)."""
+    return value.get(lang) if isinstance(value, dict) else value
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--url", default=DEFAULT_URL, help=f"Spoolman-URL (Standard: {DEFAULT_URL})")
-    ap.add_argument("--dry-run", action="store_true", help="nur anzeigen, nichts schreiben")
-    ap.add_argument("--yes", "-y", action="store_true", help="ohne Rueckfrage ausfuehren")
+    ap.add_argument("--url", default=DEFAULT_URL, help=f"Spoolman URL (default: {DEFAULT_URL})")
+    ap.add_argument("--dry-run", action="store_true", help="show only, write nothing")
+    ap.add_argument("--yes", "-y", action="store_true", help="run without asking")
+    ap.add_argument("--language", choices=("en", "de"), default="en",
+                    help="language of the names in Spoolman (fields, template vendor, templates); default en")
     args = ap.parse_args()
+    lang = args.language
 
     api = Api(args.url, args.dry_run)
     info = api.get("/info")
-    print(f"Spoolman {info.get('version')} unter {args.url}  (automatische Backups: {info.get('automatic_backups')})")
+    print(f"Spoolman {info.get('version')} at {args.url}  (automatic backups: {info.get('automatic_backups')})")
 
-    template_names = [t["name"] for t in TEMPLATES]
-    plan = []  # (beschreibung, callable)
+    # an existing template vendor (German "Vorlage" from before 3.12 or "Template") stays in use
+    all_vendors = api.get("/vendor")
+    vendor = next((v for n in (VENDOR_NAMES[lang], *VENDOR_NAMES.values()) for v in all_vendors if v.get("name") == n),
+                  None)
+    vendor_name = vendor["name"] if vendor else VENDOR_NAMES[lang]
+    vendor_id = vendor["id"] if vendor else None
+    templates = [dict(t, name=f"{vendor_name} {t['name']}") for t in TEMPLATES]
+    template_names = [t["name"] for t in templates]
+    plan = []  # (description, action)
 
-    # --- Zusatzfelder -------------------------------------------------------
+    # --- extra fields -----------------------------------------------------------
     for entity, fields in (("filament", FILAMENT_FIELDS), ("spool", SPOOL_FIELDS)):
         existing = {f["key"]: f for f in api.get(f"/field/{entity}")}
-        for key, name, ftype, unit, order in fields:
+        for key, names, ftype, unit, order in fields:
+            name, unit = pick(names, lang), pick(unit, lang)
             choices = template_names if key == "vorlage" else None
             if key in existing:
                 ex = existing[key]
                 if ex["field_type"] != ftype:
-                    print(f"  WARNUNG: Feld {entity}.{key} existiert mit Typ {ex['field_type']} (erwartet {ftype}) - bleibt unveraendert")
+                    print(f"  WARNING: field {entity}.{key} exists with type {ex['field_type']} (expected {ftype}) - left unchanged")
                     continue
                 if key == "vorlage":
                     missing = [c for c in template_names if c not in (ex.get("choices") or [])]
                     if missing:
                         new_choices = list(ex.get("choices") or []) + missing
                         body = field_body(ex["name"], ftype, ex.get("unit"), ex.get("order", order), new_choices)
-                        plan.append((f"Feld {entity}.{key}: Auswahl ergaenzen um {missing}",
+                        plan.append((f"field {entity}.{key}: add choices {missing}",
                                      lambda e=entity, k=key, b=body: api.write("POST", f"/field/{e}/{k}", b)))
                 continue
             body = field_body(name, ftype, unit, order, choices)
-            plan.append((f"Feld {entity}.{key} anlegen ({name}, {ftype}{', ' + unit if unit else ''})",
+            plan.append((f"create field {entity}.{key} ({name}, {ftype}{', ' + unit if unit else ''})",
                          lambda e=entity, k=key, b=body: api.write("POST", f"/field/{e}/{k}", b)))
 
-    # --- Hersteller + Vorlagen ----------------------------------------------
-    vendors = [v for v in api.get("/vendor") if v.get("name") == VENDOR_NAME]
-    vendor_id = vendors[0]["id"] if vendors else None
+    # --- vendor + templates ------------------------------------------------------
     existing_names = set()
     if vendor_id is not None:
         existing_names = {f.get("name") for f in api.get("/filament", {"vendor.id": vendor_id})}
     else:
-        plan.append((f"Hersteller '{VENDOR_NAME}' anlegen", None))  # wird unten gesondert behandelt
+        plan.append((f"create vendor '{vendor_name}'", None))  # handled separately below
 
-    for t in TEMPLATES:
+    for t in templates:
         if t["name"] in existing_names:
             continue
-        plan.append((f"Filament '{t['name']}' anlegen (Basis {t['extra']['orca_basis']})", t))
+        plan.append((f"create filament '{t['name']}' (base {t['extra']['orca_basis']})", t))
 
     if not plan:
-        print("Alles schon vorhanden - nichts zu tun.")
+        print("Everything is there already - nothing to do.")
         return 0
 
-    print("\nGeplante Aenderungen:")
+    print("\nPlanned changes:")
     for desc, _ in plan:
         print("  +", desc)
     if args.dry_run:
-        print("\n--dry-run: nichts geschrieben.")
+        print("\n--dry-run: nothing written.")
         return 0
     if not args.yes:
-        if input("\nAusfuehren? [j/N] ").strip().lower() not in ("j", "ja", "y", "yes"):
-            print("Abgebrochen.")
+        if input("\nRun? [y/N] ").strip().lower() not in ("y", "yes", "j", "ja"):
+            print("Cancelled.")
             return 1
 
     for desc, action in plan:
         if callable(action):
             action()
-        elif action is None:  # Hersteller
-            vendor_id = api.write("POST", "/vendor", {"name": VENDOR_NAME,
-                                  "comment": "Materialvorlagen fuer das Orca-Plugin - nicht als echte Spulen verwenden"})["id"]
-        else:  # Vorlage
+        elif action is None:  # vendor
+            vendor_id = api.write("POST", "/vendor", {"name": vendor_name,
+                                                      "comment": TEXTS[lang]["vendor_comment"]})["id"]
+        else:  # template
             t = action
             body = {k: v for k, v in t.items() if k != "extra"}
             body["vendor_id"] = vendor_id
-            body["comment"] = "Materialvorlage. Leere Felder erben vom Orca-Basisprofil."
+            body["comment"] = TEXTS[lang]["template_comment"]
             body["extra"] = {k: json.dumps(v, ensure_ascii=False) for k, v in t["extra"].items()}
             api.write("POST", "/filament", body)
         print("  ok", desc)
 
-    print("\nFertig.")
+    print("\nDone.")
     return 0
 
 

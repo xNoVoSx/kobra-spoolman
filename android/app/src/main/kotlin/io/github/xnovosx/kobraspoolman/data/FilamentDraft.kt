@@ -109,7 +109,9 @@ fun templateFor(d: FilamentDraft, templates: List<Template>): Template? {
     val m = d.material.trim().uppercase()
     if (m.isEmpty()) return null
     val same = templates.filter { it.material.trim().uppercase() == m }
-    return same.firstOrNull { it.name.uppercase() == "VORLAGE $m" } ?: same.minByOrNull { it.id }
+    // "<template vendor> <material>": "Template PETG", or "Vorlage PETG" in installs before 3.12
+    val names = setOf("TEMPLATE $m", "VORLAGE $m")
+    return same.firstOrNull { it.name.uppercase() in names } ?: same.minByOrNull { it.id }
 }
 
 /** Placeholder for a field from the template (null = no value). */

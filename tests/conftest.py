@@ -114,7 +114,7 @@ def ace_status(slots: List[Optional[Dict[str, Any]]], current: int = -1, humidit
 
 
 def spool(spool_id: int, slot: Optional[int], density: float = 1.24) -> Dict[str, Any]:
-    return {"id": spool_id, "location": f"ACE Slot {slot}" if slot else "Regal",
+    return {"id": spool_id, "location": f"ACE Slot {slot}" if slot else "Shelf",
             "filament": {"id": 100 + spool_id, "name": f"Test {spool_id}", "density": density,
                          "diameter": 1.75, "vendor": {"name": "Test"}}}
 

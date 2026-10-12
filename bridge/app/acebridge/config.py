@@ -27,6 +27,11 @@ def _int(name: str, default: int) -> int:
         return default
 
 
+# names in Spoolman: current (English) first, then the German ones of installs before 3.12
+SHELF_NAMES = ("Shelf", "Regal")
+TEMPLATE_VENDORS = ("Template", "Vorlage")
+
+
 @dataclass
 class Config:
     # printer
@@ -41,10 +46,12 @@ class Config:
     http_host: str = field(default_factory=lambda: os.environ.get("HTTP_HOST", "0.0.0.0"))
     http_port: int = field(default_factory=lambda: _int("HTTP_PORT", 7913))
 
-    # locations and names in Spoolman (data - keep them when upgrading)
+    # locations and names in Spoolman (data - keep them when upgrading). Unset = automatic: an existing install
+    # keeps its names (German ones from before 3.12: "Regal", "Vorlage"), a new one gets "Shelf" and "Template"
+    # (spoolman.Spoolman.resolve_names).
     slot_location_prefix: str = field(default_factory=lambda: os.environ.get("SLOT_LOCATION_PREFIX", "ACE Slot "))
-    shelf_location: str = field(default_factory=lambda: os.environ.get("SHELF_LOCATION", "Regal"))
-    template_vendor: str = field(default_factory=lambda: os.environ.get("TEMPLATE_VENDOR", "Vorlage"))
+    shelf_location: str = field(default_factory=lambda: os.environ.get("SHELF_LOCATION", ""))
+    template_vendor: str = field(default_factory=lambda: os.environ.get("TEMPLATE_VENDOR", ""))
 
     # move the spool to the shelf when the ACE reports a slot empty for a while
     auto_unassign_on_empty: bool = field(default_factory=lambda: _bool("AUTO_UNASSIGN_ON_EMPTY", True))
@@ -166,6 +173,13 @@ class Config:
         from urllib.parse import urlparse
         host = urlparse(self.moonraker_url).hostname
         return f"http://{host}" if host else ""
+
+    def __post_init__(self) -> None:
+        # explicitly set names stay as they are; empty ones are resolved when Spoolman answers (see above)
+        self.shelf_location_auto = not self.shelf_location
+        self.template_vendor_auto = not self.template_vendor
+        self.shelf_location = self.shelf_location or SHELF_NAMES[0]
+        self.template_vendor = self.template_vendor or TEMPLATE_VENDORS[0]
 
     def slot_location(self, slot: int) -> str:
         """slot is 1-based (slot 1 = gate 0)."""
