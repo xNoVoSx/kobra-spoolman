@@ -259,12 +259,15 @@ Keep the bridge inside your home network; it has no TLS.
 
 ## AI notice
 
-This project is built with heavy help from AI: most of the code, tests and documentation were written by an AI
-coding agent (Anthropic's Claude) under the direction of the maintainer, who decides what gets built, reviews it and
-tests it on their own Kobra S1. Every change goes through the automated tests, but AI-written code can still contain
-mistakes nobody has noticed yet. It controls real hardware (heaters, motors) — read what you install, watch your
-first prints, and report anything odd as an [issue](https://github.com/xNoVoSx/kobra-spoolman/issues).
-The software comes without any warranty (see the [licence](LICENSE)).
+kobra-spoolman is my project ([@xNoVoSx](https://github.com/xNoVoSx)): the idea, what it does, how it works and every
+decision come from me, and I test each change on my own Kobra S1 with ACE 2 Pro before it is released. I write the
+code together with an AI coding assistant (Anthropic's Claude), which does most of the typing — code, tests and
+documentation — while I steer, review and try it out on the printer.
+
+Every change goes through the automated tests, but code written this way can still contain mistakes nobody has noticed
+yet. It controls real hardware (heaters, motors) — read what you install, watch your first prints, and report anything
+odd as an [issue](https://github.com/xNoVoSx/kobra-spoolman/issues). The software comes without any warranty (see the
+[licence](LICENSE)).
 
 ## Credits
 

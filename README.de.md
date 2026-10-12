@@ -263,12 +263,15 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 
 ## KI-Hinweis
 
-Dieses Projekt entsteht mit viel KI-Hilfe: Der Großteil von Code, Tests und Doku wurde von einem KI-Programmierassistenten
-(Claude von Anthropic) geschrieben – im Auftrag des Maintainers, der entscheidet, was gebaut wird, es prüft und auf
-dem eigenen Kobra S1 testet. Jede Änderung läuft durch die automatischen Tests, trotzdem kann KI-geschriebener Code
-Fehler enthalten, die noch niemand bemerkt hat. Die Software steuert echte Hardware (Heizungen, Motoren) – lies, was du
-installierst, behalte die ersten Drucke im Blick und melde Auffälligkeiten als
-[Issue](https://github.com/xNoVoSx/kobra-spoolman/issues). Es gibt keine Gewährleistung (siehe [Lizenz](LICENSE)).
+kobra-spoolman ist mein Projekt ([@xNoVoSx](https://github.com/xNoVoSx)): Die Idee, was es kann, wie es funktioniert
+und jede Entscheidung kommen von mir, und ich teste jede Änderung auf meinem eigenen Kobra S1 mit ACE 2 Pro, bevor sie
+erscheint. Den Code schreibe ich zusammen mit einem KI-Programmierassistenten (Claude von Anthropic), der den Großteil
+tippt – Code, Tests und Doku –, während ich steuere, prüfe und am Drucker ausprobiere.
+
+Jede Änderung läuft durch die automatischen Tests, trotzdem kann so entstandener Code Fehler enthalten, die noch
+niemand bemerkt hat. Die Software steuert echte Hardware (Heizungen, Motoren) – lies, was du installierst, behalte die
+ersten Drucke im Blick und melde Auffälligkeiten als [Issue](https://github.com/xNoVoSx/kobra-spoolman/issues). Es gibt
+keine Gewährleistung (siehe [Lizenz](LICENSE)).
 
 ## Dank
 

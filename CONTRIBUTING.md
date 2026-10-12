@@ -26,5 +26,5 @@ The Android app builds with Gradle in `android/` (`./gradlew testDebugUnitTest a
   `tr()` / `t()` with a German entry in the catalogs (`locale/de.json`, `static/i18n/de.json`, the app's
   `assets/i18n/de.json`, the plugin's `DE`); the tests fail on a missing entry. The German docs in `docs/de/` and
   `README.de.md` are kept in sync where possible.
-- The project is developed with heavy AI assistance (see the README's AI notice); contributions written with AI tools
+- The project is developed with an AI coding assistant (see the README's AI notice); contributions written with AI tools
   are welcome — you are responsible for what you submit, so test it.
