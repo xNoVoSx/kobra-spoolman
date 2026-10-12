@@ -113,7 +113,7 @@ def test_printer_state():
     assert printer_state(st, False, False, None)["state"] == "offline"
     idle = printer_state({"print_stats": {"state": "standby", "filename": "a.gcode"}}, True, True, None)
     assert idle["state"] == "standby" and idle["file"] is None and idle["progress"] is None
-    assert idle["nozzle"] is None and idle["fans"] == []          # Drucker meldet nichts -> nichts anzeigen
+    assert idle["nozzle"] is None and idle["fans"] == []          # the printer reports nothing -> show nothing
 
 
 def test_printer_state_machine_values():
@@ -279,7 +279,7 @@ def test_state_catalog_and_spool_detail(api):
     assert st["slots"][0]["spool"]["spool_id"] == 1 and st["can_write"] is False   # without a key
     assert call("GET", "/api/app/state")[1]["can_write"] is True                     # with a key
     status, cat = call("GET", "/api/app/catalog", token=None)
-    assert [v["name"] for v in cat["vendors"]] == ["Sunlu"]            # Vorlagen-Hersteller ausgeblendet
+    assert [v["name"] for v in cat["vendors"]] == ["Sunlu"]            # template vendor hidden
     assert cat["templates"][0]["name"] == "Template PETG"
     assert {f["key"]: f["orca_key"] for f in cat["fields"]}["flow_ratio"] == "filament_flow_ratio"
     assert cat["filaments"][0]["display_name"] == "Sunlu PETG 2.0 Lavendelviolett"
@@ -290,7 +290,7 @@ def test_state_catalog_and_spool_detail(api):
 def test_writes_need_the_token(api):
     bridge, call = api
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token=None)[0] == 401
-    assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token="falsch")[0] == 401
+    assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token="wrong")[0] == 401
     bridge.devices.legacy = ""          # no APP_TOKEN, nothing paired -> setup needed
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"})[0] == 403
 
@@ -311,7 +311,7 @@ def test_every_write_route_needs_a_paired_device(api):
                                ("POST", "/api/camera/link", None), ("GET", "/api/camera/link", None),
                                ("POST", "/api/console", {"script": "M115"})):
         assert call(method, path, body, token=None)[0] == 401, path
-        assert call(method, path, body, token="falsch")[0] == 401, path
+        assert call(method, path, body, token="wrong")[0] == 401, path
     for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state", "/api/ace"):
         assert call("GET", path, token=None)[0] == 200, path
     # with a key the request gets through (here: empty a slot)
@@ -322,10 +322,10 @@ def test_every_write_route_needs_a_paired_device(api):
 def test_spool_patch(api):
     bridge, call = api
     status, res = call("PATCH", "/api/app/spool/1", {"remaining_weight": "812,5".replace(",", "."), "lot_nr": "L17",
-                                                     "comment": "getrocknet"})
+                                                     "comment": "dried"})
     assert status == 200 and res["spool"]["remaining_weight"] == 812.5 and res["spool"]["lot_nr"] == "L17"
     assert bridge.sm.calls[-1] == ("patch_spool", 1, {"remaining_weight": 812.5, "lot_nr": "L17",
-                                                      "comment": "getrocknet"})
+                                                      "comment": "dried"})
     # spool in a slot: location only via the assignment; the slot location never as free text
     assert call("PATCH", "/api/app/spool/1", {"location": "Regal A"})[0] == 400
     call("POST", "/api/slots/1", {"spool_id": None})
@@ -415,7 +415,7 @@ def test_bad_requests_and_spoolman_failures_never_break_the_bridge(api):
             return resp.status
 
     auth = {"Authorization": "Bearer geheim"}
-    assert asyncio.run(raw("POST", "/api/app/filament", "kein json", auth)) == 400
+    assert asyncio.run(raw("POST", "/api/app/filament", "not json", auth)) == 400
     assert asyncio.run(raw("POST", "/api/app/spool", "[1, 2]", {**auth, "Content-Type": "application/json"})) == 400
     assert call("POST", "/api/app/spool", {"filament_id": "abc"})[0] == 400
     assert call("GET", "/api/app/spool/99999", token=None)[0] == 404

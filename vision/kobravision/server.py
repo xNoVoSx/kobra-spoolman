@@ -77,7 +77,7 @@ def build_app(cfg: Config, detector: Detector) -> web.Application:
         try:
             res = await asyncio.get_running_loop().run_in_executor(None, detector.detect, body)
         except OSError as e:          # Pillow: not a readable image
-            return web.json_response({"error": f"Bild nicht lesbar: {e}"}, status=422)
+            return web.json_response({"error": f"Image not readable: {e}"}, status=422)
         return web.json_response({"detections": [[n, c, list(b)] for n, c, b in res.detections], "ms": res.ms,
                                   "width": res.width, "height": res.height, "provider": detector.provider})
 
@@ -102,9 +102,9 @@ def main() -> None:
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(name)s %(levelname)s %(message)s")
     cfg = Config.from_env()
     if not os.path.exists(cfg.model_path):
-        log.error("Modell fehlt: %s", cfg.model_path)
+        log.error("Model missing: %s", cfg.model_path)
     log.info("kobra-vision %s on %s:%s (model %s, %s threads, GPU %s, unloaded after %.0f min)", __version__,
-             cfg.host, cfg.port, os.path.basename(cfg.model_path), cfg.threads, "an" if cfg.use_gpu else "aus",
+             cfg.host, cfg.port, os.path.basename(cfg.model_path), cfg.threads, "on" if cfg.use_gpu else "off",
              cfg.unload_after_s / 60)
     det = Detector(cfg.model_path, cfg.names, cfg.threads, cfg.use_gpu, cfg.unload_after_s)
     web.run_app(build_app(cfg, det), host=cfg.host, port=cfg.port, access_log=None, print=None)

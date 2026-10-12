@@ -42,14 +42,14 @@ def test_not_ready_or_disconnected_means_empty():
     assert acemodel.slot({}, 0)["present"] is False
 
 
-def test_spule_ohne_tag():
+def test_spool_without_tag():
     st = copy.deepcopy(STATUS)
     st["ace_instance_0"]["slots"][1].update({"rfid": False, "sku": ""})
     s = acemodel.slot(st, 1)
     assert s["present"] and not s["rfid"] and s["tag_id"] is None and s["sku"] == ""
 
 
-def test_trockner_und_feuchte():
+def test_dryer_and_humidity():
     d = acemodel.dryer(STATUS)
     assert d["present"] and not d["drying"] and d["humidity"] == 7 and d["temp"] == 29
     st = copy.deepcopy(STATUS)
@@ -59,7 +59,7 @@ def test_trockner_und_feuchte():
     assert d["remaining_min"] == 9.1 and d["duration_min"] == 10.0
 
 
-def test_endlosspule():
+def test_endless_spool():
     assert acemodel.endless_spool(STATUS) == {"enabled": True, "mode": "exact"}
 
 

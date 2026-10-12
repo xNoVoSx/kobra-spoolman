@@ -20,7 +20,7 @@ def test_absorb_reaches_the_warning_after_open_days_at_50_percent():
     u = absorb(0.0, 50, OPEN_DAYS["PETG"] * 24, OPEN_DAYS["PETG"])
     assert u == pytest.approx(U_WARN, abs=1e-6)
     assert absorb(0.0, 15, 10_000, 5) < U_WARN                       # dry box: never
-    assert absorb(0.0, 70, OPEN_DAYS["PETG"] * 24 * 0.7, OPEN_DAYS["PETG"]) > U_WARN   # feuchter Raum: schneller
+    assert absorb(0.0, 70, OPEN_DAYS["PETG"] * 24 * 0.7, OPEN_DAYS["PETG"]) > U_WARN   # damp room: faster
 
 
 def test_drying_time_and_cooler_ace_takes_longer():
@@ -100,11 +100,11 @@ def test_shelf_spool_gets_wet_trockenbox_does_not(world, cfg):
     cfg.dry_locations = "Trockenbox=15"
     run(m.tick())
     for sid in ("1", "2"):
-        m.state[sid]["u"] = 0.0                                       # frisch getrocknet
+        m.state[sid]["u"] = 0.0                                       # freshly dried
     advance(m, clock, 6 * 24)                                         # 6 days, PETG: 5 days to the threshold
     assert m.view(sm.spool(1))["needs_drying"] and m.view(sm.spool(1))["score"] >= 100
     assert not m.view(sm.spool(2))["needs_drying"]
-    assert any(d["extra"].get("moisture") for _, d in sm.patched)    # Feld in Spoolman geschrieben
+    assert any(d["extra"].get("moisture") for _, d in sm.patched)    # field written to Spoolman
 
 
 def test_new_spool_is_unknown_and_counts_as_wet(world, cfg):
@@ -150,7 +150,7 @@ def test_humidity_log_points_sessions_and_cleanup(cfg):
     for _ in range(5):
         clock.t += 60
         log.tick()
-    log.note_start("auto", 55, 6, "Automatik: Feuchte 25 % ≥ 20 %")
+    log.note_start("auto", 55, 6, "Automatic: humidity 25 % ≥ 20 %")
     moon.merge(hub(humidity=25, drying=True, target=55, remain=6 * 3600))
     clock.t += 60
     log.tick()
@@ -159,18 +159,18 @@ def test_humidity_log_points_sessions_and_cleanup(cfg):
     clock.t += 60
     log.tick()
     assert log.open["temps"][-1][1] == 50                             # target lowered -> recorded
-    log.note_stop("auto", "Ziel erreicht: Feuchte 9 % ≤ 10 %")
+    log.note_stop("auto", "Target reached: humidity 9 % ≤ 10 %")
     moon.merge(hub(humidity=9, drying=False))
     clock.t += 60
     log.tick()
     s = log.recent_sessions()[0]
-    assert s["end_reason"].startswith("Ziel erreicht") and s["humidity_start"] == 25 and s["humidity_end"] == 9
+    assert s["end_reason"].startswith("Target reached") and s["humidity_start"] == 25 and s["humidity_end"] == 9
     assert 7 <= len(log.points(1)) <= 8
     assert len(log.points(1, max_points=3)) == 3
     old = os.path.join(log.dir, "1969-01-01.jsonl")                    # the test clock is at January 1970
     open(old, "w").write("[1,1,1,0,0]\n")
     assert log.cleanup() == 1 and not os.path.exists(old)
-    again = HumidityLog(cfg, moon, clock=clock)                        # gespeichert
+    again = HumidityLog(cfg, moon, clock=clock)                        # stored
     assert again.recent_sessions()[0]["id"] == s["id"]
 
 
@@ -211,10 +211,10 @@ def test_ensure_only_restarts_when_too_short(cfg):
     d = Dryer(cfg, moon, SlotManager(cfg, moon, S()), clock=Clock())
     assert run(d.ensure(6, "x")) is False and moon.sent == []
     moon.merge(hub(drying=True, target=55, remain=2 * 3600))
-    assert run(d.ensure(6, "Spule eingelegt")) is True and moon.sent[-1].startswith("ACE_START_DRYING") and "DURATION=360" in moon.sent[-1]
+    assert run(d.ensure(6, "spool inserted")) is True and moon.sent[-1].startswith("ACE_START_DRYING") and "DURATION=360" in moon.sent[-1]
 
 
 def test_spoolman_values_are_json_encoded(world):
     m, moon, clock, sm = world
-    run(m._write(1, {"moisture": 42, "unbekannt": 1}))
+    run(m._write(1, {"moisture": 42, "unknown": 1}))
     assert sm.patched == [(1, {"extra": {"moisture": json.dumps(42)}})]

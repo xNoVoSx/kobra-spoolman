@@ -34,7 +34,7 @@ def test_check_command(script, printing, needs):
 def test_console_seed_and_since():
     c = Console(clock=lambda: 100.0)
     c.seed([{"message": "G28", "type": "command", "time": 1.0}, {"message": "ok", "type": "response", "time": 2.0}])
-    c.seed([{"message": "doppelt", "type": "response", "time": 3.0}])       # no second backlog after a reconnect
+    c.seed([{"message": "twice", "type": "response", "time": 3.0}])       # no second backlog after a reconnect
     assert [(x["kind"], x["text"], x["source"]) for x in c.lines] == [("command", "G28", "History"), ("response", "ok", None)]
     c.add("command", "M115", "Browser")
     c.add("response", "   ")                                                 # empty lines gone

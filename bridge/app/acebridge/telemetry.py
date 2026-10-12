@@ -22,7 +22,7 @@ log = logging.getLogger("telemetry")
 PRINTING_STATES = ("printing", "paused")
 FLUSH_INTERVAL_S = 2.0
 TAIL_AFTER_END_S = 30.0
-TEMP_REPORT = re.compile(r"^(ok\s*)?(B|T\d?):\s*-?\d")   # "B:112.0 /110.0 T0:..." (M105-Antworten)
+TEMP_REPORT = re.compile(r"^(ok\s*)?(B|T\d?):\s*-?\d")   # "B:112.0 /110.0 T0:..." (M105 answers)
 
 
 class Recorder:
@@ -53,7 +53,7 @@ class Recorder:
         self._used_updates = 0
         self._gate_changes = []
         self._last_gate = acemodel.active_slot(status)
-        log.info("Telemetrie-Aufzeichnung gestartet: %s", os.path.basename(self._path))
+        log.info("Telemetry recording started: %s", os.path.basename(self._path))
         self._prune()
 
     def _prune(self) -> None:
@@ -64,7 +64,7 @@ class Recorder:
             if path != self._path:
                 try:
                     os.remove(path)
-                    log.info("Telemetrie aufgeraeumt: %s", name)
+                    log.info("Telemetry cleaned up: %s", name)
                 except OSError:
                     pass
 
@@ -96,7 +96,7 @@ class Recorder:
         })
         if self._fh:
             self._fh.close()
-        log.info("Telemetrie beendet: %s", os.path.basename(self._path or ""))
+        log.info("Telemetry ended: %s", os.path.basename(self._path or ""))
         self._fh, self._path, self._end_at = None, None, None
 
     # ------------------------------------------------------------------ input

@@ -38,7 +38,7 @@ def test_not_printing_only_resume_change_and_pa():
     assert text(st("standby", kobra_phase={"phase": "resume"})) == "Resuming print"
     assert text(st("standby", kobra_pa={"measuring": True})) == "Measuring pressure advance"
     assert text(st("standby")) is None
-    assert text(st("error", kobra_phase={"phase": "wipe"})) is None, "abgebrochener Start: alte Phase nicht zeigen"
+    assert text(st("error", kobra_phase={"phase": "wipe"})) is None, "cancelled start: do not show the old phase"
 
 
 def test_pa_wins_over_phase():
@@ -58,7 +58,7 @@ def test_change_with_console_step():
     assert text(s, steps) == "Change to slot 2 · loading"
     steps.on_console({"text": "// ACE[M]: Post toolchange"})
     assert text(s, steps) == "Change to slot 2 · purging"
-    steps.on_console({"text": "// irgendwas anderes"})
+    steps.on_console({"text": "// something else"})
     assert text(s, steps) == "Change to slot 2 · purging"
     # next change: the old sub step (before it starts) does not count
     now[0] = 1300.0
@@ -96,7 +96,7 @@ def test_all_klipper_phases_have_text():
 def test_texts_render_in_german():
     """Same phases in German (catalog locale/de.json) - what web, app and display show with language de."""
     t = phase.describe(st(kobra_phase={"phase": "heat_bed"}, heater_bed={"temperature": 63.4, "target": 100}))["text"]
-    assert t.render("de") == "Heizt Bett 63/100 °C"
+    assert t.render("de") == "Heizt Bett 63/100 °C"   # i18n: keep
     steps = phase.ChangeSteps(clock=lambda: 1000.0)
     steps.on_console({"text": "ACE[M]: Purging 30mm"})
     t = phase.describe(st(kobra_phase={"phase": "change", "slot": 2, "since": 999.0}), steps)["text"]

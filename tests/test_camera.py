@@ -147,7 +147,7 @@ def test_camera_routes_need_device_or_camera_key(printer, tmp_path):
                                      camera_key=CameraKey(str(tmp_path)), cfg=SimpleNamespace(data_dir=str(tmp_path)))
             async with TestClient(TestServer(build_app(bridge))) as client:
                 assert (await client.get("/api/camera/snapshot.jpg")).status == 401
-                assert (await client.get("/api/camera/stream.mjpg?key=falsch")).status == 401
+                assert (await client.get("/api/camera/stream.mjpg?key=wrong")).status == 401
                 r = await client.get("/api/camera/link", headers={"Authorization": "Bearer geheim"})
                 key = (await r.json())["key"]
                 r = await client.get(f"/api/camera/snapshot.jpg?key={key}")
@@ -181,11 +181,11 @@ def test_resolve_skips_the_bridges_own_camera_link():
 
     async def go():
         cfg = SimpleNamespace(camera=True, camera_stream=True, camera_interval_s=1, camera_stream_url="",
-                              camera_snapshot_url="", camera_fps_max=10.0, printer_base_url=lambda: "http://drucker")
+                              camera_snapshot_url="", camera_fps_max=10.0, printer_base_url=lambda: "http://printer")
         cam = Camera(cfg, Moon(), None)
         await cam._resolve()
         return cam.stream_url, cam.snapshot_url
-    assert asyncio.run(go()) == ("http://drucker/webcam/?action=stream", "http://drucker/webcam/?action=snapshot")
+    assert asyncio.run(go()) == ("http://printer/webcam/?action=stream", "http://printer/webcam/?action=snapshot")
 
 
 def test_default_polls_snapshots_and_never_opens_the_printer_stream(printer):

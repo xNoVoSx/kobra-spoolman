@@ -79,7 +79,7 @@ def test_backsync_never_clears_a_field_for_an_unreadable_value():
     patch, applied, ignored = backsync_patch(FILAMENT, {
         "nozzle_temperature": '["255", "260", "260", "260", "260", "260"]',
         "nozzle_temperature_initial_layer": ["255", "260"],
-        "fan_max_speed": "viel"})
+        "fan_max_speed": "lots"})
     assert patch["settings_extruder_temp"] == 255
     assert patch["extra"]["nozzle_temp_first_layer"] == "255"
     assert "fan_max" not in patch.get("extra", {}) and "fan_max_speed" in ignored

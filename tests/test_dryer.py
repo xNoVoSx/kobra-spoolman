@@ -69,7 +69,7 @@ def run(c):
 
 def test_hub_state_and_ace_limits():
     h = hub_state(hub(humidity=24, drying=True, target=55, remain=12000))
-    assert h["humidity"] == 24 and h["drying"] and h["target_temp"] == 55 and h["remaining_min"] == 200   # ACE meldet Sekunden
+    assert h["humidity"] == 24 and h["drying"] and h["target_temp"] == 55 and h["remaining_min"] == 200   # the ACE reports seconds
     assert isinstance(h["remaining_min"], int)                                                         # App: Long
     assert hub_state({})["present"] is False
     assert ace_max_temp("ACE2 (USB Single Serial)") == 65 and ace_max_temp("Anycubic Color Engine Pro 2.0") == 65
@@ -104,7 +104,7 @@ def test_automation_starts_above_and_stops_below(make, cfg):
     clock.t += COMMAND_SETTLE_S + 1
     moon.merge(hub(humidity=12, drying=True, target=60, remain=18000))
     run(d.evaluate())
-    assert len(moon.sent) == 1                                    # 12 % > 10 %: weiter
+    assert len(moon.sent) == 1                                    # 12 % > 10 %: keeps going
     moon.merge(hub(humidity=9, drying=True, target=60, remain=15000))
     run(d.evaluate())
     assert moon.sent[-1] == "ACE_STOP_DRYING" and not d.auto_run
@@ -201,7 +201,7 @@ def test_ace_ending_early_restarts_with_the_rest(make, cfg):
 def test_finished_run_is_not_restarted_and_hand_stop_ends_it(make):
     d, moon, clock = make([spool(1, 1, "PETG")], hub())
     run(d.start(60, 1))
-    clock.t += 3600 - 60                                              # Rest 1 min < MIN_REST_MIN: fertig
+    clock.t += 3600 - 60                                              # rest 1 min < MIN_REST_MIN: done
     run(d.evaluate())
     assert d.run is None and len(moon.sent) == 1
     run(d.start(60, 2))
@@ -223,7 +223,7 @@ def test_automation_waits_until_humidity_stays_high(make):
     clock.t += 15 * 60
     run(d.evaluate())
     assert moon.sent == []
-    moon.merge(hub(humidity=22))                                      # wirklich feucht
+    moon.merge(hub(humidity=22))                                      # really damp
     run(d.evaluate())
     clock.t += 14 * 60
     run(d.evaluate())

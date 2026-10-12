@@ -27,7 +27,7 @@ def test_setup_code_pairs_the_first_device_and_is_then_gone(tmp_path):
     assert res["device"]["name"] == "Browser office" and len(res["token"]) > 30
     assert d.setup_code is None and not d.setup_required
     assert d.identify(f"Bearer {res['token']}")["name"] == "Browser office"
-    assert d.identify("Bearer falsch") is None and d.identify(None) is None
+    assert d.identify("Bearer wrong") is None and d.identify(None) is None
     # only the hash is on disk
     saved = json.loads((tmp_path / "devices.json").read_text())
     assert res["token"] not in json.dumps(saved)
@@ -40,9 +40,9 @@ def test_pairing_codes_are_single_use_and_expire(tmp_path):
     d = Devices(str(tmp_path), clock=clock)
     d.pair(d.setup_code, "PC", "web")
     code = d.new_code()["code"]
-    d.pair(code, "Handy", "app")
+    d.pair(code, "Phone", "app")
     with pytest.raises(AuthError):
-        d.pair(code, "Nochmal", "app")               # einmal verwendbar
+        d.pair(code, "Again", "app")                 # single use
     code = d.new_code()["code"]
     clock.t += CODE_TTL_S + 1
     with pytest.raises(AuthError):
@@ -66,7 +66,7 @@ def test_wrong_codes_are_throttled(tmp_path):
 def test_legacy_app_token_still_works(tmp_path):
     d = Devices(str(tmp_path), legacy_token="alt")
     assert not d.setup_required and d.identify("Bearer alt") is not None
-    assert d.pair("alt", "Handy", "app")["token"]    # usable for pairing
+    assert d.pair("alt", "Phone", "app")["token"]    # usable for pairing
 
 
 def test_removing_the_last_device_brings_back_a_setup_code(tmp_path):

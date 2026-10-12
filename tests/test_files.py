@@ -26,7 +26,7 @@ class Moon(FakeMoonraker):
     async def get_json(self, path, timeout=10):
         if path.startswith("/server/files/list"):
             return [{"path": "b.gcode", "modified": 1}, {"path": "a.gcode", "modified": 5},
-                    {"path": "notiz.txt", "modified": 9}]
+                    {"path": "note.txt", "modified": 9}]
         name = path.split("filename=")[1]
         return META.get(name, {})
 
@@ -39,7 +39,7 @@ class Moon(FakeMoonraker):
 
 
 SPOOLS = {1: {"filament": {"material": "PETG", "color_hex": "685BC7", "name": "PETG Lavendel"}},
-          2: {"filament": {"material": "PLA", "color_hex": "FFFFFF", "name": "PLA Weiss"}}}
+          2: {"filament": {"material": "PLA", "color_hex": "FFFFFF", "name": "PLA White"}}}
 
 
 @pytest.fixture
@@ -84,7 +84,7 @@ def test_start_needs_confirm_and_idle(env):
         asyncio.run(f.start("b.gcode", True, "Display"))
     assert e.value.status == 409
     with pytest.raises(FileError) as e:
-        asyncio.run(Files(moon, SimpleNamespace(assignments=lambda: ({}, []))).check("fehlt.gcode"))
+        asyncio.run(Files(moon, SimpleNamespace(assignments=lambda: ({}, []))).check("missing.gcode"))
     assert e.value.status == 404
 
 

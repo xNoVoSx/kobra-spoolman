@@ -85,7 +85,7 @@ def test_guards(env):
         run(m.run("jog", {"axis": "z", "dist": 1}, "Display"))
     assert "home first" in str(e.value)
     moon.merge({"extruder": {"temperature": 25.0}})
-    with pytest.raises(MachineError) as e:                 # kalt
+    with pytest.raises(MachineError) as e:                 # cold
         run(m.run("extrude", {"mm": 10}, "Display"))
     assert "too cold" in str(e.value)
     moon.merge({"print_stats": {"state": "printing"}, "extruder": {"temperature": 240.0}})
@@ -107,7 +107,7 @@ def test_long_actions_in_background_and_errors(env):
     moon.fail = "Must home axis first"
     res = run(m.run("load", {"slot": 1}, "Display"))
     assert res["started"] and m.running is None and m.error == "Must home axis first"
-    with pytest.raises(MachineError) as e:                 # kurze Aktion: Fehler direkt
+    with pytest.raises(MachineError) as e:                 # short action: error at once
         run(m.run("motors_off", {}, "Display"))
     assert e.value.status == 400
 
@@ -123,7 +123,7 @@ def test_zadjust_exclude_and_save(env):
     m.sm = SimpleNamespace(templates=lambda: [], patch_filament=patch)
     m.slots = SimpleNamespace(assignments=lambda: ({1: {"filament": fil}}, []))
     moon.merge({"print_stats": {"state": "printing"}, "ace": {"current_index": 0}})
-    run(m.view())                                            # Druck beginnt: Summe 0
+    run(m.view())                                            # print starts: sum 0
     run(m.run("zadjust", {"delta": 0.025}, "Display"))
     run(m.run("zadjust", {"delta": -0.01}, "Display"))
     assert moon.sent[-2:] == ["SET_GCODE_OFFSET Z_ADJUST=+0.025 MOVE=1", "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1"]

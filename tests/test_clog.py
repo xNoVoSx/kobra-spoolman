@@ -1,4 +1,4 @@
-"""Verstopfung erkennen (clog.py): Meldung solange Verdacht, Schalter, fehlendes Modul."""
+"""Clog detection (clog.py): message while suspected, switch, missing module."""
 
 from __future__ import annotations
 

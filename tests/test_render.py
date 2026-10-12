@@ -95,7 +95,7 @@ def arc_gcode(n=60, r=20.0):
 def test_simplify_merges_curves_without_gaps():
     m = parse_bytes(arc_gcode())
     assert len(simplify(m)) == len(m)                                 # fits under the limit: nothing merged
-    ends = simplify(m, max_segments=len(m) * 2 // 3)                  # Grenze erzwingt Zusammenfassen
+    ends = simplify(m, max_segments=len(m) * 2 // 3)                  # the limit forces merging
     assert 8 < len(ends) <= len(m) * 2 // 3
     assert ends[-1] == len(m) - 1 and m.tool[ends[-2]] == 0           # a tool change always separates
     starts = [0] + [e + 1 for e in ends[:-1]]
@@ -128,7 +128,7 @@ def test_strand_width_from_extrusion():
                      f"G1 X10 Y0 E{e:.5f}\nG1 X10 Y10 E{2 * e:.5f}\nG1 X10.01 Y10 E0.1\n").encode())
     heights = [m.layers[0]]
     assert strand_width(m, 0, heights, m.layers) == 40
-    assert strand_width(m, 1, heights, m.layers) == 76             # doppelte Menge -> breiter
+    assert strand_width(m, 1, heights, m.layers) == 76             # double amount -> wider
     assert strand_width(m, 2, heights, m.layers) == 45             # too short to compute -> default
 
 

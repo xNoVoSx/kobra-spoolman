@@ -34,7 +34,7 @@ def fil(index, model_mm, flush_mm=0.0, tower_mm=0.0, density=1.24, loads=None, t
 
 
 def slots(*remaining):
-    return [{"slot": i + 1, "spool_id": 10 + i if r is not False else None, "name": f"Spule {i + 1}",
+    return [{"slot": i + 1, "spool_id": 10 + i if r is not False else None, "name": f"Spool {i + 1}",
              "remaining_weight": None if r is False else r} for i, r in enumerate(remaining)]
 
 

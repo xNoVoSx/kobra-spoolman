@@ -76,5 +76,5 @@ def test_gcode_from_on_status_does_not_deadlock(cfg):
 
     scripts, seen, elapsed = asyncio.run(main())
     assert scripts == ["M117 printing", "M117 complete"]
-    assert seen == [("standby", True), ("printing", False), ("complete", False)]   # jeder Wechsel, in Reihenfolge
+    assert seen == [("standby", True), ("printing", False), ("complete", False)]   # every change, in order
     assert elapsed < 2

@@ -323,9 +323,8 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
     eta = None
     if progress and duration and 0.01 < progress < 1:
         eta = int(duration * (1 - progress) / progress)
-    # a tool change of the ACE driver is running (target set, not loaded yet)
-    target = acemodel.target_slot(status) if running else None
-    action = tr("Change to slot {slot}", slot=target + 1) if target is not None else ""
+    # a tool change of the ACE driver is running (ACEPRO: target set, not loaded yet; Rinkhals: mmu action)
+    action = (acemodel.changing(status) if running else None) or ""
     shows_file = running or state in ("complete", "cancelled", "error")
     info = ps.get("info") or {}
     ph = phase.describe(status, steps) if state != "offline" else None
@@ -341,7 +340,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         "klippy_ready": bool(connected and klippy_ready),
         "active_slot": active_slot,
         "mmu_action": action or None,
-        "changing_filament": target is not None,
+        "changing_filament": bool(action),
         "layer": info.get("current_layer") if running and info.get("total_layer") else None,
         "layers": info.get("total_layer") if running and info.get("total_layer") else None,
         # what is happening right now ("Heat soak 5/15 min", "Change to slot 2 · loading" ...), None = state only

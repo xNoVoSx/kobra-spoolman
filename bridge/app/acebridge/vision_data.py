@@ -62,9 +62,9 @@ class Dataset:
         return name
 
     def label(self, job: str, frame: str, label: Optional[str], extra: Optional[Dict[str, Any]] = None) -> None:
-        """label None = Kennzeichnung entfernen."""
+        """label None = remove the label."""
         if label is not None and label not in LABELS:
-            raise ValueError("Unbekannte Kennzeichnung: " + str(label))
+            raise ValueError("Unknown label: " + str(label))
         if not self.frame_path(job, frame):
             raise KeyError(frame)
         with open(os.path.join(self._job_dir(job), "labels.jsonl"), "a", encoding="utf-8") as f:

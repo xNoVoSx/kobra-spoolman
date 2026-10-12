@@ -58,7 +58,7 @@ def table(**kw):
 def env(cfg):
     moon = Moon()
     spools = [spool(1, 1), spool(2, 2), spool(3, None)]
-    spools[0]["filament"]["extra"] = {"pa_table": table()}                    # gemessen
+    spools[0]["filament"]["extra"] = {"pa_table": table()}                    # measured
     spools[1]["filament"]["extra"] = {}                                       # no PA yet
     spools[1]["filament"]["settings_extruder_temp"] = 250
     sm = SM(spools)
@@ -78,10 +78,10 @@ def test_filament_pa_uses_own_values_only():
     assert filament_pa({"extra": {"pressure_advance": "0.042"}}) == {"speeds": [200.0], "k": [0.042], "source": "manual"}
     assert filament_pa({"extra": {}}) is None
     assert filament_pa({"extra": {"pa_table": json.dumps("kaputt")}}) is None
-    assert filament_pa({"extra": {"pa_table": table(k=[0.04, 2, 0.03])}}) is None          # unplausibel -> ignoriert
+    assert filament_pa({"extra": {"pa_table": table(k=[0.04, 2, 0.03])}}) is None          # implausible -> ignored
     assert abs(k_at([100, 200, 300], [0.04, 0.035, 0.03]) - 0.035) < 1e-12
     assert k_at([100, 300], [0.04, 0.03], 50) == 0.04 and k_at([100, 300], [0.04, 0.03], 900) == 0.03
-    assert k_at([100, 300], [0.03, 0.04], 200) == 0.03                                        # steigend: unterer Wert
+    assert k_at([100, 300], [0.03, 0.04], 200) == 0.03                                        # rising: lower value
 
 
 def test_pushes_spoolman_state_once_and_again_after_restart(env):
@@ -142,11 +142,11 @@ def test_result_is_written_to_the_filament(env):
 
 def test_failed_result_and_spoolman_down(env):
     pa, moon, sm = env
-    moon.merge({"kobra_pa": {"result": {"t": 1, "kind": "error", "message": "Duese blockiert?", "filament": "102",
+    moon.merge({"kobra_pa": {"result": {"t": 1, "kind": "error", "message": "Nozzle blocked?", "filament": "102",
                                         "time": time.time()}}})
     run(pa.tick())
     assert extra_value(sm.filament(102), "pa_table") is None
-    assert any(e["level"] == "warn" and "blockiert" in e["text"] for e in pa.events)
+    assert any(e["level"] == "warn" and "blocked" in e["text"] for e in pa.events)
     sm.down = True
     moon.merge({"kobra_pa": {"result": {"t": 1, "kind": "static", "speeds": [200.0], "k": [0.04], "filament": "102",
                                         "time": time.time() + 1}}})

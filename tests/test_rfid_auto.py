@@ -79,7 +79,7 @@ def test_new_spool_replaces_old_and_manual_choice_is_kept(make):
     sm, moon = make(status([0, 0]), [spool(1, "Lavendel", 34532), spool(2, "Magenta", 4711, loc="ACE Slot 1")])
     moon.merge(status([34532, 0]))
     settle(sm, 10)
-    assert loc(sm, 1) == "ACE Slot 1" and loc(sm, 2) == "Shelf"   # alte Spule ins Regal
+    assert loc(sm, 1) == "ACE Slot 1" and loc(sm, 2) == "Shelf"   # old spool to the shelf
     run(sm.assign(1, 2))                                           # bewusst von Hand anders
     settle(sm, 30)
     assert loc(sm, 2) == "ACE Slot 1"                              # not turned back

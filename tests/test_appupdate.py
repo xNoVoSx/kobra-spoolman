@@ -16,7 +16,7 @@ def test_load(tmp_path):
     assert appupdate.load(str(tmp_path)) is None                              # without app.json: no update
     (tmp_path / "app.json").write_text(json.dumps({"version": "1.2.3", "code": 10203, "file": "x.apk",
                                                    "changes": ["neu"]}))
-    assert appupdate.load(str(tmp_path)) is None                              # APK fehlt
+    assert appupdate.load(str(tmp_path)) is None                              # APK missing
     (tmp_path / "x.apk").write_bytes(b"PK apk")
     info = appupdate.load(str(tmp_path))
     assert info["code"] == 10203 and info["size"] == 6

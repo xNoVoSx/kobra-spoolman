@@ -48,7 +48,7 @@ def tone(f, dur, shape="sine", decay=0.0, glide=0.0):
         ph += 2 * math.pi * ff / SR
         if shape == "sine":
             v = math.sin(ph)
-        else:  # weiches Rechteck: ungerade Obertoene
+        else:  # soft square: odd harmonics
             v = sum(math.sin(k * ph) / k for k in (1, 3, 5, 7)) * 0.8
         env = min(1, t / 0.006) * min(1, (dur - t) / 0.02) * (math.exp(-decay * t) if decay else 1)
         out.append(v * env)
@@ -93,7 +93,7 @@ add(b, 0.0, bell(note("E6"), 0.35, 1.2, 7), 0.8)
 add(b, 0.11, bell(note("B6"), 0.6, 1.2, 5), 0.8)
 save("snd_first_layer", b)
 
-# Druck fertig: Fanfare kurz-kurz-lang
+# print finished: fanfare short-short-long
 b = blank(0.1)
 for t, n, d in ((0, "G5", 0.3), (0.13, "G5", 0.3), (0.26, "C6", 1.4)):
     add(b, t, bell(note(n), d, 1.1, 2.5))

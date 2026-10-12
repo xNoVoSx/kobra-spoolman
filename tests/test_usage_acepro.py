@@ -49,13 +49,13 @@ def print_rows():
     ace(1, -1)
     use(50)               # purge after loading
     use(20)               # extra feed at print start
-    use(2500, steps=25)   # Druck
+    use(2500, steps=25)   # print
     ace(1, 0)             # change to slot 1 begins
     use(-2)
     use(-40)
-    ace(-1, 0)            # Slot 2 entladen
+    ace(-1, 0)            # slot 2 unloaded
     use(85)
-    ace(0, -1)            # Slot 1 geladen
+    ace(0, -1)            # slot 1 loaded
     use(50)
     use(4000, steps=40)
     rows.append({"type": "delta", "d": {"print_stats": {"state": "complete"}}})

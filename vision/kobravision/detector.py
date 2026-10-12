@@ -51,7 +51,7 @@ def nms(boxes: np.ndarray, scores: np.ndarray, thresh: float) -> List[int]:
 
 def postprocess(boxes: np.ndarray, confs: np.ndarray, names: List[str],
                 thresh: float = DETECT_THRESH, nms_thresh: float = NMS_THRESH) -> List[Detection]:
-    """Modell-Ausgabe -> Funde. boxes: [1, N, 1, 4] (x1, y1, x2, y2 relativ), confs: [1, N, Klassen]."""
+    """Model output -> detections. boxes: [1, N, 1, 4] (x1, y1, x2, y2 relative), confs: [1, N, classes]."""
     b = boxes[0, :, 0, :]
     c = confs[0]
     best = c.max(axis=1)
@@ -110,14 +110,14 @@ class Detector:
         self._session = ort.InferenceSession(self.model_path, so, providers=providers)
         self.provider = self._session.get_providers()[0]
         self.loads += 1
-        log.info("Modell geladen (%s, %.1f s)", self.provider, time.monotonic() - t)
+        log.info("Model loaded (%s, %.1f s)", self.provider, time.monotonic() - t)
 
     def unload_if_idle(self) -> bool:
         with self._lock:
             if self._session is not None and self.last_used is not None \
                     and self.clock() - self.last_used >= self.unload_after_s:
                 self._session = None
-                log.info("Modell entladen (%.0f min ohne Bild)", self.unload_after_s / 60)
+                log.info("Model unloaded (%.0f min without an image)", self.unload_after_s / 60)
                 return True
         return False
 

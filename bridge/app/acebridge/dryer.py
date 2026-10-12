@@ -1,7 +1,8 @@
 """ACE dryer: display, manual control and automation by humidity.
 
-Data comes from the ACE driver (ACEPRO, object ace_instance_0 in the Moonraker subscription, acemodel.dryer). Control
-via ACE_START_DRYING TEMP= DURATION=<minutes> and ACE_STOP_DRYING.
+Data comes from the ACE driver (acemodel.dryer: ACEPRO's ace_instance_0, or GoKlipper's filament_hub under Rinkhals).
+Control via acemodel's commands: ACE_START_DRYING TEMP= DURATION=<minutes> / ACE_STOP_DRYING (ACEPRO), MMU_DRYER_START
+UNIT=0 DURATION=<minutes> TEMP= / MMU_DRYER_STOP UNIT=0 (Rinkhals).
 
 Runs:
 - by hand, scheduled or after a damp spool was inserted: runs until the chosen time, however dry the ACE already is.
@@ -51,6 +52,7 @@ DEFAULT_DRY_TEMP = {
 FALLBACK_DRY_TEMP = 50          # unknown material: more cautious than PLA
 # after a command wait briefly until the driver reports the new state
 COMMAND_SETTLE_S = 15
+COMMAND_SETTLE_RINKHALS_S = 90     # GoKlipper reports the ACE only about every 20 s
 # run by hand/plan/insert: restart this often when the ACE stops early; remaining time below: done
 MAX_RESTARTS = 3
 MIN_REST_MIN = 5
@@ -252,7 +254,7 @@ class Dryer:
         h = float(hours if hours is not None else self.config.max_hours)
         if not 0.5 <= h <= 24:
             raise ValueError(tr("Run time 0.5 to 24 hours"))
-        await self.moon.gcode(f"ACE_START_DRYING TEMP={t} DURATION={int(round(h * 60))}", source=tr("Dryer"))
+        await self.moon.gcode(acemodel.dryer_start_command(self.moon.status, t, int(round(h * 60))), source=tr("Dryer"))
         now = self.clock()
         self._last_cmd_at = now
         self.auto_run = source == "auto"
@@ -266,7 +268,7 @@ class Dryer:
         return {"temp": t, "hours": h}
 
     async def stop(self, source: str = "hand", reason: str = "") -> None:
-        await self.moon.gcode("ACE_STOP_DRYING", source=tr("Dryer"))
+        await self.moon.gcode(acemodel.dryer_stop_command(self.moon.status), source=tr("Dryer"))
         if self.log_sink is not None:
             self.log_sink.note_stop(source, reason)
         self._last_cmd_at = self.clock()
@@ -312,7 +314,8 @@ class Dryer:
                 self._above_since = now
         else:
             self._above_since = None
-        if now - self._last_cmd_at < COMMAND_SETTLE_S:
+        settle = COMMAND_SETTLE_RINKHALS_S if acemodel.variant(self.moon.status) == acemodel.RINKHALS else COMMAND_SETTLE_S
+        if now - self._last_cmd_at < settle:
             return          # the driver has not confirmed the last command yet
         req = self.required_temp()
         if hub["drying"]:

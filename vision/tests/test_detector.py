@@ -78,14 +78,14 @@ def test_http_api_with_token(monkeypatch):
             assert (await c.get("/v1/health")).status == 200
             assert (await c.post("/v1/detect", data=jpeg())).status == 401
             h = {"Authorization": "Bearer geheim"}
-            assert (await c.post("/v1/detect", data=b"kein bild", headers=h)).status == 422
+            assert (await c.post("/v1/detect", data=b"not an image", headers=h)).status == 422
             r = await c.post("/v1/detect", data=jpeg(), headers=h)
             body = await r.json()
             assert r.status == 200 and body["detections"][0][0] == "failure" and body["width"] == 64
     asyncio.run(go())
 
 
-@pytest.mark.skipif(not MODEL or not os.path.exists(MODEL), reason="MODEL_PATH mit Obicos ONNX-Modell setzen")
+@pytest.mark.skipif(not MODEL or not os.path.exists(MODEL), reason="set MODEL_PATH to Obico's ONNX model")
 def test_real_model_sees_spaghetti_but_not_a_clean_print():
     imgs = os.environ.get("TEST_IMAGES", "")
     d = Detector(MODEL, ["failure"])

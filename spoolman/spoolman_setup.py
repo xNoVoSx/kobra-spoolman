@@ -79,7 +79,7 @@ SPOOL_FIELDS = [
 
 # template vendor per language; templates are named "<vendor> <name>" ("Template PETG")
 VENDOR_NAMES = {"en": "Template", "de": "Vorlage"}
-TEXTS = {
+TEXTS = {   # i18n: keep (the German names are for --language de)
     "en": {"vendor_comment": "Material templates for the Orca plugin - do not use as real spools",
            "template_comment": "Material template. Empty fields inherit from the Orca base profile."},
     "de": {"vendor_comment": "Materialvorlagen für das Orca-Plugin - nicht als echte Spulen verwenden",

@@ -1,7 +1,7 @@
 """Check at print start: do the slots match the print file?
 
 As soon as the bridge has read the print file (render.py), it compares, for every tool the file really uses, the slot
-(ACEPRO: tool T<n> = slot n+1): spool assigned? material as in the slicer? colour roughly the same? spool not too
+(ACEPRO: tool T<n> = slot n+1, Rinkhals: the ACE's ttg_map): spool assigned? material as in the slicer? colour roughly the same? spool not too
 damp (moisture.py)? Whether the remaining amount is enough, status.spool_reach checks anyway.
 
 The result is messages (red = alarm on the phone). With wet_print_action = pause the bridge pauses a print that starts
@@ -14,6 +14,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from . import acemodel
 from .i18n import tr
 from .slots import base_type
 
@@ -53,7 +54,7 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
     assigned, _ = bridge.slots.assignments()
     out: List[Dict[str, Any]] = []
     for tool in sorted(t for t, mm in m.e_total.items() if mm > 1):
-        gate = tool                       # ACEPRO: tool T<n> = slot n+1 (no remapping like GoKlipper's ttg_map)
+        gate = acemodel.tool_slot(bridge.moon.status, tool)   # ACEPRO: T<n> = slot n+1; Rinkhals: its ttg_map
         slot = gate + 1
         ace = bridge.slots.ace_gate(gate)
         spool = assigned.get(slot)

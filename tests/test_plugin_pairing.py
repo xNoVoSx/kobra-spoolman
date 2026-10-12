@@ -24,7 +24,7 @@ def ks():
 
 
 class FakeBridge(BaseHTTPRequestHandler):
-    token = "schluessel-123"
+    token = "key-123"
     seen = []
 
     def log_message(self, *a):
@@ -52,7 +52,7 @@ class FakeBridge(BaseHTTPRequestHandler):
         FakeBridge.seen.append((self.path, body, self.headers.get("Authorization")))
         if self.path == "/api/auth/pair":
             if body.get("code") != "123456":
-                return self._send(401, {"error": "Code falsch oder abgelaufen"})
+                return self._send(401, {"error": "Code wrong or expired"})
             return self._send(201, {"token": self.token, "device": {"id": "p1", "name": body["name"], "kind": body["kind"]}})
         if not self._authed():
             return self._send(401, {"error": "This device is not paired (any more)"})
@@ -93,7 +93,7 @@ def test_unpaired_write_is_refused_then_pairing_fixes_it(ks, core):
 
     core.pair_code = "999999"
     core.redeem_pair_code()
-    assert core.paired is False and core.pair_msg["error"] and "falsch" in core.pair_msg["text"]
+    assert core.paired is False and core.pair_msg["error"] and "wrong" in core.pair_msg["text"]
 
     core.pair_code = "123456"
     core.redeem_pair_code()
@@ -109,7 +109,7 @@ def test_unpaired_write_is_refused_then_pairing_fixes_it(ks, core):
 
 
 def test_revoked_key_is_forgotten(ks, core):
-    core.key.save(core.cfg("bridge_url"), "alt-und-entfernt", {"id": "old"})
+    core.key.save(core.cfg("bridge_url"), "old-and-removed", {"id": "old"})
     core.check_pairing(force=True)
     assert core.paired is False and core.key.token(core.cfg("bridge_url")) is None
 

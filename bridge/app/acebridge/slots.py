@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -90,7 +89,8 @@ def ace_match(ace: Dict[str, Any], info: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def gate_has_tag(ace: Dict[str, Any]) -> bool:
-    """Spool with an RFID tag: the ACE fills in material/colour itself from the tag (ACEPRO: slot field rfid)."""
+    """Spool with an RFID tag: the ACE fills in material/colour itself from the tag (ACEPRO: slot field rfid; Rinkhals:
+    GoKlipper's rfid flag or gate_spool_id)."""
     return bool(ace.get("rfid"))
 
 
@@ -100,18 +100,17 @@ def gate_needs_info(ace: Dict[str, Any]) -> bool:
     return bool(ace.get("present")) and not ace.get("material")
 
 
-def set_slot_command(gate: int, info: Dict[str, Any]) -> Optional[str]:
-    """ACE_SET_SLOT for a slot without a tag from the Spoolman data (ACEPRO: COLOR=R,G,B MATERIAL= TEMP= 1-300)."""
+def set_slot_command(gate: int, info: Dict[str, Any], status: Optional[Dict[str, Any]] = None,
+                     spool_id: int = 0) -> Optional[str]:
+    """Command for the slot data of a slot without a tag from the Spoolman data (acemodel.set_slot_command:
+    ACE_SET_SLOT under ACEPRO, MMU_GATE_MAP under Rinkhals)."""
     material = base_type(info.get("material") or "").upper()
-    color = _hex6(info.get("color")) or "FFFFFF"
     try:
         temp = int(info.get("nozzle_temp") or 0)
     except (TypeError, ValueError):
         temp = 0
-    if not material or not re.fullmatch(r"[A-Z0-9-]+", material) or not 1 <= temp <= 300:
-        return None
-    r, g, b = (int(color[i:i + 2], 16) for i in (0, 2, 4))
-    return f"ACE_SET_SLOT T={gate} MATERIAL={material} COLOR={r},{g},{b} TEMP={temp}"
+    return acemodel.set_slot_command(status or {}, gate, spool_id, material, _hex6(info.get("color")), temp,
+                                     name=info.get("display_name") or "")
 
 
 class SlotManager:
@@ -148,7 +147,7 @@ class SlotManager:
         return acemodel.num_slots(self.moon.status)
 
     def ace_gate(self, gate: int) -> Dict[str, Any]:
-        """Slot (0-basiert) laut ACE-Treiber (acemodel.slot)."""
+        """Slot (0-based) according to the ACE driver (acemodel.slot)."""
         return acemodel.slot(self.moon.status, gate, self.moon.klippy_ready)
 
     @property
@@ -490,10 +489,10 @@ class SlotManager:
             if gate_has_tag(ace):
                 # the tag defines the slot - never overwrite
                 self._gate_info_pending.pop(gate, None)
-                log.info("Slot %d: spool with RFID tag (%s) - material/colour come from the tag", gate + 1, ace["sku"])
+                log.info("Slot %d: spool with RFID tag (%s) - material/colour come from the tag", gate + 1, ace["sku"] or ace["tag_id"])
                 continue
             info = basic_info(spool["filament"], self.sm.templates())
-            cmd = set_slot_command(gate, info)
+            cmd = set_slot_command(gate, info, self.moon.status, spool["id"])
             same = (base_type(ace["material"]).upper() == base_type(info.get("material") or "").upper()
                     and ace["color"] == _hex6(info.get("color")))
             if not cmd or same:
@@ -507,9 +506,9 @@ class SlotManager:
                 job["tries"] += 1
                 if job["tries"] >= 3:
                     self._gate_info_pending.pop(gate, None)
-                    log.warning("Slot %d: ACE_SET_SLOT given up: %s", gate + 1, e)
+                    log.warning("Slot %d: slot data given up: %s", gate + 1, e)
                 else:
-                    log.warning("Slot %d: ACE_SET_SLOT failed (%s), retrying", gate + 1, e)
+                    log.warning("Slot %d: slot data failed (%s), retrying", gate + 1, e)
 
     async def _drop_foreign_lanes(self, ns: str) -> None:
         """After every full sync: remove entries that do not come from the bridge (e.g. ACEPRO's lane1..lane4 from before

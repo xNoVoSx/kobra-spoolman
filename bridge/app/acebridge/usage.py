@@ -1,12 +1,14 @@
 """Consumption measuring and booking per slot.
 
-Basis: print_stats.filament_used (Klipper, mm) counts every extruder move in a print - also loading and purging of
-the ACE, which under ACEPRO run through the nozzle (with ACEPRO patch 0003 at once, not only after the change). So:
+Basis: print_stats.filament_used (Klipper/GoKlipper, mm) counts every extruder move in a print - also loading and
+purging of the ACE: under ACEPRO they run through the nozzle (with ACEPRO patch 0003 at once, not only after the
+change), under Rinkhals the firmware's purge is in the counter as well (real print 24.09.2026, within 1 mm). So:
 
 - consumption = signed difference of filament_used. Retractions cancel out.
 - every difference belongs to the slot that is consuming according to the ACE driver (acemodel.consuming_slot):
   the loaded slot, during a change after unloading the target slot. Moments without such a slot count for the last
   active slot.
+- GoKlipper flickers while loading: there a new slot only counts after GATE_DEBOUNCE_S (acemodel.flickers).
 - consumption before the first active slot goes to the first slot that becomes active.
 - it is booked to the spool that was in the slot at the time of consumption ("bucket" = slot + spool). Booking at a
   slot change, at print end and in between every BOOK_INTERVAL_S.
@@ -137,7 +139,7 @@ class UsageTracker:
                     lines = fh.readlines()[-PURGE_LOG_KEEP:]
                 save_lines(self.purge_path, lines)
         except OSError as e:
-            log.warning("Spuelprotokoll: %s", e)
+            log.warning("Purge log: %s", e)
 
     def purge_pairs(self) -> List[Dict[str, Any]]:
         """Purge log per colour pair (colour + material before/after): count, purge lengths, last."""
@@ -148,7 +150,7 @@ class UsageTracker:
         except FileNotFoundError:
             return []
         except (OSError, ValueError) as e:
-            log.warning("Spuelprotokoll lesen: %s", e)
+            log.warning("Reading the purge log: %s", e)
             return []
         for r in rows:
             key = (r.get("from_color"), r.get("from_material"), r.get("to_color"), r.get("to_material"))
@@ -181,7 +183,7 @@ class UsageTracker:
             with open(self.journal_path, "a", encoding="utf-8") as fh:
                 fh.write(json.dumps({"ts": _now_iso(), "event": event, **data}, ensure_ascii=False) + "\n")
         except OSError as e:
-            log.error("Journal schreiben fehlgeschlagen: %s", e)
+            log.error("Writing the journal failed: %s", e)
 
     # ================================================================== helpers
     def _spool_for_gate(self, gate: int) -> Optional[int]:
@@ -296,22 +298,43 @@ class UsageTracker:
             log.info("Slot change %d -> %d at %.1f mm", old + 1, gate + 1, job["last_used"])
             self._book_due_gate = old  # after the change, book the old slot
         else:
-            log.info("Slot %d aktiv", gate + 1)
+            log.info("Slot %d active", gate + 1)
         self._dirty = True
 
     _book_due_gate: Optional[int] = None
 
-    def _observe_gate(self, seen: Optional[int], now: float) -> None:
-        """The ACE driver reports the consuming slot without flicker - take changes over at once."""
+    def _observe_gate(self, seen: Optional[int], now: float, debounce: bool = False) -> None:
+        """New consuming slot of the ACE driver. ACEPRO reports it without flicker - taken over at once. GoKlipper
+        (Rinkhals) flickers while loading: a new slot only counts once it stays GATE_DEBOUNCE_S; what is used in that
+        time goes to the slot that wins in the end."""
         job = self.job
         assert job is not None
-        if seen is None or seen == job["gate"]:
-            return  # no slot: consumption keeps going to the previous one
-        self._settle(now, force=True)
-        self._confirm_gate(seen)
+        if not debounce:
+            if seen is None or seen == job["gate"]:
+                return  # no slot: consumption keeps going to the previous one
+            self._settle(now, force=True)
+            self._confirm_gate(seen)
+            return
+        if seen is None:
+            return  # no active slot: nothing changes, consumption goes to the previous/pending one
+        if job["gate"] is None:
+            self._confirm_gate(seen)
+            return
+        if seen == job["gate"]:
+            if job["pending_gate"] is not None:
+                # flicker: the pending slot did not win
+                self._add(job["gate"], job["pending_mm"])
+                log.debug("Flicker on slot %s discarded", job["pending_gate"] + 1)
+                job["pending_gate"], job["pending_since"], job["pending_mm"] = None, None, 0.0
+            return
+        if job["pending_gate"] != seen:
+            if job["pending_gate"] is not None:
+                self._add(job["gate"], job["pending_mm"])
+            job["pending_gate"], job["pending_since"], job["pending_mm"] = seen, now, 0.0
+            self._dirty = True
 
     def _settle(self, now: float, force: bool = False) -> None:
-        """Only for saved states from bridge < 3.0: confirm the pending slot (debouncing)."""
+        """Confirm the pending slot once it stayed long enough (debouncing for GoKlipper)."""
         job = self.job
         if not job or job["pending_gate"] is None:
             return
@@ -367,8 +390,8 @@ class UsageTracker:
             # order: first give the consumption to the slot known so far, then update the slot
             if "filament_used" in ps_d and isinstance(ps_d["filament_used"], (int, float)):
                 self._consume(ps_d["filament_used"])
-            if "ace" in delta:
-                self._observe_gate(acemodel.consuming_slot(status), now)
+            if acemodel.touches(delta):
+                self._observe_gate(acemodel.consuming_slot(status), now, acemodel.flickers(status))
             self._settle(now)
 
             if state not in PRINTING_STATES:
@@ -396,7 +419,7 @@ class UsageTracker:
                          self.job["file"], gap)
                 self._journal("resume", job=self.job["id"], gap_mm=round(gap, 1))
             self._consume(used)
-            self._observe_gate(acemodel.consuming_slot(status), time.monotonic())
+            self._observe_gate(acemodel.consuming_slot(status), time.monotonic(), acemodel.flickers(status))
             if not printing:
                 await self._finish(state or "ended")
         else:
@@ -534,7 +557,7 @@ class UsageTracker:
         try:
             save_json(self.history_path, self.history, indent=1)
         except OSError as e:
-            log.error("Historie speichern fehlgeschlagen: %s", e)
+            log.error("Saving the history failed: %s", e)
         self._journal("job_end", **{k: v for k, v in summary.items() if k != "slots"}, slots=summary["slots"])
         log.info("Print ended (%s): %s | total %.1f mm | %s", end_state, job["file"], summary["total_mm"],
                  ", ".join(f"Slot {s['slot']}: {s['mm']:.0f} mm/{s['g']:.1f} g" for s in summary["slots"]))

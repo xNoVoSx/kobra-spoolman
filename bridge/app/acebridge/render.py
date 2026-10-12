@@ -451,7 +451,7 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
         draw.line((ax * scale + ox, ay * scale + oy, bx * scale + ox, by * scale + oy), fill=col, width=lw)
         if printed and (last_printed is None or model.offset[i] > model.offset[last_printed[0]]):
             last_printed = (i, bx * scale + ox, by * scale + oy)
-    if position is not None and last_printed is not None:     # Duese
+    if position is not None and last_printed is not None:     # nozzle
         _, nx, ny = last_printed
         r = ss * 6
         draw.ellipse((nx - r, ny - r, nx + r, ny + r), outline=(245, 184, 61), width=ss * 2)

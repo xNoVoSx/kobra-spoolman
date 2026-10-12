@@ -72,7 +72,7 @@ def bridge(monkeypatch, **kw):
               "spool": {"spool_id": 7, "display_name": "Sunlu PETG Lavendel", "material": "PETG", "color": "685BC7",
                         "remaining_weight": 812.4}},
              {"slot": 2, "ace": {"present": False, "active": False, "material": "", "color": ""}, "spool": None}]
-    monkeypatch.setattr(mq, "notices", lambda b: {"messages": [{"level": "warn", "text": "Slot 1 feucht"}]})
+    monkeypatch.setattr(mq, "notices", lambda b: {"messages": [{"level": "warn", "text": "Slot 1 damp"}]})
     monkeypatch.setattr(mq, "printer_cpu", lambda b: 71.4)
     b = SimpleNamespace(
         cfg=cfg(**kw), moon=moon,
@@ -102,7 +102,7 @@ def test_payloads(monkeypatch):
                            "remaining_g": 812.0, "moisture": 120, "needs_drying": True, "loaded": True}
     assert p["slot/2"]["spool"] is None and p["slot/2"]["color"] is None
     assert p["ace"]["humidity"] == 18 and p["ace"]["drying"] is False
-    assert p["notices"]["warnings"] == 1 and p["notices"]["top"] == "Slot 1 feucht"
+    assert p["notices"]["warnings"] == 1 and p["notices"]["top"] == "Slot 1 damp"
     assert "vision" not in p
 
 
@@ -143,7 +143,7 @@ def test_room_sensor_freshness(monkeypatch):
     clock = Clock()
     m = MqttBridge(bridge(monkeypatch, room_sensor_topic="zigbee2mqtt/Lager"), clock=clock)
     assert m.room_rh() is None
-    m.on_room(b'{"humidity": 140}')                                       # unsinnig -> ignoriert
+    m.on_room(b'{"humidity": 140}')                                       # nonsense -> ignored
     assert m.room_rh() is None
     m.on_room(b'{"humidity": 44.5, "temperature": 20.1}')
     assert m.room_rh() == 44.5
@@ -204,7 +204,7 @@ def test_run_retries_after_error(monkeypatch):
 
     def factory(host, port, **kw):
         calls.append(1)
-        return FakeClient([], fail=OSError("Verbindung abgelehnt"))
+        return FakeClient([], fail=OSError("connection refused"))
     m = MqttBridge(bridge(monkeypatch), client_factory=factory, clock=Clock())
 
     async def go():
@@ -215,7 +215,7 @@ def test_run_retries_after_error(monkeypatch):
             await t
     asyncio.run(go())
     assert len(calls) >= 3 and not m.connected
-    assert m.status_lines()[0]["state"] == "warn" and "abgelehnt" in m.status_lines()[0]["detail"]
+    assert m.status_lines()[0]["state"] == "warn" and "refused" in m.status_lines()[0]["detail"]
 
 
 def test_clean_shutdown_reports_offline(monkeypatch):

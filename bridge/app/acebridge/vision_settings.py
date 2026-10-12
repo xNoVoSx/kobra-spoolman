@@ -36,7 +36,7 @@ class VisionSettings:
     notify: str = "warn"              # from which level an alarm goes to the phone: warn | fail
     interval_s: float = 10.0          # 2 .. 60 (the scoring is tuned to ~10 s)
     safe_s: float = 300.0             # never report this soon after print start (first layer, purging)
-    zones: List[Dict[str, float]] = field(default_factory=list)   # ignorierte Bereiche {x, y, w, h} 0..1
+    zones: List[Dict[str, float]] = field(default_factory=list)   # ignored areas {x, y, w, h} 0..1
     quiet: Dict[str, Any] = field(default_factory=lambda: {"enabled": False, "start": "22:00", "end": "07:00",
                                                            "mode": "fail_only"})
     dataset_gb: float = 5.0           # 0 = collect nothing

@@ -12,22 +12,22 @@ MD = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
 
 def test_web_changelog_has_current_version():
-    assert CHANGELOG[0][0] == __version__, "Bridge-Version fehlt in CHANGELOG (acebridge/__init__.py, Einstellungen)"
+    assert CHANGELOG[0][0] == __version__, "bridge version missing in CHANGELOG (acebridge/__init__.py, settings page)"
     assert all(items for _, _, items in CHANGELOG)
 
 
 def test_changelog_md_has_current_version():
-    assert f"## [{__version__}]" in MD, "Bridge-Version fehlt in CHANGELOG.md"
+    assert f"## [{__version__}]" in MD, "bridge version missing in CHANGELOG.md"
 
 
 def test_changelog_md_has_current_app_version():
     props = (ROOT / "android/app/version.properties").read_text(encoding="utf-8")
     app = re.search(r"^versionName=(\S+)", props, re.M).group(1)
-    assert f"## app {app} " in MD, "App-Version fehlt in CHANGELOG.md (## app x.y.z – Datum, Text der Update-Karte)"
+    assert f"## app {app} " in MD, "app version missing in CHANGELOG.md (## app x.y.z – date, text of the update card)"
 
 
 def test_web_and_md_list_the_same_bridge_versions():
     md_versions = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", MD, re.M)
     web = [v for v, _, _ in CHANGELOG]
     newest = md_versions[: len(web)]
-    assert web == newest, "Einstellungen und CHANGELOG.md haben verschiedene Versionen"
+    assert web == newest, "settings page and CHANGELOG.md have different versions"

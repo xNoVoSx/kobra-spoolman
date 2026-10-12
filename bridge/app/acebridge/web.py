@@ -143,7 +143,7 @@ def build_app(bridge: "Bridge") -> web.Application:
         except ValueError as e:
             return _err(400, msg_of(e))
         except Exception as e:  # noqa: BLE001
-            log.warning("Zuordnung fehlgeschlagen: %s", e)
+            log.warning("Assignment failed: %s", e)
             return _err(502, msg_of(e))
         return json_response({"ok": True, "slots": bridge.slots.slots_view()})
 

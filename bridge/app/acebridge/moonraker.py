@@ -31,7 +31,7 @@ SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "fan": ["speed", "rpm"],
                      "gcode_move": ["speed_factor", "extrude_factor"],
                      "bed_mesh": ["profile_name"]}
-# ACE driver (ACEPRO, acemodel.SUBSCRIBE) and the S1's extra fans; if something is missing (driver off), subscribe without
+# ACE driver (ACEPRO, acemodel.SUBSCRIBE), Klipper modules and the S1's extra fans - only what objects/list names
 OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, **pa.SUBSCRIBE, **resume.SUBSCRIBE, **clog.SUBSCRIBE, **switches.SUBSCRIBE,
                     **phase.SUBSCRIBE,
                     "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
@@ -232,17 +232,42 @@ class Moonraker:
                     changed.setdefault(obj, {})[k] = v
         return changed
 
+    @property
+    def platform(self) -> str:
+        """"rinkhals" (Anycubic firmware with GoKlipper, Rinkhals' Moonraker components) or "klipper"."""
+        return "rinkhals" if {"mmu_ace", "kobra"} & set(self.components) else "klipper"
+
+    async def _objects(self) -> Dict[str, Any]:
+        """What to subscribe: the base objects plus the optional ones the printer really has (objects/list).
+        Rinkhals: never an absent object - subscribing to one can make GoKlipper panic (Rinkhals' kobra.py); its ACE
+        objects come from acemodel.SUBSCRIBE_RINKHALS (mmu is added by Rinkhals, filament_hub is not listed)."""
+        try:
+            res = await self._call("printer.objects.list")
+            listed = set((res or {}).get("objects") or []) if isinstance(res, dict) else set()
+        except Exception as e:  # noqa: BLE001
+            log.info("Object list not readable (%s)", e)
+            listed = set()
+        objs = dict(SUBSCRIBE_OBJECTS)
+        if self.platform == "rinkhals":
+            objs.update(acemodel.SUBSCRIBE_RINKHALS)
+            objs.update({k: v for k, v in OPTIONAL_OBJECTS.items() if k in listed})
+        elif listed:
+            objs.update({k: v for k, v in OPTIONAL_OBJECTS.items() if k in listed})
+        else:
+            objs.update(OPTIONAL_OBJECTS)          # Klipper ignores unknown objects
+        return objs
+
     async def _subscribe(self) -> None:
         # the reader (_reader) queues the subscription's state as soon as the answer is there - Moonraker sends changes
         # right after it, they must not be processed before the (older) state
+        objs = await self._objects()
         try:
-            res = await self._call("printer.objects.subscribe", {"objects": {**SUBSCRIBE_OBJECTS, **OPTIONAL_OBJECTS}},
-                                   subscribe=True)
+            res = await self._call("printer.objects.subscribe", {"objects": objs}, subscribe=True)
         except RuntimeError as e:
-            log.info("Subscribing without %s (%s)", ", ".join(OPTIONAL_OBJECTS), e)
+            log.info("Subscribing only to the base objects (%s)", e)
             res = await self._call("printer.objects.subscribe", {"objects": SUBSCRIBE_OBJECTS}, subscribe=True)
         snapshot = res.get("status", {}) if isinstance(res, dict) else {}
-        log.info("Abo aktiv (%s)", ", ".join(k for k in snapshot))
+        log.info("Subscription active on %s (%s)", self.platform, ", ".join(k for k in snapshot))
         if self.console is not None and not self.console.lines:
             try:      # backlog for the console: the last lines Moonraker keeps anyway
                 store = await self._call("server.gcode_store", {"count": 100})
@@ -256,7 +281,7 @@ class Moonraker:
         None: Klipper gone (klippy_ready off, after a still queued subscription state switched it on)."""
         self._todo.append((delta, full))
         if len(self._todo) in (500, 5000):
-            log.warning("Statusverarbeitung haengt hinterher: %d Aenderungen offen", len(self._todo))
+            log.warning("Status processing is falling behind: %d changes open", len(self._todo))
         self._wake.set()
         if self._dispatcher is None or self._dispatcher.done():
             self._dispatcher = asyncio.get_running_loop().create_task(self._dispatch())
@@ -336,7 +361,7 @@ class Moonraker:
         try:
             await self._subscribe()
         except Exception as e:  # noqa: BLE001
-            log.warning("Abo fehlgeschlagen: %s", e)
+            log.warning("Subscription failed: %s", e)
 
     async def run(self) -> None:
         delay = 2.0
