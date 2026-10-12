@@ -1,4 +1,4 @@
-// Seiten. Welche Seite, entscheidet die Adresse (#/filament ...); wie viel nebeneinander passt, die Breite.
+// Pages. Which page is decided by the URL (#/filament ...); how much fits side by side, by the width.
 
 import { HumidityCard } from "./humidity.js";
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
@@ -9,6 +9,7 @@ import { ClogCard, PowerlossCard, ResumeCard, UsbCard } from "./resume.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
 import { NoticesCard } from "./notices.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
+import { LANGS, chosen, lang, setLang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { capability, quality, setQuality } from "./viewer3d.js";
 import { cameraKey, cameraUrl } from "./media.js";
@@ -16,9 +17,9 @@ import { SpoolDetail, SpoolList } from "./spools.js";
 import { S, guard, loadCatalog, loadHealth, loadJobs, openDialog, set, toast } from "./store.js";
 import { ago, cls, grams, num, when } from "./util.js";
 
-// ------------------------------------------------------------ Uebersicht
-// Druckermonitor: Drucker (Kamera) gross, daneben Meldungen & Status, Trockner, ACE; darunter die Slots.
-// Verwalten (Spulen, Sorten, Drucke) hat eigene Tabs.
+// ------------------------------------------------------------ overview
+// printer monitor: printer (camera) large, next to it messages & status, dryer, ACE; below the slots.
+// Managing (spools, filaments, prints) has its own tabs.
 export function Overview() {
   const open = (S.st?.usage?.open || []).length > 0;
   return html`
@@ -33,20 +34,20 @@ export function Overview() {
     </div>
     <div class="ov2-slots col" style="gap:14px">
       <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span>
-        <span class="small muted">Zuordnen gibt Material, Farbe und Temperatur auch an die ACE (Spulen ohne Tag)</span></div>
+        <span class="small muted">${t("Assigning also gives material, colour and temperature to the ACE (spools without a tag)")}</span></div>
       <${Slots} />
     </div>
   </div>`;
 }
 
-/** 5120 px und mehr: Drucker gross, Slots + ACE, Meldungen - alles auf einen Blick, ohne Verwaltung. */
+/** 5120 px and more: printer large, slots + ACE, messages - everything at a glance, without management. */
 export function Ultra() {
   const open = (S.st?.usage?.open || []).length > 0;
   return html`
   <div class="ultra">
     <div class="ucol"><${PrinterCard} tall /></div>
     <div class="ucol">
-      <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span><span class="small muted">Zuordnen gibt die Werte auch an die ACE</span></div>
+      <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span><span class="small muted">${t("Assigning also gives the values to the ACE")}</span></div>
       <${Slots} />
       <div class="ugrid2"><${DryerCard} /><${AceCard} compact /></div>
     </div>
@@ -57,12 +58,12 @@ export function Ultra() {
   </div>`;
 }
 
-// ------------------------------------------------------------ Filament: Spulen | Sorten
-/** Unterseite aus der Adresse: #/filament/sorten, alt #/filamente; sonst Spulen. */
+// ------------------------------------------------------------ filament: spools | filaments
+/** Sub-page from the URL: #/filament/filaments (old: #/filament/sorten, #/filamente); else spools. */
 export function filamentView() {
   const parts = location.hash.replace(/^#\/?/, "").split(/[/?]/);
-  if (parts[0] === "filamente" || parts[1] === "sorten") return "sorten";
-  return "spulen";
+  if (parts[0] === "filamente" || parts[1] === "sorten" || parts[1] === "filaments") return "filaments";
+  return "spools";
 }
 
 export function FilamentHub() {
@@ -74,14 +75,14 @@ export function FilamentHub() {
   }, []);
   const tab = (k, label, n) => html`<a href=${"#/filament/" + k} role="tab" aria-selected=${view === k} class=${cls("seg-btn", view === k && "on")}>${label}${n != null && html` <span class="m muted">${n}</span>`}</a>`;
   return html`<div class="hub">
-    <div class="seg" role="tablist" aria-label="Filament">
-      ${tab("spulen", "Spulen", S.spools?.length)}${tab("sorten", "Sorten", S.catalog?.filaments?.length)}
+    <div class="seg" role="tablist" aria-label=${t("Filament")}>
+      ${tab("spools", t("Spools"), S.spools?.length)}${tab("filaments", t("Filaments"), S.catalog?.filaments?.length)}
     </div>
-    ${view === "sorten" ? html`<${FilamentPage} />` : html`<${RegalPage} />`}
+    ${view === "filaments" ? html`<${FilamentPage} />` : html`<${ShelfPage} />`}
   </div>`;
 }
 
-function RegalPage() {
+function ShelfPage() {
   return html`<div class=${cls("split", S.sel != null && "has-sel")}>
     <${SpoolList} wideCols=${window.innerWidth > 1500} />
     <${SpoolDetail} id=${S.sel} onBack=${() => set({ sel: null })} />
@@ -93,44 +94,44 @@ function FilamentPage() {
   return html`<div class=${cls("split", S.selFil != null && "has-sel")}>
     <${FilamentList} />
     <section class="card detail">
-      ${S.selFil == null ? html`<div class="empty-state" style="margin:auto">Filament wählen oder neu anlegen.</div>`
-        : html`<button class="btn ghost back" style="margin:12px 12px 0" onClick=${() => set({ selFil: null })}><${Icon} name="back" small />Filamente</button>
+      ${S.selFil == null ? html`<div class="empty-state" style="margin:auto">${t("Choose a filament or create a new one.")}</div>`
+        : html`<button class="btn ghost back" style="margin:12px 12px 0" onClick=${() => set({ selFil: null })}><${Icon} name="back" small />${t("Filaments")}</button>
                <${FilamentEditor} key=${S.selFil} fid=${S.selFil} />
                <${SpoolsOfFilament} fid=${S.selFil} />`}
     </section>
   </div>`;
 }
 
-/** Querverweis Sorte -> Spulen: Tippen oeffnet die Spule unter "Spulen". */
+/** Cross reference filament -> spools: tapping opens the spool under "Spools". */
 function SpoolsOfFilament({ fid }) {
   const list = (S.spools || []).filter((s) => s.filament_id === fid);
   if (fid === "neu" || !list.length) return null;
   return html`<div class="dbody col" style="gap:8px;padding-top:0">
-    <p class="section-title">Spulen dieser Sorte</p>
-    ${list.map((s) => html`<a class="row spool-link" href="#/filament/spulen" onClick=${() => set({ sel: s.spool_id })}>
-      <${Swatch} color=${s.color} size=${18} /><span class="grow">#${s.spool_id} · ${s.slot ? `ACE ${s.slot}` : s.location || "Regal"}</span>
+    <p class="section-title">${t("Spools of this filament")}</p>
+    ${list.map((s) => html`<a class="row spool-link" href="#/filament/spools" onClick=${() => set({ sel: s.spool_id })}>
+      <${Swatch} color=${s.color} size=${18} /><span class="grow">#${s.spool_id} · ${s.slot ? `ACE ${s.slot}` : s.location || t("Shelf")}</span>
       <span class="m small">${grams(s.remaining_weight)}</span></a>`)}
   </div>`;
 }
 
-// ------------------------------------------------------------ Drucke
+// ------------------------------------------------------------ prints
 export function JobsPage() {
   useEffect(() => { loadJobs(); }, []);
   const live = S.st?.usage?.live;
   const jobs = S.jobs || [];
   const totalG = jobs.reduce((a, j) => a + j.slots.reduce((b, s) => b + (s.g || 0), 0), 0);
   return html`<div class="col" style="max-width:1600px">
-    <div class="row"><h1 class="h1">Drucke</h1><span class="m small muted">${jobs.length} aufgezeichnet · ${num(totalG / 1000)} kg</span></div>
+    <div class="row"><h1 class="h1">${t("Prints")}</h1><span class="m small muted">${t("{n} recorded · {kg} kg", { n: jobs.length, kg: num(totalG / 1000) })}</span></div>
     ${(S.st?.usage?.open || []).length > 0 && html`<${OpenItemsCard} />`}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px">
       ${live && html`<${JobCard} job=${live} live />`}
       ${jobs.map((j) => html`<${JobCard} key=${j.job} job=${j} />`)}
     </div>
-    ${!live && !jobs.length && html`<div class="empty-state">Noch keine Drucke aufgezeichnet.</div>`}
+    ${!live && !jobs.length && html`<div class="empty-state">${t("No prints recorded yet.")}</div>`}
   </div>`;
 }
 
-// ------------------------------------------------------------ Trockner
+// ------------------------------------------------------------ ACE page
 export function AcePage() {
   const d = S.st?.dryer;
   const req = d?.required || {};
@@ -141,81 +142,84 @@ export function AcePage() {
       <div class="col" style="gap:20px"><${AceCard} /><${PaCard} /></div>
     </div>
     ${d?.present && html`<section class="card pad col">
-      <h2 class="h2">Temperaturgrenze</h2>
-      <div class="kv">${(req.slots || []).map((p) => html`<span>Slot ${p.slot} · ${p.name} <span class="faint">(${{ filament: "am Filament", vorlage: "aus Vorlage", standard: "Materialwert" }[p.source] || p.source})</span></span>
+      <h2 class="h2">${t("Temperature limit")}</h2>
+      <div class="kv">${(req.slots || []).map((p) => html`<span>${t("Slot {slot}", { slot: p.slot })} · ${p.name} <span class="faint">(${{ filament: t("on the filament"), vorlage: t("from the template"), standard: t("material value") }[p.source] || p.source})</span></span>
         <span class="m" style=${{ color: (req.limited_by || []).includes(p.slot) ? "var(--accent)" : "" }}>${p.temp} °C</span>`)}
-        <span>ACE höchstens</span><span class="m">${req.ace_max ?? "–"} °C</span></div>
-      <div class="small muted">Eigene Grenze pro Filament im Feld „Trocknen max.“ (Filamente → Temperaturen).</div>
+        <span>${t("ACE at most")}</span><span class="m">${req.ace_max ?? "–"} °C</span></div>
+      <div class="small muted">${t("Own limit per filament in the field “Drying max.” (Filaments → Temperatures).")}</div>
     </section>`}
     ${d?.present && html`<${HumidityCard} />`}
   </div>`;
 }
 
-// ------------------------------------------------------------ Geraete
+// ------------------------------------------------------------ devices
 export function DevicesPage() {
   const [list, setList] = useState(null);
   const load = () => get("/api/auth/devices").then((r) => setList(r.devices)).catch((e) => toast(e.message, "bad"));
   useEffect(() => { if (S.me) load(); }, [S.me]);
   useEffect(() => { if (!S.dialog && S.me) load(); }, [S.dialog]);
-  const KIND = { app: ["Handy-App", "phone"], web: ["Browser", "overview"], plugin: ["Orca-Plugin", "drop"], other: ["Sonstiges", "key"] };
+  const KIND = { app: [t("Phone app"), "phone"], web: [t("Browser"), "overview"], plugin: [t("Orca plugin"), "drop"], display: [t("Display"), "overview"],
+    other: [t("Other"), "key"] };
   const remove = (d) => openDialog("confirm", {
-    title: d.me ? "Diesen Browser entkoppeln?" : `„${d.name}“ entfernen?`,
-    text: d.me ? "Der Browser vergisst seinen Schlüssel; zum Ändern muss er neu gekoppelt werden." : "Das Gerät kann danach nichts mehr ändern, bis es neu gekoppelt ist.",
-    ok: d.me ? "Entkoppeln" : "Entfernen", danger: true,
+    title: d.me ? t("Unpair this browser?") : t("Remove “{name}”?", { name: d.name }),
+    text: d.me ? t("The browser forgets its key; to change anything it must be paired again.")
+      : t("The device can no longer change anything until it is paired again."),
+    ok: d.me ? t("Unpair") : t("Remove"), danger: true,
     action: async () => {
       await del(`/api/auth/devices/${d.id}`);
       if (d.me) { auth.clear(); set({ me: null, pairing: true }); } else load();
-      toast("Entfernt", "ok");
+      toast(t("Removed"), "ok");
     },
   });
-  if (!S.me) return html`<div class="col" style="max-width:900px"><h1 class="h1">Geräte</h1><div class="note">Dieser Browser ist nicht gekoppelt. <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>Jetzt koppeln</a></div></div>`;
+  if (!S.me) return html`<div class="col" style="max-width:900px"><h1 class="h1">${t("Devices")}</h1><div class="note">${t("This browser is not paired.")} <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>${t("Pair now")}</a></div></div>`;
   return html`<div class="col" style="max-width:900px">
-    <div class="row"><h1 class="h1 grow">Geräte</h1><button class="btn acc" onClick=${() => openDialog("addDevice")}><${Icon} name="plus" small />Gerät hinzufügen</button></div>
-    <div class="small muted">Jedes Gerät hat einen eigenen Schlüssel. Lesen geht ohne, ändern nur gekoppelt.</div>
+    <div class="row"><h1 class="h1 grow">${t("Devices")}</h1><button class="btn acc" onClick=${() => openDialog("addDevice")}><${Icon} name="plus" small />${t("Add device")}</button></div>
+    <div class="small muted">${t("Every device has its own key. Reading works without one, changing only when paired.")}</div>
     <section class="card">
-      ${list == null && html`<div class="empty-state">lade …</div>`}
+      ${list == null && html`<div class="empty-state">${t("loading …")}</div>`}
       ${(list || []).map((d, i) => html`
         <div class="row" style=${{ padding: "14px 18px", borderTop: i ? "1px solid var(--line)" : "0" }}>
           <span style="color:var(--muted)"><${Icon} name=${(KIND[d.kind] || KIND.other)[1]} /></span>
-          <div class="grow"><b>${d.name}</b>${d.me && html` <span class="chip on">dieser Browser</span>`}
-            <div class="small muted">${(KIND[d.kind] || KIND.other)[0]} · gekoppelt ${when(new Date(d.created * 1000).toISOString())} · zuletzt ${ago(d.last_seen)}</div></div>
-          ${d.id !== "app_token" && html`<button class="btn sm danger" onClick=${() => remove(d)}>${d.me ? "Entkoppeln" : "Entfernen"}</button>`}
+          <div class="grow"><b>${d.name}</b>${d.me && html` <span class="chip on">${t("this browser")}</span>`}
+            <div class="small muted">${t("{kind} · paired {when} · last seen {ago}", { kind: (KIND[d.kind] || KIND.other)[0], when: when(new Date(d.created * 1000).toISOString()), ago: ago(d.last_seen) })}</div></div>
+          ${d.id !== "app_token" && html`<button class="btn sm danger" onClick=${() => remove(d)}>${d.me ? t("Unpair") : t("Remove")}</button>`}
         </div>`)}
     </section>
     <${CameraLinkCard} />
   </div>`;
 }
 
-/** Kamera-Link fuer Mainsail & Co.: alle schauen ueber die Bridge, zum Drucker geht nur eine Verbindung. */
+/** Camera link for Mainsail & co.: everyone watches through the bridge, only one connection goes to the printer. */
 function CameraLinkCard() {
   const [key, setKey] = useState(null);
   useEffect(() => { cameraKey(true).then(setKey).catch((e) => toast(e.message, "bad")); }, []);
   const copy = async (text) => {
-    try { await navigator.clipboard.writeText(text); toast("Kopiert", "ok"); } catch { toast("Kopieren nicht möglich – Text markieren", "bad"); }
+    try { await navigator.clipboard.writeText(text); toast(t("Copied"), "ok"); } catch { toast(t("Copying not possible – select the text"), "bad"); }
   };
   const rotate = () => openDialog("confirm", {
-    title: "Neuen Kamera-Link erzeugen?",
-    text: "Der alte Link (z. B. in Mainsail eingetragen) zeigt danach kein Bild mehr und muss ersetzt werden.",
-    ok: "Neu erzeugen", danger: true,
-    action: async () => { setKey((await post("/api/camera/link")).key); await cameraKey(true); toast("Neuer Kamera-Link", "ok"); },
+    title: t("Create a new camera link?"),
+    text: t("The old link (e.g. entered in Mainsail) then shows no image any more and must be replaced."),
+    ok: t("Create new"), danger: true,
+    action: async () => { setKey((await post("/api/camera/link")).key); await cameraKey(true); toast(t("New camera link"), "ok"); },
   });
   const Line = ({ label, url }) => html`<span style="align-self:center">${label}</span><span class="row" style="gap:8px;min-width:0">
     <span class="m small grow" style="overflow-wrap:anywhere">${url}</span>
-    <button class="btn sm icon ghost" aria-label=${label + " kopieren"} onClick=${() => copy(url)}><${Icon} name="copy" small /></button></span>`;
+    <button class="btn sm icon ghost" aria-label=${t("Copy {label}", { label })} onClick=${() => copy(url)}><${Icon} name="copy" small /></button></span>`;
   return html`<section class="card pad col">
-    <div class="row"><h2 class="h2 grow">Kamera-Link</h2><button class="btn sm" disabled=${!key} onClick=${rotate}>Neu erzeugen</button></div>
-    <div class="small muted">Für Mainsail (Einstellungen → Webcams, Dienst „MJPEG-Streamer“) und andere Programme ohne Kopplung.
-      Alle Zuschauer laufen über die Bridge, der Drucker liefert den Stream nur einmal. Der Link zeigt nur die Kamera.</div>
-    ${key ? html`<div class="kv"><${Line} label="Stream" url=${cameraUrl(key)} /><${Line} label="Einzelbild" url=${cameraUrl(key, "snapshot.jpg")} /></div>`
-          : html`<div class="small muted">lade …</div>`}
+    <div class="row"><h2 class="h2 grow">${t("Camera link")}</h2><button class="btn sm" disabled=${!key} onClick=${rotate}>${t("Create new")}</button></div>
+    <div class="small muted">${t("For Mainsail (Settings → Webcams, service “MJPEG-Streamer”) and other programs without pairing. All viewers go through the bridge, the printer delivers the stream only once. The link shows only the camera.")}</div>
+    ${key ? html`<div class="kv"><${Line} label=${t("Stream")} url=${cameraUrl(key)} /><${Line} label=${t("Snapshot")} url=${cameraUrl(key, "snapshot.jpg")} /></div>`
+          : html`<div class="small muted">${t("loading …")}</div>`}
   </section>`;
 }
 
-// ------------------------------------------------------------ Einstellungen / Info
-/** Eine Zahl: erst bei Enter oder Verlassen des Feldes speichern; Bereich und Einheit daneben. */
+// ------------------------------------------------------------ settings / info
+/** Number for an input field in the page language ("0.5" / "0,5"). */
+const inputNum = (v) => (lang === "de" ? String(v).replace(".", ",") : String(v));
+/** A number: saved only on Enter or when leaving the field; range and unit next to it. */
 function NumSetting({ it, save }) {
-  const [v, setV] = useState(String(it.value).replace(".", ","));
-  useEffect(() => setV(String(it.value).replace(".", ",")), [it.value]);
+  const [v, setV] = useState(inputNum(it.value));
+  useEffect(() => setV(inputNum(it.value)), [it.value]);
   const commit = () => { const n = Number(v.replace(",", ".")); if (v.trim() !== "" && n !== it.value) save(it.key, n); };
   return html`<label class="row small" style="gap:6px">
     <input class="inp set-num" inputmode="decimal" value=${v} onInput=${(e) => setV(e.target.value)} onBlur=${commit}
@@ -223,31 +227,31 @@ function NumSetting({ it, save }) {
     <span class="muted">${it.unit}</span></label>`;
 }
 
-/** Text: erst bei Enter oder Verlassen des Feldes speichern. */
+/** Text: saved only on Enter or when leaving the field. */
 function TextSetting({ it, save }) {
   const [v, setV] = useState(it.value || "");
   useEffect(() => setV(it.value || ""), [it.value]);
-  return html`<input class="inp set-text" value=${v} placeholder="Trockenbox=15" onInput=${(e) => setV(e.target.value)}
+  return html`<input class="inp set-text" value=${v} placeholder=${t("Drybox=15")} onInput=${(e) => setV(e.target.value)}
     onBlur=${() => { if (v !== (it.value || "")) save(it.key, v); }} onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} aria-label=${it.label} />`;
 }
 
-/** Einstellungen der Bridge, im Betrieb aenderbar (gespeichert in der Bridge; Umgebung = Startwert). */
+/** Settings of the bridge, changeable at runtime (stored in the bridge; environment = start value). */
 function BridgeSettings() {
   const [v, setV] = useState(null);
   useEffect(() => { get("/api/settings").then(setV).catch((e) => toast(e.message, "bad")); }, []);
   if (!v) return null;
-  const save = guard(async (key, value) => { setV(await post("/api/settings", { [key]: value })); toast("Gespeichert", "ok"); });
-  const reset = guard(async (key) => { setV(await post("/api/settings/reset", { key })); toast("Standard wiederhergestellt", "ok"); });
-  const fmt = (it, x) => (it.kind === "bool" ? (x ? "an" : "aus") : it.kind === "choice" ? (it.options.find((o) => o[0] === x)?.[1] || x)
-    : it.kind === "text" ? (x || "leer") : `${String(x).replace(".", ",")} ${it.unit}`.trim());
+  const save = guard(async (key, value) => { setV(await post("/api/settings", { [key]: value })); toast(t("Saved"), "ok"); });
+  const reset = guard(async (key) => { setV(await post("/api/settings/reset", { key })); toast(t("Default restored"), "ok"); });
+  const fmt = (it, x) => (it.kind === "bool" ? (x ? t("on") : t("off")) : it.kind === "choice" ? (it.options.find((o) => o[0] === x)?.[1] || x)
+    : it.kind === "text" ? (x || t("empty")) : `${inputNum(x)} ${it.unit}`.trim());
   return html`
     ${v.groups.map((g) => html`<section class="card pad col">
       <h2 class="h2">${g.name}</h2>
       ${g.items.map((it) => html`<div class="set-row">
         <div class="grow"><div>${it.label}</div>
           ${it.help && html`<div class="small muted">${it.help}</div>`}
-          ${it.kind !== "bool" && it.min != null && html`<div class="small faint">erlaubt ${String(it.min).replace(".", ",")}–${String(it.max).replace(".", ",")} ${it.unit}</div>`}
-          ${it.changed && html`<div class="small" style="color:var(--accent-text)">geändert · Standard ${fmt(it, it.default)} <button class="linkbtn" onClick=${() => reset(it.key)}>zurücksetzen</button></div>`}</div>
+          ${it.kind !== "bool" && it.min != null && html`<div class="small faint">${t("allowed {min}–{max} {unit}", { min: inputNum(it.min), max: inputNum(it.max), unit: it.unit })}</div>`}
+          ${it.changed && html`<div class="small" style="color:var(--accent-text)">${t("changed · default {value}", { value: fmt(it, it.default) })} <button class="linkbtn" onClick=${() => reset(it.key)}>${t("reset")}</button></div>`}</div>
         ${it.kind === "bool" ? html`<label class="toggle"><input type="checkbox" role="switch" checked=${!!it.value} onChange=${(e) => save(it.key, e.target.checked)} aria-label=${it.label} /><span class="knob" aria-hidden="true"></span></label>`
           : it.kind === "choice" ? html`<select class="inp set-text" value=${it.value} onChange=${(e) => save(it.key, e.target.value)} aria-label=${it.label}>${it.options.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select>`
           : it.kind === "text" ? html`<${TextSetting} it=${it} save=${save} />`
@@ -255,27 +259,33 @@ function BridgeSettings() {
       </div>`)}
     </section>`)}
     <section class="card pad col">
-      <h2 class="h2">Weitere Einstellungen</h2>
-      <div class="row wrap"><a class="btn sm" href="#/ace">Trockner-Regeln (ACE)</a><a class="btn sm" href="#/ki">KI</a><a class="btn sm" href="#/geraete">Geräte</a></div>
+      <h2 class="h2">${t("More settings")}</h2>
+      <div class="row wrap"><a class="btn sm" href="#/ace">${t("Dryer rules (ACE)")}</a><a class="btn sm" href="#/ai">${t("AI")}</a><a class="btn sm" href="#/devices">${t("Devices")}</a></div>
     </section>
     <section class="card pad col">
-      <h2 class="h2">Verbindungen</h2>
+      <h2 class="h2">${t("Connections")}</h2>
       <div class="kv">${v.readonly.map((r) => html`<span>${r.label}</span><span class="m">${r.value === "" || r.value == null ? "–" : String(r.value)}</span>`)}</div>
-      <div class="small muted">Diese brauchen einen Neustart der Bridge: im Stack (Umgebungsvariablen) ändern und neu ausrollen.</div>
+      <div class="small muted">${t("These need a restart of the bridge: change them in the stack (environment variables) and redeploy.")}</div>
     </section>`;
 }
 
-/** Einstellungen, die nur in diesem Browser gelten (localStorage). */
+/** Settings that apply only in this browser (localStorage): language and 3D model. */
 function DeviceCard() {
   const [q, setQ] = useState(quality());
-  const found = { volume: "Volumen", lines: "Linien", image: "Bild" }[capability()];
-  const opts = [["auto", `Automatisch (hier: ${found})`], ["volume", "Volumen – schattierte Stränge"], ["lines", "Linien – spart Grafikleistung"], ["image", "Bild der Bridge – für schwache Geräte"]];
+  const found = { volume: t("volume"), lines: t("lines"), image: t("image") }[capability()];
+  const opts = [["auto", t("Automatic (here: {mode})", { mode: found })], ["volume", t("Volume – shaded strands")],
+    ["lines", t("Lines – saves graphics power")], ["image", t("Bridge image – for weak devices")]];
+  const bridgeLang = LANGS[S.health?.settings?.language] || "";
   return html`<section class="card pad col">
-    <h2 class="h2">Dieses Gerät</h2>
-    <div class="row wrap"><span class="grow">3D-Modell</span>
-      <select class="inp set-text" value=${q} onChange=${(e) => { setQuality(e.target.value); setQ(e.target.value); toast("Gilt ab dem nächsten Öffnen der Modell-Ansicht", "ok"); }} aria-label="3D-Modell">
+    <h2 class="h2">${t("This device")}</h2>
+    <div class="row wrap"><span class="grow">${t("Language")}</span>
+      <select class="inp set-text" value=${chosen} onChange=${(e) => setLang(e.target.value)} aria-label=${t("Language")}>
+        <option value="">${bridgeLang ? t("Bridge default ({lang})", { lang: bridgeLang }) : t("Bridge default")}</option>
+        ${Object.entries(LANGS).map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select></div>
+    <div class="row wrap"><span class="grow">${t("3D model")}</span>
+      <select class="inp set-text" value=${q} onChange=${(e) => { setQuality(e.target.value); setQ(e.target.value); toast(t("Applies from the next time the model view opens"), "ok"); }} aria-label=${t("3D model")}>
         ${opts.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select></div>
-    <div class="small muted">Gilt nur in diesem Browser. Die App hat dieselbe Einstellung unter Einstellungen.</div>
+    <div class="small muted">${t("Applies only in this browser. The bridge default language is under “General” below; the app has its own settings.")}</div>
   </section>`;
 }
 
@@ -283,11 +293,11 @@ export function SettingsPage() {
   useEffect(() => { loadHealth(); }, []);
   const h = S.health;
   return html`<div class="col" style="max-width:1100px">
-    <h1 class="h1">Einstellungen</h1>
+    <h1 class="h1">${t("Settings")}</h1>
     <section class="card pad col">
-      <h2 class="h2">Dieser Browser</h2>
-      ${S.me ? html`<div class="row"><span class="grow">Gekoppelt als <b>${S.me.name}</b></span><a class="btn sm" href="#/geraete">Geräte verwalten</a></div>`
-             : html`<div class="row"><span class="grow muted">Nicht gekoppelt – nur Ansehen.</span><button class="btn sm acc" onClick=${() => set({ pairing: true })}>Koppeln</button></div>`}
+      <h2 class="h2">${t("This browser")}</h2>
+      ${S.me ? html`<div class="row"><span class="grow">${t("Paired as")} <b>${S.me.name}</b></span><a class="btn sm" href="#/devices">${t("Manage devices")}</a></div>`
+             : html`<div class="row"><span class="grow muted">${t("Not paired – view only.")}</span><button class="btn sm acc" onClick=${() => set({ pairing: true })}>${t("Pair")}</button></div>`}
     </section>
     <${DeviceCard} />
     <${OrcaCard} />
@@ -295,22 +305,22 @@ export function SettingsPage() {
     <section class="card pad col">
       <h2 class="h2">Bridge ${h.version}</h2>
       <div class="kv">
-        <span>Läuft seit</span><span>${when(h.started)}</span>
-        <span>Drucker</span><span class="m">${h.moonraker.url}</span>
+        <span>${t("Running since")}</span><span>${when(h.started)}</span>
+        <span>${t("Printer")}</span><span class="m">${h.moonraker.url}</span>
         <span>Spoolman</span><span><a href=${h.links?.spoolman || h.spoolman.url} target="_blank" rel="noopener">${h.links?.spoolman || h.spoolman.url}</a></span>
-        ${h.links?.printer_ui && html`<span>Drucker-Oberfläche</span><span><a href=${h.links.printer_ui} target="_blank" rel="noopener">${h.links.printer_ui}</a></span>`}
+        ${h.links?.printer_ui && html`<span>${t("Printer UI")}</span><span><a href=${h.links.printer_ui} target="_blank" rel="noopener">${h.links.printer_ui}</a></span>`}
       </div>
     </section>
     <${BridgeSettings} />
     <section class="card pad col">
-      <h2 class="h2">Neu in der Bridge</h2>
+      <h2 class="h2">${t("New in the bridge")}</h2>
       ${h.changelog.map((c) => html`<div><b class="m">${c.version}</b> <span class="muted small">${c.date}</span><ul style="margin:6px 0 0;padding-left:20px">${c.items.map((i) => html`<li class="small">${i}</li>`)}</ul></div>`)}
     </section>`}
-    <div class="small faint">Schriften: Space Grotesk, IBM Plex (SIL OFL) · Preact, htm, qrcode-generator – Lizenztexte liegen in der Bridge unter static/licenses.</div>
+    <div class="small faint">${t("Fonts: Space Grotesk, IBM Plex (SIL OFL) · Preact, htm, qrcode-generator – licence texts are in the bridge under static/licenses.")}</div>
   </div>`;
 }
 
-// ------------------------------------------------------------ Koppeln (erster Start)
+// ------------------------------------------------------------ pairing (first start)
 function deviceName() {
   const ua = navigator.userAgent;
   const browser = /Firefox\//.test(ua) ? "Firefox" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
@@ -330,8 +340,8 @@ export function PairPage({ reason }) {
   useEffect(() => { refs.current[0]?.focus(); }, []);
   const setAt = (i, val) => {
     let clean = val.replace(/\D/g, "");
-    if (clean.length === 2 && digits[i]) clean = clean.replace(digits[i], "") || clean.slice(-1);   // Feld ueberschrieben
-    if (clean.length > 1) {          // eingefuegt
+    if (clean.length === 2 && digits[i]) clean = clean.replace(digits[i], "") || clean.slice(-1);   // field overwritten
+    if (clean.length > 1) {          // pasted
       const next = clean.slice(0, 6).split("");
       setDigits([...next, ...Array(6 - next.length).fill("")]);
       refs.current[Math.min(5, next.length)]?.focus();
@@ -351,7 +361,7 @@ export function PairPage({ reason }) {
       const r = await post("/api/auth/pair", { code, name: name.trim() || "Browser", kind: "web" });
       auth.save(r.token);
       set({ me: r.device, pairing: false, setupRequired: false });
-      toast(`Gekoppelt als „${r.device.name}“`, "ok");
+      toast(t("Paired as “{name}”", { name: r.device.name }), "ok");
       location.hash = "#/";
     } catch (e) {
       setErr(e.message);
@@ -362,27 +372,28 @@ export function PairPage({ reason }) {
   <div class="pair">
     <div class="card box">
       <div class="row"><span class="logo"><${Icon} name="spool" /></span><span class="g" style="font-weight:700;font-size:20px">Kobra Spoolman</span></div>
-      <div><h1 class="h1" style="font-size:28px;margin-bottom:8px">Diesen Browser koppeln</h1>
-        <p class="muted" style="margin:0">${reason || "Einmalig. Danach merkt sich der Browser seinen Schlüssel und fragt nicht wieder."}</p></div>
+      <div><h1 class="h1" style="font-size:28px;margin-bottom:8px">${t("Pair this browser")}</h1>
+        <p class="muted" style="margin:0">${reason || t("Once. Afterwards the browser remembers its key and does not ask again.")}</p></div>
       ${!useLong ? html`
         <fieldset style="border:0;margin:0;padding:0">
-          <legend class="small muted" style="margin-bottom:10px">Kopplungscode (6 Ziffern)</legend>
-          <div class="digits">${digits.map((d, i) => html`${i === 3 && html`<span class="gap"></span>`}<input ref=${(el) => (refs.current[i] = el)} aria-label=${"Ziffer " + (i + 1)}
+          <legend class="small muted" style="margin-bottom:10px">${t("Pairing code (6 digits)")}</legend>
+          <div class="digits">${digits.map((d, i) => html`${i === 3 && html`<span class="gap"></span>`}<input ref=${(el) => (refs.current[i] = el)} aria-label=${t("Digit {n}", { n: i + 1 })}
             inputmode="numeric" autocomplete="one-time-code" maxlength="6" value=${d} onInput=${(e) => setAt(i, e.target.value)} onKeyDown=${(e) => key(i, e)} />`)}</div>
         </fieldset>` : html`
-        <div class="f"><label for="pair-long">Schlüssel (APP_TOKEN)</label><input id="pair-long" value=${long} onInput=${(e) => setLong(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && pair()} /></div>`}
-      <div class="f"><label for="pair-name">Name dieses Geräts</label><input id="pair-name" value=${name} onInput=${(e) => setName(e.target.value)} /></div>
+        <div class="f"><label for="pair-long">${t("Key (APP_TOKEN)")}</label><input id="pair-long" value=${long} onInput=${(e) => setLong(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && pair()} /></div>`}
+      <div class="f"><label for="pair-name">${t("Name of this device")}</label><input id="pair-name" value=${name} onInput=${(e) => setName(e.target.value)} /></div>
       ${err && html`<div class="note bad">${err}</div>`}
-      <button class="btn acc" style="min-height:52px" disabled=${busy} onClick=${pair}>${busy ? "…" : "Koppeln"}</button>
+      <button class="btn acc" style="min-height:52px" disabled=${busy} onClick=${pair}>${busy ? "…" : t("Pair")}</button>
       <div class="note info" style="line-height:1.55">
-        <b style="color:var(--text)">Woher kommt der Code?</b><br />
-        In der App oder einem gekoppelten Browser unter <b style="color:var(--text)">Geräte → Gerät hinzufügen</b>.<br />
-        ${S.setupRequired ? html`Noch nichts gekoppelt: Der Einrichtungscode steht im Log der Bridge (Portainer → Container → Logs).` : html`Erstes Gerät? Der Einrichtungscode steht im Log der Bridge (Portainer → Logs).`}
+        <b style="color:var(--text)">${t("Where does the code come from?")}</b><br />
+        ${t("In the app or a paired browser under")} <b style="color:var(--text)">${t("Devices → Add device")}</b>.<br />
+        ${S.setupRequired ? t("Nothing paired yet: the setup code is in the bridge's log (e.g. Portainer → container → logs).")
+          : t("First device? The setup code is in the bridge's log (e.g. Portainer → logs).")}
       </div>
       <div class="row wrap small">
-        <a href="#" onClick=${(e) => { e.preventDefault(); setUseLong(!useLong); setErr(""); }}>${useLong ? "Mit 6-stelligem Code koppeln" : "Mit altem APP_TOKEN koppeln"}</a>
+        <a href="#" onClick=${(e) => { e.preventDefault(); setUseLong(!useLong); setErr(""); }}>${useLong ? t("Pair with a 6-digit code") : t("Pair with the old APP_TOKEN")}</a>
         <span class="grow"></span>
-        <a href="#" onClick=${(e) => { e.preventDefault(); later(); }}>Nur ansehen</a>
+        <a href="#" onClick=${(e) => { e.preventDefault(); later(); }}>${t("View only")}</a>
       </div>
     </div>
   </div>`;

@@ -1,16 +1,17 @@
-// Drucksteuerung: Pause/Weiter, Abbrechen (Rueckfrage), Not-Aus (2 s halten + Rueckfrage), Nachjustieren.
-// Alles geht ueber die Bridge (POST /api/print/...) und steht mit Absender im Terminal.
+// Print control: pause/resume, cancel (confirm), emergency stop (hold 2 s + confirm), tuning.
+// Everything goes through the bridge (POST /api/print/...) and appears with its sender in the terminal.
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { ApiError, post } from "./api.js";
 import { Dialog } from "./components.js";
+import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { S, closeDialog, guard, loadState, openDialog, toast } from "./store.js";
 import { cls, fileName } from "./util.js";
 
 const HOLD_MS = 2000;
 
-/** Aktion senden; Fehler als Meldung, dann weiterwerfen (damit Dialoge offen bleiben). */
+/** Send an action; errors as a toast, then rethrow (so dialogs stay open). */
 async function send(path, body = {}, okText) {
   try {
     await post(path, body);
@@ -22,7 +23,7 @@ async function send(path, body = {}, okText) {
   }
 }
 
-/** Knopf, der erst nach HOLD_MS gedrueckt halten ausloest (Not-Aus). */
+/** Button that fires only after being held for HOLD_MS (emergency stop). */
 function HoldButton({ onHeld, children }) {
   const [p, setP] = useState(0);
   const timer = useRef(null);
@@ -35,7 +36,7 @@ function HoldButton({ onHeld, children }) {
   };
   const down = (e) => { e.preventDefault(); start.current = performance.now(); timer.current = requestAnimationFrame(tick); };
   useEffect(() => stop, []);
-  return html`<button class="btn sm danger hold" style=${{ "--p": p }} title="2 Sekunden gedrückt halten"
+  return html`<button class="btn sm danger hold" style=${{ "--p": p }} title=${t("Hold for 2 seconds")}
     onPointerDown=${down} onPointerUp=${stop} onPointerLeave=${stop} onPointerCancel=${stop}
     onKeyDown=${(e) => (e.key === " " || e.key === "Enter") && !timer.current && down(e)} onKeyUp=${stop}>${children}</button>`;
 }
@@ -43,39 +44,39 @@ function HoldButton({ onHeld, children }) {
 export function ControlBar({ p }) {
   if (!S.me || !p) return null;
   if (p.state === "offline") {
-    // Klipper aus (Not-Aus, Fehler), Moonraker aber erreichbar: nur der Weg zurueck
+    // Klipper off (emergency stop, error), Moonraker reachable: only the way back
     if (!p.moonraker_connected || p.klippy_ready) return null;
     const restart = () => openDialog("confirm", {
-      title: "Klipper neu laden?", ok: "Neu laden", back: "Zurück",
-      text: "Klipper ist nicht bereit (Not-Aus oder Fehler). Neu laden dauert einige Sekunden; die Achsen müssen danach neu referenziert werden.",
-      action: () => send("/api/print/firmware_restart", { confirm: true }, "Klipper wird neu geladen"),
+      title: t("Reload Klipper?"), ok: t("Reload"), back: t("Back"),
+      text: t("Klipper is not ready (emergency stop or error). Reloading takes a few seconds; the axes must be homed again afterwards."),
+      action: () => send("/api/print/firmware_restart", { confirm: true }, t("Klipper is reloading")),
     });
-    return html`<div class="ctl row wrap"><span class="small muted grow">Klipper ist nicht bereit.</span>
-      <button class="btn sm acc" onClick=${guard(restart)}><${Icon} name="play" small />Klipper neu laden</button></div>`;
+    return html`<div class="ctl row wrap"><span class="small muted grow">${t("Klipper is not ready.")}</span>
+      <button class="btn sm acc" onClick=${guard(restart)}><${Icon} name="play" small />${t("Reload Klipper")}</button></div>`;
   }
   const printing = p.state === "printing", paused = p.state === "paused";
   const pct = p.progress != null ? ` · ${Math.round(p.progress * 100)} %` : "";
   const cancel = () => openDialog("confirm", {
-    title: "Druck abbrechen?", ok: "Druck abbrechen", back: "Zurück", danger: true,
-    text: `${fileName(p.file) || "Laufender Druck"}${pct}. Ein abgebrochener Druck lässt sich nicht fortsetzen.`,
-    action: () => send("/api/print/cancel", { confirm: true }, "Druck abgebrochen"),
+    title: t("Cancel the print?"), ok: t("Cancel print"), back: t("Back"), danger: true,
+    text: t("{file}{pct}. A cancelled print cannot be resumed.", { file: fileName(p.file) || t("Running print"), pct }),
+    action: () => send("/api/print/cancel", { confirm: true }, t("Print cancelled")),
   });
   const estop = () => openDialog("confirm", {
-    title: "Not-Aus auslösen?", ok: "Not-Aus", back: "Zurück", danger: true,
-    text: "Stoppt sofort alle Motoren und Heizungen. Danach Klipper neu laden (Knopf erscheint hier).",
-    action: () => send("/api/print/emergency_stop", { confirm: true }, "Not-Aus ausgelöst"),
+    title: t("Trigger the emergency stop?"), ok: t("Emergency stop"), back: t("Back"), danger: true,
+    text: t("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here)."),
+    action: () => send("/api/print/emergency_stop", { confirm: true }, t("Emergency stop triggered")),
   });
   return html`<div class="ctl row wrap">
-    ${printing && html`<button class="btn sm" onClick=${guard(() => send("/api/print/pause", {}, "Pausiert").catch(() => {}))}><${Icon} name="pause" small />Pause</button>`}
-    ${paused && html`<button class="btn sm acc" onClick=${guard(() => send("/api/print/resume", {}, "Läuft weiter").catch(() => {}))}><${Icon} name="play" small />Weiter</button>`}
-    ${(printing || paused) && html`<button class="btn sm" onClick=${guard(cancel)}><${Icon} name="stop" small />Abbrechen</button>`}
-    <button class="btn sm" onClick=${guard(() => openDialog("tune"))}><${Icon} name="sliders" small />Nachjustieren</button>
+    ${printing && html`<button class="btn sm" onClick=${guard(() => send("/api/print/pause", {}, t("Paused")).catch(() => {}))}><${Icon} name="pause" small />${t("Pause")}</button>`}
+    ${paused && html`<button class="btn sm acc" onClick=${guard(() => send("/api/print/resume", {}, t("Continuing")).catch(() => {}))}><${Icon} name="play" small />${t("Continue")}</button>`}
+    ${(printing || paused) && html`<button class="btn sm" onClick=${guard(cancel)}><${Icon} name="stop" small />${t("Cancel")}</button>`}
+    <button class="btn sm" onClick=${guard(() => openDialog("tune"))}><${Icon} name="sliders" small />${t("Tune")}</button>
     <span class="grow"></span>
-    <${HoldButton} onHeld=${estop}><${Icon} name="warn" small />Not-Aus</${HoldButton}>
+    <${HoldButton} onHeld=${estop}><${Icon} name="warn" small />${t("Emergency stop")}</${HoldButton}>
   </div>`;
 }
 
-// ------------------------------------------------------------ Nachjustieren
+// ------------------------------------------------------------ tuning
 const pctOf = (v) => (v == null ? null : Math.round(v * 100));
 
 function Slider({ label, value, setValue, min, max, step = 1, unit = "%", presets = [] }) {
@@ -111,27 +112,27 @@ export function TuneDialog() {
 
   const apply = async () => {
     try {
-      await send("/api/print/tune", { ...body, confirm: !!warn }, "Übernommen");
+      await send("/api/print/tune", { ...body, confirm: !!warn }, t("Applied"));
       closeDialog();
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) setWarn(e.message);
     }
   };
-  const temp = (k, label, max) => html`<label class="tune-temp"><span>${label} <span class="muted small">ist ${Math.round(p[k]?.temp ?? 0)} °C</span></span>
-    <span class="row" style="gap:6px"><input class="inp m" inputmode="numeric" value=${v[k]} aria-label=${label + " Soll"} onInput=${(e) => upd(k)(e.target.value.replace(/[^0-9]/g, ""))} />
-    <span class="muted">°C</span><button class="chip" onClick=${() => upd(k)("0")}>aus</button></span>
-    <span class="small muted">0 bis ${max} °C</span></label>`;
+  const temp = (k, label, max) => html`<label class="tune-temp"><span>${label} <span class="muted small">${t("is {t} °C", { t: Math.round(p[k]?.temp ?? 0) })}</span></span>
+    <span class="row" style="gap:6px"><input class="inp m" inputmode="numeric" value=${v[k]} aria-label=${t("{label} target", { label })} onInput=${(e) => upd(k)(e.target.value.replace(/[^0-9]/g, ""))} />
+    <span class="muted">°C</span><button class="chip" onClick=${() => upd(k)("0")}>${t("off")}</button></span>
+    <span class="small muted">${t("0 to {max} °C", { max })}</span></label>`;
 
-  return html`<${Dialog} title="Nachjustieren" footer=${html`<button class="btn ghost" onClick=${closeDialog}>Schließen</button>
-      <button class=${cls("btn", warn ? "danger" : "acc")} disabled=${empty || badTemp} onClick=${apply}>${warn ? "Trotzdem senden" : "Übernehmen"}</button>`}>
+  return html`<${Dialog} title=${t("Tune")} footer=${html`<button class="btn ghost" onClick=${closeDialog}>${t("Close")}</button>
+      <button class=${cls("btn", warn ? "danger" : "acc")} disabled=${empty || badTemp} onClick=${apply}>${warn ? t("Send anyway") : t("Apply")}</button>`}>
     <div class="col" style="gap:16px">
-      <${Slider} label="Tempo" value=${v.speed} setValue=${upd("speed")} min=${50} max=${200} step=${5} presets=${[50, 100, 150]} />
-      <${Slider} label="Fluss" value=${v.flow} setValue=${upd("flow")} min=${90} max=${110} presets=${[95, 100, 105]} />
-      ${fans.part && html`<${Slider} label="Bauteillüfter" value=${v.part} setValue=${upd("part")} min=${0} max=${100} step=${5} />`}
-      ${fans.box && html`<${Slider} label="Gehäuselüfter" value=${v.box} setValue=${upd("box")} min=${0} max=${100} step=${5} />`}
-      ${fans.filter && html`<${Slider} label="Luftfilter" value=${v.filter} setValue=${upd("filter")} min=${0} max=${100} step=${5} />`}
-      <div class="fgrid">${temp("nozzle", "Düse", 300)}${temp("bed", "Bett", 110)}</div>
-      ${warn && html`<div class="note bad">${warn} – noch einmal drücken, um es trotzdem zu senden.</div>`}
-      <div class="small muted">Gesendet wird nur, was du änderst. Tempo und Fluss gelten sofort, auch mitten im Druck; der Slicer setzt Lüfter und Temperaturen bei Schichtwechseln evtl. wieder.</div>
+      <${Slider} label=${t("Speed")} value=${v.speed} setValue=${upd("speed")} min=${50} max=${200} step=${5} presets=${[50, 100, 150]} />
+      <${Slider} label=${t("Flow")} value=${v.flow} setValue=${upd("flow")} min=${90} max=${110} presets=${[95, 100, 105]} />
+      ${fans.part && html`<${Slider} label=${t("Part cooling fan")} value=${v.part} setValue=${upd("part")} min=${0} max=${100} step=${5} />`}
+      ${fans.box && html`<${Slider} label=${t("Enclosure fan")} value=${v.box} setValue=${upd("box")} min=${0} max=${100} step=${5} />`}
+      ${fans.filter && html`<${Slider} label=${t("Air filter")} value=${v.filter} setValue=${upd("filter")} min=${0} max=${100} step=${5} />`}
+      <div class="fgrid">${temp("nozzle", t("Nozzle"), 300)}${temp("bed", t("Bed"), 110)}</div>
+      ${warn && html`<div class="note bad">${t("{warning} – press again to send it anyway.", { warning: warn })}</div>`}
+      <div class="small muted">${t("Only what you change is sent. Speed and flow apply at once, also in the middle of a print; the slicer may set fans and temperatures again at layer changes.")}</div>
     </div></${Dialog}>`;
 }

@@ -1,27 +1,28 @@
-// Gemeinsamer Zustand der Oberflaeche. Die Bridge ist die Quelle; hier liegt nur, was sie zuletzt gemeldet hat.
+// Shared state of the UI. The bridge is the source; here is only what it reported last.
 
 import { useEffect, useState } from "../vendor/preact-htm.module.js";
 import { get } from "./api.js";
+import { t } from "./i18n.js";
 
 const listeners = new Set();
 export const S = {
-  me: undefined,        // gekoppeltes Geraet (undefined = noch nicht geprueft, null = nicht gekoppelt)
+  me: undefined,        // paired device (undefined = not checked yet, null = not paired)
   setupRequired: false,
   st: null,             // /api/app/state
   stErr: null,
-  spools: null,         // /api/app/spools (alle aktiven Spulen)
+  spools: null,         // /api/app/spools (all active spools)
   jobs: null,           // /api/jobs
   catalog: null,        // /api/app/catalog
   health: null,         // /api/health
-  sel: null,            // ausgewaehlte Spule (id)
-  selFil: null,         // ausgewaehltes Filament (id oder "neu")
+  sel: null,            // selected spool (id)
+  selFil: null,         // selected filament (id or "neu" = new)
   dialog: null,         // {kind, ...}
-  menu: null,           // Kontextmenue {x, y, items}
+  menu: null,           // context menu {x, y, items}
   toasts: [],
-  pairing: false,       // Kopplungsseite erzwingen (z.B. Schreibversuch ohne Schluessel)
+  pairing: false,       // force the pairing page (e.g. a write attempt without a key)
   pairReason: null,
-  q: "",                // Suche im Regal
-  filter: "alle",       // Filter im Regal
+  q: "",                // search on the shelf
+  filter: "all",        // filter on the shelf (key, see spools.js)
 };
 
 export function set(patch) {
@@ -29,7 +30,7 @@ export function set(patch) {
   listeners.forEach((fn) => fn());
 }
 
-/** Komponente neu zeichnen, wenn sich der Zustand aendert. */
+/** Redraw the component when the state changes. */
 export function useStore() {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -44,20 +45,20 @@ let toastId = 0;
 export function toast(text, kind = "") {
   const id = ++toastId;
   set({ toasts: [...S.toasts, { id, text, kind }] });
-  setTimeout(() => set({ toasts: S.toasts.filter((t) => t.id !== id) }), kind === "bad" ? 7000 : 3500);
+  setTimeout(() => set({ toasts: S.toasts.filter((x) => x.id !== id) }), kind === "bad" ? 7000 : 3500);
 }
 
 export const canWrite = () => !!S.me;
 
-// ------------------------------------------------------------ Laden
-// Fingerabdruck der Oberflaeche, mit der diese Seite geladen wurde (setzt die Bridge in index.html)
+// ------------------------------------------------------------ loading
+// fingerprint of the UI this page was loaded with (the bridge puts it into index.html)
 const UI_TAG = document.querySelector('meta[name="ui-tag"]')?.content || null;
 
-/** Neue Oberflaeche auf der Bridge (Update)? Dann neu laden - aber nicht mitten in einem Dialog oder beim Tippen. */
+/** New UI on the bridge (update)? Then reload - but not in the middle of a dialog or while typing. */
 function reloadIfUpdated(st) {
   if (!UI_TAG || !st?.ui || st.ui === UI_TAG) return;
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "");
-  // offener Dialog, Tippen oder geoeffneter Editor (Spule/Sorte, evtl. ungespeichert): spaeter erneut versuchen
+  // open dialog, typing or an open editor (spool/filament, maybe unsaved): try again later
   const editing = /^#\/(filament|regal|filamente)/.test(location.hash) && (S.sel != null || S.selFil != null);
   if (S.dialog || typing || editing) return;
   location.reload();
@@ -73,22 +74,22 @@ export async function loadState() {
   }
 }
 export async function loadSpools() {
-  try { set({ spools: (await get("/api/app/spools")).spools }); } catch { /* Anzeige behaelt alten Stand */ }
+  try { set({ spools: (await get("/api/app/spools")).spools }); } catch { /* the view keeps the old state */ }
 }
 export async function loadJobs() {
-  try { set({ jobs: (await get("/api/jobs?limit=60")).jobs }); } catch { /* s.o. */ }
+  try { set({ jobs: (await get("/api/jobs?limit=60")).jobs }); } catch { /* see above */ }
 }
 export async function loadCatalog() {
-  try { set({ catalog: await get("/api/app/catalog") }); } catch (e) { toast("Katalog: " + e.message, "bad"); }
+  try { set({ catalog: await get("/api/app/catalog") }); } catch (e) { toast(t("Catalog: {error}", { error: e.message }), "bad"); }
 }
 export async function loadHealth() {
-  try { set({ health: await get("/api/health") }); } catch { /* s.o. */ }
+  try { set({ health: await get("/api/health") }); } catch { /* see above */ }
 }
 export async function reloadAll() {
   await Promise.all([loadState(), loadSpools()]);
 }
 
-/** Nach einer Aenderung: Zustand und Spulen neu holen. */
+/** After a change: fetch state and spools again. */
 export async function after(promise, okText) {
   try {
     const res = await promise;
@@ -101,7 +102,7 @@ export async function after(promise, okText) {
   }
 }
 
-// ------------------------------------------------------------ Hilfen fuer Ansichten
+// ------------------------------------------------------------ helpers for views
 export function spoolById(id) {
   if (id == null) return null;
   const all = S.spools || [];
@@ -112,7 +113,7 @@ export function spoolById(id) {
 }
 export function openDialog(kind, props = {}) { set({ dialog: { kind, ...props }, menu: null }); }
 export function closeDialog() { set({ dialog: null }); }
-/** Schreibende Aktion: ohne Kopplung erst zur Kopplungsseite. */
+/** Writing action: without pairing go to the pairing page first. */
 export function guard(fn) {
   return (...args) => {
     if (!canWrite()) { set({ pairing: true }); return; }

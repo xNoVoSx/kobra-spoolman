@@ -1,4 +1,4 @@
-// Strich-Symbole (24er Raster), gleiche Formen wie in den Entwuerfen.
+// Line icons (24 grid), the same shapes as in the designs.
 
 import { html } from "../vendor/preact-htm.module.js";
 

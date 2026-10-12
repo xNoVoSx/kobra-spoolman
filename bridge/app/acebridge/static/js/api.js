@@ -1,10 +1,12 @@
-// Zugriff auf die Bridge. Der Schluessel dieses Browsers liegt im localStorage (einmal koppeln).
+// Access to the bridge. This browser's key is in localStorage (pair once).
+
+import { lang, t } from "./i18n.js";
 
 const KEY = "kobra.key";
 const VIEW_ONLY = "kobra.viewonly";
 
 function read(store, k) { try { return store.getItem(k) || ""; } catch { return ""; } }
-function write(store, k, v) { try { v ? store.setItem(k, v) : store.removeItem(k); } catch { /* privat/gesperrt */ } }
+function write(store, k, v) { try { v ? store.setItem(k, v) : store.removeItem(k); } catch { /* private/blocked */ } }
 
 export const auth = {
   get key() { return read(localStorage, KEY); },
@@ -22,7 +24,7 @@ let onUnauthorized = () => {};
 export function setUnauthorizedHandler(fn) { onUnauthorized = fn; }
 
 export async function api(method, path, body) {
-  const headers = {};
+  const headers = { "X-Lang": lang };       // texts made by the bridge in the language of this page
   const key = auth.key;
   if (key) headers.Authorization = "Bearer " + key;
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -30,12 +32,12 @@ export async function api(method, path, body) {
   try {
     resp = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
   } catch {
-    throw new ApiError(0, "Bridge nicht erreichbar");
+    throw new ApiError(0, t("Bridge not reachable"));
   }
   let data = null;
-  try { data = await resp.json(); } catch { /* leer */ }
+  try { data = await resp.json(); } catch { /* empty */ }
   if (!resp.ok) {
-    const err = new ApiError(resp.status, (data && data.error) || `Fehler ${resp.status}`);
+    const err = new ApiError(resp.status, (data && data.error) || t("Error {status}", { status: resp.status }));
     if (resp.status === 401 || resp.status === 403) onUnauthorized(err);
     throw err;
   }

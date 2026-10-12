@@ -1,10 +1,11 @@
-// Regal: Liste aller Spulen mit Suche/Filtern und die Detailansicht einer Spule.
+// Shelf: list of all spools with search/filters and the detail view of a spool.
 
 import { MoistureChip, SpoolMoisture } from "./humidity.js";
 import { html, useEffect, useMemo, useRef, useState } from "../vendor/preact-htm.module.js";
 import { get } from "./api.js";
 import { Bar, Field, Spool, Swatch } from "./components.js";
 import { FilamentEditor } from "./filaments.js";
+import { lang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { S, guard, openDialog, set, spoolById } from "./store.js";
 import { cls, fileName, grams, meters, num, parseNum, tint, title, when } from "./util.js";
@@ -15,45 +16,45 @@ export function spoolMenu(sp) {
   const slots = S.st?.slots || [];
   const go = (fn) => guard(() => import("./actions.js").then(fn));
   return [
-    { label: "Öffnen", icon: "spool", run: () => set({ sel: sp.spool_id }) },
+    { label: t("Open"), icon: "spool", run: () => set({ sel: sp.spool_id }) },
     "-",
     ...slots.map((sl) => ({
-      label: `In Slot ${sl.slot} legen${sl.spool ? ` (statt ${sl.spool.name})` : ""}`, icon: "play",
-      disabled: sp.slot === sl.slot, run: go((a) => a.moveSpool(sp.spool_id, sl.slot)),
+      label: sl.spool ? t("Put into slot {slot} (instead of {name})", { slot: sl.slot, name: sl.spool.name }) : t("Put into slot {slot}", { slot: sl.slot }),
+      icon: "play", disabled: sp.slot === sl.slot, run: go((a) => a.moveSpool(sp.spool_id, sl.slot)),
     })),
-    { label: "Ins Regal", icon: "shelf", disabled: !sp.slot, run: go((a) => a.moveSpool(sp.spool_id, null)) },
+    { label: t("To the shelf"), icon: "shelf", disabled: !sp.slot, run: go((a) => a.moveSpool(sp.spool_id, null)) },
     "-",
-    { label: "Archivieren …", icon: "archive", run: guard(() => confirmArchive(sp)) },
+    { label: t("Archive …"), icon: "archive", run: guard(() => confirmArchive(sp)) },
   ];
 }
 
 function confirmArchive(sp) {
   openDialog("confirm", {
-    title: `Spule #${sp.spool_id} archivieren?`,
-    text: `${sp.display_name} (${grams(sp.remaining_weight)} übrig) verschwindet aus Regal und Slots. In Spoolman bleibt sie archiviert erhalten.`,
-    ok: "Archivieren", danger: true,
+    title: t("Archive spool #{id}?", { id: sp.spool_id }),
+    text: t("{name} ({g} left) disappears from shelf and slots. In Spoolman it stays, archived.", { name: sp.display_name, g: grams(sp.remaining_weight) }),
+    ok: t("Archive"), danger: true,
     action: () => import("./actions.js").then((a) => a.archiveSpool(sp.spool_id)),
   });
 }
 
-/** "· 2 NFC-Tags" bzw. Hinweis, wenn fuer die ACE 2 Pro der Tag der zweiten Spulenseite fehlt. */
+/** "· 2 NFC tags", or a hint when the tag of the second spool side is missing for the ACE 2 Pro. */
 function tagsText(sp) {
   const n = (sp.nfc_uids || (sp.nfc_uid ? [sp.nfc_uid] : [])).length;
-  return n >= 2 ? " · 2 NFC-Tags" : n === 1 ? " · 1 NFC-Tag (zweite Seite fehlt)" : "";
+  return n >= 2 ? " · " + t("2 NFC tags") : n === 1 ? " · " + t("1 NFC tag (second side missing)") : "";
 }
 
-/** Spulen nach Suche und Filter. */
+/** Spools by search and filter. */
 export function useFilteredSpools() {
   const all = S.spools || [];
   const q = (S.q || "").trim().toLowerCase();
-  const f = S.filter || "alle";
+  const f = S.filter || "all";
   return useMemo(() => {
     let out = all.slice();
     if (q) out = out.filter((s) => `${s.display_name} ${s.material} ${s.location || ""} #${s.spool_id} ${s.tag_nr || ""}`.toLowerCase().includes(q));
     if (f === "ace") out = out.filter((s) => s.slot);
-    else if (f === "leer") out = out.filter((s) => (s.remaining_weight ?? 1e9) < LOW_G);
-    else if (f === "feucht") out = out.filter((s) => S.st?.moisture?.[String(s.spool_id)]?.needs_drying);
-    else if (f !== "alle") out = out.filter((s) => (s.material || "").toUpperCase() === f);
+    else if (f === "low") out = out.filter((s) => (s.remaining_weight ?? 1e9) < LOW_G);
+    else if (f === "damp") out = out.filter((s) => S.st?.moisture?.[String(s.spool_id)]?.needs_drying);
+    else if (f !== "all") out = out.filter((s) => (s.material || "").toUpperCase() === f);
     out.sort((a, b) => (a.slot || 99) - (b.slot || 99) || a.material.localeCompare(b.material) || a.display_name.localeCompare(b.display_name) || a.spool_id - b.spool_id);
     return out;
   }, [all, q, f]);
@@ -69,19 +70,19 @@ export function SpoolList({ wideCols }) {
     const row = tableRef.current?.querySelector(".tr.sel");
     row?.scrollIntoView({ block: "nearest" });
   }, [S.sel]);
-  const chip = (key, label) => html`<button class=${cls("chip", (S.filter || "alle") === key && "on")} onClick=${() => set({ filter: key })}>${label}</button>`;
+  const chip = (key, label) => html`<button class=${cls("chip", (S.filter || "all") === key && "on")} onClick=${() => set({ filter: key })}>${label}</button>`;
   return html`
-  <section class="card listcard" aria-label="Regal">
+  <section class="card listcard" aria-label=${t("Shelf")}>
     <div class="listbar">
-      <span class="h2">Spulen</span><span class="m small muted">${all.length} Spulen · ${num(total / 1000)} kg</span>
+      <span class="h2">${t("Spools")}</span><span class="m small muted">${t("{n} spools · {kg} kg", { n: all.length, kg: num(total / 1000) })}</span>
       <span class="grow"></span>
-      ${chip("alle", "Alle")}${materials.map((m) => chip(m, m))}
-      ${chip("ace", "im ACE")}${chip("leer", "fast leer")}${chip("feucht", "trocknen")}
+      ${chip("all", t("All"))}${materials.map((m) => chip(m, m))}
+      ${chip("ace", t("in the ACE"))}${chip("low", t("almost empty"))}${chip("damp", t("to dry"))}
     </div>
-    <div class="table" ref=${tableRef} role="listbox" aria-label="Spulen">
-      <div class="tr th"><span></span><span class="hide-s">ID</span><span>Filament</span><span class="hide-s">Mat.</span><span>Rest</span><span class="hide-s">Ort</span>${wideCols && html`<span class="opt">Tag</span>`}</div>
-      ${S.spools == null && html`<div class="empty-state">lade …</div>`}
-      ${S.spools && !list.length && html`<div class="empty-state">Keine Spule passt.</div>`}
+    <div class="table" ref=${tableRef} role="listbox" aria-label=${t("Spools")}>
+      <div class="tr th"><span></span><span class="hide-s">ID</span><span>${t("Filament")}</span><span class="hide-s">${t("Mat.")}</span><span>${t("Left")}</span><span class="hide-s">${t("Location")}</span>${wideCols && html`<span class="opt">${t("Tag")}</span>`}</div>
+      ${S.spools == null && html`<div class="empty-state">${t("loading …")}</div>`}
+      ${S.spools && !list.length && html`<div class="empty-state">${t("No spool matches.")}</div>`}
       ${list.map((s) => html`
         <div key=${s.spool_id} role="option" aria-selected=${S.sel === s.spool_id} class=${cls("tr", S.sel === s.spool_id && "sel")}
              onClick=${() => set({ sel: s.spool_id })}
@@ -98,7 +99,7 @@ export function SpoolList({ wideCols }) {
   </section>`;
 }
 
-// ------------------------------------------------------------ Detail
+// ------------------------------------------------------------ detail
 function useSpoolDetail(id) {
   const [d, setD] = useState(null);
   const sp = spoolById(id);
@@ -113,19 +114,21 @@ function useSpoolDetail(id) {
 }
 
 const SPOOL_FIELDS = [
-  ["remaining_weight", "Restgewicht", "g"], ["spool_weight", "Leerspule", "g"], ["initial_weight", "Netto neu", "g"],
-  ["price", "Preis", "€"], ["lot_nr", "Charge", null],
+  ["remaining_weight", t("Remaining weight"), "g"], ["spool_weight", t("Empty spool"), "g"], ["initial_weight", t("Net when new"), "g"],
+  ["price", t("Price"), null], ["lot_nr", t("Lot"), null],
 ];
+/** Number for an input field in the page language ("0.5" / "0,5"). */
+const inputNum = (v) => (lang === "de" ? String(v).replace(".", ",") : String(v));
 
 function SpoolForm({ sp, readOnly }) {
-  const init = () => Object.fromEntries([...SPOOL_FIELDS.map(([k]) => [k, sp[k] == null ? "" : typeof sp[k] === "number" ? String(Math.round(sp[k] * 10) / 10).replace(".", ",") : String(sp[k])]),
+  const init = () => Object.fromEntries([...SPOOL_FIELDS.map(([k]) => [k, sp[k] == null ? "" : typeof sp[k] === "number" ? inputNum(Math.round(sp[k] * 10) / 10) : String(sp[k])]),
     ["comment", sp.comment || ""], ["location", sp.slot ? "" : sp.location || ""]]);
   const [v, setV] = useState(init);
   useEffect(() => setV(init()), [sp.spool_id, sp.remaining_weight, sp.location, sp.lot_nr, sp.comment, sp.spool_weight, sp.price, sp.initial_weight]);
   const orig = init();
   const changed = Object.keys(v).filter((k) => v[k] !== orig[k]);
   const errors = {};
-  for (const [k] of SPOOL_FIELDS) if (k !== "lot_nr" && Number.isNaN(parseNum(v[k]))) errors[k] = "Zahl erwartet";
+  for (const [k] of SPOOL_FIELDS) if (k !== "lot_nr" && Number.isNaN(parseNum(v[k]))) errors[k] = t("Number expected");
   const locations = [...new Set((S.spools || []).filter((s) => !s.slot && s.location).map((s) => s.location))];
   const save = guard(async () => {
     const body = {};
@@ -144,72 +147,72 @@ function SpoolForm({ sp, readOnly }) {
     </${Field}>`;
   return html`
   <div class="fgrid">${SPOOL_FIELDS.map(([k, l, u]) => field(k, l, u))}
-    ${!sp.slot && html`<${Field} id="sp-location" label="Lagerort" changed=${changed.includes("location")}>
+    ${!sp.slot && html`<${Field} id="sp-location" label=${t("Storage location")} changed=${changed.includes("location")}>
       <input id="sp-location" list="sp-locations" value=${v.location} disabled=${readOnly} onInput=${(e) => setV({ ...v, location: e.target.value })} />
       <datalist id="sp-locations">${locations.map((l) => html`<option value=${l} />`)}</datalist>
     </${Field}>`}
   </div>
-  <${Field} id="sp-comment" label="Notiz" changed=${changed.includes("comment")}>
+  <${Field} id="sp-comment" label=${t("Note")} changed=${changed.includes("comment")}>
     <input id="sp-comment" value=${v.comment} disabled=${readOnly} onInput=${(e) => setV({ ...v, comment: e.target.value })} />
   </${Field}>
   ${changed.length > 0 && html`<div class="row wrap">
-    <button class="btn acc" disabled=${Object.keys(errors).length > 0} onClick=${save}>Speichern</button>
-    <button class="btn ghost" onClick=${() => setV(init())}>Verwerfen</button>
-    <span class="small muted">${changed.length} geändert</span>
+    <button class="btn acc" disabled=${Object.keys(errors).length > 0} onClick=${save}>${t("Save")}</button>
+    <button class="btn ghost" onClick=${() => setV(init())}>${t("Discard")}</button>
+    <span class="small muted">${t("{n} changed", { n: changed.length })}</span>
   </div>`}`;
 }
 
 export function SpoolDetail({ id, onBack }) {
   const sp = spoolById(id);
   const d = useSpoolDetail(id);
-  const [tab, setTab] = useState("spule");
-  useEffect(() => setTab((t) => t), [id]);
+  const [tab, setTab] = useState("spool");
+  useEffect(() => setTab((x) => x), [id]);
   if (id == null) {
-    return html`<section class="card detail"><div class="empty-state" style="margin:auto">Spule in der Liste wählen.<br /><span class="small faint">↑ ↓ wählen · Rechtsklick für Slot</span></div></section>`;
+    return html`<section class="card detail"><div class="empty-state" style="margin:auto">${t("Choose a spool in the list.")}<br /><span class="small faint">${t("↑ ↓ select · right click for a slot")}</span></div></section>`;
   }
-  if (!sp) return html`<section class="card detail"><div class="empty-state" style="margin:auto">Spule #${id} nicht gefunden (archiviert?).</div></section>`;
+  if (!sp) return html`<section class="card detail"><div class="empty-state" style="margin:auto">${t("Spool #{id} not found (archived?).", { id })}</div></section>`;
   const used = sp.used_weight;
   const tabBtn = (k, l) => html`<button role="tab" aria-selected=${tab === k} onClick=${() => setTab(k)}>${l}</button>`;
   const menu = (e) => set({ menu: { x: e.clientX, y: e.clientY + 8, items: spoolMenu(sp) } });
   return html`
-  <section class="card detail" aria-label=${"Spule " + id}>
+  <section class="card detail" aria-label=${t("Spool #{id}", { id })}>
     <div class="dhead" style=${{ background: tint(sp.color) }}>
-      ${onBack && html`<button class="btn icon ghost back" aria-label="Zurück" onClick=${onBack}><${Icon} name="back" /></button>`}
+      ${onBack && html`<button class="btn icon ghost back" aria-label=${t("Back")} onClick=${onBack}><${Icon} name="back" /></button>`}
       <${Spool} color=${sp.color} size=${64} />
       <div class="grow">
-        <div class="m small muted">SPULE #${sp.spool_id} · ${sp.slot ? `IM ACE, SLOT ${sp.slot}` : (sp.location || "ohne Ort").toUpperCase()}</div>
+        <div class="m small muted">${t("SPOOL #{id}", { id: sp.spool_id })} · ${sp.slot ? t("IN THE ACE, SLOT {slot}", { slot: sp.slot }) : (sp.location || t("no location")).toUpperCase()}</div>
         <div class="g ell" style="font-weight:700;font-size:24px">${title(sp)}</div>
-        <div class="muted small">${sp.vendor}${sp.tag_nr ? ` · Tag ${sp.tag_nr}` : ""}${tagsText(sp)}</div>
+        <div class="muted small">${sp.vendor}${sp.tag_nr ? " · " + t("Tag {nr}", { nr: sp.tag_nr }) : ""}${tagsText(sp)}</div>
       </div>
-      <button class="btn" onClick=${(e) => { e.stopPropagation(); menu(e); }}>${sp.slot ? "Slot ändern" : "In Slot legen"}</button>
+      <button class="btn" onClick=${(e) => { e.stopPropagation(); menu(e); }}>${sp.slot ? t("Change slot") : t("Put into a slot")}</button>
     </div>
-    <div class="tabs" role="tablist">${tabBtn("spule", "Spule")}${tabBtn("filament", "Filament")}${tabBtn("verbrauch", "Verbrauch")}${tabBtn("feuchte", "Feuchte")}</div>
+    <div class="tabs" role="tablist">${tabBtn("spool", t("Spool"))}${tabBtn("filament", t("Filament"))}${tabBtn("usage", t("Consumption"))}${tabBtn("moisture", t("Moisture"))}</div>
     <div class="dbody">
-      ${tab === "spule" && html`
+      ${tab === "spool" && html`
         <div class="stats">
-          <div class="stat"><div class="small muted">Rest</div><div class="v">${grams(sp.remaining_weight)}</div></div>
-          <div class="stat"><div class="small muted">Länge</div><div class="v">${meters(sp.remaining_length)}</div></div>
-          <div class="stat"><div class="small muted">Verbraucht</div><div class="v">${grams(used)}</div></div>
+          <div class="stat"><div class="small muted">${t("Left")}</div><div class="v">${grams(sp.remaining_weight)}</div></div>
+          <div class="stat"><div class="small muted">${t("Length")}</div><div class="v">${meters(sp.remaining_length)}</div></div>
+          <div class="stat"><div class="small muted">${t("Used up")}</div><div class="v">${grams(used)}</div></div>
         </div>
         <${SpoolForm} sp=${sp} readOnly=${!S.me} />
         <hr class="sep" />
         <div class="row wrap">
-          ${sp.slot ? html`<button class="btn ghost" onClick=${guard(() => import("./actions.js").then((a) => a.moveSpool(sp.spool_id, null)))}><${Icon} name="shelf" small />Ins Regal</button>` : null}
+          ${sp.slot ? html`<button class="btn ghost" onClick=${guard(() => import("./actions.js").then((a) => a.moveSpool(sp.spool_id, null)))}><${Icon} name="shelf" small />${t("To the shelf")}</button>` : null}
           <span class="grow"></span>
-          <button class="btn danger" onClick=${guard(() => confirmArchive(sp))}><${Icon} name="archive" small />Archivieren</button>
+          <button class="btn danger" onClick=${guard(() => confirmArchive(sp))}><${Icon} name="archive" small />${t("Archive")}</button>
         </div>`}
-      ${tab === "filament" && (sp.filament_id ? html`<${FilamentEditor} fid=${sp.filament_id} embedded />` : html`<div class="empty-state">Kein Filament.</div>`)}
-      ${tab === "feuchte" && html`<${SpoolMoisture} id=${sp.spool_id} />`}
-      ${tab === "verbrauch" && html`
+      ${tab === "filament" && (sp.filament_id ? html`<${FilamentEditor} fid=${sp.filament_id} embedded />` : html`<div class="empty-state">${t("No filament.")}</div>`)}
+      ${tab === "moisture" && html`<${SpoolMoisture} id=${sp.spool_id} />`}
+      ${tab === "usage" && html`
         <div class="kv">
-          <span>Zuerst benutzt</span><span>${when(sp.first_used)}</span>
-          <span>Zuletzt benutzt</span><span>${when(sp.last_used)}</span>
-          <span>Angelegt</span><span>${when(sp.registered)}</span>
-          <span>Verbraucht gesamt</span><span class="m">${grams(used)}</span>
+          <span>${t("First used")}</span><span>${when(sp.first_used)}</span>
+          <span>${t("Last used")}</span><span>${when(sp.last_used)}</span>
+          <span>${t("Created")}</span><span>${when(sp.registered)}</span>
+          <span>${t("Used up in total")}</span><span class="m">${grams(used)}</span>
         </div>
-        <div class="section-title">Drucke mit dieser Spule</div>
-        ${!d && html`<div class="muted small">lade …</div>`}
-        ${d && !d.jobs.length && html`<div class="muted small">Noch kein aufgezeichneter Druck.</div>`}
+        <div class="section-title">${t("Prints with this spool")}</div>
+        ${!d && html`<div class="muted small">${t("loading …")}</div>`}
+        ${d && !d.jobs.length && html`<div class="muted small">${t("No recorded print yet.")}</div>`}
         ${d && d.jobs.map((j) => html`<div class="row small"><span class="m ell grow">${fileName(j.file)}</span><span class="muted">${when(j.ended)}</span><span class="m" style="min-width:70px;text-align:right">${grams(j.g)}</span></div>`)}`}
     </div>
   </section>`;

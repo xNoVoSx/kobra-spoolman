@@ -1,20 +1,22 @@
-// 3D-Ansicht der Druckdatei mit WebGL2 - ohne Bibliothek. Daten: /api/print/geometry.bin (render.geometry_bin).
-// Aussehen wie Orcas Vorschau (eigene Umsetzung, kein Orca-Code): grauer Hintergrund, Druckplatte mit 10-mm-Raster,
-// jede Druckbahn als Strang mit gerundetem Querschnitt (echte Breite und Schichthoehe) und spitzen Enden, Licht von oben
-// und vorne mit leichtem Glanz. "Linien" zeichnet jede Bahn nur als Linie (schwache Geraete).
-// Was schon gedruckt ist (Instanz < done), welche Schichten sichtbar sind und die Farben entscheidet der Shader -
-// laeuft der Druck weiter, aendert sich nur eine Zahl, nichts wird neu hochgeladen.
+// 3D view of the print file with WebGL2 - no library. Data: /api/print/geometry.bin (render.geometry_bin).
+// Looks like Orca's preview (own implementation, no Orca code): grey background, build plate with a 10 mm grid,
+// every print path as a strand with a rounded cross-section (real width and layer height) and pointed ends, light from
+// above and the front with a slight gloss. "Lines" draws every path as a line only (weak devices).
+// What is already printed (instance < done), which layers are visible and the colours are decided by the shader -
+// as the print goes on only one number changes, nothing is uploaded again.
 
-const BG = [0.329, 0.329, 0.353];          // wie Orca im dunklen Design
+import { t } from "./i18n.js";
+
+const BG = [0.329, 0.329, 0.353];          // like Orca in the dark theme
 const PLATE = [0.255, 0.255, 0.283];
 const PLATE_EDGE = [0.2, 0.2, 0.22];
-const MARGIN = 5;                           // Platte ragt ueber den Druckbereich hinaus (mm)
-const THICK = 4;                            // Plattendicke (mm)
-const RADIUS = 8;                           // Eckenradius der Platte (mm)
-const GHOST_ALPHA = 0.2;                    // Rest als Strang (vorderste Flaeche einmal geblendet)
-const GHOST_ALPHA_LINES = 0.05;             // Rest als Linien: liegen viele uebereinander, daher viel schwaecher
+const MARGIN = 5;                           // plate extends beyond the print area (mm)
+const THICK = 4;                            // plate thickness (mm)
+const RADIUS = 8;                           // corner radius of the plate (mm)
+const GHOST_ALPHA = 0.2;                    // rest as strands (front-most surface blended once)
+const GHOST_ALPHA_LINES = 0.05;             // rest as lines: many overlap, so much fainter
 
-/** Was kann dieses Geraet? volume | lines | image */
+/** What can this device do? volume | lines | image */
 export function capability() {
   try {
     const c = document.createElement("canvas");
@@ -23,7 +25,7 @@ export function capability() {
     const dbg = gl.getExtension("WEBGL_debug_renderer_info");
     const r = String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).toLowerCase();
     gl.getExtension("WEBGL_lose_context")?.loseContext();
-    if (/swiftshader|llvmpipe|software|softpipe/.test(r)) return "image";       // keine echte Grafikkarte
+    if (/swiftshader|llvmpipe|software|softpipe/.test(r)) return "image";       // no real graphics card
     const mem = navigator.deviceMemory || 8;
     const touch = matchMedia("(pointer: coarse)").matches;
     return touch || mem < 4 ? "lines" : "volume";
@@ -31,21 +33,21 @@ export function capability() {
 }
 
 const QUALITY_KEY = "kobra.render3d";
-/** Einstellung dieses Geraets: auto | volume | lines | image (App: ?q= in der Adresse). */
+/** Setting of this device: auto | volume | lines | image (app: ?q= in the address). */
 export function quality() {
   const q = new URLSearchParams(location.search).get("q") || new URLSearchParams(location.hash.split("?")[1] || "").get("q");
   let v = q;
-  if (!v) { try { v = localStorage.getItem(QUALITY_KEY); } catch { /* egal */ } }
+  if (!v) { try { v = localStorage.getItem(QUALITY_KEY); } catch { /* ignore */ } }
   return ["volume", "lines", "image"].includes(v) ? v : "auto";
 }
-export function setQuality(v) { try { localStorage.setItem(QUALITY_KEY, v); } catch { /* egal */ } }
+export function setQuality(v) { try { localStorage.setItem(QUALITY_KEY, v); } catch { /* ignore */ } }
 export const effectiveQuality = () => (quality() === "auto" ? capability() : quality());
 
-/** Binaerformat der Bridge lesen (Version 1 ohne, Version 2 mit Strangbreite). */
+/** Read the bridge's binary format (version 1 without, version 2 with strand width). */
 export function parseGeometry(buf) {
   const dv = new DataView(buf);
   const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
-  if (magic !== "KSG1") throw new Error("Unbekanntes Format der Druckbahnen");
+  if (magic !== "KSG1") throw new Error(t("Unknown format of the print paths"));
   const ver = dv.getUint16(4, true);
   const n = dv.getUint32(8, true), nl = dv.getUint32(12, true), step = dv.getUint32(16, true);
   const bed = dv.getFloat32(20, true), zmax = dv.getFloat32(24, true);
@@ -57,7 +59,7 @@ export function parseGeometry(buf) {
     widths, x1: col(2), y1: col(3), z: col(4), layer: col(5) };
 }
 
-// ------------------------------------------------------------ Mathe (Spalten-Matrizen wie WebGL)
+// ------------------------------------------------------------ maths (column-major matrices like WebGL)
 function perspective(fov, aspect, near, far) {
   const f = 1 / Math.tan(fov / 2), nf = 1 / (near - far);
   return [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0];
@@ -72,13 +74,13 @@ function lookAt(e, c, up) {
 }
 
 // ------------------------------------------------------------ Shader
-// Licht im Kameraraum: eines von oben links, eines von vorne, Grundhelligkeit und Glanz - kraeftige Filamentfarben.
+// Light in camera space: one from the top left, one from the front, ambient and gloss - strong filament colours.
 const LIGHT = `
 const vec3 L_TOP = vec3(-0.4575, 0.4575, 0.7625);
 const vec3 L_FRONT = vec3(0.6985, 0.1397, 0.6985);
 vec3 shade(vec3 base, vec3 n, vec3 eyePos) {
   n = normalize(n);
-  if (dot(n, eyePos) > 0.0) n = -n;                       // Rueckseite von hinten gesehen
+  if (dot(n, eyePos) > 0.0) n = -n;                       // back face seen from behind
   float diff = 0.48 * max(dot(n, L_TOP), 0.0) + 0.18 * max(dot(n, L_FRONT), 0.0);
   float spec = 0.15 * pow(max(dot(reflect(-L_TOP, n), normalize(-eyePos)), 0.0), 20.0);
   return base * (0.34 + 0.15 + diff) + vec3(spec);
@@ -86,19 +88,19 @@ vec3 shade(vec3 base, vec3 n, vec3 eyePos) {
 
 const VS = `#version 300 es
 precision highp float;
-in float a_x0, a_y0, a_x1, a_y1, a_z, a_layer, a_tool, a_width, a_height;   // je Bahn (Instanz)
-in vec4 a_v;                                   // t (0..1 entlang), Seite (-1..1), oben (-1..1), Spitze (-1/0/1)
-in vec3 a_n;                                   // Normale: entlang, seitlich, oben
+in float a_x0, a_y0, a_x1, a_y1, a_z, a_layer, a_tool, a_width, a_height;   // per path (instance)
+in vec4 a_v;                                   // t (0..1 along), side (-1..1), up (-1..1), tip (-1/0/1)
+in vec3 a_n;                                   // normal: along, sideways, up
 uniform mat4 u_view, u_proj;
 uniform float u_bed, u_zmax, u_maxLayer, u_single, u_ghostAlpha;
-uniform int u_done, u_pass;                    // Durchgang 0: Gedrucktes, 1: Rest (blass)
+uniform int u_done, u_pass;                    // pass 0: printed, 1: rest (faint)
 uniform vec3 u_colors[16];
 uniform bool u_volume;
 out vec3 v_color; out vec3 v_n; out vec3 v_pos; out float v_alpha; out float v_flat;
 void main() {
   bool done = gl_InstanceID < u_done;
   if (a_layer > u_maxLayer || (u_single > 0.5 && a_layer != u_maxLayer) || (u_pass == 0) != done) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;        // gehoert nicht in diesen Durchgang
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;        // not part of this pass
   }
   vec2 p0 = vec2(a_x0, a_y0) * u_bed, p1 = vec2(a_x1, a_y1) * u_bed;
   float z = a_z * u_zmax;
@@ -133,7 +135,7 @@ void main() {
   o = vec4(c, v_alpha);
 }`;
 
-// Platte, Duese: Dreiecke mit Normale, Farbe oder Textur
+// plate, nozzle: triangles with normal, colour or texture
 const VS_MESH = `#version 300 es
 in vec3 a_pos; in vec3 a_n; in vec2 a_uv;
 uniform mat4 u_view, u_proj; uniform vec3 u_offset;
@@ -171,9 +173,9 @@ function program(gl, vs, fs) {
   return p;
 }
 
-// Strang: Querschnitt als abgerundetes Rechteck (Superellipse, 8 Punkte) an beiden Enden plus je eine Spitze -
-// wie ein echter Extrusionsstrang: flach oben/unten, rund an den Seiten. Die Normalen zeigen an den Punkten nach
-// aussen, weich interpoliert wirkt der Strang rund; Schichten liegen ohne tiefe Rillen aufeinander.
+// Strand: cross-section as a rounded rectangle (superellipse, 8 points) at both ends plus one tip each - like a real
+// extruded strand: flat on top/bottom, round at the sides. The normals point outwards at the points; interpolated
+// smoothly the strand looks round, and layers sit on each other without deep grooves.
 function strandMesh(N = 8) {
   const sg = (x) => (x < 0 ? -1 : 1);
   const ring = [];
@@ -186,18 +188,18 @@ function strandMesh(N = 8) {
   }
   const v = [];
   for (const t of [0, 1]) for (const [sd, up, ns, nu] of ring) v.push(t, sd, up, 0, 0, ns, nu);
-  v.push(0, 0, 0, -1, -1, 0, 0);                             // Spitze am Anfang (2N)
-  v.push(1, 0, 0, 1, 1, 0, 0);                               // Spitze am Ende (2N+1)
+  v.push(0, 0, 0, -1, -1, 0, 0);                             // tip at the start (2N)
+  v.push(1, 0, 0, 1, 1, 0, 0);                               // tip at the end (2N+1)
   const idx = [];
   for (let k = 0; k < N; k++) {
     const a = k, b = (k + 1) % N;
-    idx.push(a, b, N + b, a, N + b, N + a);                  // Mantel
-    idx.push(2 * N, b, a, 2 * N + 1, N + a, N + b);          // Spitzen
+    idx.push(a, b, N + b, a, N + b, N + a);                  // sides
+    idx.push(2 * N, b, a, 2 * N + 1, N + a, N + b);          // tips
   }
   return { v: new Float32Array(v), idx: new Uint16Array(idx) };
 }
 
-// Platte als abgerundetes Rechteck mit Dicke: Oberseite (Textur), Rand, Unterseite.
+// Plate as a rounded rectangle with thickness: top (texture), edge, bottom.
 function plateMesh(bed) {
   const x0 = -MARGIN, x1 = bed + MARGIN, size = x1 - x0, r = RADIUS, seg = 8, out = [];
   const corners = [[x1 - r, x0 + r, -Math.PI / 2], [x1 - r, x1 - r, 0], [x0 + r, x1 - r, Math.PI / 2], [x0 + r, x0 + r, Math.PI]];
@@ -218,7 +220,7 @@ function plateMesh(bed) {
   return { top: new Float32Array(top), side: new Float32Array(side) };
 }
 
-// Aufdruck der Platte: Raster alle 10 mm, Rahmen des Druckbereichs, Schriftzug - einmal in ein Canvas gezeichnet.
+// Plate print: grid every 10 mm, frame of the print area, lettering - drawn once into a canvas.
 function plateTexture(bed) {
   const px = 2048, size = bed + 2 * MARGIN, k = px / size;
   const c = document.createElement("canvas"); c.width = c.height = px;
@@ -261,7 +263,7 @@ export class PrintView {
   constructor(canvas, onLost) {
     this.canvas = canvas;
     const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserveDrawingBuffer: false });
-    if (!gl) throw new Error("WebGL2 nicht verfügbar");
+    if (!gl) throw new Error(t("WebGL2 not available"));
     this.gl = gl;
     this.prog = program(gl, VS, FS);
     this.meshProg = program(gl, VS_MESH, FS_MESH);
@@ -271,7 +273,7 @@ export class PrintView {
     this.done = 0;
     this.maxLayer = 0;
     this.single = false;
-    this.rest = "glass";              // Rest (noch nicht gedruckt): glass = durchsichtig, full = deckend, off = aus
+    this.rest = "glass";              // rest (not printed yet): glass = see-through, full = opaque, off = hidden
     this.colors = Array(16).fill([0.8, 0.8, 0.8]);
     this.cam = { yaw: -0.75, pitch: 0.55, dist: 420, target: [125, 125, 10] };
     this.dirty = true;
@@ -287,7 +289,7 @@ export class PrintView {
 
   redraw() { this.dirty = true; }
 
-  // ---------------------------------------------------------- Platte
+  // ---------------------------------------------------------- plate
   _meshBuffer(data) {
     const gl = this.gl, p = this.meshProg;
     const vao = gl.createVertexArray(), buf = gl.createBuffer();
@@ -325,7 +327,7 @@ export class PrintView {
     this.plateTex = tex;
   }
 
-  // ---------------------------------------------------------- Bahnen
+  // ---------------------------------------------------------- paths
   load(geo) {
     const gl = this.gl;
     this.geo = geo;
@@ -333,7 +335,7 @@ export class PrintView {
     if (this.vaoBox) gl.deleteVertexArray(this.vaoBox);
     if (this.vaoLine) gl.deleteVertexArray(this.vaoLine);
     this.buffers?.forEach((b) => gl.deleteBuffer(b));
-    // Schichthoehe je Bahn (1/100 mm) aus den Schichten - die erste Schicht ist meist dicker
+    // layer height per path (1/100 mm) from the layers - the first layer is usually thicker
     const L = geo.layers, lh = new Float32Array(L.length);
     for (let i = 0; i < L.length; i++) lh[i] = i ? L[i] - L[i - 1] : L[0];
     const gaps = Array.from(lh.slice(1)).sort((a, b) => a - b);
@@ -387,9 +389,9 @@ export class PrintView {
     this.redraw();
   }
 
-  /** Kamera auf das Druckteil ausrichten (Mitte und Groesse aus den Bahnen). */
+  /** Aim the camera at the part (centre and size from the paths). */
   _fit() {
-    // Mitte und Groesse aus 2.-98. Perzentil der Bahnen - Spuellinie und Abstreifer am Rand zaehlen nicht
+    // centre and size from the 2nd-98th percentile of the paths - purge line and wipes at the edge do not count
     const g = this.geo; if (!g || !g.n) return;
     const s = Math.max(1, Math.floor(g.n / 20000)), q = g.bed / 65535, xs = [], ys = [];
     for (let i = 0; i < g.n; i += s) { xs.push(g.x1[i] * q); ys.push(g.y1[i] * q); }
@@ -443,7 +445,7 @@ export class PrintView {
     gl.uniform1f(u("u_zmax"), g.zmax);
     gl.uniform1f(u("u_maxLayer"), this.maxLayer);
     gl.uniform1f(u("u_single"), this.single ? 1 : 0);
-    // "Voll": alles in vollen Farben wie in Orca - der Fortschritt steckt dann nur in der Duese
+    // "Solid": everything in full colours as in Orca - the progress then shows only in the nozzle
     gl.uniform1i(u("u_done"), this.rest === "full" ? g.n : this.done);
     gl.uniform3fv(u("u_colors"), this.colors.flat());
     const volume = this.mode === "volume";
@@ -454,11 +456,11 @@ export class PrintView {
       else { gl.bindVertexArray(this.vaoLine); gl.drawArraysInstanced(gl.LINES, 0, 2, g.n); }
     };
     gl.uniform1i(u("u_pass"), 0);
-    draw();                                                   // Gedrucktes, deckend
+    draw();                                                   // printed, opaque
     this._nozzle(m);
     if (this.rest === "glass" && this.done < g.n) {
-      // Rest blass durchsichtig: erst nur die Tiefe (vorderste Flaeche), dann einmal Farbe darueber blenden -
-      // so liegen hintereinander liegende Bahnen nicht mehrfach uebereinander
+      // rest faint and see-through: first only the depth (front-most surface), then blend the colour over it once -
+      // so paths behind each other do not stack up
       gl.useProgram(p);
       gl.uniform1i(u("u_pass"), 1);
       if (volume) {
@@ -493,10 +495,10 @@ export class PrintView {
   }
 
   _drawPlate(m) {
-    // Platte unbeleuchtet wie Orca (gleichmaessig grau), nur der Rand bekommt Licht fuer die Kante
+    // plate unlit like Orca (even grey), only the rim gets light for the edge
     this._mesh(m, this.plateTop, [1, 1, 1, 1], { tex: this.plateTex, lit: false });
     this._mesh(m, this.plateSide, [...PLATE_EDGE, 1]);
-    // Achsen am Nullpunkt wie in Orca: X rot, Y gruen
+    // axes at the origin as in Orca: X red, Y green
     const gl = this.gl;
     gl.useProgram(this.flat);
     if (!this._axisBuf) {
@@ -524,7 +526,7 @@ export class PrintView {
     if (i < 0 || this.single || this.done >= g.n) return;
     const q = g.bed / 65535;
     const pos = [g.x1[i] * q, g.y1[i] * q, g.z[i] / 65535 * g.zmax];
-    // Kegel mit der Spitze an der Duese, etwas durchscheinend wie Orcas Werkzeug-Markierung
+    // cone with its tip at the nozzle, slightly translucent like Orca's tool marker
     const gl = this.gl;
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);

@@ -1,18 +1,19 @@
-// Terminal (Konsole des Druckers ueber die Bridge) und Logs (Bridge, Drucker-Logs, Druck-Aufzeichnungen).
-// Ausgabe kommt aus dem Puffer der Bridge - kein eigener Client am Drucker.
+// Terminal (printer console via the bridge) and logs (bridge, printer logs, print recordings).
+// Output comes from the bridge's buffer - no client of its own at the printer.
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { ApiError, get, post } from "./api.js";
+import { locale, t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { S, openDialog, set, toast } from "./store.js";
 import { cls } from "./util.js";
 
 const HIST_KEY = "kobra.consoleHistory";
-const clock = (t) => new Date(t * 1000).toLocaleTimeString("de-DE");
+const clock = (ts) => new Date(ts * 1000).toLocaleTimeString(locale);
 function loadHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch { return []; } }
-function saveHist(h) { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-50))); } catch { /* egal */ } }
+function saveHist(h) { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-50))); } catch { /* ignore */ } }
 
-/** Zeilen ab einer id nachladen, solange die Seite sichtbar ist. */
+/** Fetch lines after an id while the page is visible. */
 function usePolled(path, every, deps = []) {
   const [lines, setLines] = useState([]);
   const [err, setErr] = useState(null);
@@ -40,7 +41,7 @@ function usePolled(path, every, deps = []) {
   return [lines, err];
 }
 
-/** Ausgabe, die unten bleibt - ausser man hat hochgescrollt. */
+/** Output that stays at the bottom - unless scrolled up. */
 function useStick(dep) {
   const ref = useRef(null);
   const stick = useRef(true);
@@ -71,7 +72,7 @@ export function TerminalPage() {
       setHist(h); saveHist(h); setPos(-1); setCmd("");
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        openDialog("confirm", { title: "Befehl bestätigen", text: e.message, ok: "Trotzdem senden", danger: true,
+        openDialog("confirm", { title: t("Confirm command"), text: e.message, ok: t("Send anyway"), danger: true,
           action: () => send(script, true) });
       } else toast(e.message, "bad");
     } finally { setBusy(false); }
@@ -89,7 +90,7 @@ export function TerminalPage() {
   return html`<div class="term-page">
     <section class="card term">
       <div class="term-out m" ref=${ref} onScroll=${onScroll} aria-live="polite">
-        ${!lines.length && html`<div class="muted">${err || "Noch keine Ausgabe."}</div>`}
+        ${!lines.length && html`<div class="muted">${err || t("No output yet.")}</div>`}
         ${lines.map((l) => html`<div class=${cls("tl", l.kind)}><span class="t">${clock(l.time)}</span>
           ${l.kind === "command" ? html`<span class="src">${l.source || ""}</span><span class="txt">› ${l.text}</span>`
             : html`<span class="src"></span><span class="txt">${l.text}</span>`}</div>`)}
@@ -98,18 +99,17 @@ export function TerminalPage() {
       <div class="term-in">
         ${sugg.length > 0 && html`<div class="sugg">${sugg.map((k) => html`<button onClick=${() => setCmd(k + " ")}><b class="m">${k}</b> <span class="muted small">${help[k]}</span></button>`)}</div>`}
         <span class="m prompt">›</span>
-        <input class="m" aria-label="G-Code-Befehl" placeholder="G-Code oder Makro, z. B. M115 – Tab ergänzt, ↑ ↓ Verlauf"
+        <input class="m" aria-label=${t("G-code command")} placeholder=${t("G-code or macro, e.g. M115 – Tab completes, ↑ ↓ history")}
                value=${cmd} onInput=${(e) => { setCmd(e.target.value); setPos(-1); }} onKeyDown=${onKey} disabled=${busy} autocomplete="off" spellcheck="false" />
-        <button class="btn acc" disabled=${busy || !cmd.trim()} onClick=${() => send(cmd.trim())}>Senden</button>
-      </div>` : html`<div class="term-in muted">Senden nur auf gekoppelten Geräten. <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>Koppeln</a></div>`}
+        <button class="btn acc" disabled=${busy || !cmd.trim()} onClick=${() => send(cmd.trim())}>${t("Send")}</button>
+      </div>` : html`<div class="term-in muted">${t("Sending only on paired devices.")} <a href="#" onClick=${(e) => { e.preventDefault(); set({ pairing: true }); }}>${t("Pair")}</a></div>`}
     </section>
-    <div class="small muted">Antworten des Druckers und alles, was über die Bridge gesendet wurde (mit Absender). Befehle aus Mainsail erscheinen nur mit ihren Antworten.
-      Riskantes (Not-Aus, SAVE_CONFIG, Neustart, Düse über 260 °C, Bewegungen im Druck) fragt vorher nach.</div>
+    <div class="small muted">${t("Printer replies and everything sent via the bridge (with sender). Commands from Mainsail only show up with their replies. Risky things (emergency stop, SAVE_CONFIG, restart, nozzle above 260 °C, moves during a print) ask first.")}</div>
   </div>`;
 }
 
 // ------------------------------------------------------------ Logs
-const LEVELS = [["DEBUG", "Alle"], ["INFO", "Info"], ["WARNING", "Warnungen"], ["ERROR", "Fehler"]];
+const LEVELS = [["DEBUG", t("All")], ["INFO", t("Info")], ["WARNING", t("Warnings")], ["ERROR", t("Errors")]];
 
 function BridgeLog() {
   const [level, setLevel] = useState("INFO");
@@ -121,11 +121,11 @@ function BridgeLog() {
     <div class="listbar">
       ${LEVELS.map(([k, l]) => html`<button class=${cls("chip", level === k && "on")} onClick=${() => setLevel(k)}>${l}</button>`)}
       <span class="grow"></span>
-      <label class="search sm"><${Icon} name="search" small /><input placeholder="filtern" value=${q} onInput=${(e) => setQ(e.target.value)} /></label>
-      <a class="btn sm" href="api/logs.txt" download><${Icon} name="download" small />Download</a>
+      <label class="search sm"><${Icon} name="search" small /><input placeholder=${t("filter")} aria-label=${t("filter")} value=${q} onInput=${(e) => setQ(e.target.value)} /></label>
+      <a class="btn sm" href="api/logs.txt" download><${Icon} name="download" small />${t("Download")}</a>
     </div>
     <div class="term-out m" ref=${ref} onScroll=${onScroll}>
-      ${!shown.length && html`<div class="muted">${err || "Keine Zeilen."}</div>`}
+      ${!shown.length && html`<div class="muted">${err || t("No lines.")}</div>`}
       ${shown.map((l) => html`<div class=${cls("tl", "lv-" + l.level.toLowerCase())}><span class="t">${clock(l.time)}</span><span class="src">${l.name}</span><span class="txt">${l.text}</span></div>`)}
     </div>
   </section>`;
@@ -146,57 +146,57 @@ function PrinterLogs() {
     setOpen(name); setKb(k); setLoading(true);
     try {
       const r = await fetch(`/api/logs/printer/${encodeURIComponent(name)}?kb=${k}`, { cache: "no-store" });
-      setText(r.ok ? await r.text() : (await r.json().catch(() => ({}))).error || `Fehler ${r.status}`);
-    } catch { setText("Bridge nicht erreichbar"); }
+      setText(r.ok ? await r.text() : (await r.json().catch(() => ({}))).error || t("Error {status}", { status: r.status }));
+    } catch { setText(t("Bridge not reachable")); }
     setLoading(false);
   };
   return html`<section class="card term">
     <div class="listbar">
-      ${files == null && !err && html`<span class="muted small">lade …</span>`}
+      ${files == null && !err && html`<span class="muted small">${t("loading …")}</span>`}
       ${err && html`<span class="small" style="color:var(--danger-text)">${err}</span>`}
       ${(files || []).map((f) => html`<button class=${cls("chip", open === f.name && "on")} onClick=${() => load(f.name, 200)}>${f.name} <span class="muted">${size(f.size)}</span></button>`)}
       <span class="grow"></span>
-      ${open && html`<button class="btn sm" onClick=${() => load(open, kb)}><${Icon} name="refresh" small />Neu laden</button>
-        ${kb < 1024 && html`<button class="btn sm" onClick=${() => load(open, 1024)}>Mehr (1 MB)</button>`}`}
+      ${open && html`<button class="btn sm" onClick=${() => load(open, kb)}><${Icon} name="refresh" small />${t("Reload")}</button>
+        ${kb < 1024 && html`<button class="btn sm" onClick=${() => load(open, 1024)}>${t("More (1 MB)")}</button>`}`}
     </div>
-    <pre class="term-out m log-pre" ref=${ref}>${loading ? "lade …" : open ? text : "Datei wählen – gezeigt wird das Ende (die Dateien sind mehrere MB groß)."}</pre>
+    <pre class="term-out m log-pre" ref=${ref}>${loading ? t("loading …") : open ? text : t("Choose a file – the end is shown (the files are several MB).")}</pre>
   </section>`;
 }
 
 function Recordings() {
   const [files, setFiles] = useState(null);
-  const [open, setOpen] = useState(null);       // Name des angezeigten Druckprotokolls
+  const [open, setOpen] = useState(null);       // name of the print log shown
   const [text, setText] = useState("");
   useEffect(() => { get("/api/telemetry").then((r) => setFiles(r.files || r)).catch((e) => toast(e.message, "bad")); }, []);
   const show = async (name) => {
-    setOpen(name); setText("lade …");
+    setOpen(name); setText(t("loading …"));
     try {
       const r = await fetch("api/telemetry/" + encodeURIComponent(name) + "/log", { cache: "no-store" });
-      setText(r.ok ? await r.text() : `Fehler ${r.status}`);
-    } catch { setText("Bridge nicht erreichbar"); }
+      setText(r.ok ? await r.text() : t("Error {status}", { status: r.status }));
+    } catch { setText(t("Bridge not reachable")); }
   };
   if (open) return html`<section class="card col" style="gap:10px;padding:14px 18px">
     <div class="row" style="gap:8px"><b class="grow m small ell">${open}</b>
-      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(open) + "/log"} download>Protokoll laden</a>
-      <button class="btn sm" onClick=${() => setOpen(null)}>Zurück</button></div>
+      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(open) + "/log"} download>${t("Download log")}</a>
+      <button class="btn sm" onClick=${() => setOpen(null)}>${t("Back")}</button></div>
     <pre class="term-out m log-pre">${text}</pre>
   </section>`;
   return html`<section class="card">
-    ${files == null && html`<div class="empty-state">lade …</div>`}
-    ${files && !files.length && html`<div class="empty-state">Noch keine Aufzeichnungen.</div>`}
+    ${files == null && html`<div class="empty-state">${t("loading …")}</div>`}
+    ${files && !files.length && html`<div class="empty-state">${t("No recordings yet.")}</div>`}
     ${(files || []).map((f, i) => html`<div class="row" style=${{ padding: "12px 18px", borderTop: i ? "1px solid var(--line)" : "0" }}>
-      <span class="m small grow ell">${f.name}</span>${f.recording && html`<span class="chip ok">läuft</span>`}
+      <span class="m small grow ell">${f.name}</span>${f.recording && html`<span class="chip ok">${t("running")}</span>`}
       <span class="small muted">${size(f.size)}</span>
-      <button class="btn sm" onClick=${() => show(f.name)}>Protokoll</button>
-      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(f.name)} download title="Rohdaten (JSONL)"><${Icon} name="download" small /></a></div>`)}
+      <button class="btn sm" onClick=${() => show(f.name)}>${t("Log")}</button>
+      <a class="btn sm" href=${"api/telemetry/" + encodeURIComponent(f.name)} download title=${t("Raw data (JSONL)")}><${Icon} name="download" small /></a></div>`)}
   </section>`;
 }
 
 export function LogsPage() {
   const [tab, setTab] = useState("bridge");
-  const t = (k, l) => html`<button role="tab" aria-selected=${tab === k} class=${cls("seg-btn", tab === k && "on")} onClick=${() => setTab(k)}>${l}</button>`;
+  const tabBtn = (k, l) => html`<button role="tab" aria-selected=${tab === k} class=${cls("seg-btn", tab === k && "on")} onClick=${() => setTab(k)}>${l}</button>`;
   return html`<div class="term-page">
-    <div class="seg" role="tablist" aria-label="Logs">${t("bridge", "Bridge")}${t("printer", "Drucker")}${t("rec", "Druck-Aufzeichnungen")}</div>
+    <div class="seg" role="tablist" aria-label=${t("Logs")}>${tabBtn("bridge", "Bridge")}${tabBtn("printer", t("Printer"))}${tabBtn("rec", t("Print recordings"))}</div>
     ${tab === "bridge" ? html`<${BridgeLog} />` : tab === "printer" ? html`<${PrinterLogs} />` : html`<${Recordings} />`}
   </div>`;
 }

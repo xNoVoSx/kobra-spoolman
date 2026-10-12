@@ -1,20 +1,21 @@
-// Drucker-Display (800x480, Kiosk-Browser auf dem Klipper-Pi, ueber VNC auf dem Original-Display des Kobra S1).
-// Start (Status, Slots, Trockner), Druck (kommt bei Druckstart von selbst: Vorschaubild, Fortschritt, Zeiten,
-// Temperaturen, Steuerung), Schalter (alle Module, gespeichert im Drucker), Druck unterbrochen (nach Stromausfall).
-// Liest ohne Schluessel; zum Schalten einmal koppeln (6-stelliger Code aus Web/App, "Geraet hinzufuegen").
+// Printer display (800x480, kiosk browser on the Klipper Pi, via VNC on the original display of the Kobra S1).
+// Start (status, slots, dryer), print (opens by itself at print start: preview, progress, times, temperatures,
+// controls), switches (all modules, stored in the printer), print interrupted (after a power loss).
+// Reads without a key; to switch things, pair once (6-digit code from web/app, "Add device").
 
 import { html, render, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, get, post } from "./api.js";
-import { duration, fileName, finishAt, hex, printerLook } from "./util.js";
+import { locale, t } from "./i18n.js";
+import { duration, fileName, finishAt, fixed, hex, num, printerLook } from "./util.js";
 
 const POLL_MS = 2000;
-const PAGES = [["start", "home", "Start"], ["print", "print", "Druck"], ["files", "files", "Dateien"],
-  ["control", "control", "Steuerung"], ["switch", "switch", "Schalter"], ["system", "info", "System"]];
+const PAGES = [["start", "home", t("Home")], ["print", "print", t("Print")], ["files", "files", t("Files")],
+  ["control", "control", t("Control")], ["switch", "switch", t("Switches")], ["system", "info", t("System")]];
 const PAGE_SIZE = 5;
-const UI_TAG = document.querySelector('meta[name="ui-tag"]')?.content || null;   // neue Bridge -> neu laden
+const UI_TAG = document.querySelector('meta[name="ui-tag"]')?.content || null;   // new bridge -> reload
 const PRINTING = new Set(["printing", "paused"]);
 
-// ------------------------------------------------------------ Symbole (Linien, wie im Entwurf)
+// ------------------------------------------------------------ icons (lines, as in the design)
 const ICONS = {
   home: html`<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>`,
   print: html`<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 17v4h10v-4"/>`,
@@ -28,11 +29,11 @@ const ICONS = {
 const Icon = ({ name, size = 28 }) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
-/** Kurze Dauer fuer die Kacheln: 1:31 (Stunden:Minuten), unter einer Stunde 0:42. */
+/** Short duration for the tiles: 1:31 (hours:minutes), under an hour 0:42. */
 const hm = (s) => (s == null ? "–" : (([h, m]) => `${h}:${String(m).padStart(2, "0")}`)([Math.floor(Math.round(s / 60) / 60), Math.round(s / 60) % 60]));
 const pct = (v) => Math.round(100 * (v || 0));
 const deg = (v) => (v == null ? "–" : Math.round(v));
-const clock = () => new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+const clock = () => new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 
 // ------------------------------------------------------------ App
 function Display() {
@@ -61,22 +62,22 @@ function Display() {
     return () => { clearInterval(a); clearInterval(b); };
   }, []);
 
-  /** Schreibender Aufruf: ohne Schluessel erst koppeln, danach genau diesen Aufruf wiederholen. */
+  /** Writing call: without a key pair first, then repeat exactly this call. */
   async function act(fn) {
     if (!auth.key) { setDlg({ kind: "pair", then: fn }); return; }
     setBusy(true);
     try { await fn(); await load(); }
     catch (e) {
       if (e.status === 401 || e.status === 403) { auth.clear(); setDlg({ kind: "pair", then: fn }); }
-      else if (e.status === 409 && fn.retry) setDlg({ kind: "confirm", title: "Wirklich?", text: e.message, ok: "Ja", action: fn.retry });
-      else setDlg({ kind: "info", title: "Nicht ausgeführt", text: e.message });
+      else if (e.status === 409 && fn.retry) setDlg({ kind: "confirm", title: t("Really?"), text: e.message, ok: t("Yes"), action: fn.retry });
+      else setDlg({ kind: "info", title: t("Not carried out"), text: e.message });
     } finally { setBusy(false); }
   }
   const confirm = (o) => setDlg({ kind: "confirm", ...o });
   const flip = (key, value) => act(() => post("/api/switch", { key, value }));
 
-  if (down && !st) return html`<div class="disp"><div class="disp-empty">Bridge nicht erreichbar …</div></div>`;
-  if (!st) return html`<div class="disp"><div class="disp-empty">Lade …</div></div>`;
+  if (down && !st) return html`<div class="disp"><div class="disp-empty">${t("Bridge not reachable …")}</div></div>`;
+  if (!st) return html`<div class="disp"><div class="disp-empty">${t("Loading …")}</div></div>`;
 
   const p = st.printer || {};
   const look = printerLook(p.moonraker_connected === false ? null : p);
@@ -86,9 +87,9 @@ function Display() {
   const ctx = { st, sw, items, busy, act, confirm, flip, setDlg, page, setPage };
 
   return html`<div class="disp">
-    <nav class="disp-rail" aria-label="Bereiche">
-      <!-- Ecke oben links (60x60 px) gehoert der Viewer-App am Drucker: Beruehrungen dort werden fuer "5 s halten =
-           beenden" verschluckt (fb-vnc-viewer, VIEWER_EXIT_CORNER_PX). Deshalb dort nichts zum Druecken. -->
+    <nav class="disp-rail" aria-label=${t("Sections")}>
+      <!-- The top left corner (60x60 px) belongs to the viewer app on the printer: touches there are swallowed for
+           "hold 5 s = quit" (fb-vnc-viewer, VIEWER_EXIT_CORNER_PX). So nothing to press there. -->
       <div class="disp-corner" aria-hidden="true"><span class="dot" style=${`background:${look.dot}`}></span></div>
       ${PAGES.map(([k, i, l]) =>
         html`<button type="button" class=${"disp-nav" + (page === k ? " on" : "")} aria-label=${l} onClick=${() => setPage(k)}><${Icon} name=${i} /></button>`)}
@@ -97,9 +98,9 @@ function Display() {
       <header class="disp-head">
         <h1>${["start", "print"].includes(page) ? "Kobra S1" : PAGES.find((x) => x[0] === page)[2]}</h1>
         <span class="disp-chip disp-chip-phase" style=${`color:${look.fg};background:${look.bg};border-color:${look.line}`}>${p.phase || look.label}</span>
-        ${down && html`<span class="disp-chip" style="color:var(--danger-text);border-color:var(--danger-line)">Bridge weg</span>`}
+        ${down && html`<span class="disp-chip" style="color:var(--danger-text);border-color:var(--danger-line)">${t("Bridge gone")}</span>`}
         <div class="grow"></div>
-        ${light && html`<button type="button" class=${"disp-hbtn" + (light.on ? " on" : "")} aria-label=${light.on ? "Licht aus" : "Licht an"}
+        ${light && html`<button type="button" class=${"disp-hbtn" + (light.on ? " on" : "")} aria-label=${light.on ? t("Light off") : t("Light on")}
           disabled=${!light.sensitive || busy} onClick=${() => flip("light", !light.on)}><${Icon} name="light" /></button>`}
         <span class="disp-clock">${now}</span>
       </header>
@@ -122,22 +123,22 @@ function Display() {
 function Start({ st, busy, act, confirm }) {
   const p = st.printer || {}, d = st.dryer || {};
   return html`
-    <section class="disp-grid3" aria-label="Temperaturen">
-      <div class="disp-tile"><div class="disp-lbl">Düse</div><div class="disp-val">${deg(p.nozzle?.temp)}<small> / ${deg(p.nozzle?.target)} °C</small></div></div>
-      <div class="disp-tile"><div class="disp-lbl">Bett</div><div class="disp-val">${deg(p.bed?.temp)}<small> / ${deg(p.bed?.target)} °C</small></div></div>
-      <div class="disp-tile"><div class="disp-lbl">ACE-Feuchte</div><div class="disp-val">${d.humidity ?? "–"}<small> %</small></div></div>
+    <section class="disp-grid3" aria-label=${t("Temperatures")}>
+      <div class="disp-tile"><div class="disp-lbl">${t("Nozzle")}</div><div class="disp-val">${deg(p.nozzle?.temp)}<small> / ${deg(p.nozzle?.target)} °C</small></div></div>
+      <div class="disp-tile"><div class="disp-lbl">${t("Bed")}</div><div class="disp-val">${deg(p.bed?.temp)}<small> / ${deg(p.bed?.target)} °C</small></div></div>
+      <div class="disp-tile"><div class="disp-lbl">${t("ACE humidity")}</div><div class="disp-val">${d.humidity ?? "–"}<small> %</small></div></div>
     </section>
-    <section class="disp-grid4 disp-slots" aria-label="ACE-Slots">${(st.slots || []).map((s) => html`<${Slot} s=${s} />`)}</section>
-    ${d.present && html`<section class="disp-tile disp-row" aria-label="Trockner">
-      <div class="grow"><b>${d.drying ? `Trocknet · ${d.target_temp ?? "?"} °C` : "Trockner aus"}</b>
-        <div class="muted">${d.drying ? `noch ${duration((d.remaining_min || 0) * 60)} · ${d.temp ?? "–"} °C im ACE`
-          : (d.config?.enabled ? "Automatik an" : "Automatik aus") + (d.required?.temp ? ` · höchstens ${d.required.temp} °C für die eingelegten Spulen` : "")}</div></div>
+    <section class="disp-grid4 disp-slots" aria-label=${t("ACE slots")}>${(st.slots || []).map((s) => html`<${Slot} s=${s} />`)}</section>
+    ${d.present && html`<section class="disp-tile disp-row" aria-label=${t("Dryer")}>
+      <div class="grow"><b>${d.drying ? t("Drying · {temp} °C", { temp: d.target_temp ?? "?" }) : t("Dryer off")}</b>
+        <div class="muted">${d.drying ? t("{left} left · {temp} °C in the ACE", { left: duration((d.remaining_min || 0) * 60), temp: d.temp ?? "–" })
+          : (d.config?.enabled ? t("Automatic on") : t("Automatic off")) + (d.required?.temp ? " · " + t("at most {temp} °C for the loaded spools", { temp: d.required.temp }) : "")}</div></div>
       ${d.drying
-        ? html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => confirm({ title: "Trocknen stoppen?", ok: "Stoppen",
-            action: () => post("/api/dryer/stop") })}>Stoppen</button>`
-        : html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => confirm({ title: "Trocknen starten?", ok: "Starten",
-            text: `Temperatur und Dauer nach den eingelegten Spulen${d.required?.temp ? ` (höchstens ${d.required.temp} °C)` : ""}.`,
-            action: () => post("/api/dryer/start", {}) })}>Trocknen …</button>`}
+        ? html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => confirm({ title: t("Stop drying?"), ok: t("Stop"),
+            action: () => post("/api/dryer/stop") })}>${t("Stop")}</button>`
+        : html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => confirm({ title: t("Start drying?"), ok: t("Start"),
+            text: d.required?.temp ? t("Temperature and duration from the loaded spools (at most {temp} °C).", { temp: d.required.temp }) : t("Temperature and duration from the loaded spools."),
+            action: () => post("/api/dryer/start", {}) })}>${t("Dry …")}</button>`}
     </section>`}`;
 }
 
@@ -147,21 +148,21 @@ function Slot({ s }) {
   const rest = sp?.remaining_weight;
   const low = rest != null && rest < 200;
   return html`<div class=${"disp-slot" + (ace.active ? " on" : "")}>
-    <div class="hd"><span>Slot ${s.slot}</span>${ace.active && html`<span class="disp-tag">geladen</span>`}</div>
+    <div class="hd"><span>${t("Slot {slot}", { slot: s.slot })}</span>${ace.active && html`<span class="disp-tag">${t("loaded")}</span>`}</div>
     <div class=${"disp-swatch" + (color ? "" : " empty")} style=${color ? `background:${color}` : ""}></div>
-    <div class="name">${sp ? (sp.name || sp.material || "Spule") : ace.present ? (ace.material || "Unbekannt") : "leer"}</div>
-    <div class=${"sub" + (low ? " warn" : "")}>${sp ? `${rest != null ? Math.round(rest) + " g" : "–"} · ${low ? "fast leer" : sp.vendor || ""}` : ace.present ? "ohne Spule" : ""}</div>
+    <div class="name">${sp ? (sp.name || sp.material || t("Spool")) : ace.present ? (ace.material || t("Unknown")) : t("empty")}</div>
+    <div class=${"sub" + (low ? " warn" : "")}>${sp ? `${rest != null ? Math.round(rest) + " g" : "–"} · ${low ? t("almost empty") : sp.vendor || ""}` : ace.present ? t("no spool") : ""}</div>
   </div>`;
 }
 
-// ------------------------------------------------------------ Druck
+// ------------------------------------------------------------ print
 function Print({ st, busy, act, confirm, setDlg }) {
   const p = st.printer || {};
-  const [img, setImg] = useState(0);              // 0 Vorschaubild der Datei, 1 Bild der Bridge, 2 keins
+  const [img, setImg] = useState(0);              // 0 thumbnail of the file, 1 bridge image, 2 none
   const file = p.file || "";
   useEffect(() => setImg(0), [file]);
   if (!PRINTING.has(p.state) && !["complete", "cancelled", "error"].includes(p.state)) {
-    return html`<div class="disp-empty">Kein Druck. Starten unter „Dateien“, in Orca oder Mainsail –<br/>die Druckansicht kommt dann von selbst.</div>`;
+    return html`<div class="disp-empty">${t("No print. Start one under “Files”, in Orca or Mainsail –")}<br/>${t("the print view then opens by itself.")}</div>`;
   }
   if (!PRINTING.has(p.state)) return html`<${Done} st=${st} busy=${busy} setDlg=${setDlg} />`;
   const src = img === 0 ? `/api/print/thumbnail.png?f=${encodeURIComponent(file)}` : `/api/print/preview.png?f=${encodeURIComponent(file)}`;
@@ -172,45 +173,45 @@ function Print({ st, busy, act, confirm, setDlg }) {
   const paused = p.state === "paused";
   const running = PRINTING.has(p.state);
   return html`<div class="disp-print">
-    <section class="disp-thumb" aria-label="Vorschau">
-      <div class="img">${img < 2 ? html`<img src=${src} alt="Vorschaubild" onError=${() => setImg(img + 1)} />`
-        : html`<span class="muted">Kein Vorschaubild</span>`}</div>
+    <section class="disp-thumb" aria-label=${t("Preview")}>
+      <div class="img">${img < 2 ? html`<img src=${src} alt=${t("Preview image")} onError=${() => setImg(img + 1)} />`
+        : html`<span class="muted">${t("No preview image")}</span>`}</div>
       <div class="file">${fileName(file)}</div>
-      ${uses.length > 0 && html`<div class="disp-uses"><span class="disp-lbl">Benutzt</span>
-        ${uses.map((u) => html`<span class=${"disp-dot" + (u.slot === active ? " on" : "")} style=${`background:${hex(u.color) || "var(--surface2)"}`} title=${"Slot " + u.slot}></span>`)}
-        <span class="disp-note m">Slot ${uses.map((u) => u.slot).join(" · ")}</span></div>`}
+      ${uses.length > 0 && html`<div class="disp-uses"><span class="disp-lbl">${t("Used")}</span>
+        ${uses.map((u) => html`<span class=${"disp-dot" + (u.slot === active ? " on" : "")} style=${`background:${hex(u.color) || "var(--surface2)"}`} title=${t("Slot {slot}", { slot: u.slot })}></span>`)}
+        <span class="disp-note m">${t("Slot {slot}", { slot: uses.map((u) => u.slot).join(" · ") })}</span></div>`}
     </section>
     <div class="disp-pcol">
-      <div class="disp-note">${p.changing_filament && !p.phase ? "Wechselt Filament …" : active ? `Slot ${active}` : ""}${active && st.slots?.[active - 1]?.spool ? " · " + st.slots[active - 1].spool.name : ""}</div>
-      <div class="disp-big"><span class="pct">${pct(p.progress)} %</span>${p.layers ? html`<span class="lay">Schicht ${p.layer ?? "?"} / ${p.layers}</span>` : ""}</div>
+      <div class="disp-note">${p.changing_filament && !p.phase ? t("Changing filament …") : active ? t("Slot {slot}", { slot: active }) : ""}${active && st.slots?.[active - 1]?.spool ? " · " + st.slots[active - 1].spool.name : ""}</div>
+      <div class="disp-big"><span class="pct">${pct(p.progress)} %</span>${p.layers ? html`<span class="lay">${t("Layer {layer} / {layers}", { layer: p.layer ?? "?", layers: p.layers })}</span>` : ""}</div>
       <div class="disp-bar"><div style=${`width:${pct(p.progress)}%`}></div></div>
       <div class="disp-grid3" style="gap:8px">
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Läuft</div><div class="disp-val">${hm(p.print_duration_s)}</div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Rest</div><div class="disp-val">${running ? hm(p.eta_s) : "–"}</div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Fertig</div><div class="disp-val">${running ? finishAt(p.eta_s).replace("~", "") : "–"}</div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Düse</div><div class="disp-val">${deg(p.nozzle?.temp)}<small> / ${deg(p.nozzle?.target)}</small></div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Bett</div><div class="disp-val">${deg(p.bed?.temp)}<small> / ${deg(p.bed?.target)}</small></div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Tempo · Fluss</div><div class="disp-val">${pct(p.speed_factor)}<small> · ${pct(p.flow_factor)} %</small></div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Elapsed")}</div><div class="disp-val">${hm(p.print_duration_s)}</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Remaining")}</div><div class="disp-val">${running ? hm(p.eta_s) : "–"}</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Finish")}</div><div class="disp-val">${running ? finishAt(p.eta_s).replace("~", "") : "–"}</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Nozzle")}</div><div class="disp-val">${deg(p.nozzle?.temp)}<small> / ${deg(p.nozzle?.target)}</small></div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Bed")}</div><div class="disp-val">${deg(p.bed?.temp)}<small> / ${deg(p.bed?.target)}</small></div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Speed · flow")}</div><div class="disp-val">${pct(p.speed_factor)}<small> · ${pct(p.flow_factor)} %</small></div></div>
       </div>
-      <div class="disp-note">${[pa?.k_ref != null ? `Auto-PA K ${String(pa.k_ref.toFixed(3)).replace(".", ",")}` : null,
-        clog != null ? `Filament läuft (${pct(clog)} %)` : null].filter(Boolean).join(" · ")}</div>
+      <div class="disp-note">${[pa?.k_ref != null ? `Auto-PA K ${fixed(pa.k_ref, 3)}` : null,
+        clog != null ? t("Filament flowing ({pct} %)", { pct: pct(clog) }) : null].filter(Boolean).join(" · ")}</div>
       <div class="grow" style="flex:1"></div>
       ${running && html`<div class="disp-btns">
         ${paused
-          ? html`<button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => act(() => post("/api/print/resume", {}))}>Weiter</button>
-            <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => confirm({ title: "Druck abbrechen?", ok: "Abbrechen", danger: true,
-              text: `${fileName(file)} wird abgebrochen. Das lässt sich nicht rückgängig machen.`,
-              action: () => post("/api/print/cancel", { confirm: true }) })}>Abbrechen</button>`
-          : html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => act(() => post("/api/print/pause", {}))}>Pause</button>
-            <button type="button" class="disp-btn" disabled=${busy} onClick=${() => setDlg({ kind: "tune" })}>Nachjustieren</button>`}
+          ? html`<button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => act(() => post("/api/print/resume", {}))}>${t("Resume")}</button>
+            <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => confirm({ title: t("Cancel the print?"), ok: t("Cancel print"), danger: true,
+              text: t("{file} is cancelled. This cannot be undone.", { file: fileName(file) }),
+              action: () => post("/api/print/cancel", { confirm: true }) })}>${t("Cancel print")}</button>`
+          : html`<button type="button" class="disp-btn" disabled=${busy} onClick=${() => act(() => post("/api/print/pause", {}))}>${t("Pause")}</button>
+            <button type="button" class="disp-btn" disabled=${busy} onClick=${() => setDlg({ kind: "tune" })}>${t("Tune")}</button>`}
         <${EStop} confirm=${confirm} />
       </div>`}
     </div>
   </div>`;
 }
 
-// ------------------------------------------------------------ Steuerung
-/** Aufruf, der bei einer Rueckfrage der Bridge (409 + confirm) nach Bestaetigung mit confirm: true wiederholt wird. */
+// ------------------------------------------------------------ control
+/** Call that is repeated with confirm: true after confirmation when the bridge asks back (409 + confirm). */
 function withConfirm(path, body) {
   const fn = () => post(path, body);
   fn.retry = () => post(path, { ...body, confirm: true });
@@ -220,17 +221,17 @@ function withConfirm(path, body) {
 function Control(ctx) {
   const [tab, setTab] = useState("temp");
   const [m, setM] = useState(null);
-  async function loadM() { try { setM(await get("/api/machine")); } catch { /* Anzeige bleibt */ } }
-  useEffect(() => { loadM(); const t = setInterval(loadM, POLL_MS); return () => clearInterval(t); }, []);
+  async function loadM() { try { setM(await get("/api/machine")); } catch { /* display stays */ } }
+  useEffect(() => { loadM(); const timer = setInterval(loadM, POLL_MS); return () => clearInterval(timer); }, []);
   const act = (fn) => ctx.act(async () => { await fn(); await loadM(); });
-  const tabs = [["temp", "Temperatur"], ["move", "Bewegen"], ["fil", "Filament"], ["more", "Mehr"]];
+  const tabs = [["temp", t("Temperature")], ["move", t("Move")], ["fil", t("Filament")], ["more", t("More")]];
   const sub = { ...ctx, m, act };
   return html`
-    <div class="disp-tabs" role="tablist" aria-label="Steuerung">
+    <div class="disp-tabs" role="tablist" aria-label=${t("Control")}>
       ${tabs.map(([k, l]) => html`<button type="button" role="tab" aria-selected=${tab === k} class=${tab === k ? "on" : ""}
         onClick=${() => setTab(k)}>${l}</button>`)}
     </div>
-    ${m?.running && html`<div class="disp-alert warn">Läuft: ${m.running} …</div>`}
+    ${m?.running && html`<div class="disp-alert warn">${t("Running: {what} …", { what: m.running })}</div>`}
     ${m?.error && !m.running && html`<div class="disp-alert">${m.error}</div>`}
     ${tab === "temp" && html`<${Temps} ...${sub} />`}
     ${tab === "move" && html`<${Move} ...${sub} />`}
@@ -241,27 +242,27 @@ function Control(ctx) {
 function Temps({ st, busy, act, setDlg }) {
   const p = st.printer || {};
   const tune = (body) => act(withConfirm("/api/print/tune", body));
-  // Schnellwahl aus den eingelegten Spulen (Spoolman), jede Kombination einmal
+  // quick choice from the loaded spools (Spoolman), every combination once
   const seen = new Set();
   const presets = (st.slots || []).map((s) => s.spool).filter((sp) => sp?.nozzle_temp)
     .filter((sp) => { const k = `${sp.nozzle_temp}/${sp.bed_temp}`; if (seen.has(k)) return false; seen.add(k); return true; });
   const ask = (label, key, cur, max) => setDlg({ kind: "number", title: label, value: cur || 0, max,
     action: (v) => tune({ [key]: v }) });
-  const card = (label, key, t, max) => html`<div class="disp-tile disp-temp">
-    <button type="button" class="disp-tempbtn" disabled=${busy} onClick=${() => ask(`${label}: Soll (°C)`, key, t?.target, max)}>
-      <div class="disp-lbl">${label} · antippen zum Einstellen</div>
-      <div class="disp-val" style="font-size:34px">${deg(t?.temp)}<small> / ${deg(t?.target)} °C</small></div></button>
-    <button type="button" class="disp-btn danger disp-off" disabled=${busy || !t?.target} aria-label=${label + " aus"}
-      onClick=${() => tune({ [key]: 0 })}>Aus</button></div>`;
+  const card = (label, key, h, max) => html`<div class="disp-tile disp-temp">
+    <button type="button" class="disp-tempbtn" disabled=${busy} onClick=${() => ask(t("{label}: target (°C)", { label }), key, h?.target, max)}>
+      <div class="disp-lbl">${t("{label} · tap to set", { label })}</div>
+      <div class="disp-val" style="font-size:34px">${deg(h?.temp)}<small> / ${deg(h?.target)} °C</small></div></button>
+    <button type="button" class="disp-btn danger disp-off" disabled=${busy || !h?.target} aria-label=${t("{label} off", { label })}
+      onClick=${() => tune({ [key]: 0 })}>${t("Off")}</button></div>`;
   return html`
-    <div class="disp-grid2">${card("Düse", "nozzle", p.nozzle, 300)}${card("Bett", "bed", p.bed, 120)}</div>
-    <div class="disp-lbl">Aus den eingelegten Spulen</div>
+    <div class="disp-grid2">${card(t("Nozzle"), "nozzle", p.nozzle, 300)}${card(t("Bed"), "bed", p.bed, 120)}</div>
+    <div class="disp-lbl">${t("From the loaded spools")}</div>
     <div class="disp-presets">
       ${presets.map((sp) => html`<button type="button" class="disp-btn" disabled=${busy}
         onClick=${() => tune({ nozzle: sp.nozzle_temp, bed: sp.bed_temp || 0 })}>
         <span class="disp-dot" style=${`width:16px;height:16px;display:inline-block;vertical-align:-2px;margin-right:8px;background:${hex(sp.color) || "var(--surface2)"}`}></span>
         ${sp.material} ${sp.nozzle_temp}/${sp.bed_temp ?? "–"}</button>`)}
-      <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => tune({ nozzle: 0, bed: 0 })}>Alles aus</button>
+      <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => tune({ nozzle: 0, bed: 0 })}>${t("All off")}</button>
     </div>`;
 }
 
@@ -282,16 +283,16 @@ function Move({ m, busy, act }) {
     <div class="disp-zcol">${key("Z+", "z", 1)}<button type="button" class="disp-btn disp-jog" disabled=${!ok}
       onClick=${() => act(() => post("/api/machine/home", { axes: "z" }))}>⌂ Z</button>${key("Z−", "z", -1)}</div>
     <div class="disp-mside">
-      <div class="disp-tile"><div class="disp-lbl">Position${homed.length < 3 ? " · nicht alles gehomt" : ""}</div>
+      <div class="disp-tile"><div class="disp-lbl">${t("Position")}${homed.length < 3 ? " · " + t("not all homed") : ""}</div>
         <div class="disp-val" style="font-size:18px">${pos ? `X ${pos[0]}  Y ${pos[1]}  Z ${pos[2]}` : "–"}</div></div>
-      <div class="disp-lbl">Schritt (mm)</div>
+      <div class="disp-lbl">${t("Step (mm)")}</div>
       <div class="disp-steps">${(m?.steps || [0.1, 1, 10, 50]).map((s) => html`<button type="button"
-        class=${"disp-btn" + (s === step ? " acc" : "")} onClick=${() => setStep(s)}>${String(s).replace(".", ",")}</button>`)}</div>
+        class=${"disp-btn" + (s === step ? " acc" : "")} onClick=${() => setStep(s)}>${num(s, 1)}</button>`)}</div>
       <div class="disp-btns">
-        <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/home", { axes: "all" }))}>Alle homen</button>
-        <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/motors_off", {}))}>Motoren aus</button>
+        <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/home", { axes: "all" }))}>${t("Home all")}</button>
+        <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/motors_off", {}))}>${t("Motors off")}</button>
       </div>
-      ${!m?.move_allowed && html`<div class="disp-note">Während des Drucks gesperrt.</div>`}
+      ${!m?.move_allowed && html`<div class="disp-note">${t("Locked while printing.")}</div>`}
     </div>
   </div>`;
 }
@@ -302,22 +303,22 @@ function Filament({ st, m, busy, act }) {
   const okE = m?.extrude_allowed && !busy && !m?.running;
   const cold = (p.nozzle?.temp ?? 0) < 170;
   return html`
-    <div class="disp-lbl">Slot laden (wechselt über die ACE, heizt selbst)</div>
+    <div class="disp-lbl">${t("Load a slot (changes via the ACE, heats by itself)")}</div>
     <div class="disp-grid4">${(st.slots || []).map((s) => {
       const sp = s.spool, color = hex(sp?.color || s.ace?.color);
       return html`<button type="button" class=${"disp-slot" + (s.ace?.active ? " on" : "")} style="min-height:118px"
         disabled=${!ok || !s.ace?.present} onClick=${() => act(() => post("/api/machine/load", { slot: s.slot }))}>
-        <div class="hd"><span>Slot ${s.slot}</span>${s.ace?.active && html`<span class="disp-tag">geladen</span>`}</div>
+        <div class="hd"><span>${t("Slot {slot}", { slot: s.slot })}</span>${s.ace?.active && html`<span class="disp-tag">${t("loaded")}</span>`}</div>
         <div class=${"disp-swatch" + (color ? "" : " empty")} style=${(color ? `background:${color};` : "") + "width:36px;height:36px"}></div>
-        <div class="name">${sp?.name || (s.ace?.present ? s.ace.material : "leer")}</div></button>`;
+        <div class="name">${sp?.name || (s.ace?.present ? s.ace.material : t("empty"))}</div></button>`;
     })}</div>
     <div class="disp-btns">
-      <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/unload", {}))}>Entladen</button>
-      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: -10 }))}>10 mm zurück</button>
-      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 10 }))}>10 mm vor</button>
-      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 50 }))}>50 mm vor</button>
+      <button type="button" class="disp-btn" disabled=${!ok} onClick=${() => act(() => post("/api/machine/unload", {}))}>${t("Unload")}</button>
+      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: -10 }))}>${t("{mm} mm back", { mm: 10 })}</button>
+      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 10 }))}>${t("{mm} mm forward", { mm: 10 })}</button>
+      <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 50 }))}>${t("{mm} mm forward", { mm: 50 })}</button>
     </div>
-    ${cold && html`<div class="disp-note">Extrudieren erst ab 170 °C Düse (Reiter Temperatur).</div>`}`;
+    ${cold && html`<div class="disp-note">${t("Extruding only from 170 °C nozzle (tab Temperature).")}</div>`}`;
 }
 
 function More({ st, m, busy, act, confirm }) {
@@ -327,21 +328,21 @@ function More({ st, m, busy, act, confirm }) {
     <div class="disp-fanbtns">${[0, 50, 100].map((v) => html`<button type="button" class="disp-btn" disabled=${busy}
       onClick=${() => act(() => post("/api/print/tune", { fans: { [f.key]: v } }))}>${v}</button>`)}</div></div>`;
   return html`
-    <div class="disp-lbl">Lüfter (%)</div>
+    <div class="disp-lbl">${t("Fans (%)")}</div>
     <div class="disp-grid3">${(p.fans || []).map(fan)}</div>
     <div style="flex:1"></div>
     <div class="disp-btns">
       ${(m?.macros || []).map((mc) => html`<button type="button" class="disp-btn"
-        disabled=${!ok} onClick=${() => confirm({ title: mc.label + "?", text: mc.confirm, ok: "Starten",
+        disabled=${!ok} onClick=${() => confirm({ title: mc.label + "?", text: mc.confirm, ok: t("Start"),
           action: () => post("/api/machine/macro", { key: mc.key, confirm: true }) })}>${mc.label}</button>`)}
       <button type="button" class="disp-btn" disabled=${busy || p.state === "printing"}
-        onClick=${() => confirm({ title: "Klipper neu laden?", text: "Dauert einige Sekunden; die Achsen müssen danach neu gehomt werden.",
-          ok: "Neu laden", action: () => post("/api/print/firmware_restart", { confirm: true }) })}>Klipper neu laden</button>
+        onClick=${() => confirm({ title: t("Reload Klipper?"), text: t("Takes a few seconds; the axes must be homed again afterwards."),
+          ok: t("Reload"), action: () => post("/api/print/firmware_restart", { confirm: true }) })}>${t("Reload Klipper")}</button>
       <${EStop} confirm=${confirm} />
     </div>`;
 }
 
-// ------------------------------------------------------------ Schalter
+// ------------------------------------------------------------ switches
 const GROUP_KI = "watch";
 
 function Switches({ st, sw, items, busy, act, flip }) {
@@ -353,7 +354,7 @@ function Switches({ st, sw, items, busy, act, flip }) {
   const toggles = list.filter((i) => i.kind === "switch");
   const choices = list.filter((i) => i.kind === "choice");
   return html`
-    <div class="disp-tabs" role="tablist" aria-label="Gruppe">
+    <div class="disp-tabs" role="tablist" aria-label=${t("Group")}>
       ${groups.map((g) => html`<button type="button" role="tab" aria-selected=${tab === g.key} class=${tab === g.key ? "on" : ""}
         onClick=${() => setTab(g.key)}>${g.title}</button>`)}
     </div>
@@ -361,71 +362,70 @@ function Switches({ st, sw, items, busy, act, flip }) {
       <div class="disp-toggles">
         ${toggles.map((i) => html`<${Toggle} title=${i.title} hint=${i.hint} on=${i.on} disabled=${!i.sensitive || busy}
           onClick=${() => flip(i.key, !i.on)} />`)}
-        ${tab === GROUP_KI && v?.configured && html`<${Toggle} title="KI-Überwachung" hint="Fehldruck-Erkennung mit der Kamera"
+        ${tab === GROUP_KI && v?.configured && html`<${Toggle} title=${t("AI monitoring")} hint=${t("Failure detection with the camera")}
           on=${v.enabled} disabled=${busy} onClick=${() => act(() => post("/api/vision/settings", { enabled: !v.enabled }))} />`}
-        ${tab === GROUP_KI && v?.configured && v.enabled && printing && html`<${Toggle} title="Diesen Druck nicht überwachen"
-          hint="KI bis zum nächsten Druck still" on=${v.muted} disabled=${busy}
+        ${tab === GROUP_KI && v?.configured && v.enabled && printing && html`<${Toggle} title=${t("Don't watch this print")}
+          hint=${t("AI quiet until the next print")} on=${v.muted} disabled=${busy}
           onClick=${() => act(() => post("/api/vision/mute", { on: !v.muted }))} />`}
       </div>
       ${choices.map((c) => html`<div class="disp-choice"><b>${c.title}</b><div class="opts">
         ${c.options.map((o) => html`<button type="button" class=${o.value === c.current ? "on" : ""} disabled=${!c.sensitive || busy}
           aria-pressed=${o.value === c.current} onClick=${() => o.value !== c.current && flip(c.key, o.value)}>${o.label}</button>`)}
       </div></div>`)}
-      ${tab === "print" && st.pa?.slots?.length > 0 && html`<div class="disp-tile disp-grid4" aria-label="PA je Slot">
+      ${tab === "print" && st.pa?.slots?.length > 0 && html`<div class="disp-tile disp-grid4" aria-label=${t("PA per slot")}>
         ${st.pa.slots.map((s) => html`<div class="disp-row" style="gap:8px">
           <span class="disp-dot" style=${`width:18px;height:18px;background:${hex(st.slots?.[s.slot - 1]?.spool?.color) || "var(--surface2)"}`}></span>
-          <span class="disp-note">${s.state === "table" || s.k_ref != null ? `K ${String((s.k_ref ?? 0).toFixed(3)).replace(".", ",")}`
-            : s.state === "needed" ? "misst beim Druck" : s.state === "failed" ? "gescheitert" : "–"}</span></div>`)}
+          <span class="disp-note">${s.state === "table" || s.k_ref != null ? `K ${fixed(s.k_ref ?? 0, 3)}`
+            : s.state === "needed" ? t("measures at the print") : s.state === "failed" ? t("failed") : "–"}</span></div>`)}
       </div>`}
-      ${items.length === 0 && html`<div class="disp-empty">Klipper ist nicht bereit</div>`}
-      <div class="disp-note">Alle Schalter gelten auch in Web, App und Mainsail – gespeichert im Drucker.</div>
+      ${items.length === 0 && html`<div class="disp-empty">${t("Klipper is not ready")}</div>`}
+      <div class="disp-note">${t("All switches also apply in web, app and Mainsail – stored in the printer.")}</div>
     </div>`;
 }
 
-/** Not-Aus: immer bedienbar (auch wenn gerade etwas laeuft), mit Rueckfrage. */
+/** Emergency stop: always usable (even while something runs), with a confirmation. */
 function EStop({ confirm }) {
-  return html`<button type="button" class="disp-btn danger" onClick=${() => confirm({ title: "Not-Aus?", ok: "Not-Aus", danger: true,
-    text: "Alles stoppt sofort: Motoren, Heizungen, Druck. Der Druck ist verloren; danach Klipper neu laden.",
-    action: () => post("/api/print/emergency_stop", { confirm: true }) })}>Not-Aus …</button>`;
+  return html`<button type="button" class="disp-btn danger" onClick=${() => confirm({ title: t("Emergency stop?"), ok: t("Emergency stop"), danger: true,
+    text: t("Everything stops at once: motors, heaters, print. The print is lost; reload Klipper afterwards."),
+    action: () => post("/api/print/emergency_stop", { confirm: true }) })}>${t("Emergency stop …")}</button>`;
 }
 
 const Toggle = ({ title, hint, on, disabled, onClick }) => html`<button type="button" class="disp-toggle" aria-pressed=${!!on}
   disabled=${disabled} onClick=${onClick}><span class="t"><b>${title}</b>${hint && html`<span>${hint}</span>`}</span>
   <span class=${"disp-knob" + (on ? " on" : "")} aria-hidden="true"></span></button>`;
 
-// ------------------------------------------------------------ Druck unterbrochen (Stromausfall)
+// ------------------------------------------------------------ print interrupted (power loss)
 function Resume({ st, busy, confirm }) {
   const r = st.resume;
   if (!r || !(r.pending || r.running)) return null;
   const p = r.pending || {};
   const file = p.file || "";
-  return html`<div class="disp-over" role="alertdialog" aria-label="Druck unterbrochen">
+  return html`<div class="disp-over" role="alertdialog" aria-label=${t("Print interrupted")}>
     <section class="disp-dialog danger" style="height:100%">
       <div class="disp-split">
         <div class="disp-thumb" style="width:210px">
-          <div class="img" style="height:210px"><img src=${`/api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt="Vorschaubild"
+          <div class="img" style="height:210px"><img src=${`/api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt=${t("Preview image")}
             onError=${(e) => { e.target.style.display = "none"; }} /></div>
           <div class="file">${fileName(file)}</div>
-          <div class="disp-note m">Schicht ${p.layer ?? "?"}${p.layers ? " / " + p.layers : ""} · ${pct(p.progress)} %</div>
+          <div class="disp-note m">${p.layers ? t("Layer {layer} / {layers}", { layer: p.layer ?? "?", layers: p.layers }) : t("Layer {layer}", { layer: p.layer ?? "?" })} · ${pct(p.progress)} %</div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
           <div class="disp-row" style="gap:10px;color:var(--danger)"><${Icon} name="power" /><h2 style="color:var(--text)">
-            ${r.running ? "Druck wird fortgesetzt …" : "Druck unterbrochen"}</h2></div>
-          ${r.running ? html`<p class="muted">Heizen, anheben, Höhe antasten, spülen – das dauert einige Minuten.</p>` : html`
-            <p>Der Strom war weg. Ist das Teil noch fest auf dem Bett?</p>
-            <p class="muted">Beim Fortsetzen heizt der Drucker erst auf Drucktemperatur, hebt die Düse langsam an, tastet die
-              Höhe auf dem Teil an und druckt an der Stelle weiter. Passt die Höhe nicht, bricht er ab statt zu raten.</p>`}
-          ${r.error && html`<div class="disp-alert">Fortsetzen abgebrochen: ${r.error}</div>`}
+            ${r.running ? t("Resuming the print …") : t("Print interrupted")}</h2></div>
+          ${r.running ? html`<p class="muted">${t("Heating, lifting, probing the height, purging – this takes a few minutes.")}</p>` : html`
+            <p>${t("The power was gone. Is the part still stuck to the bed?")}</p>
+            <p class="muted">${t("When resuming, the printer first heats to printing temperature, lifts the nozzle slowly, probes the height on the part and continues printing there. If the height does not fit, it stops instead of guessing.")}</p>`}
+          ${r.error && html`<div class="disp-alert">${t("Resume cancelled: {error}", { error: r.error })}</div>`}
           <div style="flex:1"></div>
           ${!r.running && html`<div class="disp-btns">
             <button type="button" class="disp-btn acc" style="flex:2;min-height:60px" disabled=${busy}
-              onClick=${() => confirm({ title: "Druck fortsetzen?", ok: "Fortsetzen",
-                text: "Teil geprüft? Der Drucker heizt, fährt X/Y nach Hause, tastet die Höhe auf dem Teil an und druckt weiter.",
-                action: () => post("/api/resume", { confirm: true }) })}>Fortsetzen …</button>
+              onClick=${() => confirm({ title: t("Resume the print?"), ok: t("Resume"),
+                text: t("Part checked? The printer heats, homes X/Y, probes the height on the part and continues printing."),
+                action: () => post("/api/resume", { confirm: true }) })}>${t("Resume …")}</button>
             <button type="button" class="disp-btn danger" style="min-height:60px" disabled=${busy}
-              onClick=${() => confirm({ title: "Druck verwerfen?", ok: "Verwerfen", danger: true,
-                text: `${fileName(file)} wird nicht fortgesetzt, die Sicherung wird gelöscht.`,
-                action: () => post("/api/resume/discard", {}) })}>Verwerfen …</button>
+              onClick=${() => confirm({ title: t("Discard the interrupted print?"), ok: t("Discard"), danger: true,
+                text: t("{file} is not resumed; the saved state is deleted.", { file: fileName(file) }),
+                action: () => post("/api/resume/discard", {}) })}>${t("Discard …")}</button>
           </div>`}
         </div>
       </div>
@@ -433,7 +433,7 @@ function Resume({ st, busy, confirm }) {
   </div>`;
 }
 
-// ------------------------------------------------------------ Dialoge
+// ------------------------------------------------------------ dialogs
 function Dialog({ dlg, close, act, st }) {
   if (dlg.kind === "pair") return html`<${Pair} then=${dlg.then} close=${close} act=${act} />`;
   if (dlg.kind === "tune") return html`<${Tune} close=${close} act=${act} p=${st.printer || {}} />`;
@@ -446,7 +446,7 @@ function Dialog({ dlg, close, act, st }) {
       ${dlg.text && html`<p>${dlg.text}</p>`}
       <div class="disp-btns">
         ${dlg.action && html`<button type="button" class=${"disp-btn " + (dlg.danger ? "danger" : "acc")} onClick=${ok}>${dlg.ok || "OK"}</button>`}
-        <button type="button" class="disp-btn" onClick=${close}>${dlg.action ? "Zurück" : "OK"}</button>
+        <button type="button" class="disp-btn" onClick=${close}>${dlg.action ? t("Back") : "OK"}</button>
       </div>
     </section>
   </div>`;
@@ -460,30 +460,29 @@ function Pair({ then, close, act }) {
   async function pair() {
     setBusy(true); setErr(null);
     try {
-      const res = await post("/api/auth/pair", { code, name: "Drucker-Display", kind: "display" });
+      const res = await post("/api/auth/pair", { code, name: t("Printer display"), kind: "display" });
       auth.save(res.key || res.token);
       close();
       if (then) act(then);
     } catch (e) { setErr(e.message); setCode(""); } finally { setBusy(false); }
   }
-  return html`<div class="disp-over" role="dialog" aria-label="Display koppeln">
+  return html`<div class="disp-over" role="dialog" aria-label=${t("Pair the display")}>
     <section class="disp-dialog" style="height:100%">
       <div class="disp-split">
         <div style="flex:1;display:flex;flex-direction:column;gap:12px">
-          <h2>Display koppeln</h2>
-          <p class="muted">Zum Schalten braucht das Display einmal einen Code: in der Weboberfläche oder App unter
-            Geräte → Gerät hinzufügen erzeugen und hier eintippen.</p>
+          <h2>${t("Pair the display")}</h2>
+          <p class="muted">${t("To switch things the display needs a code once: create it in the web UI or app under Devices → Add device and type it here.")}</p>
           <div class="disp-code" aria-live="polite">${code.padEnd(6, "·")}</div>
           ${err && html`<div class="disp-alert">${err}</div>`}
           <div style="flex:1"></div>
           <div class="disp-btns">
-            <button type="button" class="disp-btn acc" disabled=${code.length !== 6 || busy} onClick=${pair}>Koppeln</button>
-            <button type="button" class="disp-btn" onClick=${close}>Zurück</button>
+            <button type="button" class="disp-btn acc" disabled=${code.length !== 6 || busy} onClick=${pair}>${t("Pair")}</button>
+            <button type="button" class="disp-btn" onClick=${close}>${t("Back")}</button>
           </div>
         </div>
-        <div class="disp-keys" aria-label="Ziffern">
+        <div class="disp-keys" aria-label=${t("Digits")}>
           ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "<"].map((k) => html`<button type="button"
-            aria-label=${k === "<" ? "Löschen" : k === "C" ? "Alles löschen" : k} onClick=${() => press(k)}>${k === "<" ? "⌫" : k}</button>`)}
+            aria-label=${k === "<" ? t("Delete") : k === "C" ? t("Clear all") : k} onClick=${() => press(k)}>${k === "<" ? "⌫" : k}</button>`)}
         </div>
       </div>
     </section>
@@ -501,16 +500,16 @@ function NumberPad({ dlg, close }) {
         <div style="flex:1;display:flex;flex-direction:column;gap:12px">
           <h2>${dlg.title}</h2>
           <div class="disp-code">${v || "0"} °C</div>
-          ${bad && html`<div class="disp-alert">Höchstens ${dlg.max} °C</div>`}
+          ${bad && html`<div class="disp-alert">${t("At most {max} °C", { max: dlg.max })}</div>`}
           <div style="flex:1"></div>
           <div class="disp-btns">
-            <button type="button" class="disp-btn acc" disabled=${bad} onClick=${() => { close(); dlg.action(n); }}>Übernehmen</button>
-            <button type="button" class="disp-btn" onClick=${close}>Zurück</button>
+            <button type="button" class="disp-btn acc" disabled=${bad} onClick=${() => { close(); dlg.action(n); }}>${t("Apply")}</button>
+            <button type="button" class="disp-btn" onClick=${close}>${t("Back")}</button>
           </div>
         </div>
-        <div class="disp-keys" aria-label="Ziffern">
+        <div class="disp-keys" aria-label=${t("Digits")}>
           ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "<"].map((k) => html`<button type="button"
-            aria-label=${k === "<" ? "Löschen" : k === "C" ? "Alles löschen" : k} onClick=${() => press(k)}>${k === "<" ? "⌫" : k}</button>`)}
+            aria-label=${k === "<" ? t("Delete") : k === "C" ? t("Clear all") : k} onClick=${() => press(k)}>${k === "<" ? "⌫" : k}</button>`)}
         </div>
       </div>
     </section>
@@ -523,96 +522,96 @@ function Tune({ close, act, p }) {
   const [flow, setFlow] = useState(pct(p.flow_factor || 1));
   const [m, setM] = useState(null);
   const [msg, setMsg] = useState(null);
-  async function loadM() { try { setM(await get("/api/machine")); } catch { /* bleibt */ } }
-  useEffect(() => { loadM(); const t = setInterval(loadM, POLL_MS); return () => clearInterval(t); }, []);
+  async function loadM() { try { setM(await get("/api/machine")); } catch { /* stays */ } }
+  useEffect(() => { loadM(); const timer = setInterval(loadM, POLL_MS); return () => clearInterval(timer); }, []);
   const step = (v, set, d, lo, hi) => set(Math.max(lo, Math.min(hi, v + d)));
   const row = (label, v, set, lo, hi) => html`<div class="disp-row"><b class="grow">${label}</b><div class="disp-step">
     <button type="button" class="disp-btn" onClick=${() => step(v, set, -5, lo, hi)}>−5</button>
     <span class="v">${v} %</span>
     <button type="button" class="disp-btn" onClick=${() => step(v, set, 5, lo, hi)}>+5</button></div></div>`;
   const z = (d) => act(async () => { await post("/api/machine/zadjust", { delta: d }); await loadM(); });
-  const fmt = (v) => (v == null ? "–" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(3).replace(".", ",")}`);
+  const fmt = (v) => (v == null ? "–" : `${v >= 0 ? "+" : "−"}${fixed(Math.abs(v), 3)}`);
   const objects = m?.objects || [];
-  const tabs = [["speed", "Tempo & Fluss"], ["z", "Erste Schicht (Z)"], ["obj", `Objekte${objects.length ? ` (${objects.length})` : ""}`]];
-  return html`<div class="disp-over" role="dialog" aria-label="Nachjustieren">
+  const tabs = [["speed", t("Speed & flow")], ["z", t("First layer (Z)")], ["obj", objects.length ? t("Objects ({n})", { n: objects.length }) : t("Objects")]];
+  return html`<div class="disp-over" role="dialog" aria-label=${t("Tune")}>
     <section class="disp-dialog" style="height:100%">
       <div class="disp-tabs" role="tablist">${tabs.map(([k, l]) => html`<button type="button" role="tab" aria-selected=${tab === k}
         class=${tab === k ? "on" : ""} onClick=${() => setTab(k)}>${l}</button>`)}</div>
-      ${tab === "speed" && html`${row("Tempo", speed, setSpeed, 10, 300)}${row("Fluss", flow, setFlow, 50, 150)}
+      ${tab === "speed" && html`${row(t("Speed"), speed, setSpeed, 10, 300)}${row(t("Flow"), flow, setFlow, 50, 150)}
         <div style="flex:1"></div>
         <div class="disp-btns">
-          <button type="button" class="disp-btn acc" onClick=${() => { close(); act(() => post("/api/print/tune", { speed, flow })); }}>Übernehmen</button>
-          <button type="button" class="disp-btn" onClick=${close}>Zurück</button>
+          <button type="button" class="disp-btn acc" onClick=${() => { close(); act(() => post("/api/print/tune", { speed, flow })); }}>${t("Apply")}</button>
+          <button type="button" class="disp-btn" onClick=${close}>${t("Back")}</button>
         </div>`}
       ${tab === "z" && html`
-        <div class="disp-row"><div class="grow"><div class="disp-lbl">Z-Versatz jetzt</div>
+        <div class="disp-row"><div class="grow"><div class="disp-lbl">${t("Z offset now")}</div>
           <div class="disp-val">${fmt(m?.z_offset)}<small> mm</small></div></div>
-          <div class="grow"><div class="disp-lbl">in diesem Druck nachgestellt</div>
+          <div class="grow"><div class="disp-lbl">${t("adjusted in this print")}</div>
           <div class="disp-val">${fmt(m?.z_session)}<small> mm</small></div></div></div>
         <div class="disp-zsteps">
           ${[...(m?.z_steps || [0.01, 0.025, 0.05])].reverse().map((d) => html`<button type="button" class="disp-btn"
-            onClick=${() => z(-d)}>−${String(d).replace(".", ",")}<small> näher</small></button>`)}
+            onClick=${() => z(-d)}>−${num(d, 3)}<small> ${t("closer")}</small></button>`)}
           ${(m?.z_steps || [0.01, 0.025, 0.05]).map((d) => html`<button type="button" class="disp-btn"
-            onClick=${() => z(d)}>+${String(d).replace(".", ",")}<small> weiter weg</small></button>`)}
+            onClick=${() => z(d)}>+${num(d, 3)}<small> ${t("further away")}</small></button>`)}
         </div>
         ${msg && html`<div class="disp-alert warn">${msg}</div>`}
         <div style="flex:1"></div>
         <div class="disp-btns">
           <button type="button" class="disp-btn acc" disabled=${!m?.z_filament || !m?.z_session}
             onClick=${() => act(async () => { const r = await post("/api/machine-z/save", {});
-              setMsg(`${r.filament}: Z-Versatz ${fmt(r.old)} → ${fmt(r.new)} mm (gilt ab dem nächsten Druck)`); await loadM(); })}>
-            ${m?.z_filament ? `Für ${m.z_filament.name} übernehmen` : "Kein Filament geladen"}</button>
-          <button type="button" class="disp-btn" onClick=${close}>Fertig</button>
+              setMsg(t("{filament}: Z offset {old} → {new} mm (applies from the next print)", { filament: r.filament, old: fmt(r.old), new: fmt(r.new) })); await loadM(); })}>
+            ${m?.z_filament ? t("Apply for {name}", { name: m.z_filament.name }) : t("No filament loaded")}</button>
+          <button type="button" class="disp-btn" onClick=${close}>${t("Done")}</button>
         </div>`}
       ${tab === "obj" && html`
-        ${objects.length === 0 ? html`<div class="disp-empty">Die Datei hat keine benannten Objekte<br/>(in Orca „Objekte beschriften“ einschalten).</div>`
+        ${objects.length === 0 ? html`<div class="disp-empty">${t("The file has no named objects")}<br/>${t("(switch on “Label objects” in Orca).")}</div>`
           : html`<div class="disp-objs">${objects.map((o) => html`<button type="button" class=${"disp-btn" + (o.current ? " acc" : "")}
             disabled=${o.excluded} onClick=${() => act(withConfirm("/api/machine/exclude", { name: o.name }))}>
-            ${o.excluded ? "✕ " : ""}${o.name}${o.current ? " · druckt gerade" : ""}</button>`)}</div>`}
+            ${o.excluded ? "✕ " : ""}${o.name}${o.current ? " · " + t("printing now") : ""}</button>`)}</div>`}
         <div style="flex:1"></div>
-        <div class="disp-btns"><button type="button" class="disp-btn" onClick=${close}>Fertig</button></div>`}
+        <div class="disp-btns"><button type="button" class="disp-btn" onClick=${close}>${t("Done")}</button></div>`}
     </section>
   </div>`;
 }
 
-// ------------------------------------------------------------ Druck fertig
+// ------------------------------------------------------------ print finished
 function Done({ st, busy, setDlg }) {
   const p = st.printer || {};
   const ok = p.state === "complete";
   const file = p.file || "";
   const used = (st.uses || []).filter((u) => u.total_g);
   return html`<div class="disp-print">
-    <section class="disp-thumb" aria-label="Vorschau">
-      <div class="img"><img src=${`/api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt="Vorschaubild"
+    <section class="disp-thumb" aria-label=${t("Preview")}>
+      <div class="img"><img src=${`/api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt=${t("Preview image")}
         onError=${(e) => { e.target.style.display = "none"; }} /></div>
       <div class="file">${fileName(file)}</div>
     </section>
     <div class="disp-pcol">
-      <h2 class="disp-done" style=${`color:${ok ? "var(--ok-text)" : "var(--danger-text)"}`}>${ok ? "Druck fertig" : p.state === "cancelled" ? "Druck abgebrochen" : "Druck mit Fehler beendet"}</h2>
+      <h2 class="disp-done" style=${`color:${ok ? "var(--ok-text)" : "var(--danger-text)"}`}>${ok ? t("Print finished") : p.state === "cancelled" ? t("Print cancelled") : t("Print ended with an error")}</h2>
       <div class="disp-grid2" style="gap:8px">
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Druckzeit</div><div class="disp-val">${hm(p.print_duration_s)}</div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Fortschritt</div><div class="disp-val">${pct(p.progress)} %</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Print time")}</div><div class="disp-val">${hm(p.print_duration_s)}</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Progress")}</div><div class="disp-val">${pct(p.progress)} %</div></div>
       </div>
-      ${used.length > 0 && html`<div class="disp-lbl">Verbraucht</div>
+      ${used.length > 0 && html`<div class="disp-lbl">${t("Used up")}</div>
         ${used.map((u) => html`<div class="disp-row" style="gap:10px"><span class="disp-dot" style=${`background:${hex(u.color) || "var(--surface2)"}`}></span>
-          <span class="grow">Slot ${u.slot} · ${u.name}</span><b class="m">${String(u.total_g).replace(".", ",")} g</b></div>`)}`}
+          <span class="grow">${t("Slot {slot}", { slot: u.slot })} · ${u.name}</span><b class="m">${num(u.total_g, 1)} g</b></div>`)}`}
       <div style="flex:1"></div>
       <div class="disp-btns">
-        <button type="button" class="disp-btn acc" disabled=${busy || !file} onClick=${() => setDlg({ kind: "start", path: file })}>Erneut drucken …</button>
+        <button type="button" class="disp-btn acc" disabled=${busy || !file} onClick=${() => setDlg({ kind: "start", path: file })}>${t("Print again …")}</button>
       </div>
     </div>
   </div>`;
 }
 
-// ------------------------------------------------------------ Dateien
+// ------------------------------------------------------------ files
 function Files({ busy, setDlg }) {
   const [files, setFiles] = useState(null);
   const [err, setErr] = useState(null);
   const [pageNo, setPageNo] = useState(0);
   useEffect(() => { get("/api/files").then((r) => setFiles(r.files)).catch((e) => setErr(e.message)); }, []);
   if (err) return html`<div class="disp-empty">${err}</div>`;
-  if (!files) return html`<div class="disp-empty">Lade Dateien …</div>`;
-  if (!files.length) return html`<div class="disp-empty">Keine Druckdateien am Drucker.</div>`;
+  if (!files) return html`<div class="disp-empty">${t("Loading files …")}</div>`;
+  if (!files.length) return html`<div class="disp-empty">${t("No print files on the printer.")}</div>`;
   const pages = Math.ceil(files.length / PAGE_SIZE);
   const shown = files.slice(pageNo * PAGE_SIZE, pageNo * PAGE_SIZE + PAGE_SIZE);
   return html`<div class="disp-files">
@@ -620,13 +619,13 @@ function Files({ busy, setDlg }) {
       onClick=${() => setDlg({ kind: "start", path: f.path })}>
       <span class="th">${f.thumb && html`<img src=${`/api/files/thumb?path=${encodeURIComponent(f.path)}`} alt="" />`}</span>
       <span class="t"><b>${fileName(f.path)}</b><span>${[f.est_s ? hm(f.est_s) + " h" : null, f.weight_g ? Math.round(f.weight_g) + " g" : null,
-        f.modified ? new Date(f.modified * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : null].filter(Boolean).join(" · ")}</span></span>
-      <span class="dots">${f.tools.map((t) => html`<span class="disp-dot" style=${`width:18px;height:18px;background:${hex(t.color) || "var(--surface2)"}`}></span>`)}</span>
+        f.modified ? new Date(f.modified * 1000).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }) : null].filter(Boolean).join(" · ")}</span></span>
+      <span class="dots">${f.tools.map((tool) => html`<span class="disp-dot" style=${`width:18px;height:18px;background:${hex(tool.color) || "var(--surface2)"}`}></span>`)}</span>
     </button>`)}</div>
     <div class="disp-pager">
-      <button type="button" class="disp-btn" disabled=${pageNo === 0} aria-label="Seite zurück" onClick=${() => setPageNo(pageNo - 1)}>▲</button>
+      <button type="button" class="disp-btn" disabled=${pageNo === 0} aria-label=${t("Previous page")} onClick=${() => setPageNo(pageNo - 1)}>▲</button>
       <span class="disp-note m">${pageNo + 1}/${pages}</span>
-      <button type="button" class="disp-btn" disabled=${pageNo >= pages - 1} aria-label="Seite vor" onClick=${() => setPageNo(pageNo + 1)}>▼</button>
+      <button type="button" class="disp-btn" disabled=${pageNo >= pages - 1} aria-label=${t("Next page")} onClick=${() => setPageNo(pageNo + 1)}>▼</button>
     </div>
   </div>`;
 }
@@ -635,30 +634,30 @@ function StartPrint({ path, close, act }) {
   const [c, setC] = useState(null);
   const [err, setErr] = useState(null);
   useEffect(() => { get("/api/files/check?path=" + encodeURIComponent(path)).then(setC).catch((e) => setErr(e.message)); }, [path]);
-  return html`<div class="disp-over" role="dialog" aria-label="Druck starten">
+  return html`<div class="disp-over" role="dialog" aria-label=${t("Start print")}>
     <section class="disp-dialog" style="height:100%">
       <div class="disp-split">
         <div class="disp-thumb" style="width:200px">
-          <div class="img" style="height:200px"><img src=${`/api/files/thumb?path=${encodeURIComponent(path)}`} alt="Vorschaubild"
+          <div class="img" style="height:200px"><img src=${`/api/files/thumb?path=${encodeURIComponent(path)}`} alt=${t("Preview image")}
             onError=${(e) => { e.target.style.display = "none"; }} /></div>
           <div class="file">${fileName(path)}</div>
           ${c && html`<div class="disp-note m">${[c.est_s ? hm(c.est_s) + " h" : null, c.weight_g ? Math.round(c.weight_g) + " g" : null].filter(Boolean).join(" · ")}</div>`}
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
-          <h2>Drucken?</h2>
+          <h2>${t("Print?")}</h2>
           ${err && html`<div class="disp-alert">${err}</div>`}
-          ${!c && !err && html`<div class="disp-note">Prüfe Slots …</div>`}
-          ${c && c.tools.map((t) => html`<div class="disp-tile disp-row" style="gap:10px;padding:8px 12px">
-            <span class="disp-dot" style=${`background:${hex(t.color) || "var(--surface2)"}`} title="Datei"></span>
+          ${!c && !err && html`<div class="disp-note">${t("Checking slots …")}</div>`}
+          ${c && c.tools.map((tool) => html`<div class="disp-tile disp-row" style="gap:10px;padding:8px 12px">
+            <span class="disp-dot" style=${`background:${hex(tool.color) || "var(--surface2)"}`} title=${t("File")}></span>
             <span class="disp-note">→</span>
-            <span class="disp-dot" style=${`background:${hex(t.have_color) || "var(--surface2)"}`} title="Slot"></span>
-            <span class="grow disp-tool"><span><b>Slot ${t.slot}</b> · ${t.have_name || "keine Spule"}</span>
-              <span class=${t.hints.length ? "warn" : "ok"}>${t.hints.length ? t.hints.join(" · ") : `passt${t.type ? ` (Datei: ${t.type})` : ""}`}</span></span></div>`)}
+            <span class="disp-dot" style=${`background:${hex(tool.have_color) || "var(--surface2)"}`} title="Slot"></span>
+            <span class="grow disp-tool"><span><b>${t("Slot {slot}", { slot: tool.slot })}</b> · ${tool.have_name || t("no spool")}</span>
+              <span class=${tool.hints.length ? "warn" : "ok"}>${tool.hints.length ? tool.hints.join(" · ") : tool.type ? t("fits (file: {type})", { type: tool.type }) : t("fits")}</span></span></div>`)}
           <div style="flex:1"></div>
           <div class="disp-btns">
             <button type="button" class=${"disp-btn " + (c && !c.ok ? "danger" : "acc")} disabled=${!c}
-              onClick=${() => { close(); act(() => post("/api/files/start", { path, confirm: true })); }}>${c && !c.ok ? "Trotzdem drucken" : "Drucken"}</button>
-            <button type="button" class="disp-btn" onClick=${close}>Zurück</button>
+              onClick=${() => { close(); act(() => post("/api/files/start", { path, confirm: true })); }}>${c && !c.ok ? t("Print anyway") : t("Print")}</button>
+            <button type="button" class="disp-btn" onClick=${close}>${t("Back")}</button>
           </div>
         </div>
       </div>
@@ -676,32 +675,32 @@ function System({ st, busy, act, confirm }) {
   const printing = PRINTING.has(st.printer?.state);
   const colour = { error: "var(--danger-text)", warn: "var(--accent-text)" };
   return html`
-    <div class="disp-tabs" role="tablist">${[["msg", `Meldungen${msgs.length ? ` (${msgs.length})` : ""}`], ["info", "Info & Neustart"]].map(([k, l]) =>
+    <div class="disp-tabs" role="tablist">${[["msg", msgs.length ? t("Messages ({n})", { n: msgs.length }) : t("Messages")], ["info", t("Info & restart")]].map(([k, l]) =>
       html`<button type="button" role="tab" aria-selected=${tab === k} class=${tab === k ? "on" : ""} onClick=${() => setTab(k)}>${l}</button>`)}</div>
-    ${tab === "msg" && html`<div class="disp-msgs">${msgs.length === 0 ? html`<div class="disp-empty">Keine Meldungen.</div>`
+    ${tab === "msg" && html`<div class="disp-msgs">${msgs.length === 0 ? html`<div class="disp-empty">${t("No messages.")}</div>`
       : msgs.slice(0, 7).map((m) => html`<div class="disp-tile" style=${`padding:7px 12px;color:${colour[m.level] || "var(--text)"}`}>${m.text}</div>`)}
-      ${msgs.length > 7 && html`<div class="disp-note">… und ${msgs.length - 7} weitere (Web/App)</div>`}</div>`}
+      ${msgs.length > 7 && html`<div class="disp-note">${t("… and {n} more (web/app)", { n: msgs.length - 7 })}</div>`}</div>`}
     ${tab === "info" && html`
       <div class="disp-grid2" style="gap:8px">
-        <div class="disp-tile disp-mini"><div class="disp-lbl">IP des Pi</div><div class="disp-val" style="font-size:17px">${(info?.ips || []).join(", ") || "–"}</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("IP of the Pi")}</div><div class="disp-val" style="font-size:17px">${(info?.ips || []).join(", ") || "–"}</div></div>
         <div class="disp-tile disp-mini"><div class="disp-lbl">Klipper</div><div class="disp-val" style="font-size:17px">${info?.klippy_state || "–"}</div></div>
         <div class="disp-tile disp-mini"><div class="disp-lbl">Bridge</div><div class="disp-val" style="font-size:17px">${info?.bridge || st.version || "–"}</div></div>
-        <div class="disp-tile disp-mini"><div class="disp-lbl">Klipper-Version</div><div class="disp-val" style="font-size:13px">${info?.klipper || "–"}</div></div>
+        <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Klipper version")}</div><div class="disp-val" style="font-size:13px">${info?.klipper || "–"}</div></div>
       </div>
       ${usb?.available && html`<${UsbTile} usb=${usb} />`}
       <div style="flex:1"></div>
       <div class="disp-btns">
-        <button type="button" class="disp-btn" disabled=${busy || printing} onClick=${() => confirm({ title: "Klipper neu laden?", ok: "Neu laden",
-          text: "Dauert einige Sekunden; die Achsen müssen danach neu gehomt werden.", action: () => post("/api/print/firmware_restart", { confirm: true }) })}>Klipper neu laden</button>
-        <button type="button" class="disp-btn" disabled=${busy || printing} onClick=${() => confirm({ title: "Pi neu starten?", ok: "Neu starten",
-          text: "Klipper und das Display sind etwa eine Minute weg.", action: () => post("/api/system/reboot", { confirm: true }) })}>Pi neu starten</button>
-        <button type="button" class="disp-btn danger" disabled=${busy || printing} onClick=${() => confirm({ title: "Pi herunterfahren?", ok: "Herunterfahren", danger: true,
-          text: "Danach erst den Strom trennen. Wieder an geht nur über Strom aus/an am Pi.", action: () => post("/api/system/shutdown", { confirm: true }) })}>Pi herunterfahren</button>
+        <button type="button" class="disp-btn" disabled=${busy || printing} onClick=${() => confirm({ title: t("Reload Klipper?"), ok: t("Reload"),
+          text: t("Takes a few seconds; the axes must be homed again afterwards."), action: () => post("/api/print/firmware_restart", { confirm: true }) })}>${t("Reload Klipper")}</button>
+        <button type="button" class="disp-btn" disabled=${busy || printing} onClick=${() => confirm({ title: t("Restart the Pi?"), ok: t("Restart"),
+          text: t("Klipper and the display are gone for about a minute."), action: () => post("/api/system/reboot", { confirm: true }) })}>${t("Restart the Pi")}</button>
+        <button type="button" class="disp-btn danger" disabled=${busy || printing} onClick=${() => confirm({ title: t("Shut down the Pi?"), ok: t("Shut down"), danger: true,
+          text: t("Only cut the power afterwards. It only comes back on by power off/on at the Pi."), action: () => post("/api/system/shutdown", { confirm: true }) })}>${t("Shut down the Pi")}</button>
       </div>
-      ${printing && html`<div class="disp-note">Während eines Drucks gesperrt.</div>`}`}`;
+      ${printing && html`<div class="disp-note">${t("Locked during a print.")}</div>`}`}`;
 }
 
-// ------------------------------------------------------------ Ueberlagerungen: Rueckfrage eines Makros, Klipper-Fehler
+// ------------------------------------------------------------ overlays: macro prompt, Klipper error
 function Prompt({ st, busy, act }) {
   const q = st.prompt;
   const answer = (id) => act(() => post("/api/prompt", { id }));
@@ -709,8 +708,8 @@ function Prompt({ st, busy, act }) {
   return html`<div class="disp-over" role="alertdialog" aria-label=${q.title}>
     <section class="disp-dialog">
       <div class="disp-row"><h2 class="grow">${q.title}</h2>
-        <button type="button" class="disp-btn" aria-label="Schließen" style="min-width:56px" onClick=${() => act(() => post("/api/prompt/close", {}))}>✕</button></div>
-      ${q.text.map((t) => html`<p>${t}</p>`)}
+        <button type="button" class="disp-btn" aria-label=${t("Close")} style="min-width:56px" onClick=${() => act(() => post("/api/prompt/close", {}))}>✕</button></div>
+      ${q.text.map((line) => html`<p>${line}</p>`)}
       ${q.rows.map((row) => html`<div class="disp-btns">${row.map((b) => html`<button type="button" class=${"disp-btn" + style(b.style)}
         disabled=${busy} onClick=${() => answer(b.id)}>${b.label}</button>`)}</div>`)}
       ${q.footer.length > 0 && html`<div class="disp-btns">${q.footer.map((b) => html`<button type="button" class=${"disp-btn" + style(b.style)}
@@ -719,7 +718,7 @@ function Prompt({ st, busy, act }) {
   </div>`;
 }
 
-// USB-Tunnel Drucker <-> Pi (Waechter kobra-usb-watch): Zustand alle 10 s, solange die Seite offen ist
+// USB tunnel printer <-> Pi (watchdog kobra-usb-watch): state every 10 s while the page is open
 function useUsb() {
   const [usb, setUsb] = useState(null);
   useEffect(() => {
@@ -735,9 +734,9 @@ const USB_COLOUR = { ok: "var(--ok-text)", warn: "var(--accent-text)", bad: "var
 
 function UsbTile({ usb }) {
   const last = usb.events?.length ? usb.events[usb.events.length - 1] : null;
-  const at = last ? new Date(last.at * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
+  const at = last ? new Date(last.at * 1000).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "";
   return html`<div class="disp-tile disp-mini" style="margin-top:8px">
-    <div class="disp-lbl">USB-Tunnel Drucker ↔ Pi</div>
+    <div class="disp-lbl">${t("USB tunnel printer ↔ Pi")}</div>
     <div class="disp-val" style=${`font-size:17px;color:${USB_COLOUR[usb.state] || "var(--text)"}`}>${usb.detail}</div>
     ${last && html`<div class="disp-note" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${at} · ${last.text}</div>`}
   </div>`;
@@ -747,14 +746,14 @@ function KlippyDown({ busy, confirm }) {
   const [info, setInfo] = useState(null);
   const usb = useUsb();
   useEffect(() => { get("/api/system").then(setInfo).catch(() => setInfo(null)); }, []);
-  return html`<div class="disp-over" role="alertdialog" aria-label="Klipper nicht bereit">
+  return html`<div class="disp-over" role="alertdialog" aria-label=${t("Klipper not ready")}>
     <section class="disp-dialog danger">
-      <h2>Klipper ist nicht bereit</h2>
-      <p class="muted" style="white-space:pre-line;max-height:150px;overflow:hidden">${info?.klippy_message || "Not-Aus, Fehler oder Verbindung zu den Platinen weg."}</p>
-      ${usb?.available && html`<p style=${`color:${USB_COLOUR[usb.state] || "var(--text)"}`}>USB-Tunnel: ${usb.detail}${usb.state === "warn" && usb.switches?.auto_restart ? " – Klipper wird danach selbst neu geladen" : ""}</p>`}
+      <h2>${t("Klipper is not ready")}</h2>
+      <p class="muted" style="white-space:pre-line;max-height:150px;overflow:hidden">${info?.klippy_message || t("Emergency stop, error or connection to the boards lost.")}</p>
+      ${usb?.available && html`<p style=${`color:${USB_COLOUR[usb.state] || "var(--text)"}`}>${t("USB tunnel: {detail}", { detail: usb.detail })}${usb.state === "warn" && usb.switches?.auto_restart ? " – " + t("Klipper is reloaded by itself afterwards") : ""}</p>`}
       <div class="disp-btns">
-        <button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => confirm({ title: "Klipper neu laden?", ok: "Neu laden",
-          text: "Die Achsen müssen danach neu gehomt werden.", action: () => post("/api/print/firmware_restart", { confirm: true }) })}>Klipper neu laden</button>
+        <button type="button" class="disp-btn acc" disabled=${busy} onClick=${() => confirm({ title: t("Reload Klipper?"), ok: t("Reload"),
+          text: t("The axes must be homed again afterwards."), action: () => post("/api/print/firmware_restart", { confirm: true }) })}>${t("Reload Klipper")}</button>
       </div>
     </section>
   </div>`;

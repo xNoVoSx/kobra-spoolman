@@ -1,9 +1,10 @@
-// Einstieg: Rahmen (Seitenleiste / Leiste unten), Seitenwahl ueber #/..., Abfragen und Tastatur.
+// Entry: frame (side rail / bottom bar), page choice through #/..., polling and keyboard.
 
 import { html, render, useEffect, useState } from "../vendor/preact-htm.module.js";
 import { auth, get, setUnauthorizedHandler } from "./api.js";
 import { ContextMenu, Toasts } from "./components.js";
 import { Dialogs } from "./dialogs.js";
+import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { AcePage, DevicesPage, FilamentHub, JobsPage, Overview, PairPage, SettingsPage, Ultra, filamentView } from "./pages.js";
 import { useFilteredSpools } from "./spools.js";
@@ -13,20 +14,22 @@ import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set,
 import { cls, printerLook } from "./util.js";
 
 const PAGES = {
-  "": { title: "Übersicht", icon: "overview", C: Overview },
-  filament: { title: "Filament", icon: "spool", C: FilamentHub, fill: true },
-  drucke: { title: "Drucke", icon: "clock", C: JobsPage },
+  "": { title: t("Overview"), icon: "overview", C: Overview },
+  filament: { title: t("Filament"), icon: "spool", C: FilamentHub, fill: true },
+  prints: { title: t("Prints"), icon: "clock", C: JobsPage },
   ace: { title: "ACE", icon: "dryer", C: AcePage },
-  ki: { title: "KI", icon: "eye", C: AiPage },
-  terminal: { title: "Terminal", icon: "terminal", C: TerminalPage, fill: true },
-  logs: { title: "Logs", icon: "log", C: LogsPage, fill: true },
-  geraete: { title: "Geräte", icon: "phone", C: DevicesPage, bottom: true },
-  einstellungen: { title: "Einstellungen", icon: "sliders", C: SettingsPage, bottom: true },
+  ai: { title: t("AI"), icon: "eye", C: AiPage },
+  terminal: { title: t("Terminal"), icon: "terminal", C: TerminalPage, fill: true },
+  logs: { title: t("Logs"), icon: "log", C: LogsPage, fill: true },
+  devices: { title: t("Devices"), icon: "phone", C: DevicesPage, bottom: true },
+  settings: { title: t("Settings"), icon: "sliders", C: SettingsPage, bottom: true },
 };
-const PHONE_TABS = [["", "Übersicht", "overview"], ["filament", "Filament", "spool"], ["drucke", "Drucke", "clock"], ["mehr", "Mehr", "more"]];
+const PHONE_TABS = [["", t("Overview"), "overview"], ["filament", t("Filament"), "spool"], ["prints", t("Prints"), "clock"],
+  ["more", t("More"), "more"]];
 
-// alte Adressen: #/regal = Spulen, #/filamente = Sorten (Unterseite liest FilamentHub)
-const ALIASES = { trockner: "ace", regal: "filament", filamente: "filament" };
+// old URLs (bookmarks): German page names before 3.12, #/regal = spools, #/filamente = filaments (FilamentHub reads it)
+const ALIASES = { trockner: "ace", regal: "filament", filamente: "filament", drucke: "prints", ki: "ai", geraete: "devices",
+  einstellungen: "settings", mehr: "more" };
 const route = () => { const r = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] || ""; return ALIASES[r] || r; };
 
 function useRoute() {
@@ -50,16 +53,16 @@ function useWidth() {
 
 function MorePage() {
   return html`<div class="col">
-    <h1 class="h1">Mehr</h1>
-    ${["ace", "ki", "terminal", "logs", "geraete", "einstellungen"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
+    <h1 class="h1">${t("More")}</h1>
+    ${["ace", "ai", "terminal", "logs", "devices", "settings"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
   </div>`;
 }
 
 function Rail({ page }) {
   const open = (S.st?.usage?.open || []).length;
   const link = (k) => html`<a href=${"#/" + k} class=${page === k ? "on" : ""} aria-current=${page === k ? "page" : null} title=${PAGES[k].title}>
-    <${Icon} name=${PAGES[k].icon} /><span>${PAGES[k].title}</span>${k === "drucke" && open > 0 && html`<b class="badge">${open}</b>`}</a>`;
-  return html`<nav class="rail" aria-label="Hauptmenü">
+    <${Icon} name=${PAGES[k].icon} /><span>${PAGES[k].title}</span>${k === "prints" && open > 0 && html`<b class="badge">${open}</b>`}</a>`;
+  return html`<nav class="rail" aria-label=${t("Main menu")}>
     <div class="brand"><span class="logo"><${Icon} name="spool" /></span><span class="g" style="font-weight:700;font-size:18px">Kobra Spoolman</span></div>
     ${Object.keys(PAGES).filter((k) => !PAGES[k].bottom).map(link)}
     <span class="grow"></span>
@@ -72,33 +75,33 @@ function TopBar({ page, ultra }) {
   const look = printerLook(S.st?.printer);
   const onSearch = (e) => {
     set({ q: e.target.value });
-    if (!ultra && page !== "filament") location.hash = "#/filament/spulen";
+    if (!ultra && page !== "filament") location.hash = "#/filament/spools";
   };
   return html`<header class="top">
-    <h1 class="h1">${ultra && page === "" ? "Kobra Spoolman" : (PAGES[page] || { title: "Mehr" }).title}</h1>
+    <h1 class="h1">${ultra && page === "" ? "Kobra Spoolman" : (PAGES[page] || { title: t("More") }).title}</h1>
     <div class="status-chips hide-phone">
       <span class=${cls("chip", look.cls)}><span class="dot" style=${{ background: look.dot, width: "8px", height: "8px" }}></span>Kobra S1 · ${look.label}</span>
-      ${S.st && !S.st.spoolman && html`<span class="chip bad">Spoolman getrennt</span>`}
+      ${S.st && !S.st.spoolman && html`<span class="chip bad">${t("Spoolman disconnected")}</span>`}
       ${S.stErr && html`<span class="chip bad">${S.stErr}</span>`}
-      ${!S.me && html`<button class="chip warn" onClick=${() => set({ pairing: true })}>nur ansehen – koppeln</button>`}
+      ${!S.me && html`<button class="chip warn" onClick=${() => set({ pairing: true })}>${t("view only – pair")}</button>`}
     </div>
     <span class="grow"></span>
     <label class="search"><${Icon} name="search" small />
-      <input id="search" aria-label="Spulen suchen" placeholder="Spule suchen …" value=${S.q || ""} onInput=${onSearch}
+      <input id="search" aria-label=${t("Search spools")} placeholder=${t("Search spool …")} value=${S.q || ""} onInput=${onSearch}
              onKeyDown=${(e) => e.key === "Escape" && (set({ q: "" }), e.target.blur())} /><kbd>/</kbd></label>
-    <button class="btn acc" onClick=${guard(() => openDialog("newSpool"))}><${Icon} name="plus" small /><span class="hide-phone">Neue Spule</span></button>
+    <button class="btn acc" onClick=${guard(() => openDialog("newSpool"))}><${Icon} name="plus" small /><span class="hide-phone">${t("New spool")}</span></button>
   </header>`;
 }
 
 function BottomNav({ page }) {
   const open = (S.st?.usage?.open || []).length;
-  const cur = PHONE_TABS.some(([k]) => k === page) ? page : "mehr";
-  return html`<nav class="bottomnav" aria-label="Hauptmenü">
-    ${PHONE_TABS.map(([k, l, i]) => html`<a href=${"#/" + k} class=${cur === k ? "on" : ""} aria-current=${cur === k ? "page" : null}><${Icon} name=${i} />${l}${k === "drucke" && open > 0 && html`<b class="badge">${open}</b>`}</a>`)}
+  const cur = PHONE_TABS.some(([k]) => k === page) ? page : "more";
+  return html`<nav class="bottomnav" aria-label=${t("Main menu")}>
+    ${PHONE_TABS.map(([k, l, i]) => html`<a href=${"#/" + k} class=${cur === k ? "on" : ""} aria-current=${cur === k ? "page" : null}><${Icon} name=${i} />${l}${k === "prints" && open > 0 && html`<b class="badge">${open}</b>`}</a>`)}
   </nav>`;
 }
 
-/** Tastatur: / sucht, n neue Spule, Pfeile waehlen im Regal, Escape schliesst. */
+/** Keyboard: / searches, n new spool, arrows select on the shelf, Escape closes. */
 function useKeys(page, list, ultra) {
   useEffect(() => {
     const on = (e) => {
@@ -112,7 +115,7 @@ function useKeys(page, list, ultra) {
       if (typing || e.ctrlKey || e.metaKey || e.altKey || S.dialog) return;
       if (e.key === "/") { e.preventDefault(); document.getElementById("search")?.focus(); }
       else if (e.key === "n") { e.preventDefault(); guard(() => openDialog("newSpool"))(); }
-      else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && page === "filament" && filamentView() === "spulen") {
+      else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && page === "filament" && filamentView() === "spools") {
         e.preventDefault();
         if (!list.length) return;
         const i = list.findIndex((s) => s.spool_id === S.sel);
@@ -133,7 +136,7 @@ function App() {
   const list = useFilteredSpools();
   useKeys(page, list, ultra);
 
-  // Abfragen: Zustand alle 3 s (nur die Bridge, nie der Drucker direkt), Spulen/Drucke seltener
+  // polling: state every 3 s (only the bridge, never the printer directly), spools/prints less often
   useEffect(() => {
     loadState(); loadSpools(); loadJobs(); loadHealth();
     const a = setInterval(() => { if (!document.hidden) loadState(); }, 3000);
@@ -143,16 +146,16 @@ function App() {
     document.addEventListener("visibilitychange", vis);
     return () => { clearInterval(a); clearInterval(b); clearInterval(c); document.removeEventListener("visibilitychange", vis); };
   }, []);
-  // Druckende -> Drucke und Spulen neu
+  // print end -> prints and spools again
   const pstate = S.st?.printer?.state;
   useEffect(() => { if (pstate) { loadJobs(); loadSpools(); } }, [pstate]);
 
-  if (S.me === undefined) return html`<div class="boot">Kobra Spoolman lädt …</div>`;
+  if (S.me === undefined) return html`<div class="boot">${t("Kobra Spoolman is loading …")}</div>`;
   if (S.pairing || (!S.me && !auth.viewOnly)) {
     return html`<${PairPage} reason=${S.pairReason} /><${Toasts} />`;
   }
 
-  const P = page === "mehr" ? { C: MorePage } : PAGES[page] || PAGES[""];
+  const P = page === "more" ? { C: MorePage } : PAGES[page] || PAGES[""];
   const isUltraOverview = ultra && page === "";
   const C = isUltraOverview ? Ultra : P.C;
   return html`
@@ -167,19 +170,19 @@ function App() {
   <${Dialogs} /><${ContextMenu} /><${Toasts} />`;
 }
 
-// ------------------------------------------------------------ Start: Schluessel pruefen (einmal koppeln, danach nie wieder)
+// ------------------------------------------------------------ start: check the key (pair once, then never again)
 async function checkAuth() {
   try {
     const st = await get("/api/auth/status");
-    const reason = auth.key && !st.device ? "Der gespeicherte Schlüssel gilt nicht mehr (Gerät entfernt?). Bitte neu koppeln." : null;
+    const reason = auth.key && !st.device ? t("The saved key is no longer valid (device removed?). Please pair again.") : null;
     if (reason) auth.clear();
     set({ me: st.device || null, setupRequired: st.setup_required, pairReason: reason, pairing: !!reason });
   } catch {
-    set({ me: null });   // Bridge nicht erreichbar: Kopplungsseite bzw. Anzeige meldet es
+    set({ me: null });   // bridge not reachable: the pairing page or the view reports it
   }
 }
 setUnauthorizedHandler(() => {
-  if (S.me) { auth.clear(); set({ me: null, pairing: true, pairReason: "Dieser Browser ist nicht mehr gekoppelt. Bitte neu koppeln." }); }
+  if (S.me) { auth.clear(); set({ me: null, pairing: true, pairReason: t("This browser is no longer paired. Please pair again.") }); }
   else set({ pairing: true });
 });
 

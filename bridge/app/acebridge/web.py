@@ -98,6 +98,7 @@ def build_app(bridge: "Bridge") -> web.Application:
                 "telemetry_keep": cfg.telemetry_keep, "job_history": cfg.job_history,
                 "slot_location_prefix": cfg.slot_location_prefix, "shelf_location": cfg.shelf_location,
                 "template_vendor": cfg.template_vendor, "data_dir": cfg.data_dir, "log_level": cfg.log_level,
+                "language": i18n.default_lang(),
             },
             "dry_run": bridge.cfg.dry_run,
             "moonraker": {"url": bridge.cfg.moonraker_url, "connected": bridge.moon.connected,

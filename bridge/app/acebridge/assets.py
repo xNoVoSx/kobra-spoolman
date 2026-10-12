@@ -12,8 +12,11 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 
 from aiohttp import web
+
+from . import i18n
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 IMMUTABLE = "public, max-age=31536000, immutable"
@@ -39,6 +42,8 @@ def index_html(tag: str = TAG, page: str = "index.html") -> str:
     with open(os.path.join(STATIC, page), encoding="utf-8") as fh:
         html = fh.read()
     html = html.replace('"static/', f'"assets/{tag}/')
+    # the bridge default language; a device's own choice (localStorage) wins in static/js/i18n.js
+    html = re.sub(r'<html lang="[a-z]+">', f'<html lang="{i18n.default_lang()}">', html, count=1)
     return html.replace("<head>", f'<head>\n<meta name="ui-tag" content="{tag}">', 1)
 
 

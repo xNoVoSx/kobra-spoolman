@@ -1,8 +1,9 @@
-// Karte "ACE": Einstellungen des ACE-Treibers (ACEPRO), die das Druckerdisplay nicht zeigt - Endlosspule und ihr
-// Modus. Die Spuelmengen kommen aus Orca (Spuelmengen-Dialog, der Filamentwechsel-G-Code gibt sie an den Treiber).
+// Card "ACE": settings of the ACE driver (ACEPRO) the printer display does not show - endless spool and its mode.
+// Purge lengths come from Orca (flushing volumes dialog, the change-filament G-code gives them to the driver).
 
 import { html, useState } from "../vendor/preact-htm.module.js";
 import { post } from "./api.js";
+import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { S, guard, loadState, toast } from "./store.js";
 import { cls } from "./util.js";
@@ -15,7 +16,7 @@ export function Toggle({ label, hint, value, disabled, onChange }) {
   </label>`;
 }
 
-const MODE_LABEL = { exact: "Gleiche Farbe", material: "Gleiches Material", next: "Nächste Spule" };
+const MODE_LABEL = { exact: t("Same colour"), material: t("Same material"), next: t("Next spool") };
 
 export function AceCard({ compact }) {
   const a = S.st?.ace;
@@ -23,15 +24,15 @@ export function AceCard({ compact }) {
 
   if (!a) return null;
   if (!a.present) {
-    return html`<section class="card pad col" aria-label="ACE"><div class="row"><h2 class="h2 grow">ACE</h2><span class="chip">nicht verbunden</span></div>
-      <div class="small muted">Der ACE-Treiber meldet keine verbundene ACE.</div></section>`;
+    return html`<section class="card pad col" aria-label="ACE"><div class="row"><h2 class="h2 grow">ACE</h2><span class="chip">${t("not connected")}</span></div>
+      <div class="small muted">${t("The ACE driver reports no connected ACE.")}</div></section>`;
   }
 
   const setOption = guard(async (k, v) => {
     setBusy(true);
     try {
       await post("/api/ace/options", { [k]: v });
-      toast("ACE: gespeichert", "ok");
+      toast(t("ACE: saved"), "ok");
       await loadState();
     } catch (e) {
       if (e.status !== 401 && e.status !== 403) toast(e.message, "bad");
@@ -40,14 +41,14 @@ export function AceCard({ compact }) {
   const modes = a.endless_modes || {};
 
   return html`
-  <section class="card pad col" aria-label="ACE-Einstellungen">
+  <section class="card pad col" aria-label=${t("ACE settings")}>
     <div class="row"><span style="color:var(--accent)"><${Icon} name="sliders" /></span><h2 class="h2 grow">ACE</h2>
       <span class="small faint m">${a.firmware || ""}</span></div>
-    <${Toggle} label="Endlosspule" hint="Ist eine Spule leer, lädt die ACE eine passende andere und druckt weiter"
+    <${Toggle} label=${t("Endless spool")} hint=${t("If a spool runs empty, the ACE loads a matching other one and keeps printing")}
                value=${a.endless_spool} disabled=${busy || a.endless_spool == null} onChange=${(v) => setOption("endless_spool", v)} />
     ${a.endless_spool && html`
       <div class="col" style="gap:6px">
-        <div class="small muted">Welche Spule passt?</div>
+        <div class="small muted">${t("Which spool matches?")}</div>
         <div class="row wrap" style="gap:8px">
           ${Object.keys(modes).map((k) => html`
             <button class=${cls("chip", a.endless_mode === k && "on")} disabled=${busy} title=${modes[k]}
@@ -56,8 +57,8 @@ export function AceCard({ compact }) {
       </div>`}
     ${!compact && html`
       <hr class="sep" />
-      <div class="small muted">Spülmengen pro Farbwechsel stellst du in Orca ein (Spülmengen-Dialog neben „Filament“) –
-        der Filamentwechsel-G-Code des Druckerprofils gibt sie an die ACE weiter. ${a.model ? html`<span class="faint">ACE: ${a.model}</span>` : null}</div>`}
-    ${compact && html`<a href="#/ace" class="small">Mehr zur ACE →</a>`}
+      <div class="small muted">${t("Purge lengths per colour change are set in Orca (flushing volumes dialog next to “Filament”) – the printer profile's change-filament G-code passes them to the ACE.")}
+        ${a.model ? html`<span class="faint">ACE: ${a.model}</span>` : null}</div>`}
+    ${compact && html`<a href="#/ace" class="small">${t("More about the ACE →")}</a>`}
   </section>`;
 }
