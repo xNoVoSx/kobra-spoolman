@@ -2,7 +2,10 @@
 
 Klipper: M220, M221, M106, SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1, M104, M140. PAUSE/RESUME/CANCEL_PRINT
 are the macros of the printer config. After an emergency stop or a shutdown FIRMWARE_RESTART reloads Klipper (action
-"firmware_restart"). Everything goes through the one Moonraker connection and appears with its sender in the console.
+"firmware_restart"). Rinkhals (GoKlipper, checked on a Kobra S1 on 01.10.2026): the same commands work, CANCEL_PRINT is
+passed on to Anycubic's own stop; Rinkhals blocks FIRMWARE_RESTART (GoKlipper would hang) - after an emergency stop only
+switching the printer off and on helps. Everything goes through the one Moonraker connection and appears with its
+sender in the console.
 """
 
 from __future__ import annotations
@@ -92,17 +95,20 @@ ACTIONS = {
 }
 
 
-def check_action(action: str, state: Optional[str], confirmed: bool) -> Tuple[str, str]:
+def check_action(action: str, state: Optional[str], confirmed: bool, platform: str = "klipper") -> Tuple[str, str]:
     if action not in ACTIONS:
         raise ControlError(404, tr("Unknown action"))
+    if action == "firmware_restart" and platform == "rinkhals":
+        raise ControlError(409, tr("Not possible with Rinkhals – switch the printer off and on"))
     method, label, states, needs_confirm = ACTIONS[action]
     if states is not None and state not in states:
         raise ControlError(409, {"pause": tr("No print is running"), "resume": tr("The print is not paused"),
                                  "cancel": tr("No print is running"),
                                  "firmware_restart": tr("A print is running – reloading would cancel it")}[action])
     if needs_confirm and not confirmed:
-        raise ControlError(409, {"emergency_stop": tr("Emergency stop: everything stops at once, reload Klipper "
-                                                      "afterwards"),
+        raise ControlError(409, {"emergency_stop": tr("Emergency stop: everything stops at once, then switch the printer "
+                                                      "off and on") if platform == "rinkhals"
+                                 else tr("Emergency stop: everything stops at once, reload Klipper afterwards"),
                                  "cancel": tr("Really cancel the print?"),
                                  "firmware_restart": tr("Reload Klipper? (takes a few seconds)")}[action],
                            confirm=True)

@@ -64,6 +64,11 @@ fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Uni
     var ask by remember { mutableStateOf<String?>(null) }
     if (p.state == "offline") {
         if (!p.moonrakerConnected || p.klippyReady) return
+        if (!p.canRestart) {
+            // Rinkhals blocks reloading (GoKlipper would hang): only switching the printer off and on helps
+            Text(tr("The printer is not ready – switch it off and on."), style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            return
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(tr("Klipper is not ready."), style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.weight(1f))
             PrimaryButton(tr("Reload Klipper"), { ask = "firmware_restart" })
@@ -92,7 +97,8 @@ fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Uni
                 tr("A cancelled print cannot be resumed."), tr("Cancel print"),
             onOk = { ask = null; onAction("cancel", tr("Print cancelled")) }, onDismiss = { ask = null })
         "emergency_stop" -> ConfirmDialog(tr("Trigger the emergency stop?"),
-            tr("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here)."),
+            if (p.canRestart) tr("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here).")
+            else tr("Stops all motors and heaters at once. Afterwards switch the printer off and on."),
             tr("Emergency stop"), onOk = { ask = null; onAction("emergency_stop", tr("Emergency stop triggered")) }, onDismiss = { ask = null })
     }
 }

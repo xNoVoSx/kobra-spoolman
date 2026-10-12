@@ -106,3 +106,16 @@ def test_firmware_restart_after_shutdown_mid_print(api):
     assert status == 409 and res["confirm"] is True
     assert call("/api/print/firmware_restart", {"confirm": True})[0] == 200
     assert sent[-1][:2] == ("action", "printer.firmware_restart")
+
+
+def test_rinkhals_never_reloads_klipper():
+    """Rinkhals blocks FIRMWARE_RESTART (GoKlipper would hang): refused, with the way out in the message."""
+    from acebridge.control import ControlError, check_action
+    with pytest.raises(ControlError) as e:
+        check_action("firmware_restart", "shutdown", True, platform="rinkhals")
+    assert e.value.status == 409 and "off and on" in str(e.value)
+    with pytest.raises(ControlError) as e:
+        check_action("emergency_stop", "printing", False, platform="rinkhals")
+    assert e.value.confirm and "off and on" in str(e.value)
+    assert check_action("firmware_restart", "shutdown", True)[0] == "printer.firmware_restart"
+

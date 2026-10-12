@@ -46,6 +46,8 @@ export function ControlBar({ p }) {
   if (p.state === "offline") {
     // Klipper off (emergency stop, error), Moonraker reachable: only the way back
     if (!p.moonraker_connected || p.klippy_ready) return null;
+    // Rinkhals blocks reloading (GoKlipper would hang): only switching the printer off and on helps
+    if (p.can_restart === false) return html`<div class="ctl row wrap"><span class="small muted grow">${t("The printer is not ready – switch it off and on.")}</span></div>`;
     const restart = () => openDialog("confirm", {
       title: t("Reload Klipper?"), ok: t("Reload"), back: t("Back"),
       text: t("Klipper is not ready (emergency stop or error). Reloading takes a few seconds; the axes must be homed again afterwards."),
@@ -63,7 +65,8 @@ export function ControlBar({ p }) {
   });
   const estop = () => openDialog("confirm", {
     title: t("Trigger the emergency stop?"), ok: t("Emergency stop"), back: t("Back"), danger: true,
-    text: t("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here)."),
+    text: p.can_restart === false ? t("Stops all motors and heaters at once. Afterwards switch the printer off and on.")
+      : t("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here)."),
     action: () => send("/api/print/emergency_stop", { confirm: true }, t("Emergency stop triggered")),
   });
   return html`<div class="ctl row wrap">

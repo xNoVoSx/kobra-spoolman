@@ -50,6 +50,10 @@ SPECS: List[Spec] = [
                  "CPU, with Klipper on a separate computer it is free. Default: off")),
     Spec("camera_fps_min", tr("Camera"), tr("Frame rate at least"), "float", 0.5, 15, "fps"),
     Spec("camera_fps_max", tr("Camera"), tr("Frame rate at most"), "float", 1, 15, "fps"),
+    Spec("camera_cpu_low", tr("Camera"), tr("Faster below printer CPU (Rinkhals)"), "float", 30, 100, "%",
+         tr("Below it 1 fps more every 5 s, up to the maximum")),
+    Spec("camera_cpu_high", tr("Camera"), tr("Slower above printer CPU (Rinkhals)"), "float", 30, 100, "%",
+         tr("Above it 1 fps less every 5 s")),
     # print preview
     Spec("render", tr("Print preview"), tr("Load the print file (model, remaining amount)"), "bool",
          help=tr("The bridge downloads the file once, throttled, at print start – for the 3D model and "
@@ -186,6 +190,8 @@ class RuntimeSettings:
         c = self.cfg
         if c.camera_fps_min > c.camera_fps_max:
             raise ValueError(tr("Frame rate: at least must not be above at most"))
+        if c.camera_cpu_low >= c.camera_cpu_high:
+            raise ValueError(tr("Printer CPU: “faster below” must be under “slower above”"))
 
     def update(self, changes: Dict[str, Any]) -> None:
         """Check, apply, save. On an error everything stays as it was (ValueError)."""

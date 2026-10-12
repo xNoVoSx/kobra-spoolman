@@ -404,6 +404,9 @@ data class Printer(
     @SerialName("flow_factor") val flowFactor: Double? = null,
     @SerialName("moonraker_connected") val moonrakerConnected: Boolean = false,
     @SerialName("klippy_ready") val klippyReady: Boolean = false,
+    /** "klipper" or "rinkhals" (bridge 3.12+); Rinkhals blocks reloading Klipper - switch the printer off and on */
+    val platform: String = "klipper",
+    @SerialName("can_restart") val canRestart: Boolean = true,
     /** What is happening now ("Preheating 5/15 min", "Change to slot 2 · loading", "Printing · layer 3/80"); bridge 3.9.0+. */
     val phase: String? = null,
     @SerialName("phase_key") val phaseKey: String? = null,

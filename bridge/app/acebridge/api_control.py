@@ -62,7 +62,8 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         state = ((bridge.moon.status.get("print_stats") or {}).get("state")
                  if bridge.moon.klippy_ready else "shutdown")
         try:
-            method, label = check_action(request.match_info["action"], state, bool(body.get("confirm")))
+            method, label = check_action(request.match_info["action"], state, bool(body.get("confirm")),
+                                         getattr(bridge.moon, "platform", "klipper"))
         except ControlError as e:
             if e.confirm:
                 return json_response({"error": msg_of(e), "confirm": True}, status=409)

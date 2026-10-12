@@ -583,11 +583,14 @@ class PrintPreview:
 
     # ------------------------------------------------------------ drawing
     def colours(self, status: Dict[str, Dict[str, Any]]) -> List[Optional[str]]:
-        """Colour per tool: ACE colour of the slot (ACEPRO: tool T<n> = slot n+1), else from the G-code."""
+        """Colour per tool: ACE colour of the tool's slot (ACEPRO: T<n> = slot n+1, Rinkhals: ttg_map), else from the
+        G-code."""
         out: List[Optional[str]] = []
         m = self.model
-        for t in range(max(acemodel.num_slots(status), len(m.colours) if m else 0, 1)):
-            ace = acemodel.slot(status, t)["color"] if t < acemodel.num_slots(status) else ""
+        n = acemodel.num_slots(status)
+        for t in range(max(n, len(m.colours) if m else 0, 1)):
+            g = acemodel.tool_slot(status, t)
+            ace = acemodel.slot(status, g)["color"] if g < n else ""
             out.append(ace or (m.colours[t] if m and t < len(m.colours) else None))
         return out
 

@@ -10,7 +10,9 @@ import math
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from . import acemodel
 from .i18n import tr
+from .purge import change_mm
 from .slots import hint_level, is_unknown_tag_event
 
 if TYPE_CHECKING:
@@ -47,21 +49,36 @@ def _iso_age(iso: Optional[str], now: float) -> Optional[float]:
 # ====================================================================== is the spool enough?
 # ACEPRO when loading a slot (ace_KS1.cfg): from the head sensor to the nozzle, then purging. The purge length per
 # change is in the file (ACE_SET_PURGE_AMOUNT from Orca's change-filament G-code), else the driver's default.
+# Rinkhals: the firmware purges by itself (purge.py).
 LOAD_TO_NOZZLE_MM = 85.0
 DEFAULT_PURGE_MM = 50.0
 
 
 def _slot_need(bridge: "Bridge", offset: Optional[int]) -> Dict[int, float]:
     """mm per slot from the byte position on (0 = whole file): print file + loading and purging of the colour changes
-    still to come. Tool T<n> = slot n+1 (ACEPRO)."""
+    still to come. ACEPRO: tool T<n> = slot n+1, loading to the nozzle + the purge from the file. Rinkhals: the ACE's
+    ttg_map, the firmware's purge per colour pair (purge.py) and its first load."""
+    st = bridge.moon.status
     rest_mm, later = bridge.preview.model.remaining(offset)
+    rinkhals = acemodel.variant(st) == acemodel.RINKHALS
     need: Dict[int, float] = {}
     for tool, mm in rest_mm.items():
         if mm > 0:
-            need[tool] = need.get(tool, 0.0) + mm
-    for _src, dst, purge in later:
-        mm = LOAD_TO_NOZZLE_MM + (purge if purge is not None else DEFAULT_PURGE_MM)
-        need[dst] = need.get(dst, 0.0) + mm
+            g = acemodel.tool_slot(st, tool)
+            need[g] = need.get(g, 0.0) + mm
+    for src, dst, purge in later:
+        g = acemodel.tool_slot(st, dst)
+        if rinkhals:
+            model = bridge.purge
+            if src is None:
+                mm = model.first_load_mm
+            else:
+                s = acemodel.tool_slot(st, src)
+                mm = change_mm(acemodel.slot(st, s)["color"] or None, acemodel.slot(st, g)["color"] or None,
+                               model.flush, model.offset_mm) or 0.0
+        else:
+            mm = LOAD_TO_NOZZLE_MM + (purge if purge is not None else DEFAULT_PURGE_MM)
+        need[g] = need.get(g, 0.0) + mm
     return need
 
 

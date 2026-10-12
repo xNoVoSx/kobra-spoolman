@@ -236,3 +236,27 @@ def test_viewer_disconnect_is_not_an_error():
         await send_mjpeg(resp, JPEG, gen, "10.0.0.x")
         return resp.writes
     assert asyncio.run(go()) == 2                       # ends quietly after disconnecting
+
+
+def test_rate_follows_printer_cpu_on_rinkhals():
+    """High thresholds, small steps: the load while printing (75-89 %) comes from GoKlipper, not from the camera."""
+    cfg = SimpleNamespace(camera=True, camera_stream=False, camera_fps_min=1.0, camera_fps_max=10.0,
+                          camera_cpu_low=90.0, camera_cpu_high=97.0, camera_stream_url="x", camera_snapshot_url="y")
+    cam = Camera(cfg, SimpleNamespace(platform="rinkhals"), None)
+    assert cam._throttles() and not Camera(cfg, SimpleNamespace(platform="klipper"), None)._throttles()
+    cam.target_fps = 2.0
+    for _ in range(20):
+        cam.adjust(80.0)                                   # normal print: up to the maximum
+    assert cam.target_fps == 10.0 and not cam.throttled
+    cam.adjust(92.0)
+    assert cam.target_fps == 10.0                          # between the thresholds: hold
+    cam.adjust(99.0)
+    assert cam.target_fps == 9.0 and cam.throttled         # at the limit: only 1 fps less, not halved
+    for _ in range(20):
+        cam.adjust(100.0)
+    assert cam.target_fps == 1.0                           # never below the minimum
+    cam.adjust(None)
+    assert cam.target_fps == 1.0                           # no CPU values: change nothing
+    for _ in range(9):
+        cam.adjust(60.0)
+    assert cam.target_fps == 10.0 and not cam.throttled

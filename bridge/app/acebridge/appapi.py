@@ -309,7 +309,8 @@ def tag_content(spool: Dict[str, Any], templates: List[Dict[str, Any]], tag_nr: 
 
 # ====================================================================== printer state
 def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_ready: bool,
-                  active_slot: Optional[int], steps: Optional[phase.ChangeSteps] = None) -> Dict[str, Any]:
+                  active_slot: Optional[int], steps: Optional[phase.ChangeSteps] = None,
+                  platform: str = "klipper") -> Dict[str, Any]:
     """State for the app from the bridge's Moonraker subscription (no extra load on the printer)."""
     ps = status.get("print_stats") or {}
     vsd = status.get("virtual_sdcard") or {}
@@ -338,6 +339,9 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         # Moonraker reachable but Klipper not ready (emergency stop, error): web/app offer "reload Klipper"
         "moonraker_connected": bool(connected),
         "klippy_ready": bool(connected and klippy_ready),
+        # web/app offer "reload Klipper" only where that works (Rinkhals blocks it: switch the printer off and on)
+        "platform": platform,
+        "can_restart": platform != "rinkhals",
         "active_slot": active_slot,
         "mmu_action": action or None,
         "changing_filament": bool(action),
@@ -555,7 +559,7 @@ class AppApi:
                 "version": __version__,
                 "ui": UI_TAG,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active,
-                                         getattr(b, "phase_steps", None)),
+                                         getattr(b, "phase_steps", None), getattr(b.moon, "platform", "klipper")),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"], "by_tag": s.get("by_tag", False),

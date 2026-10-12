@@ -56,7 +56,12 @@ COLOR_TOLERANCE = 150
 # templates of tr() texts the bridge recognises again (tests/test_slot_hints.py checks they match the tr() calls)
 UNKNOWN_TAG = "Slot {slot}: unknown tag {nr} – assign a spool, the number will be remembered"
 HINT_ERROR = ("The ACE knows no material for this slot – assign the spool here again",
-              "The ACE knows no material for this slot – assign a spool")
+              "The ACE knows no material for this slot – assign a spool",
+              # Rinkhals: GoKlipper cancels a print with an empty slot material ("index out of range", findings)
+              "No material is set at the printer – a print with this slot gets cancelled (assign the spool here again "
+              "or enter it at the display)",
+              "No material is set at the printer – a print with this slot gets cancelled (enter it at the display at "
+              "the slot)")
 HINT_WARN = ("ACE reports {ace}, assigned is {spool}", "Colour differs (ACE #{ace}, Spoolman #{spool})",
              "ACE reports the slot as empty")
 
@@ -96,7 +101,8 @@ def gate_has_tag(ace: Dict[str, Any]) -> bool:
 
 def gate_needs_info(ace: Dict[str, Any]) -> bool:
     """The slot has filament but the ACE knows no material (no tag, nothing entered) - ACEPRO then knows no load/purge
-    temperature for manual changes and Orca no type for the slot."""
+    temperature for manual changes and Orca no type for the slot; under Rinkhals GoKlipper cancels a print with it
+    ('index out of range [0] with length 0', docs/findings.md)."""
     return bool(ace.get("present")) and not ace.get("material")
 
 
@@ -207,9 +213,15 @@ class SlotManager:
                              if not ace["present"] else tr("Material/colour go to the ACE after the print")
                              if self.printing else tr("Material/colour are being given to the ACE"))
             elif self.moon.klippy_ready and gate_needs_info(ace):
-                hints.append(tr("The ACE knows no material for this slot – assign the spool here again")
-                             if info and self.cfg.set_ace_slot_info
-                             else tr("The ACE knows no material for this slot – assign a spool"))
+                again = info and self.cfg.set_ace_slot_info
+                if acemodel.variant(self.moon.status) == acemodel.RINKHALS:
+                    hints.append(tr("No material is set at the printer – a print with this slot gets cancelled (assign "
+                                    "the spool here again or enter it at the display)") if again
+                                 else tr("No material is set at the printer – a print with this slot gets cancelled "
+                                         "(enter it at the display at the slot)"))
+                else:
+                    hints.append(tr("The ACE knows no material for this slot – assign the spool here again") if again
+                                 else tr("The ACE knows no material for this slot – assign a spool"))
             if info and self.moon.klippy_ready and not ace["present"]:
                 hints.append(tr("ACE reports the slot as empty"))
             if gate in self._pending_unassign:

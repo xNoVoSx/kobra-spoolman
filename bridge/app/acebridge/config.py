@@ -121,6 +121,9 @@ class Config:
     camera_stream: bool = field(default_factory=lambda: _bool("CAMERA_STREAM", False))
     camera_fps_min: float = field(default_factory=lambda: _float("CAMERA_FPS_MIN", 1.0))
     camera_fps_max: float = field(default_factory=lambda: _float("CAMERA_FPS_MAX", 10.0))
+    # Rinkhals: the frame rate follows the printer CPU (GoKlipper and the camera share it); not under Klipper on a Pi
+    camera_cpu_low: float = field(default_factory=lambda: _float("CAMERA_CPU_LOW", 90.0))
+    camera_cpu_high: float = field(default_factory=lambda: _float("CAMERA_CPU_HIGH", 97.0))
     camera_stream_url: str = field(default_factory=lambda: os.environ.get("CAMERA_STREAM_URL", ""))
     camera_snapshot_url: str = field(default_factory=lambda: os.environ.get("CAMERA_SNAPSHOT_URL", ""))
     camera_interval_s: float = field(default_factory=lambda: _float("CAMERA_INTERVAL_S", 1.0))
