@@ -3,7 +3,7 @@
 Status: **released** — see [docs/android-app.md](../docs/android-app.md). Every release carries the signed APK; the bridge offers it to the app as an update. CI attaches a debug APK to every run.
 
 The app talks only to the [ace-lane-bridge](../bridge) (`/api/app/…`, [API](../docs/api.md#app-and-web-ui)).
-UI texts are German, like the plugin and the web UI.
+UI texts are English or German (the phone's language, or *Settings → Language*; Android 13+ also per-app language).
 
 ## What works
 
@@ -15,7 +15,7 @@ UI texts are German, like the plugin and the web UI.
 - New filament (stage 3): 7-step wizard — vendor (or a new one), name, material, template, own Orca
   base profile (list reported by the Orca plugin), colour, weights, temperatures, cooling,
   extrusion/retraction, Orca overrides. Template values are shown as placeholders and never stored;
-  *Werte übernehmen von …* copies a product line's own values for a new colour.
+  *Copy values from …* copies a product line's own values for a new colour.
 
 - Write ACE tags: tag number from the bridge, pages 4–31 in the ACE layout (verified against an
   original Anycubic tag), read back, UID linked to the spool. After creating a spool the app goes

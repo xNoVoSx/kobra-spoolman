@@ -6,10 +6,11 @@ What we measured and learned while building this (Kobra S1, ACE 2 Pro, Rinkhals 
 firmware 2.7.2.7, OrcaSlicer 2.5.0-dev, Spoolman 0.26.1, September 2026).
 
 > [!NOTE]
-> Most of this page describes the **stock firmware with Rinkhals (GoKlipper)**, the base of bridge 2.x.
-> Since bridge 3.0 the printer runs Klipper on a Raspberry Pi with the ACEPRO driver: no `mmu` object, no
-> firmware purge model, the purge comes from Orca's flushing volumes. The findings about the ACE itself,
-> the RFID tags, Spoolman and Orca's plugin API still apply.
+> Most of this page describes the **stock firmware with Rinkhals (GoKlipper)** — the base of bridge 2.x and, since
+> 3.12, one of the two setups the bridge supports (the other is Klipper on a Raspberry Pi with the ACEPRO driver: no
+> `mmu` object, no firmware purge model, the purge comes from Orca's flushing volumes). The Rinkhals findings below are
+> what the bridge's Rinkhals support is built on (`acemodel.py`, `purge.py`, `tests/test_usage_rinkhals.py`); the
+> findings about the ACE itself, the RFID tags, Spoolman and Orca's plugin API apply to both.
 
 ## Consumption measurement (test print, 2026-09-24)
 
@@ -249,7 +250,7 @@ wrong for such files (test B: −345 mm) and pulls the average used by the plugi
 
 ### Print fails with `runtime error: index out of range [0] with length 0`
 
-Mainsail shows the error, the printer only *Druck fehlgeschlagen*, about 5 minutes after the start
+Mainsail shows the error, the printer display only *Druck fehlgeschlagen* (print failed), about 5 minutes after the start
 (right after auto-levelling). Two attempts of the same two-colour PETG print failed like this; the
 Moonraker log (`/server/files/logs/moonraker.log`, timestamps in UTC) shows why:
 
@@ -264,7 +265,7 @@ Moonraker log (`/server/files/logs/moonraker.log`, timestamps in UTC) shows why:
   0, so **material (and colour) is what counts**.
 
 The bridge therefore flags a loaded slot without material (web UI, Orca panel card, usage
-preview after slicing: *Druck bricht ab*).
+preview after slicing: *the print gets cancelled*).
 
 ### Setting slot material/colour without the display: `MMU_GATE_MAP`
 
@@ -425,7 +426,7 @@ that tag byte for byte (`AceTagTest`).
   spaghetti composited into a Kobra frame 1.97 — Obico's "definitely failing" threshold is 0.78.
   Spaghetti drawn as flat coloured lines gives only 0.25: the model reacts to real 3-D tangles.
 - With Obico's judging (EWM against a baseline, 30 safe pictures) a sudden failure after a clean start
-  is *verdächtig* after 2 and *Fehldruck* after 4 pictures; a constant pattern never alarms.
+  is *suspicious* after 2 and *failure* after 4 pictures; a constant pattern never alarms.
 - `camera.snapshot()` keeps the restream pump running for 20 s at up to 10 fps — the AI therefore uses
   `camera.still()`: newest frame or one single snapshot.
 - Android sets a notification channel's `USAGE_ALARM` back to `USAGE_NOTIFICATION` (checked on the

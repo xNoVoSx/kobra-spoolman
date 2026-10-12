@@ -10,13 +10,15 @@ Makes Spoolman the source for OrcaSlicer filament profiles.
   Orca match slots 1–4.
 - **Back-sync**: saving an `SM…` profile in Orca asks whether the changes should go to Spoolman.
 - **Usage preview**: after slicing, one line per slot with need / remaining grams and a warning if a
-  spool is too short; the details show Orca's legend values — the ACE's load and purge per colour
-  change are in *Flushed*, reported by the printer profile's change-filament G-code (`EXTERNAL_PURGE`).
+  spool is too short; the details show Orca's legend values. Klipper + ACEPRO: the ACE's load and purge per colour
+  change are in *Flushed*, reported by the printer profile's change-filament G-code (`EXTERNAL_PURGE`). Rinkhals: the
+  firmware purges by itself — the column *Firmware purge* adds it from the bridge's purge model, and a slot without
+  material at the printer is flagged (the firmware would cancel the print).
   Needs the orca-kobra build with patch 0003 (`orca.host.slice_statistics`).
 - Removes profiles of filaments without an active spool (only its own, marked in `filament_notes`).
 - **Pairing**: back-sync writes to Spoolman and therefore needs a key from the bridge. When the plugin
-  is not paired, the panel shows *Plugin koppeln* — enter a code from the web UI (*Geräte → Gerät
-  hinzufügen*) once; the key is stored in `kobra_device.json` next to the plugin.
+  is not paired, the panel shows *Pair the plugin* — enter a code from the web UI (*Devices → Add
+  device*) once; the key is stored in `kobra_device.json` next to the plugin.
 
 Requirements: OrcaSlicer with the Python plugin system (2.5.0-dev). Automatic profile selection with
 Orca's sync button needs the [orca-kobra](https://github.com/xNoVoSx/orca-kobra) build.
@@ -30,10 +32,12 @@ cp kobra_spoolman.py ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/
 
 Enable it in Orca's **Plugins** dialog, set the bridge address in its **Configuration** tab,
 pair it in the panel and restart Orca once. Menu actions: *Kobra Spoolman* (open panel) and
-*Kobra Spoolman: Profile aktualisieren*.
+*Kobra Spoolman: update profiles*.
 
 Notes:
 
+- **Language:** English or German. *Language* in the configuration: `auto` follows the bridge (`UI_LANGUAGE`), or
+  pick `en` / `de`.
 - Orca reads profiles only at start-up — new or changed profiles need a restart (the panel tells you).
 - Network and file work happen in a background thread; Orca objects are only read on the UI thread.
 - Logs: `~/.config/OrcaSlicer/log/python_*.log` (`[kobra-spoolman]`).

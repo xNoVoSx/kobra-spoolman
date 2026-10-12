@@ -184,7 +184,8 @@ Statt nur *Druckt* sagen Druckerkarte, App, Display und Home Assistant, **was de
 *Heizt Bett 63/100 °C*, *Vorheizen 5/15 min*, *Wischt Düse*, *Kühlt Düse zum Tasten*, *Tastet Z*, *Misst Bettnetz*,
 *Heizt Düse*, *Wechsel auf Slot 2 · lädt* (heizt, entlädt, lädt, spült), *Spült*, *Misst Pressure Advance*,
 *Reinigungslinie*, danach *Druckt · Schicht 34/120*. Die Schritte des Druckstarts kommen vom Klipper-Modul
-`kobra_phase` des Druckers (dort abschaltbar); ohne es zeigt die Karte weiterhin Wechsel, Auto-PA und Schicht.
+`kobra_phase` des Druckers (dort abschaltbar); ohne es – und unter Rinkhals – zeigt die Karte weiterhin Wechsel und
+Schicht.
 
 Die Druckerkarte zeigt **Modell** – die Druckdatei, von der Bridge gezeichnet in den Farben deiner
 eingelegten Spulen, Gedrucktes kräftig, der Rest als Schatten, mit aktueller Schicht – und **Kamera**,
@@ -205,6 +206,8 @@ ersetzt ihn (der alte funktioniert dann nicht mehr).
 
 ## Fortsetzen nach Stromausfall
 
+*Nur Klipper – braucht ein Klipper-Modul am Drucker (nicht Teil dieses Repos); unter Rinkhals nicht verfügbar.*
+
 Mit dem Klipper-Modul `kobra_resume` (nicht Teil dieses Repos) sichert der Drucker laufend die Stelle, die er wirklich
 gedruckt hat. Nach einem Stromausfall zeigt die Übersicht **Druck unterbrochen** mit Live-Bild (die App meldet einen
 Alarm): prüfen, ob das Teil noch fest auf dem Bett ist, dann **Fortsetzen** – der Drucker heizt das Bett, fährt X/Y nach
@@ -214,6 +217,8 @@ druckt an der Stelle weiter, die erste Minute langsamer. Passt die getastete Hö
 
 ## Verstopfung erkennen
 
+*Nur Klipper – braucht ein Klipper-Modul am Drucker (nicht Teil dieses Repos); unter Rinkhals nicht verfügbar.*
+
 Mit dem Klipper-Modul `kobra_clog` (nicht Teil dieses Repos) vergleicht der Drucker im Druck, wie viel Filament der
 Extruder gefördert hat, mit dem, was der Encoder am Filament-Eingang gesehen hat. Sieht der Encoder zweimal hintereinander
 viel zu wenig, zeigen Übersicht und App **Verstopfung?** mit den Zahlen – Düse und Filamentweg prüfen. Standard ist nur
@@ -222,12 +227,16 @@ bewegt die ACE das Filament selbst).
 
 ## Z-Versatz pro Filament
 
+*Nur Klipper – braucht ein Klipper-Modul am Drucker (nicht Teil dieses Repos); unter Rinkhals nicht verfügbar.*
+
 Manche Filamente wollen die erste Schicht etwas höher oder tiefer (z. B. PETG). In Spoolman als **Z-Versatz** (mm,
 + = weiter weg vom Bett) am Filament oder an seiner Vorlage eintragen; die Bridge gibt die Werte der eingelegten Slots an
 den Drucker, und der Druckstart rechnet den Wert des Startfilaments zur ersten Schicht dazu (in der Konsole als
 `Filament T0 +0.020`). Leer = 0. Aus: *Einstellungen → Erste Schicht* oder `use_filament_z: False` in `KOBRA_START`.
 
 ## Pressure Advance (Auto-PA)
+
+*Nur Klipper – braucht ein Klipper-Modul am Drucker (nicht Teil dieses Repos); unter Rinkhals nicht verfügbar.*
 
 Mit dem Klipper-Modul `kobra_pa` (nicht Teil dieses Repos) misst der Drucker Pressure Advance mit der Wiegezelle im
 Kopf wie Anycubics Original-Firmware, aber nur einmal pro Filament: Hat das Filament eines Slots in Spoolman noch kein
@@ -246,17 +255,29 @@ Messtabelle. Eine gescheiterte Messung hält den Druck nie an – es geht mit de
 
 Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay versteckt:
 
-- **Endlosspule** – ist eine Spule leer, lädt die ACE eine passende andere und der Druck läuft weiter.
-  *Welche Spule passt?*: gleiche Farbe und gleiches Material, gleiches Material oder einfach die nächste
-  Spule. Auch während eines Drucks änderbar; gilt beim nächsten leeren Slot. Der Verbrauch läuft auf dem
-  neuen Slot weiter.
+- **Endlosspule** – ist eine Spule leer, lädt die ACE eine passende andere und der Druck läuft weiter. Unter
+  Klipper + ACEPRO wählt *Welche Spule passt?* gleiche Farbe und gleiches Material, gleiches Material oder einfach die
+  nächste Spule; unter Rinkhals entscheidet die Firmware. Auch während eines Drucks änderbar; gilt beim nächsten
+  leeren Slot. Der Verbrauch läuft auf dem neuen Slot weiter.
+- **Auslauferkennung** (Rinkhals) – der Drucker pausiert, wenn das Filament ausgeht.
 - **Trocknen planen** – ein Start zu einer festen Zeit, z.B. heute um 22:00.
-- **Pressure Advance**, **Fortsetzen nach Stromausfall** und **Verstopfung erkennen** – die Schalter der
-  Klipper-Module am Drucker, siehe die Abschnitte unten. Jede Karte erscheint nur, wenn der Drucker das
+- **Pressure Advance**, **Fortsetzen nach Stromausfall** und **Verstopfung erkennen** (Klipper) – die Schalter der
+  Klipper-Module am Drucker, siehe die Abschnitte oben. Jede Karte erscheint nur, wenn der Drucker das
   Modul hat; jeder Schalter wird im Drucker gespeichert.
 
-Die Spülmenge pro Farbwechsel stellst du in Orca ein (Spülmengen neben *Filament*); der Filamentwechsel-G-Code
-des Druckerprofils gibt sie an den ACE-Treiber, siehe [Installation](installation.md#orca-druckerprofil).
+**Spülen je Farbwechsel** hängt von der Firmware ab:
+
+- **Klipper + ACEPRO:** stellst du in Orca ein (Spülmengen neben *Filament*); der Filamentwechsel-G-Code des
+  Druckerprofils gibt sie an den ACE-Treiber, siehe [Installation](installation.md#orca-druckerprofil).
+- **Rinkhals:** Die Anycubic-Firmware spült selbst und übergeht Orcas Matrix. Die Menge richtet sich nach dem
+  Farbunterschied (Orcas eigene Farbformel) mal dem **Spül-Multiplikator** der Firmware. Die ACE-Karte zeigt ihn mit den
+  Stufen *Minimal 0,1×*, *Normal 1×* und *Maximal 3×* und einem Schieberegler, darunter eine Tabelle mit dem Spülen in
+  mm und g für jedes Paar eingelegter Farben – den Regler verschieben, um zu sehen, was ein anderer Multiplikator
+  kostet, dann *übernehmen*. Während eines Drucks fragt die Karte vorher; der Drucker nutzt den neuen Wert ab dem
+  nächsten Farbwechsel. Das erste Laden eines Drucks ist eine feste Menge (etwa 95 mm). Die Bridge lernt ihr Modell aus
+  fertigen Orca-Drucken ([Befunde, englisch](../findings.md)).
+
+<p align="center"><img src="../images/web-ace-rinkhals.png" width="760" alt="ACE-Karte unter Rinkhals mit dem Spülen je Farbpaar"></p>
 
 ## Slicen und Drucken
 
@@ -281,11 +302,15 @@ Die Tabelle unter *Details* ist Orcas eigene Vorschau-Legende (Vorschau → Fila
 | Spalte | Quelle |
 |---|---|
 | *Modell*, *Stützen*, *Gereinigt*, *Turm*, *Gesamt* | Modell, Stützen, Spülen und Reinigungsturm pro Filament, *Gesamt* ist die Summe; leere Spalten fehlen wie in Orca. *Gereinigt* enthält das Laden (85 mm) und Spülen der ACE bei jedem Farbwechsel – das Druckerprofil meldet es Orca (`EXTERNAL_PURGE`). Fehlt es, obwohl der Druck die Farbe wechselt, sagt das Panel Bescheid. |
+| *Spülen Firmware* | nur Rinkhals: was die Firmware pro Filament selbst spült – erstes Laden plus jeder Farbwechsel darauf, aus den Slot-Farben und dem Spülmodell der Bridge (dieselben Zahlen wie in der ACE-Karte). Zählt zu *Gesamt* und zum Bedarf je Slot. |
 | *Rest* | Restgewicht der dem Slot zugeordneten Spule, aus Spoolman |
 
 Filament N in Orca zählt gegen Slot N – dieselbe Zuordnung, die der Sync-Knopf setzt. Die Vorschau
 braucht den orca-kobra-Build (Patch 0003); sie verschwindet, wenn das Slice-Ergebnis nicht mehr gilt
 (Modell oder Einstellungen geändert).
+
+Unter Rinkhals warnt das Panel außerdem bei einem eingelegten Slot **ohne Material** am Drucker – die Firmware würde den
+Druck abbrechen. Spule zuordnen (die Bridge gibt der ACE dann das Material) oder am Drucker-Display eintragen.
 
 ## Offene Posten
 
@@ -319,7 +344,8 @@ zeigt die Leiste **Klipper neu laden** (`FIRMWARE_RESTART`, fragt nach); danach 
 ## Das Display des Druckers
 
 `http://<docker-host>:7913/display` ist eine Ansicht für den Touchscreen des Kobra S1 (800×480, Finger): ein
-Kiosk-Browser auf dem Klipper-Pi zeigt sie auf dem Original-Display (Einrichtung außerhalb dieses Repos). Leiste
+Kiosk-Browser auf dem Klipper-Pi zeigt sie auf dem Original-Display (Einrichtung außerhalb dieses Repos; nur Klipper –
+unter Rinkhals behält der Drucker Anycubics eigenen Bildschirm). Leiste
 links: *Start*, *Druck*, *Dateien*, *Steuerung*, *Schalter*, *System*; der Licht-Knopf sitzt oben rechts neben der Uhr.
 Die Ecke oben links bleibt absichtlich frei: dort verschluckt die Viewer-App am Drucker jede Berührung (5 s halten
 beendet den Viewer).

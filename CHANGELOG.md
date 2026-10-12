@@ -6,6 +6,71 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.12.0] – 2026-10-12
+
+**Rinkhals is back.** One bridge for both setups: the stock firmware with
+[Rinkhals](https://github.com/rinkhals-community/Rinkhals) and Klipper on a Raspberry Pi with ACEPRO. The bridge detects
+the firmware from Moonraker; nothing to configure. Use with plugin 0.7.0 and app 1.15.0 (older apps keep working, without
+the new ACE card). **English is the main language now**, German is a second language per device.
+
+Upgrading from 2.21.1 (Rinkhals): switch the image tag to `latest` / `3.12.0` and the plugin to 0.7.0. The data folder
+is the same format as in 3.x (the 2.x → 3.0 upgrade carried devices and history over) — keep a copy of it anyway, this
+path was tested with replays and a simulated printer, not yet on a real Rinkhals printer.
+
+### Added
+- **Rinkhals support** in the current line (`acemodel.py`): slots, tags and the loaded slot from Rinkhals' `mmu` and
+  GoKlipper's `filament_hub`; slot info for untagged spools with `MMU_GATE_MAP`; dryer with `MMU_DRYER_START/STOP`;
+  consumption with the debounce Rinkhals' flickering gate needs; tool → slot from `ttg_map` for the print check and the
+  3D view; the subscription only asks for objects the printer has (GoKlipper can panic on unknown ones).
+- **ACE card on Rinkhals** (web UI, app): endless spool (`auto_refill`), runout detection and the firmware's purge
+  multiplier (presets 0.1×/1×/3×, slider) with the purge in mm and g for every pair of loaded colours. Changes during a
+  print need a confirmation (`confirm_printing`, else 409). API: `GET /api/ace` → `settings.variant`,
+  `settings.options`, `purge` (`?multiplier=` for "what if"); `POST /api/ace/flush_multiplier` as in 2.x.
+- **Firmware purge model** again (`purge.py`): Orca's colour formula × multiplier from GoKlipper's configuration, offset
+  and first load learned from finished Orca prints; `/api/orca/state` carries it for the plugin (`purge`, `driver`).
+- Camera on Rinkhals: the frame rate follows the printer's CPU (`CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH`, 90 / 97 %); the web
+  UI shows *throttled* next to the frame rate.
+- `printer.platform` (`klipper` / `rinkhals`) and `printer.can_restart` in `/api/app/state`.
+- **Languages:** every user-facing text is English with a German catalog; the language follows `?lang=`, `X-Lang`,
+  the browser, else `UI_LANGUAGE` (default `en`, changeable at runtime). The web UI has a language switch per browser,
+  the printer display follows `UI_LANGUAGE` (or `/display?lang=de`),
+  the app follows the phone (or *Settings → Language*), the plugin follows the bridge (or its *Language* setting).
+- Demo printer with `DEMO_PLATFORM=rinkhals` (development tool, not shipped).
+
+### Changed
+- Code, comments, logs, API texts and docs are English. German stays as a second language everywhere.
+- Spoolman names: a new install gets the shelf location `Shelf` and the template vendor `Template`; an existing
+  install with `Regal` / `Vorlage` keeps them (`SHELF_LOCATION` / `TEMPLATE_VENDOR` empty = detect). `spoolman_setup.py`
+  creates English field names, `--language de` German ones.
+- Docs: README and installation for both setups (what works where), AI notice, Rinkhals troubleshooting, API for the
+  ACE card, architecture (firmware detection, languages), field list with keys and both names.
+- Web routes are English (`#/filament`, `#/prints`, `#/settings` …); old German bookmarks still work.
+
+### Fixed
+- On Rinkhals the bridge no longer sends `SET_GCODE_VARIABLE MACRO=KOBRA_START` (the Z offset needs Klipper).
+- `FIRMWARE_RESTART` is refused on Rinkhals (the firmware blocks it) and the UIs hide the button.
+
+## plugin 0.7.0 – 2026-10-12
+
+### Added
+- English and German; setting *Language* (`auto` = the bridge's language, `en`, `de`).
+- Rinkhals: the usage preview adds the firmware's own purge per filament (column *Firmware purge*) from the bridge's
+  model and Orca's transitions, and warns about a loaded slot without material (the firmware would cancel the print).
+
+### Changed
+- All texts and logs English by default.
+
+## app 1.15.0 – 2026-10-12
+
+### Added
+- English and German: follows the phone's language, *Settings → Language* or Android's per-app language overrides it.
+- ACE card on Rinkhals: runout detection and the firmware's purge multiplier with a preview per colour pair; asks first
+  during a print.
+
+### Changed
+- The Klipper reload button is hidden when the printer cannot restart (Rinkhals); the pressure advance card explains
+  that Auto-PA needs Klipper.
+
 ## [3.11.2] – 2026-10-12
 
 ### Fixed

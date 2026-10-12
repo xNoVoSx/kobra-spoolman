@@ -9,7 +9,14 @@ body:
     id: component
     attributes:
       label: Component
-      options: [ace-lane-bridge, Orca plugin (Kobra Spoolman), spoolman_setup.py, Documentation, Other]
+      options: [ace-lane-bridge, Orca plugin (Kobra Spoolman), Android app, spoolman_setup.py, Documentation, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Printer setup
+      options: [Stock firmware + Rinkhals, Klipper on a Raspberry Pi + ACEPRO, Other / not printer related]
     validations:
       required: true
   - type: textarea
@@ -26,7 +33,7 @@ body:
     id: versions
     attributes:
       label: Versions
-      description: Bridge version (slot page footer), plugin version (panel footer), OrcaSlicer build, Spoolman version, Rinkhals version
+      description: Bridge version (Settings), plugin version (panel footer), app version, OrcaSlicer build, Spoolman version, printer model, Rinkhals or Klipper/ACEPRO version
   - type: textarea
     id: logs
     attributes:

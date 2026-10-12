@@ -9,7 +9,7 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Ursache / Lösung |
 |---|---|
-| Die Weboberfläche fragt nach einem Code, ich habe keinen | Erstes Gerät: Der Einrichtungscode steht im Bridge-Log (`Einrichtungscode: …`, bei jedem Start, solange nichts gekoppelt ist). Sonst an einem gekoppelten Gerät einen Code holen: *Geräte → Gerät hinzufügen*. Ein altes `APP_TOKEN` geht auch (*Mit altem APP_TOKEN koppeln*). |
+| Die Weboberfläche fragt nach einem Code, ich habe keinen | Erstes Gerät: Der Einrichtungscode steht im Bridge-Log (`Setup code: …` – das Log ist englisch –, bei jedem Start, solange nichts gekoppelt ist). Sonst an einem gekoppelten Gerät einen Code holen: *Geräte → Gerät hinzufügen*. Ein altes `APP_TOKEN` geht auch (*Mit altem APP_TOKEN koppeln*). |
 | *Code falsch oder abgelaufen* | Codes gelten 5 Minuten und nur einmal. Neuen holen. |
 | *Zu viele falsche Codes – eine Minute warten* | 5 falsche Codes innerhalb einer Minute sperren das Koppeln für 60 s. |
 | Der Browser will plötzlich neu koppeln | Sein Schlüssel wurde unter *Geräte* entfernt, oder der Datenordner der Bridge (`devices.json`) ist weg. Neu koppeln. |
@@ -23,7 +23,7 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Ursache / Lösung |
 |---|---|
-| Weboberfläche: *Kobra S1 · Offline* | Moonraker nicht erreichbar oder Klipper nicht bereit. `MOONRAKER_URL` prüfen, `http://<pi-ip>:7125/server/info` öffnen; nach Not-Aus/Fehler *Klipper neu laden*. |
+| Weboberfläche: *Kobra S1 · Offline* | Moonraker nicht erreichbar oder Klipper nicht bereit. `MOONRAKER_URL` prüfen, `http://<drucker-oder-pi-ip>:7125/server/info` öffnen; unter Klipper nach Not-Aus/Fehler *Klipper neu laden*, unter Rinkhals den Drucker aus- und einschalten. |
 | Weboberfläche: *Spoolman getrennt* | `SPOOLMAN_URL` prüfen. Im selben Stack den Servicenamen nehmen (`http://spoolman:8000`). |
 | Bridge startet nicht, `PermissionError` bei `/data` | Das Image läuft als Benutzer 1000. Den Datenordner für ihn beschreibbar machen oder `user: "0:0"` im Dienst ergänzen. |
 | Orca-Panel: *Bridge nicht erreichbar* | Bridge-Adresse unter Plugins → Kobra Spoolman → Konfiguration eintragen. |
@@ -34,14 +34,27 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | Problem | Ursache / Lösung |
 |---|---|
 | Warnung *…doppelt gebucht* | Moonrakers `[spoolman]` ist aktiv. Den Abschnitt aus `moonraker.conf` entfernen. |
-| Slot-Karte: *Material/Farbe gehen nach dem Druck an die ACE* | Während eines Drucks ändert die Bridge nie Slot-Daten; sie schickt sie (`ACE_SET_SLOT`), sobald der Druck endet. |
-| Orcas Sync-Knopf wählt Anycubic-Profile statt der `SM…`-Profile | ACEPROs eigener `lane_data`-Sync ist an und überschreibt die Daten der Bridge. `[ace] moonraker_lane_sync_enabled: False` setzen ([Installation](installation.md#1-drucker-klipper-acepro-und-moonraker)). |
-| Plugin: *Spülen der ACE fehlt in Orcas Zahlen* | Der Filamentwechsel-G-Code des Druckerprofils ist der alte (ohne `EXTERNAL_PURGE`). Ersetzen, siehe [Installation](installation.md#orca-druckerprofil). |
-| Spule steht nicht in der Auswahl | Ihr Hersteller ist der Vorlagen-Hersteller (`Vorlage`), oder die Spule ist archiviert. |
+| Slot-Karte: *Material/Farbe gehen nach dem Druck an die ACE* | Während eines Drucks ändert die Bridge nie Slot-Daten; sie schickt sie (ACEPRO `ACE_SET_SLOT`, Rinkhals `MMU_GATE_MAP`), sobald der Druck endet. |
+| Orcas Sync-Knopf wählt Anycubic-Profile statt der `SM…`-Profile | ACEPROs eigener `lane_data`-Sync ist an und überschreibt die Daten der Bridge. `[ace] moonraker_lane_sync_enabled: False` setzen ([Installation](installation.md#b--klipper-auf-einem-raspberry-pi-mit-acepro)). |
+| Plugin: *Spülen der ACE fehlt in Orcas Zahlen* | Klipper + ACEPRO: Der Filamentwechsel-G-Code des Druckerprofils ist der alte (ohne `EXTERNAL_PURGE`). Ersetzen, siehe [Installation](installation.md#orca-druckerprofil). |
+| Spule steht nicht in der Auswahl | Ihr Hersteller ist der Vorlagen-Hersteller (`Vorlage` bzw. `Template`), oder die Spule ist archiviert. |
 | *ACE meldet …, zugeordnet ist …* / *Farbe weicht ab* | Material oder Farbe in Spoolman weichen vom ACE-Tag ab. Bei Anycubic-Spulen den Hex-Wert der ACE nehmen. |
 | Verbrauch nicht gebucht | Siehe *Offene Buchungen*. Spoolman weg → alle 30 s automatisch nachgeholt. |
 | Falsche Menge gebucht | Die Rohaufzeichnung (`/api/telemetry/<datei>`) und den Eintrag aus `/api/jobs` in ein Issue packen. |
 | Trockner startet kühler als gedacht | Die Bridge geht nie über das empfindlichste eingelegte Filament (*Trocknen max.*, Vorlage, Materialwert) oder das Maximum der ACE. Die Seite *Trockner* zeigt, welcher Slot die Grenze setzt. |
+
+## Rinkhals
+
+| Problem | Ursache / Lösung |
+|---|---|
+| ACE-Karte zeigt keinen Spül-Multiplikator (*noch nicht gelesen*) | Die Bridge liest GoKlippers ACE-Konfiguration alle 10 Minuten über Moonraker (`/printer/filament_hub/get_config`). Moonraker von Rinkhals muss erreichbar sein; das Bridge-Log nennt den Grund (*ACE settings not readable*). |
+| *Es läuft ein Druck – Änderung erst nach dem Freischalten* | Unter Rinkhals ändern sich ACE-Einstellungen während eines Drucks erst nach Bestätigung; Weboberfläche und App fragen nach. Über die API `"confirm_printing": true` mitschicken. |
+| Slot-Karte / Orca-Panel: *Am Drucker ist kein Material eingetragen – der Druck bricht ab* | GoKlipper bricht einen Druck ab, der einen Slot ohne Material nutzt. Spule zuordnen (die Bridge schickt Material und Farbe per `MMU_GATE_MAP` – nicht im Druck und nie für Slots mit Anycubic-RFID-Tag) oder am Drucker-Display eintragen. |
+| Spule zugeordnet, aber das Drucker-Display zeigt das alte Material | Slots mit Anycubic-RFID-Tag lehnt Rinkhals ab – der Tag gewinnt. Slots ohne Tag übernehmen den Wert etwa 20 s später. |
+| *Spülen Firmware* in der Orca-Vorschau weicht von der Buchung ab | Das Modell lernt aus fertigen Orca-Drucken (Versatz und erstes Laden). Nach ein paar Drucken passt es besser; siehe [Befunde](../findings.md) (englisch). |
+| Kamera ruckelt (1–2 fps) im Druck | Gewollt: Die Bridge senkt die Bildrate, solange die Drucker-CPU über `CAMERA_CPU_HIGH` (97 %) liegt – die Original-Firmware braucht sie zum Drucken. In der Ecke steht *gedrosselt*. |
+| Kein Knopf *Klipper neu laden* | Rinkhals erlaubt keinen Firmware-Neustart von außen; den Drucker aus- und einschalten. |
+| Auto-PA, Z-Versatz, Fortsetzen, Verstopfung fehlen | Die brauchen Klipper-Module und gibt es auf der Original-Firmware nicht ([was wo geht](../../README.de.md#was-auf-welchem-aufbau-geht)). |
 
 ## Orca
 
@@ -62,9 +75,10 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 ## Nützliche Befehle
 
 ```bash
-docker logs -f ace-lane-bridge                      # Bridge-Log (Einrichtungscode, Buchungen, Warnungen)
+docker logs -f ace-lane-bridge                      # Bridge-Log (Setup code, Buchungen, Warnungen)
 curl -s http://<docker-host>:7913/api/health | jq   # Status
 curl -s http://<docker-host>:7913/api/auth/status   # setup_required = noch nichts gekoppelt
-curl -s "http://<pi-ip>:7125/printer/objects/query?ace&ace_instance_0"   # was ACEPRO meldet
+curl -s "http://<pi-ip>:7125/printer/objects/query?ace&ace_instance_0"   # was ACEPRO meldet (Klipper)
+curl -s "http://<drucker-ip>:7125/printer/objects/query?mmu&filament_hub"  # was Rinkhals meldet
 grep kobra-spoolman ~/.config/OrcaSlicer/log/python_*.log | tail
 ```

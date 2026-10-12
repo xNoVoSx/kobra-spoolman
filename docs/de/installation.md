@@ -7,7 +7,7 @@ davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 
 **Überblick**
 
-1. [Drucker: Klipper, ACEPRO und Moonraker](#1-drucker-klipper-acepro-und-moonraker)
+1. [Drucker: Rinkhals oder Klipper](#1-drucker-rinkhals-oder-klipper)
 2. [Spoolman und seine Zusatzfelder](#2-spoolman-und-seine-zusatzfelder)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
 4. [Das erste Gerät koppeln](#4-das-erste-gerät-koppeln)
@@ -18,10 +18,31 @@ davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 
 ---
 
-## 1. Drucker: Klipper, ACEPRO und Moonraker
+## 1. Drucker: Rinkhals oder Klipper
 
-Bridge 3.x arbeitet mit **Klipper auf einem Raspberry Pi**: Die Steuerplatinen des Kobra S1 werden per USB zum
-Pi getunnelt ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), Klipper-Fork
+Die Bridge läuft mit beiden Aufbauten und erkennt selbst, mit welchem sie spricht (im Log:
+`Subscription active on rinkhals` bzw. `… on klipper`). Such dir einen aus – was jeder kann, steht in der
+[README](../../README.de.md#was-auf-welchem-aufbau-geht).
+
+### A – Original-Firmware mit Rinkhals (am einfachsten)
+
+- [Rinkhals](https://github.com/rinkhals-community/Rinkhals) auf dem Kobra S1 installieren (eigene Anleitung).
+  Rinkhals bringt Moonraker mit; es muss unter `http://<drucker-ip>:7125` erreichbar sein (im Browser
+  `http://<drucker-ip>:7125/server/info` testen).
+- **Moonrakers eigene Spoolman-Anbindung bleibt aus** (kein Abschnitt `[spoolman]` in der `moonraker.conf` von
+  Rinkhals), sonst wird doppelt gebucht.
+- Dem Drucker eine feste IP geben (DHCP-Reservierung) – alles andere zeigt darauf.
+- An der Firmware ist nichts umzustellen: Die ACE-Einstellungen, die das Display versteckt (Spül-Multiplikator,
+  Auslauferkennung), stehen in der ACE-Karte der Bridge.
+
+> [!NOTE]
+> Rinkhals öffnet root-SSH mit einem öffentlich bekannten Passwort. Den Drucker nur in einem vertrauenswürdigen Netz
+> betreiben.
+
+### B – Klipper auf einem Raspberry Pi mit ACEPRO
+
+Die Steuerplatinen des Kobra S1 werden per USB zum Pi getunnelt
+([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), Klipper-Fork
 [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), die ACE 2 Pro hängt mit dem Treiber
 [ACEPRO](https://github.com/Kobra-S1/ACEPRO) am Pi. Einrichtung nach den Anleitungen dieser Projekte; für die Bridge:
 
@@ -35,10 +56,6 @@ Pi getunnelt ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-
 - **Moonrakers eigene Spoolman-Anbindung bleibt aus** (kein Abschnitt `[spoolman]` in
   `moonraker.conf`), sonst wird doppelt gebucht.
 - Dem Pi eine feste IP geben (DHCP-Reservierung) – alles andere zeigt darauf.
-- Noch auf der Original-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals)? Dann Bridge
-  **2.21.1** und Plugin **0.5.3** aus dem Wartungszweig `maint/2.x`
-  (`https://raw.githubusercontent.com/xNoVoSx/kobra-spoolman/maint/2.x/orca-plugin/kobra_spoolman.py`).
-  Rinkhals-Unterstützung für die aktuelle Linie ist geplant.
 
 ## 2. Spoolman und seine Zusatzfelder
 
@@ -48,9 +65,12 @@ Spoolman ab 0.26. Läuft es noch nicht, kommt es am besten in denselben Stack wi
 Dann einmalig die Zusatzfelder und Materialvorlagen anlegen:
 
 ```bash
-python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912 --dry-run   # Plan anzeigen
-python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912             # anlegen
+python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912 --language de --dry-run   # Plan anzeigen
+python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912 --language de             # anlegen
 ```
+
+`--language de` legt die Namen in Spoolman deutsch an (Felder, Vorlagen-Hersteller, Vorlagen); ohne sind sie
+englisch. Die Bridge kommt mit beidem zurecht.
 
 Das Skript legt nur **neu** an, ändert oder löscht nie vorhandene Felder oder Filamente – mehrfaches
 Ausführen schadet nicht. Es legt an:
@@ -61,9 +81,10 @@ Ausführen schadet nicht. Es legt an:
   Retraction, Z-Hop, ein freies Feld *Orca-Overrides*, dazu *Orca-Basisprofil* und *Vorlage*.
   Vollständige Liste: [spoolman-fields.md](../spoolman-fields.md).
 - **Spulen-Felder** *NFC-Kennung* und *Tag-Nummer* (NFC-Tags aus der App).
-- Filament-Feld *Trocknen max.* – höchste Trockentemperatur, die das Filament verträgt (ACE-Trockner).
-- Einen Hersteller **„Vorlage“** mit sieben Vorlagen (PLA, PLA Silk, PETG, ASA, TPU, PLA-CF, PETG-CF),
-  vorbelegt aus Orcas Generic-Profilen.
+- Filament-Felder *Trocknen max.*, *Trocknen Dauer* und *Offen bis Trocknen* – für den ACE-Trockner und die
+  Feuchte-Schätzung.
+- Einen Hersteller **„Vorlage“** (englisch: „Template“) mit sieben Vorlagen (PLA, PLA Silk, PETG, ASA, TPU, PLA-CF,
+  PETG-CF), vorbelegt aus Orcas Generic-Profilen.
 
 ## 3. ace-lane-bridge
 
@@ -81,7 +102,8 @@ Den Dienst in deinen Stack aufnehmen (Portainer → Stacks, oder `docker compose
     volumes:
       - ./bridge-data:/data          # z.B. /docker/ace-lane-bridge/data
     environment:
-      MOONRAKER_URL: "http://<pi-ip>:7125"
+      MOONRAKER_URL: "http://<drucker-ip>:7125"   # Rinkhals; Klipper: http://<pi-ip>:7125
+      UI_LANGUAGE: de                            # Standardsprache für Geräte ohne eigene Wahl
       SPOOLMAN_URL: "http://spoolman:8000"   # Servicename im selben Stack
       TZ: Europe/Berlin
     depends_on:
@@ -109,7 +131,7 @@ Praktisch beim Entwickeln. `bridge/app/` auf den Docker-Host kopieren (z.B. nach
       - /docker/ace-lane-bridge/app:/app:ro
       - /docker/ace-lane-bridge/data:/data
     environment:
-      MOONRAKER_URL: "http://<pi-ip>:7125"
+      MOONRAKER_URL: "http://<drucker-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"
       TZ: Europe/Berlin
 ```
@@ -130,7 +152,7 @@ Schlüssel vergibt die Bridge selbst – du denkst dir kein Passwort aus.
 
 1. Das Log der Bridge öffnen (Portainer → Container → *ace-lane-bridge* → Logs, oder
    `docker logs ace-lane-bridge`). Solange nichts gekoppelt ist, steht dort
-   `Noch kein Gerät gekoppelt. Einrichtungscode: 123456`.
+   `No device paired yet. Setup code: 123456` (das Log ist immer englisch).
 2. `http://<docker-host>:7913` öffnen, die sechs Ziffern und einen Namen für den Browser eingeben →
    **Koppeln**. Der Browser merkt sich seinen Schlüssel und fragt nie wieder.
 3. Jedes weitere Gerät (anderer Browser, Handy, Orca-Plugin) bekommt einen frischen Code von einem
@@ -162,10 +184,18 @@ Updates, Rückfall und Entfernen: [Installationsanleitung von orca-kobra](https:
 
 ### Orca-Druckerprofil
 
-- Den Drucker wie gewohnt anlegen (Anycubic Kobra S1 0.4 nozzle), G-Code-Variante **Klipper**, mit
-  `http://<pi-ip>` verbinden.
+- Den Drucker wie gewohnt anlegen (Anycubic Kobra S1 0.4 nozzle) und mit `http://<drucker-ip>` (Rinkhals) bzw.
+  `http://<pi-ip>` (Klipper; G-Code-Variante **Klipper**) verbinden.
 - **Druckereinstellungen → Grundlegende Informationen → Erweitert** (Expertenmodus):
   **Printer Agent = Moonraker**.
+
+**A – Rinkhals:** Anycubics Druckerprofil bleibt, wie es ist. Die Firmware spült bei jedem Farbwechsel selbst und
+übergeht Orcas Spülmengen – die Menge richtet sich nach dem Farbunterschied mal dem Spül-Multiplikator der Firmware,
+den du in der **ACE-Karte** der Bridge einstellst (mit Vorschau je Farbpaar). Die Verbrauchsvorschau des Plugins
+rechnet dieses Spülen pro Filament ein.
+
+**B – Klipper + ACEPRO:**
+
 - **Druckereinstellungen → Maschinen-G-Code → Filamentwechsel-G-Code** – die Spülmenge jedes Farbwechsels kommt
   aus Orcas Spülmengen (Dialog neben *Filament*), ACEPRO spült nach dem Laden genau so viel:
   ```
@@ -206,7 +236,8 @@ curl -fsSLo ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/kobra_spoolman.py \
 4. **Plugin koppeln**: Das Panel zeigt *Plugin koppeln* – in der Weboberfläche einen Code holen
    (*Geräte → Gerät hinzufügen*) und eingeben. Ungekoppelt laufen Panel und Profile trotzdem, nur das
    Zurückschreiben eines Profils nach Spoolman wird abgelehnt.
-5. **Orca einmal neu starten** – Orca liest Profile nur beim Start. Deine Filamente stehen jetzt als
+5. **Orca einmal neu starten** – Orca liest Profile nur beim Start. Das Panel spricht die Sprache der Bridge;
+   *Language* in der Plugin-Konfiguration übersteuert sie. Deine Filamente stehen jetzt als
    `Hersteller Name (SM000010)` in den Filamentlisten.
 
 ## 7. Android-App (optional)

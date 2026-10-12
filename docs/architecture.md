@@ -6,12 +6,16 @@
 
 1. **Spoolman is the single source of truth** for everything about filament: properties, Orca
    settings, remaining weight and where a spool is (`ACE Slot N` or the shelf).
-2. **No firmware patches.** The bridge only talks to Moonraker (Klipper on a Raspberry Pi with the
-   ACEPRO driver) and Spoolman over their public APIs. The ACE keeps working on its own (endless spool,
-   RFID). Bridge 2.x did the same against the stock firmware with Rinkhals.
+2. **No firmware patches.** The bridge only talks to Moonraker and Spoolman over their public APIs — Moonraker of
+   the stock firmware with Rinkhals, or of Klipper on a Raspberry Pi with the ACEPRO driver. The ACE keeps working on
+   its own (endless spool, RFID).
 3. **Measure, don't estimate.** Consumption comes from the printer's extrusion counter.
 4. **Nothing is lost silently.** Unbookable consumption becomes an open item; the bridge survives
    restarts mid-print.
+5. **One code base for both firmwares.** Everything that depends on the firmware sits behind one module
+   (`acemodel.py`); the rest of the bridge does not know which one runs.
+6. **English first.** Code, comments, logs, API and docs are English; user-facing texts go through a catalog and can
+   be German per user and device (see [Languages](#languages)).
 
 ## Components and data flow
 
@@ -34,6 +38,51 @@ sequenceDiagram
     M-->>B: notify_status_update (print_stats.filament_used, ace current_index)
     B->>S: PUT spool/{id}/use {use_length}
 ```
+
+## Two firmwares (`acemodel.py`, `moonraker.py`)
+
+The bridge finds out what it talks to from Moonraker itself — no setting:
+
+| | Klipper + ACEPRO | Rinkhals (GoKlipper) |
+|---|---|---|
+| Detected by | Moonraker objects `ace` / `ace_instance_0` | objects `mmu` (Rinkhals' `mmu_ace.py`) / `filament_hub` (GoKlipper); `Moonraker.platform` = `rinkhals` when Moonraker lists the components `kobra` or `mmu_ace` |
+| Subscription | base objects + every optional object `printer.objects.list` reports | base objects + `mmu`, `filament_hub` + only listed optional objects — subscribing to an object GoKlipper does not have can make it panic |
+| Slots | `ace_instance_0.slots[i]` | `mmu.gate_*` lists; tag = `filament_hub` slot `rfid == 2` |
+| Loaded slot | `ace.current_index`, `ace.target_index` during a change | `mmu.gate` / `gate_status` (flickers during a change → debounced, `GATE_DEBOUNCE_S`), `mmu.ttg_map` for tool → slot |
+| Slot info for untagged spools | `ACE_SET_SLOT T= MATERIAL= COLOR= TEMP=` | `MMU_GATE_MAP MAP="{gate: {...}}"` (refused for tagged slots) |
+| Dryer | `ACE_START_DRYING` / `ACE_STOP_DRYING`, durations in seconds | `MMU_DRYER_START UNIT=0 DURATION=<min> TEMP=` / `MMU_DRYER_STOP`, duration in minutes |
+| ACE settings | endless spool + mode (G-code) | `filament_hub/get_config`/`set_config` (`auto_refill`, `runout_detect`), `SET_ACE_FLUSH_MULTIPLIER` |
+| Purge per colour change | Orca's flushing volumes (`ACE_SET_PURGE_AMOUNT`, `EXTERNAL_PURGE`) | the firmware's own: `purge.py` predicts it |
+| Klipper restart | `FIRMWARE_RESTART` | refused (Rinkhals blocks it) |
+
+`acemodel` turns both into one view (`slot()`, `active_slot()`, `dryer()`, `endless_spool()`, `changing()`,
+`tool_slot()`) and builds the commands (`set_slot_command`, `dryer_start_command`, …). Features that need our Klipper
+modules (Auto-PA, Z offset, resume, clog detection, print phase, USB watchdog) look for their objects and stay hidden
+when they are missing — on Rinkhals they simply never appear.
+
+### Firmware purge (`purge.py`, Rinkhals)
+
+For prints started through Moonraker the stock firmware ignores the slicer's flush matrix and purges by itself:
+colour volume = clamp(Orca's colour formula(from, to) + `flush_volume_min`, min, max), purge = volume ×
+`flush_multiplier` / 2.405 + offset (mm), plus a fixed first load (~95 mm). `flush_volume_min/max` and the multiplier
+come from GoKlipper's configuration; offset and first load are fitted (least squares) from finished Orca prints, where
+"measured − G-code target" per slot is exactly the firmware's purge. The ACE card shows the result per colour pair
+(`/api/ace`), the Orca plugin adds it to its usage preview (`/api/orca/state` → `purge.model`).
+
+## Languages
+
+- **Source text is English** everywhere; German lives in catalogs: bridge `locale/de.json` (`tr()` in `i18n.py`), web
+  `static/i18n/de.json` (`t()` in `i18n.js`), app `assets/i18n/de.json` (`tr()` in `data/I18n.kt`, plus Android
+  resources for the manifest and the widget), plugin `DE` dict at the end of `kobra_spoolman.py`.
+- The language is chosen per request (`?lang=`, `X-Lang`, `Accept-Language`, else `UI_LANGUAGE`): the bridge renders
+  answer texts lazily, so one bridge serves an English browser and a German phone at the same time. Logs are always
+  English.
+- Stable codes never change with the language: states, sources (`hand`, `plan`, `spule`, …), Spoolman extra-field
+  keys (`orca_basis`, `vorlage`, …). Some of them are German for historical reasons and stay, because stored data and
+  older apps use them.
+- Spoolman names (shelf location, template vendor, field names) are English for a new install; an existing install
+  with the German names (`Regal`, `Vorlage`) keeps them — the bridge detects which one exists.
+- Tests (`tests/test_i18n*.py`) fail on a German word in a source string and on a catalog key the code no longer uses.
 
 ## Clients and pairing (`bridge/app/acebridge/auth.py`)
 
@@ -74,8 +123,9 @@ The bridge therefore fetches snapshots one after another by default (`CAMERA_STR
 someone watches, closed 20 s after the last viewer — and fans each frame out: web UI, app, Mainsail
 (camera link) and the AI service. Each viewer always gets the newest frame; a slow viewer skips frames
 instead of queueing. With Klipper on the Pi the printer has plenty of headroom, so the rate is simply
-`CAMERA_FPS_MAX` (the CPU-based throttling of bridge 2.x is gone). *Status* shows the CPU of the Klipper
-host (the Pi).
+`CAMERA_FPS_MAX`. On Rinkhals the bridge starts at 2 fps and follows the printer's CPU (Moonraker's `proc_stats`, averaged over 10 s): below
+`CAMERA_CPU_LOW` it adds 1 fps every 5 s, above `CAMERA_CPU_HIGH` it takes one away (`/api/camera` → `throttled`, the
+web UI shows *throttled*). *Status* shows the CPU of the printer or the Klipper host (the Pi).
 
 ## AI print-failure detection (`vision.py`, `vision/`)
 
@@ -107,7 +157,7 @@ processed nothing meanwhile).
 |---|---|---|
 | `pa.py` | `kobra_pa` | Spoolman `pa_table` → `KOBRA_PA_SET` per slot; measured result → back to the filament (`pa_table`, `pressure_advance`) |
 | `filament_z.py` | `KOBRA_START` variable `slot_z` | Spoolman `z_offset` (or the template's) of each loaded slot → printer; the print start applies the start filament's value |
-| `resume.py` | `kobra_resume` | interrupted print → alarm + card; *Fortsetzen* sends `KOBRA_RESUME CONFIRM=1` only after confirmation |
+| `resume.py` | `kobra_resume` | interrupted print → alarm + card; *Resume* sends `KOBRA_RESUME CONFIRM=1` only after confirmation |
 | `switches.py` | all of them | one list of the modules' switches for display, web and app (`/api/switches`); sends only listed commands |
 | `machine.py` | toolhead, T0–T3, ACEPRO | display control: home, jog, extrude, load/unload, fixed macros — fixed commands with limits, locked while printing |
 | `files.py`, `prompts.py` | Moonraker files, `action:prompt_*` | display: print files with slot check and start; macro prompts (buttons send only the G-code the macro gave them) |
@@ -149,8 +199,9 @@ live in `webcommon.Ctx`. Every state file in `DATA_DIR` is written through `stor
   and purge at a tool change (ACEPRO patch: `gcode_move.reset_last_position()` after its direct
   extruder moves, so they show up at once).
 - Consumption = **signed** delta of `filament_used`; retracts cancel out.
-- Each delta belongs to the slot ACEPRO reports as loaded (`ace.current_index`); during a tool change
-  after the unload (`current_index = -1`) to the incoming slot (`ace.target_index`). So the unload
+- Each delta belongs to the slot the ACE reports as loaded (ACEPRO `ace.current_index`, Rinkhals `mmu.gate` once it
+  stayed the same for `GATE_DEBOUNCE_S`); during a tool change after the unload (`current_index = -1`) to the incoming
+  slot (`ace.target_index`). So the unload
   retract goes to the old filament, load and purge to the **newly loaded** one — which is physically right.
   Consumption before the first loaded slot goes to the first one.
 - Buckets are *(slot, spool)*: if the spool in a slot changes mid-print, both get their share; with
@@ -190,18 +241,24 @@ makes it match presets by `lane_data.filament_id` — which the bridge already w
 On `SlicingJobComplete` (and on every panel refresh) the plugin reads
 `orca.host.slice_statistics()` — per filament the model, support, prime tower, flush and total
 volume plus density, the number of loads and the filament changes (`transitions`: from → to with
-counts). `build_forecast()` converts them to grams exactly like Orca's preview legend (*Gesamt* =
+counts). `build_forecast()` converts them to grams exactly like Orca's preview legend (*Total* =
 model + support + flush + tower; Orca's own `total_volumes_per_extruder` attributes the tower
 differently at tool changes and is not used) and compares that with the spool's remaining weight.
 Filament N is counted against slot N.
 
-**ACE purge per colour change:** the printer profile's change-filament G-code sets the purge from Orca's
+**ACE purge per colour change (Klipper + ACEPRO):** the printer profile's change-filament G-code sets the purge from Orca's
 flushing volumes (`ACE_SET_PURGE_AMOUNT`) and reports load + purge to Orca with `; EXTERNAL_PURGE <mm>`
 after the `T` line, so Orca counts it as *Flushed* on the new filament — Orca's legend and the preview
 show the real consumption without a model of their own. If a print changes colour but reports no purge
 at all, the panel says the printer profile is outdated. When the plate's slice result becomes invalid
 the preview is hidden. Without patch 0003 the attribute is missing and the preview is simply not shown
 (feature detection, no version check).
+
+**Firmware purge (Rinkhals):** Orca's matrix does not reach the stock firmware, so *Flushed* is 0. When
+`/api/orca/state` carries `purge.model`, `build_forecast()` adds the firmware purge per filament (column *Firmware
+purge*): with Orca's `transitions` exactly per change (first load for `from = null`, else the colour formula between
+the slot colours); without them it spreads the first load over the filaments and uses the mean of the changes from the
+others. It also flags a slot whose material is empty at the printer — GoKlipper cancels such a print.
 
 ## Threads in the plugin
 

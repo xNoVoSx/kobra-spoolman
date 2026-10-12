@@ -4,12 +4,14 @@
 
 **Spoolman als einzige Quelle für alle Filamentdaten eines Anycubic Kobra S1 mit ACE 2 Pro – in OrcaSlicer, im Browser, auf dem Handy und am Drucker.**
 
+Läuft auf der **Original-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals)** und mit **Klipper auf einem Raspberry Pi** und ACEPRO – eine Bridge, sie erkennt selbst, mit wem sie spricht.
+
 [![CI](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/ci.yml/badge.svg)](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/ci.yml)
 [![Docker-Image](https://github.com/xNoVoSx/kobra-spoolman/actions/workflows/docker.yml/badge.svg)](https://github.com/xNoVoSx/kobra-spoolman/pkgs/container/ace-lane-bridge)
 [![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
 [![OrcaSlicer-Build](https://img.shields.io/badge/OrcaSlicer-orca--kobra-2ea44f)](https://github.com/xNoVoSx/orca-kobra)
 
-[English](README.md) · [Installation](docs/de/installation.md) · [Alltag](docs/de/usage.md) · [Fehlersuche](docs/de/troubleshooting.md) · [API (englisch)](docs/api.md)
+[English](README.md) · [Installation](docs/de/installation.md) · [Alltag](docs/de/usage.md) · [Fehlersuche](docs/de/troubleshooting.md) · [API (englisch)](docs/api.md) · [KI-Hinweis](#ki-hinweis)
 
 </div>
 
@@ -33,8 +35,11 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
   Handy – und Spulen mit unseren NFC-Tags werden beim Einlegen **von selbst ihrem Slot zugeordnet**.
 - Eine optionale **KI** beobachtet laufende Drucke und schlägt mit Kamerabild Alarm, wenn ein Druck zu
   Spaghetti wird – auf der CPU, ohne Last am Drucker ([vision.md](docs/vision.md), englisch).
-- Zusammen mit Klipper-Modulen am Drucker (nicht Teil dieses Repos) steuern die Filamentdaten den Druck
-  selbst: **Auto-PA**, von der Wiegezelle gemessen und pro Filament gespeichert, **Z-Versatz pro
+- **Unter Rinkhals** zeigt und stellt die ACE-Karte, was das Drucker-Display versteckt: Endlosspule,
+  Auslauferkennung und den **Spül-Multiplikator der Firmware mit Vorschau je Farbpaar**; die Verbrauchsvorschau in Orca
+  rechnet das Spülen der Firmware mit ein.
+- **Unter Klipper** steuern die Filamentdaten zusammen mit Klipper-Modulen am Drucker (nicht Teil dieses Repos) den
+  Druck selbst: **Auto-PA**, von der Wiegezelle gemessen und pro Filament gespeichert, **Z-Versatz pro
   Filament**, **Fortsetzen nach Stromausfall** (tastet die Höhe auf dem Teil an, fragt immer vorher) und
   **Verstopfung erkennen** (Extruder gegen Filament-Encoder) – jedes mit eigenem Aus-Schalter.
 - Eine Ansicht fürs **Display des Druckers** (`/display`, 800×480): Status, eine Druckansicht, die bei Druckstart
@@ -45,6 +50,7 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
   beim Druckstart, ob die eingelegten Spulen zur Datei passen.
 - **3D-Ansicht** des laufenden Drucks in den Spulenfarben, **Home Assistant** über MQTT, ein
   **Widget** für den Startbildschirm, und jede Bridge-Einstellung lässt sich in der Weboberfläche ändern.
+- **Englisch und Deutsch** in Weboberfläche, App und Orca-Panel – jeder Nutzer und jedes Gerät wählt seine Sprache.
 
 <p align="center">
   <img src="docs/images/web-overview.png" width="860" alt="Weboberfläche: Drucker mit Kamera, Meldungen und Status, Trockner, ACE, Slots"><br>
@@ -63,8 +69,8 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 
 ```mermaid
 flowchart LR
-    subgraph Printer["Kobra S1 + ACE 2 Pro · Klipper on a Raspberry Pi"]
-        MR[Moonraker<br/>ace · print_stats · lane_data]
+    subgraph Printer["Kobra S1 + ACE 2 Pro · Rinkhals oder Klipper auf einem Pi"]
+        MR[Moonraker<br/>ACE · print_stats · lane_data]
     end
     SM[(Spoolman)]
     BR[ace-lane-bridge<br/>Docker · Weboberfläche]
@@ -76,7 +82,7 @@ flowchart LR
     App[Android-App<br/>NFC-Tags]
 
     MR -- "Live-Status (WebSocket)" --> BR
-    BR -- "lane_data, Slot-Daten (ACE_SET_SLOT), Trockner" --> MR
+    BR -- "lane_data, Slot-Daten, Trockner, ACE-Einstellungen" --> MR
     BR <-->|"Spulen, Filamente, Verbrauch"| SM
     Web -- "gekoppelter Schlüssel" --> BR
     App -- "gekoppelter Schlüssel" --> BR
@@ -86,7 +92,8 @@ flowchart LR
 ```
 
 Die Bridge ist der **einzige** Client dieses Projekts an Moonraker und verteilt die Daten weiter: Browser,
-App, Orca-Plugin und Home Assistant reden alle mit der Bridge.
+App, Orca-Plugin und Home Assistant reden alle mit der Bridge. Welche Firmware läuft, liest sie aus Moonraker
+(Rinkhals' `mmu`/`filament_hub` oder ACEPROs `ace`) und spricht die ACE passend an – nichts einzustellen.
 
 | Baustein | Aufgabe |
 |---|---|
@@ -99,26 +106,52 @@ App, Orca-Plugin und Home Assistant reden alle mit der Bridge.
 
 ## Voraussetzungen
 
-- Anycubic **Kobra S1** mit **ACE 2 Pro**, auf dem **Klipper auf einem Raspberry Pi** über den USB-Tunnel des
-  Druckers läuft ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu),
-  [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), mit dem ACE-Treiber
-  [ACEPRO](https://github.com/Kobra-S1/ACEPRO); Moonraker auf Port 7125 erreichbar. ACEPROs eigener
-  `lane_data`-Sync aus, Orcas Filamentwechsel-G-Code aus der [Installationsanleitung](docs/de/installation.md#orca-druckerprofil).
-  Bridge **2.x** ist für die Original-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals).
+Du brauchst **einen** der beiden Drucker-Aufbauten:
+
+| | **A – Original-Firmware + Rinkhals** (am einfachsten) | **B – Klipper auf einem Raspberry Pi** |
+|---|---|---|
+| Drucker | Kobra S1 + ACE 2 Pro, Anycubic-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals) | Kobra S1 + ACE 2 Pro, Platinen per USB zum Pi getunnelt ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), ACE am Pi mit [ACEPRO](https://github.com/Kobra-S1/ACEPRO) |
+| Moonraker | Moonraker von Rinkhals auf dem Drucker, Port 7125 | Moonraker auf dem Pi, Port 7125 |
+| Zusätzliche Hardware | keine | Raspberry Pi, USB-Kabel |
+| Aufwand | Rinkhals installieren, fertig | ein Wochenende |
+
+Für beide:
+
 - **Spoolman** 0.26 oder neuer.
 - Ein **Docker**-Host im selben Netz (Portainer, Compose, …).
 - **OrcaSlicer** mit Plugin-System (2.5.0-dev nightly). Die automatische Profilwahl braucht den
   `orca-kobra`-Build (Linux-AppImage), bis PR #14423 in Orca übernommen ist.
 - Optional: ein Android-Handy (ab Android 10) mit NFC für die App.
 
+Andere Rinkhals-Drucker mit ACE (Kobra 3 und Co.) nutzen dieselbe Rinkhals-Schnittstelle und sollten laufen, sind hier
+aber nicht getestet – Rückmeldungen sind willkommen.
+
+### Was auf welchem Aufbau geht
+
+| Funktion | A – Rinkhals | B – Klipper + ACEPRO |
+|---|---|---|
+| Orca-Profile aus Spoolman, Seitenpanel, Rücksync, Sync-Knopf | ✅ | ✅ |
+| Verbrauch pro Spule in Spoolman buchen | ✅ | ✅ |
+| Weboberfläche, Android-App, Benachrichtigungen, Widget, Home Assistant, NFC-Tags | ✅ | ✅ |
+| ACE-Trockner mit Automatik, Feuchte-Verlauf, Feuchte pro Spule | ✅ | ✅ |
+| Endlosspule | ✅ (an/aus) | ✅ (an/aus + Auswahlmodus) |
+| Spülen je Farbwechsel | von der Firmware: Multiplikator + Vorschau in der ACE-Karte | Orcas Spülvolumen |
+| Verbrauchsvorschau in Orca | ✅ inkl. Spülen der Firmware | ✅ |
+| Kamera-Restream | ✅ (Bildrate folgt der Drucker-CPU) | ✅ |
+| KI-Fehldruck-Erkennung | ✅ | ✅ |
+| Druckphase (*Vorheizen*, *Wechsel auf Slot 2* …) | einfach (druckt / wechselt) | ✅ ausführlich |
+| Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung erkennen | – (brauchen Klipper-Module) | ✅ mit unseren Klipper-Modulen (nicht Teil dieses Repos) |
+| Ansicht fürs Drucker-Display (`/display`), USB-Wächter, Klipper neu laden | – | ✅ |
+
 ## Schnellstart
 
 1. **Spoolman-Felder und Vorlagen** – einmalig:
    `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
 2. **Bridge** – in den Spoolman-Stack aufnehmen ([Compose-Beispiel](bridge/compose.yaml)) mit
-   `MOONRAKER_URL=http://<pi-ip>:7125`.
+   `MOONRAKER_URL=http://<drucker-ip>:7125` (Rinkhals) bzw. `http://<pi-ip>:7125` (Klipper); für die deutsche
+   Oberfläche als Standard `UI_LANGUAGE=de`.
 3. **Browser koppeln** – `http://<docker-host>:7913` öffnen und den Einrichtungscode aus dem
-   Bridge-Log eingeben (`Einrichtungscode: …`). Weitere Geräte bekommen einen Code unter
+   Bridge-Log eingeben (`Setup code: …`). Weitere Geräte bekommen einen Code unter
    *Geräte → Gerät hinzufügen*.
 4. **OrcaSlicer** – den selbst aktualisierenden Build von [orca-kobra](https://github.com/xNoVoSx/orca-kobra) installieren (`tools/install.sh`).
 5. **Plugin** – [`kobra_spoolman.py`](orca-plugin/kobra_spoolman.py) nach
@@ -159,6 +192,9 @@ Mehr: **[docs/de/usage.md](docs/de/usage.md)**.
     <td align="center"><img src="docs/images/web-logs.png" width="420" alt="Logs"><br><sub>Logs: Bridge-Log, Logdateien des Druckers, Rohdaten jedes Drucks</sub></td>
     <td align="center"><img src="docs/images/app-notification.png" width="420" alt="Druck-Benachrichtigung"><br><sub>App: der laufende Druck in der Benachrichtigungsleiste</sub></td>
   </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/images/web-ace-rinkhals.png" width="640" alt="ACE-Karte unter Rinkhals"><br><sub>Rinkhals: Endlosspule, Auslauferkennung und Spül-Multiplikator der Firmware mit dem Spülen je Farbpaar (Bild englisch)</sub></td>
+  </tr>
 </table>
 
 Auf einem 5120×1440-Ultrawide passt die ganze Übersicht auf einen Bildschirm – Drucker mit großer Kamera, Slots, Trockner, ACE, Meldungen:
@@ -177,7 +213,8 @@ Original-Firmware:
 | Spülen (Firmware) | 451 mm beim Start | 195 mm beim Wechsel |
 | **In Spoolman gebucht** | **3055 mm ≈ 9,1 g** | **4970 mm ≈ 14,8 g** |
 
-Die Summe stimmte exakt mit dem Zähler `filament_used` des Druckers überein. Unter Klipper (Bridge 3.0) bucht
+Die Summe stimmte exakt mit dem Zähler `filament_used` des Druckers überein – derselbe Druck läuft als Test der
+aktuellen Bridge ([Test](tests/test_usage_rinkhals.py)). Unter Klipper bucht
 die Bridge `print_stats.filament_used` auf den Slot, den ACEPRO als geladen meldet – beim Wechsel bekommt der
 neue Slot das Laden bis zur Düse und das Spülen ([Test](tests/test_usage_acepro.py)). Mehr in [docs/findings.md](docs/findings.md) (englisch).
 
@@ -201,7 +238,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | [Architektur](docs/architecture.md) | Datenfluss, Verbrauchsmessung, Profilauflösung, Koppeln (englisch) |
 | [KI-Erkennung](docs/vision.md) | kobra-vision: wie Fehldrucke erkannt werden, Einrichtung, Bildersammlung, nächste Stufen (englisch) |
 | [Android-App](docs/android-app.md) | Was die App kann, NFC-Tags, bauen (englisch) |
-| [Befunde](docs/findings.md) | Was wir über die ACE, Rinkhals (Bridge 2.x) und Orcas Plugin-API gemessen haben (englisch) |
+| [Befunde](docs/findings.md) | Was wir über die ACE, Rinkhals/GoKlipper, Klipper und Orcas Plugin-API gemessen haben (englisch) |
 | [Changelog](CHANGELOG.md) | Versionsgeschichte (englisch) |
 
 ## Fahrplan
@@ -220,12 +257,25 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | – | KI-Fehldruck-Erkennung: Spaghetti (Stufe 1), Platte prüfen (2), umgefallene Teile (3) | ✅ Stufe 1 · 🔜 2 und 3 aus den gesammelten Bildern |
 | – | Feuchte der Spulen: Feuchte-Verlauf der ACE, Trocknungs-Protokoll, Schätzung pro Spule, Trocknen beim Einlegen, Raumsensor | ✅ fertig |
 | 5 | Home Assistant über MQTT (Drucker, Slots, Restgewicht, Feuchte, Meldungen), Raumsensor | ✅ fertig |
+| – | Englisch als Hauptsprache, Deutsch je Nutzer und Gerät umschaltbar | ✅ fertig (3.12) |
+| – | Rinkhals und Klipper in einer Bridge (Rinkhals: ACE-Karte mit Spül-Multiplikator, Spülen der Firmware in der Orca-Vorschau) | ✅ fertig (3.12) |
+| – | Home-Assistant-Add-on mit Ingress (Bridge in HA) | 🔜 als Nächstes |
+
+## KI-Hinweis
+
+Dieses Projekt entsteht mit viel KI-Hilfe: Der Großteil von Code, Tests und Doku wurde von einem KI-Programmierassistenten
+(Claude von Anthropic) geschrieben – im Auftrag des Maintainers, der entscheidet, was gebaut wird, es prüft und auf
+dem eigenen Kobra S1 testet. Jede Änderung läuft durch die automatischen Tests, trotzdem kann KI-geschriebener Code
+Fehler enthalten, die noch niemand bemerkt hat. Die Software steuert echte Hardware (Heizungen, Motoren) – lies, was du
+installierst, behalte die ersten Drucke im Blick und melde Auffälligkeiten als
+[Issue](https://github.com/xNoVoSx/kobra-spoolman/issues). Es gibt keine Gewährleistung (siehe [Lizenz](LICENSE)).
 
 ## Dank
 
 [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) ·
 [Spoolman](https://github.com/Donkie/Spoolman) ·
 [Rinkhals](https://github.com/rinkhals-community/Rinkhals) ·
+[ACEPRO](https://github.com/Kobra-S1/ACEPRO) und die Klipper-Projekte von [Kobra-S1](https://github.com/Kobra-S1) ·
 Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis ·
 [ACE-RFID](https://github.com/DnG-Crafts/ACE-RFID) ·
 [SimplyPrints Notizen zum Anycubic-Tagformat](https://help.simplyprint.io/en/article/the-anycubic-material-standard-nfcrfid-for-the-anycubic-ace-js3oty/) ·

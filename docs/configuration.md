@@ -6,25 +6,26 @@
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `MOONRAKER_URL` | **required** | Moonraker on the Klipper Pi, e.g. `http://192.168.1.50:7125` |
+| `MOONRAKER_URL` | **required** | Moonraker — on the printer with Rinkhals or on the Klipper Pi, e.g. `http://192.168.1.50:7125`. The bridge detects Rinkhals or Klipper + ACEPRO by itself |
+| `UI_LANGUAGE` | `en` | default language (`en` or `de`) of the texts the bridge sends: to devices without their own choice, Home Assistant (MQTT), notifications. Every browser and the app can switch for itself; changeable at runtime. The log is always English |
 | `MOONRAKER_API_KEY` | – | only if Moonraker requires one |
 | `SPOOLMAN_URL` | `http://spoolman:8000` | inside the same stack via the service name |
 | `SPOOLMAN_POLL_S` | `20` | how often Spoolman is re-read |
 | `HTTP_HOST` / `HTTP_PORT` | `0.0.0.0` / `7913` | API and web UI |
 | `SLOT_LOCATION_PREFIX` | `ACE Slot ` | Spoolman location of a loaded spool (`ACE Slot 1` …) |
-| `SHELF_LOCATION` | `Regal` | location of unloaded spools |
-| `TEMPLATE_VENDOR` | `Vorlage` | vendor name of the material templates |
+| `SHELF_LOCATION` | *(auto)* | Spoolman location of unloaded spools. Empty: `Shelf`, or `Regal` if your Spoolman already uses that (installs before 3.12) |
+| `TEMPLATE_VENDOR` | *(auto)* | vendor name of the material templates. Empty: `Template`, or `Vorlage` if that vendor already exists |
 | `AUTO_UNASSIGN_ON_EMPTY` | `true` | move the spool to the shelf when the ACE reports its slot empty |
 | `AUTO_ASSIGN_BY_TAG` | `true` | a spool with one of our tags (number ≥ `TAG_NR_MIN`) in a slot is assigned to it automatically |
 | `EMPTY_DEBOUNCE_S` | `15` | …after the slot stayed empty this long (during a print: after it ends) |
-| `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd (switch ACEPRO's own sync off, see [installation](installation.md#1-printer-klipper-acepro-and-moonraker)) |
+| `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd (switch ACEPRO's own sync off, see [installation](installation.md#b--klipper-on-a-raspberry-pi-with-acepro)) |
 | `LANE_NAMESPACE` | `lane_data` | Moonraker database namespace |
 | `EMPTY_GATE_MODE` | `delete` | `delete` empty gates from `lane_data`, or `keep` |
-| `SET_ACE_SLOT_INFO` | `true` | when a spool without RFID tag is assigned (web UI, app), give its material, colour and temperature to the ACE (`ACE_SET_SLOT`) — once, after it is loaded, never while printing; slots with a tag are never touched |
+| `SET_ACE_SLOT_INFO` | `true` | when a spool without RFID tag is assigned (web UI, app), give its material, colour and temperature to the ACE (ACEPRO: `ACE_SET_SLOT`, Rinkhals: `MMU_GATE_MAP`) — once, after it is loaded, never while printing; slots with a tag are never touched |
 | `BOOK_USAGE` | `true` | book consumption into Spoolman |
 | `BOOK_INTERVAL_S` | `300` | intermediate booking during a print |
 | `BOOK_MIN_MM` | `10` | smallest intermediate booking |
-| `GATE_DEBOUNCE_S` | `3` | an RFID tag must stay in the slot this long before the bridge assigns its spool |
+| `GATE_DEBOUNCE_S` | `3` | an RFID tag must stay in the slot this long before the bridge assigns its spool; on Rinkhals also how long the active slot must stay the same before consumption moves to it (Rinkhals' gate flickers during a change) |
 | `USAGE_TOLERANCE` | `0.03` | hint if a slot used less than the G-code model minus 3 % |
 | `JOB_HISTORY` | `50` | prints kept in the history |
 | `APP_TOKEN` | *(empty)* | **optional, transition only** — devices are now [paired](api.md#pairing-devices) and get their own keys. A set value still works as a key and as a pairing code |
@@ -32,10 +33,11 @@
 | `TELEMETRY` / `TELEMETRY_KEEP` | `true` / `30` | raw recordings of the last prints |
 | `DEFAULT_DIAMETER` / `DEFAULT_DENSITY` | `1.75` / `1.24` | only for estimates without a spool |
 | `SPOOLMAN_PUBLIC_URL` | – | Spoolman link in the web UI; empty = same host, port 7912 |
-| `PRINTER_UI_URL` | – | Mainsail link (*In Mainsail öffnen*); empty = the Moonraker host on port 80 |
+| `PRINTER_UI_URL` | – | Mainsail link (*Open Mainsail*); empty = the Moonraker host on port 80 |
 | `CAMERA` | `true` | camera through the bridge (web UI, app, Mainsail via camera link) |
 | `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer) |
 | `CAMERA_FPS_MIN` / `CAMERA_FPS_MAX` | `1` / `10` | range of the snapshot rate |
+| `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | Rinkhals only: the printer's CPU (%) below which the rate goes up by 1 fps every 5 s, above which it goes down — the stock firmware needs its CPU for printing. Ignored under Klipper on a Pi |
 | `CAMERA_STREAM_URL` | – | stream URL; empty = from Moonraker's webcam list (`/webcam/?action=stream` on the printer) |
 | `CAMERA_SNAPSHOT_URL` | – | snapshot URL; empty = from Moonraker's webcam list (`/webcam/?action=snapshot` on the printer) |
 | `CAMERA_INTERVAL_S` | `1` | a single `snapshot.jpg` request reuses an image younger than this |
@@ -47,12 +49,12 @@
 | `ROOM_RH` | `50` | humidity (%) of the storage room for the spool moisture estimate, used while no room sensor delivers fresh values |
 | `DRY_LOCATIONS` | – | Spoolman locations with their own humidity, e.g. `Trockenbox=15; Vakuumbeutel=10` |
 | `PA_SYNC` | `true` | Auto-PA: give the PA of each slot's filament to the Klipper module `kobra_pa` and write measurements back to the filament (`pa_table`, `pressure_advance`) |
-| `FILAMENT_Z_SYNC` | `true` | give each slot's *Z-Versatz* (filament field `z_offset`, else its template) to the printer macro `KOBRA_START` (variable `slot_z`), which adds the start filament's value to the first layer |
+| `FILAMENT_Z_SYNC` | `true` | give each slot's *Z offset* (filament field `z_offset`, else its template) to the printer macro `KOBRA_START` (variable `slot_z`), which adds the start filament's value to the first layer |
 | `AUTO_DRY_ON_INSERT` | `true` | start the ACE dryer when a spool that needs drying is loaded (temperature of the most sensitive loaded spool, time of the wettest) |
 | `NEW_SPOOLS_DRY` | `true` | spools without history count as *needs drying* when first loaded |
 | `WET_PRINT_ACTION` | `warn` | print start with a spool that needs drying: `warn` or `pause` (pauses once, within the first 10 min) |
-| `LOW_SPOOL_G` | `100` | notice *Spule fast leer* below this |
-| `REACH_RESERVE_PCT` | `5` | reserve for the notice *Spule reicht nicht* |
+| `LOW_SPOOL_G` | `100` | notice *… almost empty* below this |
+| `REACH_RESERVE_PCT` | `5` | reserve for the notice *… probably not enough for this print* |
 | `MQTT_HOST` | – | [Home Assistant over MQTT](#home-assistant-mqtt): broker address; empty = off |
 | `MQTT_PORT` / `MQTT_USER` / `MQTT_PASSWORD` | `1883` / – / – | broker login |
 | `MQTT_PREFIX` | `kobra-spoolman` | topic prefix of the bridge |
@@ -70,9 +72,9 @@ app (*Trockner → Regeln*) and stored in `dryer.json`, not in the environment.
 
 ### Changing settings at runtime
 
-Most values above can be changed in the web UI (*Einstellungen*, one card per group) without a restart: camera,
+Most values above can be changed in the web UI (*Settings*, one card per group) without a restart: camera,
 print preview, slots and RFID, spool moisture, notices, consumption and data. The environment only gives
-the start values; a changed value is stored in `DATA_DIR/settings.json` and wins from then on (*zurücksetzen*
+the start values; a changed value is stored in `DATA_DIR/settings.json` and wins from then on (*reset*
 next to a value restores the start value). Addresses (printer, Spoolman, camera, AI service, MQTT) need
 a restart and are only shown there.
 
@@ -95,7 +97,7 @@ Values are sent on change, at most every 5 s. With `MQTT_DISCOVERY` Home Assista
 **Room sensor:** `ROOM_SENSOR_TOPIC` is subscribed; a JSON payload with `humidity` (and `temperature`),
 as Zigbee2MQTT sends it, or a plain number. While the last value is younger than 2 h it replaces
 `ROOM_RH` in the moisture estimate of spools on the shelf (locations from `DRY_LOCATIONS` keep their
-own value). The status shows *Raumsensor* with the last value.
+own value). The status shows *Room sensor* with the last value.
 
 ### AI print-failure detection
 
@@ -136,7 +138,7 @@ Plugins dialog → **Kobra Spoolman** → **Configuration**:
 | Open panel on start | on | |
 | Ask before back-sync | on | off = profile edits go to Spoolman without asking |
 | Warn after slicing | on | Orca notification when a spool does not hold enough for the sliced plate |
-| Reserve (g) | `5` | usage preview says *knapp* (tight) when less than this (or 5 % of the need) would be left |
+| Reserve (g) | `5` | usage preview says *tight* (tight) when less than this (or 5 % of the need) would be left |
 
 Pairing is not a setting: when the plugin is not paired, its panel shows a field for the pairing
 code. The key is then stored in `kobra_device.json` and belongs to that bridge address — changing

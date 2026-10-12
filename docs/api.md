@@ -5,6 +5,11 @@
 Base URL: `http://<docker-host>:7913`. All responses are JSON; errors are `{"error": "…"}` with a
 4xx/5xx status. CORS is open (`*`), so browser tools and the Orca panel can call it directly.
 
+**Language:** texts in answers (errors, hints, messages, status lines) follow the request — `?lang=de` or the
+header `X-Lang: de` (web UI, app and plugin send it), else the browser's `Accept-Language`, else the bridge's default
+`UI_LANGUAGE`. Supported: `en`, `de`. Stable codes (states,
+sources, keys) never change with the language.
+
 **Keys:** reading is open. Everything that writes (Spoolman, slot assignment, open items) or makes
 the printer do something (dryer) needs the key of a [paired device](#pairing-devices) in
 `Authorization: Bearer <key>` — marked *(paired)* below. Without one: 401 (unknown key) or 403
@@ -40,7 +45,7 @@ A slot entry:
 {
   "slot": 1, "gate": 0,
   "ace": {"present": true, "active": false, "material": "PLA Silk", "color": "52D2BC"},
-  "spool": {"spool_id": 3, "display_name": "Anycubic PLA Silk Grün", "material": "PLA",
+  "spool": {"spool_id": 3, "display_name": "Anycubic PLA Silk Green", "material": "PLA",
             "remaining_weight": 585.2, "orca_filament_id": "SM000010"},
   "hints": []
 }
@@ -65,9 +70,9 @@ A history entry:
   "total_mm": 8025.0, "target_mm": 7487.7, "overhead_mm": 537.3, "loads": 2, "changes": 1,
   "slots": [
     {"slot": 1, "mm": 4970.0, "g": 14.82, "target_mm": 4826.9, "overhead_mm": 143.1,
-     "spools": [{"id": 3, "label": "#3 Anycubic PLA Silk Grün", "mm": 4970.0}]},
+     "spools": [{"id": 3, "label": "#3 Anycubic PLA Silk Green", "mm": 4970.0}]},
     {"slot": 2, "mm": 3055.0, "g": 9.11, "target_mm": 2660.8, "overhead_mm": 394.2,
-     "spools": [{"id": 4, "label": "#4 Anycubic PLA Weiß", "mm": 3055.0}]}
+     "spools": [{"id": 4, "label": "#4 Anycubic PLA White", "mm": 3055.0}]}
   ],
   "warnings": []
 }
@@ -78,7 +83,7 @@ A history entry:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/orca/profiles` | Orca values per filament that has an active spool |
-| GET | `/api/orca/state` | everything the Orca panel needs (slots, usage, profile hash) at one fixed URL |
+| GET | `/api/orca/state` | everything the Orca panel needs (slots, usage, profile hash) at one fixed URL; also `language` (the bridge's default, for the panel), `driver` (`acepro` or `rinkhals`) and on Rinkhals `purge` (`{"model": …}` — the firmware purge model, the panel adds the purge per colour change to its usage preview) |
 | POST | `/api/orca/backsync` | *(paired)* write changed Orca values back to Spoolman |
 | POST | `/api/orca/reset` | *(paired)* clear filament fields so the template / base profile applies again |
 
@@ -86,8 +91,8 @@ A history entry:
 
 ```json
 {
-  "orca_id": "SM000008", "filament_id": 8, "display_name": "Sunlu PETG 2.0 Lavendelviolett",
-  "base": "Generic PETG @System", "template": "Vorlage PETG",
+  "orca_id": "SM000008", "filament_id": 8, "display_name": "Sunlu PETG 2.0 Lavender",
+  "base": "Generic PETG @System", "template": "Template PETG",
   "values": {"nozzle_temperature": 250, "fan_min_speed": 20, "default_filament_colour": "#685BC7", "filament_id": "SM000008"},
   "sources": {"nozzle_temperature": "filament", "fan_min_speed": "vorlage", "default_filament_colour": "filament"},
   "spools": [{"id": 1, "remaining_weight": 1000.0, "slot": null}],
@@ -146,7 +151,7 @@ The estimate is a model, not a measurement: a spool takes up water with the humi
 (ACE sensor while loaded, room sensor or `ROOM_RH` on the shelf, `DRY_LOCATIONS`) and loses it while
 drying, faster the closer the temperature is to the material's maximum. `/api/app/state` carries the
 short form per spool as `moisture`. When the Spoolman fields exist, the bridge also writes
-*Feuchte-Schätzung*, *Zuletzt im ACE* and *Zuletzt getrocknet*.
+*Moisture estimate*, *Zuletzt im ACE* and *Last dried*.
 
 **Print start check.** At the start of a print the bridge compares each tool of the file with its slot
 (empty, material, colour, no spool, needs drying) and shows the result as messages
@@ -162,17 +167,46 @@ short form per spool as `moisture`. When the Spoolman fields exist, the bridge a
 
 ## ACE settings
 
-Settings of the ACE driver (ACEPRO) the printer display does not show, read live from the `ace` object
-in the bridge's Moonraker subscription.
+Settings of the ACE the printer display does not show — per driver (`settings.variant`):
+
+- **`acepro`** (Klipper + ACEPRO): read live from the `ace` object in the bridge's Moonraker subscription; endless spool
+  and its mode.
+- **`rinkhals`** (stock firmware): GoKlipper's own ACE configuration, read through Moonraker
+  (`/printer/filament_hub/get_config`) every 10 minutes and right after a change; endless spool (= `auto_refill`),
+  runout detection and the firmware's purge multiplier.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/ace` | `settings`: `present`, `endless_spool`, `endless_mode` (`exact`, `material`, `next`), `endless_modes` (mode → description), `firmware`, `model`, `printing` |
-| POST | `/api/ace/options` | *(paired)* `{"endless_spool": bool}` and/or `{"endless_mode": "exact"\|"material"\|"next"}` — `ACE_ENABLE_ENDLESS_SPOOL` / `ACE_DISABLE_ENDLESS_SPOOL` / `ACE_SET_ENDLESS_SPOOL_MODE`; allowed while printing; the answer waits up to 2 s for the driver to report the new state |
+| GET | `/api/ace` | `settings` (below) and `purge` — on Rinkhals the purge per colour change between the loaded spools, `null` on ACEPRO. `?multiplier=1.5` computes `purge` for another multiplier ("what if") |
+| POST | `/api/ace/options` | *(paired)* change settings, any of the keys in `settings.options`. ACEPRO: `{"endless_spool": bool}`, `{"endless_mode": "exact"\|"material"\|"next"}` — `ACE_ENABLE_ENDLESS_SPOOL` / `ACE_DISABLE_ENDLESS_SPOOL` / `ACE_SET_ENDLESS_SPOOL_MODE`, allowed while printing, the answer waits up to 2 s for the driver. Rinkhals: `{"endless_spool": bool}`, `{"runout_detect": bool}` (GoKlipper `set_config`), `{"flush_multiplier": 0.1–3.0}` (`SET_ACE_FLUSH_MULTIPLIER`); during a print only with `"confirm_printing": true`, else **409** — the firmware uses it from the next colour change |
+| POST | `/api/ace/flush_multiplier` | *(paired)* Rinkhals: `{"value": 1.0, "confirm_printing": false}` — the same as `options` with `flush_multiplier` (kept for bridge-2.x clients) |
 
-The purge per colour change comes from Orca's flushing volumes (printer profile, see
-[installation](installation.md#orca-printer-profile)); there is no flush multiplier any more (`/api/ace/flush` and the
-app-1.8 fields `auto_refill`, `flush_multiplier`, `purge` were removed in 3.10.0). `/api/app/state` contains `ace` (the
+`settings`:
+
+```json
+{"present": true, "variant": "rinkhals", "firmware": null, "model": "Anycubic Color Engine Pro 2.0", "printing": false,
+ "options": ["endless_spool", "runout_detect", "flush_multiplier"],
+ "endless_spool": true, "endless_mode": null, "endless_modes": {}, "runout_detect": true,
+ "flush_multiplier": 1.0, "flush_multiplier_editable": true, "flush_volume_min": 107, "flush_volume_max": 800,
+ "limits": {"flush_multiplier": [0.1, 3.0]}, "presets": {"minimal": 0.1, "normal": 1.0, "maximum": 3.0},
+ "read_at": "2026-10-12T11:04:49"}
+```
+
+On ACEPRO `options` is `["endless_spool", "endless_mode"]`, `endless_mode` is `exact`, `material` or `next` and
+`endless_modes` maps each mode to a description; the Rinkhals-only keys are missing.
+
+`purge` (Rinkhals):
+
+```json
+{"flush_multiplier": 1.0, "first_load_mm": 95.0,
+ "slots": [{"slot": 1, "color": "685BC7", "density": 1.27, "name": "Sunlu PETG 2.0 Lavender"}, …],
+ "pairs": [{"from_slot": 1, "to_slot": 2, "from_name": "…", "to_name": "…", "from_color": "685BC7",
+            "to_color": "C52E79", "volume_mm3": 265, "mm": 107.2, "g": 0.31}, …]}
+```
+
+`volume_mm3` is the firmware's colour volume before the multiplier, `mm` the purge length (1.75 mm filament), `g` its
+weight with the target filament's density. On ACEPRO the purge per colour change comes from Orca's flushing volumes
+(printer profile, see [installation](installation.md#orca-printer-profile)). `/api/app/state` contains `ace` (the
 settings).
 
 ## Auto-PA (pressure advance)
@@ -325,7 +359,7 @@ during a print, yellow); status line `ai`.
 | POST | `/api/print/resume` | *(paired)* resume |
 | POST | `/api/print/cancel` | *(paired)* `{"confirm": true}` required, otherwise **409** |
 | POST | `/api/print/emergency_stop` | *(paired)* `{"confirm": true}` required — afterwards Klipper is in shutdown until `firmware_restart` |
-| POST | `/api/print/firmware_restart` | *(paired)* `{"confirm": true}` required — `FIRMWARE_RESTART`, only when no print is running (standby, complete, cancelled, error, shutdown); the UIs offer it when Moonraker is connected but Klipper is not ready |
+| POST | `/api/print/firmware_restart` | *(paired)* `{"confirm": true}` required — `FIRMWARE_RESTART`, only when no print is running (standby, complete, cancelled, error, shutdown); the UIs offer it when Moonraker is connected but Klipper is not ready. Refused (**409**) on Rinkhals — the stock firmware does not allow it; `printer.can_restart` in `/api/app/state` says whether it is possible |
 | POST | `/api/print/tune` | *(paired)* any of `{"speed": 120, "flow": 98, "fans": {"part": 60, "box": 30, "filter": 0}, "nozzle": 240, "bed": 70}` — percent / °C; nozzle above 260 °C needs `confirm: true` |
 
 `tune` sends `M220`, `M221`, `M106` (part fan), `SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1`,
@@ -346,7 +380,7 @@ nozzle 0–300 °C, bed 0–110 °C. Every action shows in the console with the 
 
 The console holds the last 500 lines: printer responses (`notify_gcode_response` on the bridge's
 existing connection, no extra client), and every command sent through the bridge with its source
-(device name, *Trockner*, *ACE-Karte*, *Slot-Zuordnung*). On connect it is seeded once from
+(device name, *Dryer*, *ACE card*, *Slot assignment*). On connect it is seeded once from
 `server.gcode_store`. Commands sent by other clients (Mainsail) show up only through their responses.
 
 Confirmation is required for: `M112`, `EMERGENCY_STOP`, `FIRMWARE_RESTART`, `RESTART`, `SAVE_CONFIG`,
@@ -368,7 +402,7 @@ key; the bridge stores only its SHA-256 (`devices.json` in the data folder).
 | DELETE | `/api/auth/devices/{id}` | *(paired)* remove a device |
 
 - **First device:** while nothing is paired, the bridge logs a setup code at start
-  (`Noch kein Gerät gekoppelt. Einrichtungscode: …`) — Portainer → container → Logs.
+  (`No device paired yet. Setup code: …`) — Portainer → container → Logs.
 - A set `APP_TOKEN` keeps working as a key and as a pairing code (transition).
 - Wrong codes are throttled (5 attempts, then 60 s).
 - QR code content for the app: `kobraspoolman://pair?b=<bridge-url>&c=<code>`.
@@ -382,7 +416,7 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/app/state` | printer status, slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write`, `notices`, `last_control` (`action`, `source`, `at` in Unix seconds — last pause/resume/cancel/emergency stop sent through the bridge, `null` before the first), `vision` (AI, see above) |
+| GET | `/api/app/state` | printer status (with `platform`: `klipper` or `rinkhals`, and `can_restart`), slots (with `tag_nr`, `nfc_uids` — up to two, one per spool side — and `nfc_uid` = the first), shelf spools, dryer, `usage` (`live`, `open`), `can_write`, `notices`, `last_control` (`action`, `source`, `at` in Unix seconds — last pause/resume/cancel/emergency stop sent through the bridge, `null` before the first), `vision` (AI, see above) |
 | GET | `/api/app/catalog` | vendors, templates (with their values), filaments, extra-field definitions with Orca keys, Orca base profiles |
 | GET | `/api/app/spools?q=` | all active spools, optional text filter |
 | GET | `/api/app/spool/{id}` | one spool, its filament, the last prints that used it |
@@ -407,16 +441,16 @@ needs `Authorization: Bearer <device key>` from [pairing](#pairing-devices) (401
  "layer": 29, "layers": 65, "phase": "Druckt · Schicht 29/65", "phase_key": "printing",
  "nozzle": {"temp": 239.6, "target": 240, "power": 0.45}, "bed": {"temp": 75, "target": 75, "power": 0.22},
  "fans": [{"key": "part", "name": "Bauteil", "speed": 0.6, "rpm": 5400},
-          {"key": "box", "name": "Gehäuse", "speed": 0.3}, {"key": "filter", "name": "Luftfilter", "speed": 0}],
+          {"key": "box", "name": "Enclosure", "speed": 0.3}, {"key": "filter", "name": "Air filter", "speed": 0}],
  "speed_factor": 1.0, "flow_factor": 1.0, "speed_mode": null,
  "moonraker_connected": true, "klippy_ready": true}
 ```
 
-`notices` holds what the overview shows under *Meldungen*:
+`notices` holds what the overview shows under *Messages*:
 
 ```json
 {"messages": [{"level": "warn", "key": "reach2",
-               "text": "Slot 2 reicht wohl nicht für diesen Druck: braucht noch ~38 g, auf der Spule 21 g"}],
+               "text": "Slot 2 is probably not enough for this print: needs ~38 g more, 21 g on the spool"}],
  "status": [{"key": "printer", "label": "Drucker", "state": "ok", "detail": "Moonraker verbunden"},
             {"key": "app", "label": "Handy-App", "state": "ok", "detail": "Galaxy S26 Ultra", "seen": 1790875147}],
  "reach": [{"slot": 2, "spool_id": 2, "need_mm": 12400, "need_g": 38.0, "have_g": 21.0, "enough": false}]}
@@ -438,8 +472,8 @@ every move (position, live velocity) is subscribed. Missing objects are left out
 
 `phase` (since 3.9.0) says what the printer is doing right now, `phase_key` which step it is (`null` = only the state
 applies, e.g. paused or finished): `heat_bed`, `soak`, `wipe`, `cool`, `home_z`, `mesh`, `heat_nozzle`, `change`,
-`purge`, `pa`, `prime`, `resume`, `printing`. Texts are German (*Vorheizen 5/15 min*, *Wechsel auf Slot 2 · lädt*,
-*Druckt · Schicht 29/65*). Sources: Klipper module `kobra_phase` (start sequence, heat soak, tool change, resume),
+`purge`, `pa`, `prime`, `resume`, `printing`. Texts are German (*Heat soak 5/15 min*, *Change to slot 2 · loading*,
+*Printing · layer 29/65*). Sources: Klipper module `kobra_phase` (start sequence, heat soak, tool change, resume),
 `kobra_pa.measuring`, `ace.target_index`, ACEPRO console messages for the step of a tool change, `print_stats.info`.
 Outside a print only `change`, `pa` and `resume` are shown. The MQTT topic `printer` carries `phase` as well.
 
@@ -448,7 +482,7 @@ Outside a print only `change`, `pa` and `resume` are shown. The MQTT topic `prin
 `POST /api/app/filament` (only what the user set; density/diameter default to the template):
 
 ```json
-{"name": "PETG 2.0 Mintgrün", "vendor_id": 2, "material": "PETG", "color_hex": "3FA46A",
+{"name": "PETG 2.0 Mint green", "vendor_id": 2, "material": "PETG", "color_hex": "3FA46A",
  "settings_extruder_temp": 250, "weight": 1000, "spool_weight": 160,
  "extra": {"flow_ratio": 0.95, "vorlage": "Vorlage PETG"}}
 ```

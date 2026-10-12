@@ -7,7 +7,7 @@ first OrcaSlicer build, which GitHub does for you.
 
 **Overview**
 
-1. [Printer: Klipper, ACEPRO and Moonraker](#1-printer-klipper-acepro-and-moonraker)
+1. [Printer: Rinkhals or Klipper](#1-printer-rinkhals-or-klipper)
 2. [Spoolman and its extra fields](#2-spoolman-and-its-extra-fields)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
 4. [Pair your first device](#4-pair-your-first-device)
@@ -18,10 +18,30 @@ first OrcaSlicer build, which GitHub does for you.
 
 ---
 
-## 1. Printer: Klipper, ACEPRO and Moonraker
+## 1. Printer: Rinkhals or Klipper
 
-Bridge 3.x works with **Klipper on a Raspberry Pi**: the Kobra S1's own controllers are tunnelled to the
-Pi over USB ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), Klipper fork
+The bridge works with either setup and finds out by itself which one it talks to (in the log:
+`Subscription active on rinkhals` or `… on klipper`). Pick one — what each can do is listed in the
+[README](../README.md#what-works-on-which-setup).
+
+### A — stock firmware with Rinkhals (easiest)
+
+- Install [Rinkhals](https://github.com/rinkhals-community/Rinkhals) on the Kobra S1 (its own guide). Rinkhals
+  brings Moonraker along; it must be reachable at `http://<printer-ip>:7125` (try
+  `http://<printer-ip>:7125/server/info` in a browser).
+- **Moonraker's own Spoolman integration must stay off** (no `[spoolman]` section in Rinkhals'
+  `moonraker.conf`), otherwise consumption is booked twice.
+- Give the printer a fixed IP address (DHCP reservation) — everything else points at it.
+- Nothing to change on the firmware: the ACE settings the display hides (purge multiplier, runout detection) are in
+  the bridge's ACE card.
+
+> [!NOTE]
+> Rinkhals opens root SSH with a publicly known password. Keep the printer in a trusted network.
+
+### B — Klipper on a Raspberry Pi with ACEPRO
+
+The Kobra S1's own controllers are tunnelled to the Pi over USB
+([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), Klipper fork
 [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), the ACE 2 Pro hangs on the Pi with the
 [ACEPRO](https://github.com/Kobra-S1/ACEPRO) driver. Follow those projects' guides; for the bridge:
 
@@ -35,10 +55,6 @@ Pi over USB ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-s
 - **Moonraker's own Spoolman integration must stay off** (no `[spoolman]` section in
   `moonraker.conf`), otherwise consumption is booked twice.
 - Give the Pi a fixed IP address (DHCP reservation) — everything else points at it.
-- Still on the stock firmware with [Rinkhals](https://github.com/rinkhals-community/Rinkhals)? Use bridge **2.21.1**
-  and plugin **0.5.3** from the maintenance branch `maint/2.x`
-  (`https://raw.githubusercontent.com/xNoVoSx/kobra-spoolman/maint/2.x/orca-plugin/kobra_spoolman.py`).
-  Rinkhals support for the current line is planned.
 
 ## 2. Spoolman and its extra fields
 
@@ -52,6 +68,9 @@ python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912 --dry-run  
 python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912             # apply
 ```
 
+Add `--language de` if you want the names in Spoolman in German (fields, template vendor, templates). The
+bridge works with either.
+
 The script only **creates** things; it never changes or deletes existing fields or filaments,
 so running it again is harmless. It adds:
 
@@ -60,10 +79,10 @@ so running it again is harmless. It adds:
   air filtration and exhaust fan, flow ratio, pressure advance, max volumetric speed, retraction,
   Z-hop, a free *Orca overrides* field, plus *Orca base profile* and *Template*.
   Full list: [spoolman-fields.md](spoolman-fields.md).
-- **Spool fields** *NFC-Kennung* and *Tag-Nummer* (NFC tags from the app).
-- Filament field *Trocknen max.* — the highest drying temperature the filament takes (ACE dryer).
-- A vendor **"Vorlage"** with seven templates (PLA, PLA Silk, PETG, ASA, TPU, PLA-CF, PETG-CF),
-  pre-filled from Orca's Generic profiles.
+- **Spool fields** *NFC ID* and *Tag number* (NFC tags from the app).
+- Filament fields *Dry max.*, *Dry duration* and *Open until drying* — for the ACE dryer and the moisture estimate.
+- A vendor **"Template"** with seven templates (PLA, PLA Silk, PETG, ASA, TPU, PLA-CF, PETG-CF),
+  pre-filled from Orca's Generic profiles. An install from before 3.12 keeps its German vendor "Vorlage".
 
 ## 3. ace-lane-bridge
 
@@ -81,9 +100,10 @@ Add the service to your stack (Portainer → Stacks, or `docker compose`):
     volumes:
       - ./bridge-data:/data          # e.g. /docker/ace-lane-bridge/data
     environment:
-      MOONRAKER_URL: "http://<pi-ip>:7125"
+      MOONRAKER_URL: "http://<printer-ip>:7125"   # Rinkhals; Klipper: http://<pi-ip>:7125
       SPOOLMAN_URL: "http://spoolman:8000"   # service name inside the same stack
       TZ: Europe/Berlin
+      # UI_LANGUAGE: de                      # default language for devices without their own choice
     depends_on:
       - spoolman
 ```
@@ -108,7 +128,7 @@ Useful while developing. Copy `bridge/app/` to the Docker host (e.g. `/docker/ac
       - /docker/ace-lane-bridge/app:/app:ro
       - /docker/ace-lane-bridge/data:/data
     environment:
-      MOONRAKER_URL: "http://<pi-ip>:7125"
+      MOONRAKER_URL: "http://<printer-ip>:7125"
       SPOOLMAN_URL: "http://spoolman:8000"
       TZ: Europe/Berlin
 ```
@@ -129,16 +149,16 @@ device**. The bridge issues the keys itself — you never invent a password.
 
 1. Open the bridge log (Portainer → Containers → *ace-lane-bridge* → Logs, or
    `docker logs ace-lane-bridge`). As long as nothing is paired it says
-   `Noch kein Gerät gekoppelt. Einrichtungscode: 123456`.
-2. Open `http://<docker-host>:7913`, enter the six digits and a name for the browser → **Koppeln**.
+   `No device paired yet. Setup code: 123456`.
+2. Open `http://<docker-host>:7913`, enter the six digits and a name for the browser → **Pair**.
    The browser keeps its key and never asks again.
 3. Every further device (another browser, the phone, the Orca plugin) gets a fresh code from a paired
-   one: web UI → **Geräte → Gerät hinzufügen** shows a 6-digit code and a QR code (valid 5 minutes,
+   one: web UI → **Devices → Add device** shows a 6-digit code and a QR code (valid 5 minutes,
    single use). Devices can be removed there at any time.
 
 > [!NOTE]
 > Coming from a version with `APP_TOKEN`? The old token still works as a key and can be typed in as
-> pairing code (*Mit altem APP_TOKEN koppeln*). Once all devices are paired you can drop it from the stack.
+> pairing code (*Pair with the old APP_TOKEN*). Once all devices are paired you can drop it from the stack.
 
 <p align="center"><img src="images/web-pair.png" width="560" alt="Pairing screen of the web UI"></p>
 
@@ -161,9 +181,17 @@ Updates, fallback and uninstall: [orca-kobra installation guide](https://github.
 
 ### Orca printer profile
 
-- Add the printer as usual (Anycubic Kobra S1 0.4 nozzle), set the G-code flavour to **Klipper** and connect
-  it to `http://<pi-ip>`.
+- Add the printer as usual (Anycubic Kobra S1 0.4 nozzle) and connect it to `http://<printer-ip>` (Rinkhals)
+  or `http://<pi-ip>` (Klipper; G-code flavour **Klipper**).
 - **Printer settings → Basic information → Advanced** (advanced mode): **Printer agent = Moonraker**.
+
+**A — Rinkhals:** keep Anycubic's printer profile as it is. The firmware purges by itself at every colour change
+and ignores Orca's flushing volumes — the amount follows the colour difference times the firmware's purge
+multiplier, which you set in the bridge's **ACE card** (with a preview per colour pair). The plugin's usage preview
+adds that purge per filament.
+
+**B — Klipper + ACEPRO:**
+
 - **Printer settings → Machine G-code → Change filament G-code** — the purge of every colour change comes
   from Orca's flushing volumes (the dialog next to *Filament*), ACEPRO purges that much after loading:
   ```
@@ -202,10 +230,11 @@ curl -fsSLo ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/kobra_spoolman.py \
 2. **Configuration** tab of the plugin: enter the bridge address, e.g. `http://192.168.1.10:7913`.
 3. The **Kobra Spoolman** panel opens on the right and creates the profiles in the background.
    If Orca asks whether the plugin may connect to the bridge, allow it.
-4. **Pair the plugin**: the panel shows *Plugin koppeln* — get a code in the web UI
-   (*Geräte → Gerät hinzufügen*) and enter it. Without pairing the panel and profiles still work,
+4. **Pair the plugin**: the panel shows *Pair the plugin* — get a code in the web UI
+   (*Devices → Add device*) and enter it. Without pairing the panel and profiles still work,
    but saving a profile back to Spoolman is refused.
-5. **Restart Orca once** — Orca reads profiles only at start-up. Your filaments now appear as
+5. **Restart Orca once** — Orca reads profiles only at start-up. The panel speaks the bridge's language; *Language*
+   in the plugin configuration overrides it. Your filaments now appear as
    `Vendor Name (SM000010)` in the filament lists.
 
 ## 7. Android app (optional)
@@ -213,9 +242,10 @@ curl -fsSLo ~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/kobra_spoolman.py \
 Download `kobra-spoolman-app-<version>.apk` from the latest
 [GitHub release](https://github.com/xNoVoSx/kobra-spoolman/releases) and open it on the phone (allow
 installing from that source). Later updates come from the bridge: when the bridge brings a newer app,
-**Mehr** shows *Update auf …* — one tap downloads it from the bridge and Android asks to install it.
-Then: **Einstellungen → QR-Code scannen** and scan the QR code from
-*Geräte → Gerät hinzufügen* in the web UI. Android 17 asks for *Nearby devices* (local network) —
+**More** shows *Update to …* — one tap downloads it from the bridge and Android asks to install it.
+Then: **Settings → Scan QR code** and scan the QR code from
+*Devices → Add device* in the web UI. The app follows the phone's language; *Settings → Language* (or Android's
+per-app language) switches it. Android 17 asks for *Nearby devices* (local network) —
 allow it, otherwise the app cannot reach the bridge. More: [android-app.md](android-app.md).
 
 ## 7b. AI print-failure detection (optional)
@@ -226,11 +256,11 @@ the bridge — the [compose example](../bridge/compose.yaml) has both commented 
 
 ## 8. Check that everything works
 
-- [ ] Web UI: printer and Spoolman connected (*Einstellungen*), all four slots assigned, no warnings.
+- [ ] Web UI: printer and Spoolman connected (*Settings*), all four slots assigned, no warnings.
 - [ ] Orca panel: bridge connected, four slots with spool names.
-- [ ] Orca: filament **sync** button → the `SM…` profiles are in filament 1–4, panel says *passt* for each slot.
-- [ ] Change a value in an `SM…` profile, save → dialog *Nach Spoolman übernehmen?* → value appears in Spoolman.
-- [ ] After a print: the print appears under *Drucke* with grams per spool, and Spoolman's remaining weight dropped by that amount.
-- [ ] *Geräte* lists your browser, the Orca plugin (and the phone).
+- [ ] Orca: filament **sync** button → the `SM…` profiles are in filament 1–4, panel says *matches* for each filament.
+- [ ] Change a value in an `SM…` profile, save → dialog *Write it to Spoolman?* → value appears in Spoolman.
+- [ ] After a print: the print appears under *Prints* with grams per spool, and Spoolman's remaining weight dropped by that amount.
+- [ ] *Devices* lists your browser, the Orca plugin (and the phone).
 
 Next: [daily use](usage.md).
