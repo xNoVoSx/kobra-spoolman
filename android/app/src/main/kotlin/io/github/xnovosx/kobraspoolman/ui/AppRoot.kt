@@ -260,11 +260,12 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 onSaveConfig = { c -> dryerOpen = false; vm.dryerConfig(c) },
                 onPlan = { at, t, h -> dryerOpen = false; vm.dryerSchedule(at, t, h) },
                 onClearPlan = { vm.clearDryerSchedule() },
-                onOption = { k, v -> vm.setAceOption(k, v) },
+                onOption = { k, v, c -> vm.setAceOption(k, v, c) },
+                purgePreview = { m -> vm.acePurge(m) },
                 humidity = { HumiditySection { h -> vm.humidity(h) } },
                 pa = {
                     state?.pa?.let { p ->
-                        PaSection(p, state?.printer?.state in setOf("printing", "paused"),
+                        PaSection(p, state?.printer?.state in setOf("printing", "paused"), rinkhals = state?.ace?.variant == "rinkhals",
                             onSwitch = { e, a -> vm.paSwitch(e, a) }, onCalibrate = { vm.paCalibrate(it) },
                             onForget = { vm.paForget(it) })
                     }

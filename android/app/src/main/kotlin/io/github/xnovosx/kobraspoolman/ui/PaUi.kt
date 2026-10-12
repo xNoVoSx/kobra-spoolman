@@ -32,13 +32,14 @@ private fun k3(v: Double?) = Format.decimal(v, 3)
  */
 @Composable
 fun PaSection(
-    pa: PaState, printing: Boolean,
+    pa: PaState, printing: Boolean, rinkhals: Boolean = false,
     onSwitch: (Boolean?, Boolean?) -> Unit, onCalibrate: (Int) -> Unit, onForget: (Int) -> Unit,
 ) {
     var ask by remember { mutableStateOf<Pair<String, PaSlot>?>(null) }
     SectionLabel(tr("Pressure advance"), Modifier.padding(top = 12.dp))
     if (!pa.present) {
-        Hint(tr("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready."))
+        Hint(if (rinkhals) tr("Auto PA needs Klipper with kobra-klipper (load cell module kobra_pa) – not available with the Anycubic firmware. Orca's PA from the filament profile applies.")
+             else tr("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready."))
         return
     }
     PaSwitch(tr("Auto PA"), tr("Apply PA per speed from Spoolman; off = Klipper takes the PA from Orca"),

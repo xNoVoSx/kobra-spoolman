@@ -254,10 +254,19 @@ class BridgeClient(
         call("DELETE", "/api/dryer/schedule", null, ApiError.serializer())
     }
 
-    /** Endless spool (endless_spool: Boolean) or its mode (endless_mode: exact | material | next). */
-    suspend fun setAceOption(key: String, value: JsonPrimitive): AceSettings =
-        call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(mapOf(key to value))),
+    /**
+     * ACE setting: endless_spool, endless_mode (ACEPRO), runout_detect, flush_multiplier (Rinkhals). Rinkhals refuses a change
+     * during a print with 409 unless confirmPrinting (it applies from the next colour change).
+     */
+    suspend fun setAceOption(key: String, value: JsonPrimitive, confirmPrinting: Boolean = false): AceSettings {
+        val body = if (confirmPrinting) mapOf(key to value, "confirm_printing" to JsonPrimitive(true)) else mapOf(key to value)
+        return call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(body)),
             AceResponse.serializer()).settings
+    }
+
+    /** ACE settings and (Rinkhals) the purge per colour pair - with a wanted multiplier for "what if". */
+    suspend fun ace(multiplier: Double? = null): AceResponse =
+        call("GET", "/api/ace" + (multiplier?.let { "?multiplier=$it" } ?: ""), null, AceResponse.serializer())
 
     /** Auto PA switches in Klipper (null = unchanged). */
     suspend fun paSwitch(enabled: Boolean?, auto: Boolean?) {

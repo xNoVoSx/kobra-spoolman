@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.xnovosx.kobraspoolman.BuildConfig
 import io.github.xnovosx.kobraspoolman.data.SpoolMoistureFull
+import io.github.xnovosx.kobraspoolman.data.AcePurge
 import io.github.xnovosx.kobraspoolman.data.HumidityData
 import io.github.xnovosx.kobraspoolman.data.VisionFull
 import io.github.xnovosx.kobraspoolman.data.AppState
@@ -239,9 +240,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
-    /** Endless spool on/off (endless_spool) or mode (endless_mode: exact | material | next). */
-    fun setAceOption(key: String, value: JsonPrimitive) = launchSafe {
-        it.setAceOption(key, value)
+    /** ACE setting (see BridgeClient.setAceOption); confirmPrinting = the user agreed to a change during a print. */
+    fun setAceOption(key: String, value: JsonPrimitive, confirmPrinting: Boolean = false) = launchSafe {
+        it.setAceOption(key, value, confirmPrinting)
         _messages.send(tr("ACE: saved"))
         refresh()
     }
@@ -466,6 +467,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (e.status == 404) _scans.send(ScanResult.Unknown(tag.uid, blank = tag.ace == null)) else throw e
         }
     }
+
+    /** Rinkhals purge preview for a multiplier; null without a bridge or on an error (the card just shows no table). */
+    suspend fun acePurge(multiplier: Double?): AcePurge? =
+        client()?.let { c -> try { c.ace(multiplier).purge } catch (e: BridgeException) { null } }
 
     private fun launchSafe(showBusy: Boolean = true, block: suspend (BridgeClient) -> Unit) = viewModelScope.launch {
         val c = client() ?: run { _messages.send(tr("Set up the bridge first (Settings)")); return@launch }

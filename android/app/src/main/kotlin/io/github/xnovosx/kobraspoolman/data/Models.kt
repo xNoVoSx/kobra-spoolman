@@ -196,10 +196,20 @@ data class Notice(val level: String, val text: String, val key: String = "")
 @Serializable
 data class StatusLine(val key: String, val label: String, val state: String, val detail: String? = null, val seen: Double? = null)
 
-/** Settings of the ACE driver (Klipper + ACEPRO, GET /api/ace, also in /api/app/state). */
+/**
+ * Settings of the ACE (GET /api/ace, also in /api/app/state), per driver: variant "acepro" (Klipper + ACEPRO: endless spool
+ * and mode) or "rinkhals" (Anycubic firmware: endless spool = auto refill, runout detection, the firmware's purge multiplier).
+ */
 @Serializable
 data class AceSettings(
     val present: Boolean = false,
+    val variant: String? = null,
+    @SerialName("runout_detect") val runoutDetect: Boolean? = null,
+    @SerialName("flush_multiplier") val flushMultiplier: Double? = null,
+    @SerialName("flush_multiplier_editable") val flushMultiplierEditable: Boolean = true,
+    /** preset name (minimal, normal, maximum) -> multiplier */
+    val presets: Map<String, Double> = emptyMap(),
+    val limits: Map<String, List<Double>> = emptyMap(),
     @SerialName("endless_spool") val endlessSpool: Boolean? = null,
     @SerialName("endless_mode") val endlessMode: String? = null,
     /** mode -> description, e.g. "material" -> "same material" */
@@ -210,8 +220,28 @@ data class AceSettings(
     val printing: Boolean = false,
 )
 
+/** Rinkhals: purge per colour change between the loaded spools (GET /api/ace?multiplier=). */
 @Serializable
-data class AceResponse(val settings: AceSettings = AceSettings())
+data class AcePurge(
+    @SerialName("flush_multiplier") val flushMultiplier: Double = 1.0,
+    @SerialName("first_load_mm") val firstLoadMm: Double = 0.0,
+    val pairs: List<PurgePair> = emptyList(),
+)
+
+@Serializable
+data class PurgePair(
+    @SerialName("from_slot") val fromSlot: Int,
+    @SerialName("to_slot") val toSlot: Int,
+    @SerialName("from_name") val fromName: String = "",
+    @SerialName("to_name") val toName: String = "",
+    @SerialName("from_color") val fromColor: String? = null,
+    @SerialName("to_color") val toColor: String? = null,
+    val mm: Double = 0.0,
+    val g: Double = 0.0,
+)
+
+@Serializable
+data class AceResponse(val settings: AceSettings = AceSettings(), val purge: AcePurge? = null)
 
 /** Auto PA (GET /api/pa, also in /api/app/state): switches in Klipper, PA per slot from Spoolman. */
 @Serializable

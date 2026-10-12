@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.AceSettings
+import io.github.xnovosx.kobraspoolman.data.AcePurge
 import io.github.xnovosx.kobraspoolman.data.Dryer
 import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.ui.theme.K
@@ -82,7 +83,8 @@ fun DryerSheet(
     d: Dryer, ace: AceSettings?,
     onStart: (Int?, Double?) -> Unit, onStop: () -> Unit, onSaveConfig: (DryerConfig) -> Unit,
     onPlan: (Double, Int?, Double?) -> Unit, onClearPlan: () -> Unit,
-    onOption: (String, JsonPrimitive) -> Unit,
+    onOption: (String, JsonPrimitive, Boolean) -> Unit,
+    purgePreview: suspend (Double?) -> AcePurge? = { null },
     humidity: @Composable () -> Unit = {},
     pa: @Composable () -> Unit = {},
 ) {
@@ -155,7 +157,7 @@ fun DryerSheet(
         d.lastEvent?.let { Text(tr("Last: {text}", "text" to it.text), style = MaterialTheme.typography.bodySmall, color = K.Muted) }
         DryPlanSection(d, onPlan, onClearPlan)
         humidity()
-        ace?.let { AceSection(it, onOption) }
+        ace?.let { AceSection(it, onOption, purgePreview) }
         pa()
         Text(tr("The temperature always follows the most sensitive loaded filament (field “Dry max.” in Spoolman, else a default per material) and never goes above what the ACE can do (ACE 2 Pro: {max} °C).", "max" to req.aceMax),
             style = MaterialTheme.typography.bodySmall, color = K.Faint)
