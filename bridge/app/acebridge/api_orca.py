@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 
-from . import __version__, i18n
+from . import __version__, acemodel, i18n
 from .i18n import tr
 from .webcommon import Ctx, json_response, msg_of, _err
 
@@ -82,6 +82,9 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             "usage": {"live": bridge.usage.live(), "last": bridge.usage.last_by_slot(),
                       "open": len(bridge.usage.open)},
             "warnings": bridge.safety_warnings() + bridge.slots.warnings,
+            # Rinkhals: the firmware purges by itself - the plugin computes it per colour change with this model
+            "purge": bridge.usage.purge_stats() if bridge.ace.rinkhals else None,
+            "driver": acemodel.variant(bridge.moon.status),
         })
 
     @r.post("/api/orca/backsync")

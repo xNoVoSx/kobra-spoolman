@@ -36,6 +36,7 @@ from .i18n import tr
 from .storage import save_json, save_lines
 
 if TYPE_CHECKING:
+    from .purge import PurgeModel
     from .moonraker import Moonraker
     from .slots import SlotManager
     from .spoolman import Spoolman
@@ -95,6 +96,7 @@ class UsageTracker:
         self.job: Optional[Dict[str, Any]] = None
         self.open: List[Dict[str, Any]] = []
         self.history: List[Dict[str, Any]] = []
+        self.purge: Optional["PurgeModel"] = None    # set by the bridge (purge model of the firmware, Rinkhals)
         self._load()
 
     # ================================================================== Persistenz
@@ -227,15 +229,18 @@ class UsageTracker:
             "used_start": used if isinstance(used, (int, float)) else 0.0,
             "last_used": used if isinstance(used, (int, float)) else 0.0,
             "gate": None,              # slot the consumption currently belongs to (0-based)
-            "pending_gate": None,      # only for saved states from bridge < 3.0 (debouncing)
+            "pending_gate": None,      # new slot still in the debounce time (GoKlipper)
             "pending_since": None,
             "pending_mm": 0.0,
             "pre_mm": 0.0,             # consumption before the first active slot
             "buckets": {},             # "gate:spool" -> {gate, spool_id, mm, booked_mm, last_book}
             "loads": 0,                # how often a slot became active (first + changes)
-            "changes": [],             # Slotwechsel
+            "changes": [],             # slot changes
             "transitions": [],         # every load with ACE colours (colour change statistics)
             "targets": None,           # arrives as soon as the bridge has read the print file (set_targets)
+            # Rinkhals: the firmware's flush setting and the slicer, for calibrating the purge model (purge.py)
+            "slicer": (status.get("virtual_sdcard", {}) or {}).get("slicer"),
+            "flush": dict(self.purge.flush) if self.purge and self.purge.flush_source == "printer" else None,
         }
         self._dirty = True
         self._journal("job_start", job=self.job["id"], file=self.job["file"], used_start=self.job["used_start"])
@@ -554,6 +559,8 @@ class UsageTracker:
         summary = self._summary(job, end_state)
         self.history.insert(0, summary)
         del self.history[self.cfg.job_history:]
+        if self.purge is not None and summary.get("flush"):
+            self.purge.learn(self.history)
         try:
             save_json(self.history_path, self.history, indent=1)
         except OSError as e:
@@ -616,6 +623,7 @@ class UsageTracker:
             "slots": sorted(per_slot.values(), key=lambda s: s["slot"]),
             "warnings": warnings,
             "flush": job.get("flush"),
+            "slicer": job.get("slicer"),
             "transitions": group_transitions(job.get("transitions") or []),
         }
 
@@ -636,6 +644,11 @@ class UsageTracker:
         return {"job": job["id"], "file": job["file"], "started": job["started"],
                 "active_slot": (job["gate"] + 1) if job["gate"] is not None else None,
                 "changes": len(job["changes"]), "slots": slots}
+
+    def purge_stats(self) -> Dict[str, Any]:
+        """Firmware purge for the plugin's usage forecast under Rinkhals: values and calibrated constants of the purge
+        model (purge.py) - the plugin computes the purge per colour change with them. Empty under ACEPRO."""
+        return {"model": self.purge.state()} if self.purge is not None else {}
 
     def last_by_slot(self) -> Dict[int, Dict[str, Any]]:
         """Consumption per slot in the last finished print."""

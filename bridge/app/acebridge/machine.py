@@ -15,7 +15,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from . import __version__
+from . import __version__, acemodel
 from .i18n import msg_of, tr
 from .filament_z import FIELD as Z_FIELD
 from .filament_z import LIMIT as Z_LIMIT
@@ -71,11 +71,11 @@ class Machine:
         self._was_printing = printing
 
     def _active_filament(self) -> Dict[str, Any]:
-        """Filament of the currently loaded spool (ACEPRO current_index -> slot) or {}."""
+        """Filament of the currently loaded spool (loaded slot of the ACE driver) or {}."""
         if self.slots is None:
             return {}
-        idx = (self.moon.status.get("ace") or {}).get("current_index")
-        if not isinstance(idx, int) or idx < 0:
+        idx = acemodel.active_slot(self.moon.status)
+        if idx is None:
             return {}
         assigned, _ = self.slots.assignments()
         return ((assigned.get(idx + 1) or {}).get("filament") or {})

@@ -254,7 +254,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     # ---------------------------------------------------------------- ACE settings
     async def _ace_call(coro):
         try:
-            return json_response({"ok": True, "settings": await coro})
+            return json_response({"ok": True, "settings": await coro, "purge": bridge.ace.purge_preview()})
         except AceError as e:
             return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
@@ -263,7 +263,13 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
 
     @r.get("/api/ace")
     async def ace_state(request: web.Request):
-        return json_response({"settings": bridge.ace.state()})
+        """Settings of the ACE per driver; under Rinkhals also the purge preview (?multiplier= for "what if")."""
+        mult = request.query.get("multiplier")
+        try:
+            mult_f = float(mult) if mult not in (None, "") else None
+        except ValueError:
+            return _err(400, tr("Give the multiplier as a number"))
+        return json_response({"settings": bridge.ace.state(), "purge": bridge.ace.purge_preview(mult_f)})
 
     @r.post("/api/ace/options")
     @need_device
@@ -274,5 +280,17 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
                 raise TypeError
         except Exception:  # noqa: BLE001
             return _err(400, tr("Expected JSON {\"endless_spool\": true, \"endless_mode\": \"exact\"}"))
-        body.pop("confirm_printing", None)            # older clients still send it - not needed
-        return await _ace_call(bridge.ace.set_options(body))
+        # Rinkhals: a change during a print needs confirm_printing; ACEPRO ignores it
+        confirm = bool(body.pop("confirm_printing", False))
+        return await _ace_call(bridge.ace.set_options(body, confirm))
+
+    @r.post("/api/ace/flush_multiplier")
+    @need_device
+    async def ace_flush_multiplier(request: web.Request):
+        """Rinkhals: the firmware's purge multiplier {"value": 1.0, "confirm_printing": false} (as in bridge 2.x)."""
+        try:
+            body = await request.json()
+            value = body["value"]
+        except Exception:  # noqa: BLE001
+            return _err(400, tr("Expected JSON {\"value\": 1.0}"))
+        return await _ace_call(bridge.ace.set_options({"flush_multiplier": value}, bool(body.get("confirm_printing"))))

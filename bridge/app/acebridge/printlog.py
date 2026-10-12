@@ -12,6 +12,7 @@ import json
 import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from . import acemodel
 from .i18n import tr
 
 # (object, field, label) - only changes of these fields appear in the log
@@ -66,11 +67,11 @@ def render(lines: Iterable[str]) -> str:
             out.append(tr("Print log: {file}", file=ps.get("filename") or "?").render())
             if at:
                 out.append(tr("Start: {at}", at=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(at))).render())
-            inst = st.get("ace_instance_0") or {}
-            for i, sl in enumerate(inst.get("slots") or []):
-                if isinstance(sl, dict):
+            if acemodel.variant(st):
+                for i in range(acemodel.num_slots(st)):
+                    sl = acemodel.slot(st, i)
                     out.append(f"  Slot {i + 1}: {sl.get('material') or '-'} {sl.get('color') or ''} "
-                               f"{sl.get('temp') or ''}°C {sl.get('status') or ''}".rstrip())
+                               f"{sl.get('temperature') or ''}°C {sl.get('status') or ''}".rstrip())
             for (obj, field, _label) in WATCH:
                 v = (st.get(obj) or {}).get(field)
                 if v is not None:

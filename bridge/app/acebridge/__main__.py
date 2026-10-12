@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 import aiohttp
 from aiohttp import web
 
-from . import __version__
+from . import __version__, acemodel
 from .config import Config
 from .ace import AceSettings
 from .camera import Camera
@@ -29,6 +29,7 @@ from .usage import UsageTracker
 from .humidity import HumidityLog
 from .i18n import tr
 from .moisture import MoistureModel, hours_needed
+from .purge import PurgeModel
 from .mqtt import MqttBridge
 from .filament_z import FilamentZSync
 from .pa import OBJ as PA_OBJ, PaSync
@@ -55,7 +56,9 @@ class Bridge:
         self.slots = SlotManager(cfg, self.moon, self.sm)
         self.recorder = Recorder(cfg)
         self.usage = UsageTracker(cfg, self.moon, self.sm, self.slots)
-        self.ace = AceSettings(self.moon, self.slots)
+        self.purge = PurgeModel()                                 # firmware purge under Rinkhals (purge.py)
+        self.ace = AceSettings(self.moon, self.slots, self.purge)
+        self.usage.purge = self.purge                             # calibrated from finished Orca prints
         self.pa = PaSync(cfg, self.moon, self.sm, self.slots)
         self.filament_z = FilamentZSync(cfg, self.moon, self.sm, self.slots)
         self.resume = Resume(self.moon, self.slots)
@@ -109,9 +112,10 @@ class Bridge:
         old_state, self._print_state = self._print_state, new_state
         if new_state != old_state:
             log.info("Printer state: %s -> %s", old_state or "?", new_state or "?")
-        if full or "ace_instance_0" in delta:
+        ace_changed = acemodel.touches(delta)
+        if full or ace_changed:
             await self.dryer.evaluate()
-        if full or "ace" in delta or "ace_instance_0" in delta or new_state != old_state:
+        if full or ace_changed or new_state != old_state:
             await self.slots.evaluate()
             if new_state != old_state:
                 await self.slots.on_print_state_change(old_state, new_state)

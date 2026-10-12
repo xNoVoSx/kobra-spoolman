@@ -16,6 +16,7 @@ import re
 import time
 from typing import Any, Callable, Dict, Optional, Tuple
 
+from . import acemodel
 from .i18n import tr
 
 OBJ = "kobra_phase"
@@ -86,12 +87,15 @@ def describe(status: Dict[str, Any], steps: Optional[ChangeSteps] = None) -> Opt
     kp = status.get("kobra_pa") or {}
     ph = status.get(OBJ) or {}
     key = (ph.get("phase") or "") if ph.get("enabled", True) else ""
-    ace = status.get("ace") or {}
-    target = ace.get("target_index")
-    changing = isinstance(target, int) and target >= 0 and target != ace.get("current_index")
+    target = acemodel.target_slot(status)
+    changing = target is not None and target != acemodel.active_slot(status)
+    # Rinkhals reports no target, only Rinkhals' own action text ("Loading", "Unloading" ...)
+    action = acemodel.changing(status) if acemodel.variant(status) == acemodel.RINKHALS else None
 
     if kp.get("measuring"):
         return {"key": "pa", "text": TEXT["pa"]}
+    if action and key != "change":
+        return {"key": "change", "text": tr("{text} · {step}", text=tr("Changing filament"), step=action)}
     if key == "change" or changing:
         slot = ph.get("slot") if key == "change" and ph.get("slot") else (target + 1 if changing else None)
         step = steps.current(ph.get("since") if key == "change" else None) if steps else None

@@ -113,8 +113,7 @@ class Recorder:
         ps_delta = delta.get("print_stats") if isinstance(delta.get("print_stats"), dict) else {}
         if "filament_used" in ps_delta:
             self._used_updates += 1
-        ace_delta = delta.get("ace") if isinstance(delta.get("ace"), dict) else None
-        if ace_delta is not None:
+        if acemodel.touches(delta):
             gate = acemodel.active_slot(status)
             if gate != self._last_gate:
                 self._gate_changes.append({"t": round(time.time() - self._start, 1), "from": self._last_gate,
@@ -125,8 +124,8 @@ class Recorder:
         for obj, fields in delta.items():
             if isinstance(fields, dict):
                 self._buffer.setdefault(obj, {}).update(fields)
-        # tool changes (object ace) and state changes at once, everything else throttled
-        self._flush(force=ace_delta is not None or "state" in ps_delta or full)
+        # tool changes (ACE objects) and state changes at once, everything else throttled
+        self._flush(force=acemodel.touches(delta) or "state" in ps_delta or full)
 
         if state in PRINTING_STATES:
             self._end_at = None
