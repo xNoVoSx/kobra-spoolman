@@ -193,6 +193,14 @@ def test_view_lists_slots(env):
     assert v["enabled"] is True and v["patched"] is True
 
 
+def test_view_failed_measurement_has_lists(env):
+    """Gescheiterte Messung hat kein k - die Ansicht liefert trotzdem Listen (App 1.14.0 scheiterte an null)."""
+    pa, moon, _ = env
+    moon.merge({"kobra_pa": {"result": {"t": 3, "kind": "error", "message": "außer Bereich", "time": 1.0}}})
+    last = pa.view()["last"]
+    assert last["k"] == [] and last["speeds"] == [] and last["kind"] == "error"
+
+
 def test_nothing_is_pushed_before_spoolman_is_loaded(env):
     """Bridge-Start: bis Spoolman geladen ist, nicht alle Slots als leer an Klipper melden."""
     pa, moon, sm = env
@@ -202,3 +210,40 @@ def test_nothing_is_pushed_before_spoolman_is_loaded(env):
     sm.connected = True
     run(pa.tick())
     assert len(moon.sent) == 1
+
+
+def test_push_waits_for_busy_klipper_instead_of_resending(env):
+    """Startablauf haelt Klipper fest: eine Anfrage bleibt offen, kein Nachschiessen; danach gilt der Stand."""
+    pa, moon, _ = env
+    gate = asyncio.Event()
+
+    async def slow_gcode(script, timeout=15, source="Bridge"):
+        moon.sent.append(script)
+        await gate.wait()
+    moon.gcode = slow_gcode
+    pa.push.wait_s = 0.01
+
+    async def main():
+        await pa.tick()
+        await pa.tick()
+        await pa.tick()
+        assert len(moon.sent) == 1 and pa.pushed == {}       # eine Anfrage offen, nichts als geschickt gemerkt
+        gate.set()
+        await asyncio.sleep(0.01)
+        assert pa.pushed and not pa.push.busy
+        await pa.tick()
+        assert len(moon.sent) == 1                           # Stand ist drin: nichts mehr zu schicken
+    run(main())
+
+
+def test_failed_push_is_retried_later(env):
+    pa, moon, _ = env
+
+    async def broken(script, timeout=15, source="Bridge"):
+        moon.sent.append(script)
+        raise asyncio.TimeoutError()
+    moon.gcode = broken
+    run(pa.tick())
+    assert pa.pushed == {} and len(moon.sent) == 1
+    run(pa.tick())
+    assert len(moon.sent) == 2

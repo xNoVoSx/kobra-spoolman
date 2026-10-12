@@ -29,7 +29,8 @@ class BridgeClient(
     private val http: OkHttpClient = defaultHttp,
 ) {
     companion object {
-        val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
+        // coerceInputValues: null fuer ein Feld mit Vorgabe -> Vorgabe (eine Bridge-Antwort darf die App nie lahmlegen)
+        val json = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInputValues = true }
         private val JSON_TYPE = "application/json".toMediaType()
         val defaultHttp: OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(4, TimeUnit.SECONDS)

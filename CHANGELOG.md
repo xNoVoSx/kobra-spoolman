@@ -6,6 +6,24 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.11.1] – 2026-10-12
+
+### Fixed
+- The bridge could stop processing for 15 s at a time (web UI frozen, buttons without effect, *Verwerfen* of a
+  power-loss offer not arriving): status handlers that sent G-code ran inside the WebSocket reader and waited for an
+  answer only that reader could read. Status is now processed in its own task, in order (`Moonraker._dispatch`); the
+  first status of a subscription is queued before the updates Moonraker sends right after it.
+- During the print start Klipper runs API G-code only after the start macro; the pressure-advance sync timed out after
+  15 s and resent its values every ~17 s, piling up dozens of requests in Klipper (a PAUSE waited behind them). The PA
+  and Z-offset syncs now keep at most one request in flight with a long deadline (`gcodepush.py`).
+- `pa.last.speeds`/`pa.last.k` were `null` after a failed measurement; app 1.14.0 then rejected the whole state
+  (“Antwort der Bridge nicht lesbar … at path: $.pa.last.k”). They are always lists now.
+
+## app 1.14.1 – 2026-10-12
+
+### Fixed
+- A `null` in a field that has a default no longer makes the whole bridge answer unreadable (`coerceInputValues`).
+
 ## [3.11.0] – 2026-10-11
 
 ### Added

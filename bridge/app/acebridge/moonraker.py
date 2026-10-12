@@ -40,7 +40,14 @@ StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
 
 class Moonraker:
     """Haelt eine WebSocket-Verbindung, fuehrt einen zusammengefuehrten Status-Cache
-    und ruft bei jeder Aenderung den Callback mit dem Delta auf."""
+    und ruft bei jeder Aenderung den Callback mit dem Delta auf.
+
+    Der Callback laeuft in einer eigenen Aufgabe (_dispatch), nie im Leser der WebSocket: er darf selbst Moonraker
+    aufrufen (G-Code, Abfragen) - die Antwort liest der Leser. Bis 3.11.0 lief er im Leser; jeder Aufruf daraus
+    wartete 15 s auf eine Antwort, die niemand las, und die Bridge verarbeitete solange nichts (Weboberflaeche stand,
+    Verwerfen/Pause kamen nicht an). Zusammenfuehren in den Cache und on_status passieren beide in _dispatch, einzeln
+    und in Reihenfolge - wie vorher sieht on_status den Cache passend zum Delta (Verbrauch braucht jeden Wechsel).
+    """
 
     def __init__(self, cfg: Config, session: aiohttp.ClientSession, on_status: StatusCallback):
         self.cfg = cfg
@@ -56,6 +63,11 @@ class Moonraker:
         self.prompts = Prompts()                    # Rueckfragen von Makros (action:prompt_*) fuer das Display
         self.cpu_samples: Deque[Tuple[float, float]] = collections.deque(maxlen=180)   # (monotonic, CPU %)
         self.components: list = []   # Moonraker-Komponenten (fuer die Warnung bei aktivem [spoolman])
+        # (Status, neues Abo) zum Verarbeiten; (None, False) = Klipper weg
+        self._todo: Deque[Tuple[Optional[Dict[str, Any]], bool]] = collections.deque()
+        self._wake = asyncio.Event()
+        self._sub_ids: set = set()   # offene Abo-Anfragen: deren Stand legt der Leser ab (vor spaeteren Aenderungen)
+        self._dispatcher: Optional[asyncio.Task] = None
 
     # ------------------------------------------------------------------ HTTP
     def _headers(self) -> Dict[str, str]:
@@ -188,11 +200,14 @@ class Moonraker:
             return "wss://" + base[len("https://"):] + "/websocket"
         return "ws://" + base.removeprefix("http://") + "/websocket"
 
-    async def _call(self, method: str, params: Optional[dict] = None, timeout: float = 10) -> Any:
+    async def _call(self, method: str, params: Optional[dict] = None, timeout: float = 10,
+                    subscribe: bool = False) -> Any:
         assert self._ws is not None
         req_id = next(self._ids)
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
         self._pending[req_id] = fut
+        if subscribe:
+            self._sub_ids.add(req_id)
         msg = {"jsonrpc": "2.0", "method": method, "id": req_id}
         if params is not None:
             msg["params"] = params
@@ -201,6 +216,7 @@ class Moonraker:
             return await asyncio.wait_for(fut, timeout)
         finally:
             self._pending.pop(req_id, None)
+            self._sub_ids.discard(req_id)
 
     def _merge(self, delta: Dict[str, Any]) -> Dict[str, Any]:
         """Uebernimmt ein Update in den Cache und liefert nur die Felder, die sich wirklich
@@ -217,15 +233,15 @@ class Moonraker:
         return changed
 
     async def _subscribe(self) -> None:
+        # den Stand des Abos legt der Leser ab (_reader), sobald die Antwort da ist - Moonraker schickt Aenderungen
+        # direkt hinterher, die duerfen nicht vor dem (aelteren) Stand verarbeitet werden
         try:
-            res = await self._call("printer.objects.subscribe", {"objects": {**SUBSCRIBE_OBJECTS, **OPTIONAL_OBJECTS}})
+            res = await self._call("printer.objects.subscribe", {"objects": {**SUBSCRIBE_OBJECTS, **OPTIONAL_OBJECTS}},
+                                   subscribe=True)
         except RuntimeError as e:
             log.info("Abo ohne %s (%s)", ", ".join(OPTIONAL_OBJECTS), e)
-            res = await self._call("printer.objects.subscribe", {"objects": SUBSCRIBE_OBJECTS})
+            res = await self._call("printer.objects.subscribe", {"objects": SUBSCRIBE_OBJECTS}, subscribe=True)
         snapshot = res.get("status", {}) if isinstance(res, dict) else {}
-        self.status = {}
-        self._merge(snapshot)
-        self.klippy_ready = True
         log.info("Abo aktiv (%s)", ", ".join(k for k in snapshot))
         if self.console is not None and not self.console.lines:
             try:      # Vorlauf fuer die Konsole: die letzten Zeilen, die Moonraker ohnehin speichert
@@ -233,7 +249,39 @@ class Moonraker:
                 self.console.seed((store or {}).get("gcode_store") or [])
             except Exception as e:  # noqa: BLE001
                 log.info("Konsolen-Verlauf nicht lesbar: %s", e)
-        await self.on_status(snapshot, True)
+
+    # ------------------------------------------------------------------ Status an die Bridge
+    def _queue(self, delta: Optional[Dict[str, Any]], full: bool = False) -> None:
+        """Status von Moonraker zum Verarbeiten vormerken (blockiert nie). full: Stand eines neuen Abos;
+        None: Klipper weg (klippy_ready aus, nachdem ein noch vorgemerkter Abo-Stand es eingeschaltet hat)."""
+        self._todo.append((delta, full))
+        if len(self._todo) in (500, 5000):
+            log.warning("Statusverarbeitung haengt hinterher: %d Aenderungen offen", len(self._todo))
+        self._wake.set()
+        if self._dispatcher is None or self._dispatcher.done():
+            self._dispatcher = asyncio.get_running_loop().create_task(self._dispatch())
+
+    async def _dispatch(self) -> None:
+        while True:
+            await self._wake.wait()
+            self._wake.clear()
+            while self._todo:
+                delta, full = self._todo.popleft()
+                if delta is None:                # Klipper weg - nach einem noch vorgemerkten Abo-Stand
+                    self.klippy_ready = False
+                    continue
+                try:
+                    if full:
+                        self.status = {}
+                        self._merge(delta)
+                        self.klippy_ready = True     # Abo steht (spaetere Aenderungen duerfen schon G-Code senden)
+                    else:
+                        delta = self._merge(delta)
+                        if not delta:
+                            continue
+                    await self.on_status(delta, full)
+                except Exception:  # noqa: BLE001 - die Verarbeitung darf nie stehen bleiben
+                    log.exception("Fehler beim Verarbeiten des Status")
 
     async def _reader(self) -> None:
         assert self._ws is not None
@@ -253,16 +301,17 @@ class Moonraker:
                     if "error" in data:
                         fut.set_exception(RuntimeError(str(data["error"])))
                     else:
-                        fut.set_result(data.get("result"))
+                        res = data.get("result")
+                        if data["id"] in self._sub_ids:
+                            self._queue((res.get("status") or {}) if isinstance(res, dict) else {}, full=True)
+                        fut.set_result(res)
                 continue
 
             method = data.get("method")
             if method == "notify_status_update":
                 params = data.get("params") or []
                 if params and isinstance(params[0], dict):
-                    changed = self._merge(params[0])
-                    if changed:
-                        await self.on_status(changed, False)
+                    self._queue(params[0])
             elif method == "notify_proc_stat_update":
                 # schickt Moonraker von selbst (~1/s): Drucker-CPU ohne zusaetzliche Abfrage
                 params = data.get("params") or []
@@ -280,6 +329,7 @@ class Moonraker:
             elif method in ("notify_klippy_shutdown", "notify_klippy_disconnected"):
                 log.warning("Klippy %s", method.removeprefix("notify_klippy_"))
                 self.klippy_ready = False
+                self._queue(None)
                 self.prompts.close()
 
     async def _safe_subscribe(self) -> None:
@@ -324,6 +374,8 @@ class Moonraker:
                     log.warning("Verbindung zu Moonraker getrennt")
                 self.connected = False
                 self.klippy_ready = False
+                if self._todo:
+                    self._queue(None)
                 for fut in self._pending.values():
                     if not fut.done():
                         fut.set_exception(ConnectionError("getrennt"))

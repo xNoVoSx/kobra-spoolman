@@ -35,6 +35,16 @@ class BridgeClientTest {
         assertEquals("Bearer geheim", req.headers["Authorization"])   // Geraet auch beim Lesen erkennbar
     }
 
+    @Test fun null_in_a_list_field_does_not_break_the_state() = runTest {
+        // Bridge 3.11.0 nach gescheiterter PA-Messung: "k":null - die App darf daran nicht scheitern
+        reply(200, """{"version":"3.11.0","printer":{"state":"printing"},"slots":[],"shelf":[],
+            "pa":{"present":true,"slots":[],"last":{"t":3,"kind":"error","speeds":null,"k":null,"message":"außer Bereich"}}}""")
+        val st = client().state()
+        assertEquals(emptyList<Double>(), st.pa!!.last!!.k)
+        assertEquals("error", st.pa!!.last!!.kind)
+        server.takeRequest()
+    }
+
     @Test fun usb_watchdog_state_and_switch() = runTest {
         reply(200, """{"version":"3.11.0","printer":{"state":"standby"},"slots":[],"shelf":[],
             "usb":{"available":true,"alive":true,"state":"warn","detail":"verbindet … Versuch 2/10","gadget":"default",

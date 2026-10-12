@@ -93,6 +93,16 @@ UIs: it subscribes to their status objects (optional — a missing module only h
 into messages and cards, and switches them through G-code commands. Every module stores its own on/off
 switch in the printer (`save_variables`), so it also works without the bridge.
 
+Klipper runs API G-code only when no other command is running — during the print start (`G9111` is one macro) that
+can be many minutes. So the syncs (`pa.py`, `filament_z.py`) go through `gcodepush.py`: at most one request in flight
+with a long deadline, never resent while Klipper is busy (before 3.11.1 every 15 s timeout resent it and dozens piled
+up in Klipper, with a PAUSE queued behind them).
+
+Status from Moonraker is processed in its own task (`Moonraker._dispatch`), not in the WebSocket reader: merging into
+the cache and `on_status` run there one update at a time, in order, so a handler may call Moonraker itself and the
+reader still delivers the answer (before 3.11.1 such a call waited 15 s for an answer nobody read, and the bridge
+processed nothing meanwhile).
+
 | Bridge | Klipper object | Direction |
 |---|---|---|
 | `pa.py` | `kobra_pa` | Spoolman `pa_table` → `KOBRA_PA_SET` per slot; measured result → back to the filament (`pa_table`, `pressure_advance`) |

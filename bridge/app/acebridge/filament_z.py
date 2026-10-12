@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, List, Optional
 
+from .gcodepush import GcodePush
 from .profiles import find_template
 from .spoolman import extra_value
 
@@ -38,6 +39,7 @@ class FilamentZSync:
     def __init__(self, cfg: "Config", moon: "Moonraker", sm: "Spoolman", slots: "SlotManager"):
         self.cfg, self.moon, self.sm, self.slots = cfg, moon, sm, slots
         self.pushed: Optional[List[float]] = None
+        self.push = GcodePush(moon, "Z-Versatz")    # hoechstens eine Anfrage offen (Startablauf haelt Klipper fest)
 
     def desired(self) -> List[float]:
         assigned, _ = self.slots.assignments()
@@ -56,12 +58,13 @@ class FilamentZSync:
         if not getattr(self.sm, "connected", True):
             return                       # ohne Spoolman-Stand nichts schicken
         want = self.desired()
-        if self.pushed == want:
+        if self.pushed == want or self.push.busy:
             return
         self.pushed = want           # auch bei Fehler merken: kein KOBRA_START im Drucker -> nicht alle 2 s versuchen
-        try:
-            await self.moon.gcode(f'SET_GCODE_VARIABLE MACRO=KOBRA_START VARIABLE=slot_z VALUE="{want}"',
-                                  source="Z-Versatz")
-            log.info("Z-Versatz je Slot an Klipper: %s", want)
-        except Exception as e:  # noqa: BLE001
-            log.warning("Z-Versatz an Klipper fehlgeschlagen (KOBRA_START vorhanden?): %s", e)
+
+        def done(ok, err):
+            if ok:
+                log.info("Z-Versatz je Slot an Klipper: %s", want)
+            else:
+                log.warning("Z-Versatz an Klipper fehlgeschlagen (KOBRA_START vorhanden?): %s", str(err) or type(err).__name__)
+        await self.push.send(f'SET_GCODE_VARIABLE MACRO=KOBRA_START VARIABLE=slot_z VALUE="{want}"', done)

@@ -1,11 +1,19 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.11.0"
+__version__ = "3.11.1"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.11.1", "2026-10-12", [
+        "Behoben: Die Bridge hing zeitweise (Weboberfläche stand, Knöpfe ohne Wirkung, „Verwerfen“ ging nicht) – "
+        "sie wartete auf ihre eigenen Antworten an Klipper und verarbeitete solange nichts",
+        "Behoben: Im Startablauf schickte die Bridge die PA-Werte alle 15 s neu; in Klipper stauten sich so dutzende "
+        "Befehle (eine Pause wartete dahinter). Jetzt bleibt höchstens eine Anfrage offen",
+        "Behoben: App 1.14.0 zeigte nach einer gescheiterten PA-Messung „Antwort der Bridge nicht lesbar“",
+        "App 1.14.1: übersteht auch künftig fehlende Werte in einer Antwort der Bridge",
+    ]),
     ("3.11.0", "2026-10-11", [
         "USB-Tunnel jetzt auch in Web (ACE-Seite) und App (ACE-Fenster): Zustand, letztes Ereignis und die drei Schalter",
         "ACE-Seite: Trockner, Fortsetzen, Verstopfung und USB-Tunnel links, ACE und Pressure Advance rechts",

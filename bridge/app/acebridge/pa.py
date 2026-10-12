@@ -21,6 +21,7 @@ import os
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from .gcodepush import GcodePush
 from .spoolman import extra_value
 from .storage import save_json
 
@@ -96,6 +97,7 @@ class PaSync:
     def __init__(self, cfg: "Config", moon: "Moonraker", sm: "Spoolman", slots: "SlotManager"):
         self.cfg, self.moon, self.sm, self.slots = cfg, moon, sm, slots
         self.pushed: Dict[int, str] = {}           # T -> zuletzt geschickter KOBRA_PA_SET
+        self.push = GcodePush(moon, "Auto-PA")     # hoechstens eine Anfrage offen (Startablauf haelt Klipper fest)
         self.events: List[Dict[str, Any]] = []     # {"at", "level", "text"} fuer die Meldungen
         self.calibrating: Optional[int] = None     # Slot, fuer den eine Messung von Hand laeuft
         self._file = os.path.join(cfg.data_dir, "pa.json")
@@ -153,15 +155,16 @@ class PaSync:
             return
         want = self.desired()
         cmds = [c for t, c in sorted(want.items()) if self.pushed.get(t) != c]
-        if not cmds:
+        if not cmds or self.push.busy:
             return
-        try:
-            await self.moon.gcode("\n".join(cmds), source="Auto-PA")
-        except Exception as e:  # noqa: BLE001
-            log.warning("Auto-PA: Werte an Klipper fehlgeschlagen: %s", e)
-            return
-        self.pushed.update(want)
-        log.info("Auto-PA an Klipper: %s", "; ".join(cmds))
+
+        def done(ok, err):
+            if ok:
+                self.pushed.update(want)
+                log.info("Auto-PA an Klipper: %s", "; ".join(cmds))
+            else:
+                log.warning("Auto-PA: Werte an Klipper fehlgeschlagen: %s", str(err) or type(err).__name__)
+        await self.push.send("\n".join(cmds), done)
 
     def _event(self, level: str, text: str) -> None:
         self.events = [e for e in self.events if time.time() - e["at"] < RECENT_S][-9:]
@@ -231,7 +234,9 @@ class PaSync:
             "enabled": kp.get("enabled"), "auto": kp.get("auto"), "patched": kp.get("patched"),
             "measuring": bool(kp.get("measuring")), "calibrating": self.calibrating,
             "slots": slots,
-            "last": ({k: res.get(k) for k in ("t", "kind", "speeds", "k", "temp", "message", "time")} if res else None),
+            # Listen nie null (gescheiterte Messung hat kein k) - die App erwartet Listen
+            "last": ({**{k: res.get(k) for k in ("t", "kind", "temp", "message", "time")},
+                      "speeds": res.get("speeds") or [], "k": res.get("k") or []} if res else None),
         }
 
     async def switch(self, enabled: Optional[bool] = None, auto: Optional[bool] = None) -> Dict[str, Any]:
