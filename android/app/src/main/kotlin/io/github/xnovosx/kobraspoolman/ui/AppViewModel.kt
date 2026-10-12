@@ -29,6 +29,8 @@ import io.github.xnovosx.kobraspoolman.data.Settings
 import io.github.xnovosx.kobraspoolman.data.SpoolDetail
 import io.github.xnovosx.kobraspoolman.data.SpoolInfo
 import io.github.xnovosx.kobraspoolman.data.TagContent
+import io.github.xnovosx.kobraspoolman.data.I18n
+import io.github.xnovosx.kobraspoolman.data.tr
 import io.github.xnovosx.kobraspoolman.nfc.AceTag
 import io.github.xnovosx.kobraspoolman.nfc.ScannedTag
 import io.github.xnovosx.kobraspoolman.nfc.TagScanner
@@ -49,10 +51,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 
-/** Was die Oberflaeche nach einem Scan tun soll. */
+/** What the UI should do after a scan. */
 sealed interface ScanResult {
     data class Known(val spoolId: Int) : ScanResult
-    /** blank: der Tag hat keinen ACE-Inhalt (leerer Sticker) - dann beschreiben statt verknuepfen. */
+    /** blank: the tag has no ACE content (empty sticker) - then write it instead of linking. */
     data class Unknown(val uid: String, val blank: Boolean = false) : ScanResult
 }
 
@@ -71,18 +73,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _detail = MutableStateFlow<SpoolDetail?>(null)
     val detail: StateFlow<SpoolDetail?> = _detail
     private val _createdFilament = MutableStateFlow<Int?>(null)
-    /** Zuletzt in der App angelegtes Filament - "Neue Spule" waehlt es vor. */
+    /** Filament created last in the app - "New spool" preselects it. */
     val createdFilament: StateFlow<Int?> = _createdFilament
-    /** Tag, der gerade geschrieben werden soll (Spule + Inhalt), null = kein Schreibauftrag. */
-    /** side 1/2: ACE 2 Pro braucht einen Tag pro Spulenseite, beide mit demselben Inhalt. */
+    /** Tag that is about to be written (spool + content), null = no write job. */
+    /** side 1/2: the ACE 2 Pro needs one tag per spool side, both with the same content. */
     data class TagJob(val spoolId: Int, val content: TagContent, val ace: AceTag, val side: Int = 1, val firstUid: String? = null)
     private val _tagJob = MutableStateFlow<TagJob?>(null)
     val tagJob: StateFlow<TagJob?> = _tagJob
     private val _me = MutableStateFlow<Device?>(null)
-    /** Dieses Geraet laut Bridge (null = nicht gekoppelt oder Bridge nicht erreichbar). */
+    /** This device according to the bridge (null = not paired or bridge not reachable). */
     val me: StateFlow<Device?> = _me
     private val _meChecked = MutableStateFlow(false)
-    /** true, sobald die Bridge geantwortet hat - dann heisst me == null: Schluessel ungueltig. */
+    /** true once the bridge answered - then me == null means: key invalid. */
     val meChecked: StateFlow<Boolean> = _meChecked
     private val _devices = MutableStateFlow<List<Device>>(emptyList())
     val devices: StateFlow<List<Device>> = _devices
@@ -101,7 +103,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun client(): BridgeClient? =
         connection.value?.takeIf { it.configured }?.let { BridgeClient(it.url, it.token) }
 
-    // ------------------------------------------------------------ Laden
+    // ------------------------------------------------------------ loading
     fun startPolling() {
         if (polling?.isActive == true) return
         polling = viewModelScope.launch {
@@ -136,17 +138,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         launchSafe(showBusy = false) { _detail.value = it.spool(id) }
     }
 
-    // ------------------------------------------------------------ Aktionen
+    // ------------------------------------------------------------ actions
     fun moveSpool(id: Int, slot: Int?) = launchSafe {
         it.moveSpool(id, slot)
-        _messages.send(if (slot == null) "Ins Regal gelegt" else "In Slot $slot gelegt")
+        _messages.send(if (slot == null) tr("Put on the shelf") else tr("Put into slot {slot}", "slot" to slot))
         _detail.value = it.spool(id)
         refresh()
     }
 
     fun archiveSpool(id: Int, done: () -> Unit) = launchSafe {
         it.archiveSpool(id)
-        _messages.send("Spule archiviert")
+        _messages.send(tr("Spool archived"))
         refresh()
         done()
     }
@@ -154,7 +156,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun createSpool(req: NewSpool, tagUid: String?, done: (SpoolInfo) -> Unit) = launchSafe {
         var spool = it.createSpool(req)
         if (tagUid != null) spool = it.linkTag(spool.spoolId, tagUid)
-        _messages.send("Spule #${spool.spoolId} angelegt" + if (tagUid != null) " und mit dem Tag verknüpft" else "")
+        _messages.send(if (tagUid != null) tr("Spool #{id} created and linked to the tag", "id" to spool.spoolId) else tr("Spool #{id} created", "id" to spool.spoolId))
         refresh()
         done(spool)
     }
@@ -164,19 +166,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val fil = it.createFilament(draft.toJson(specs, vendorId))
         _createdFilament.value = fil.filamentId
         _catalog.value = it.catalog()
-        _messages.send("Filament „${fil.displayName}“ angelegt")
+        _messages.send(tr("Filament “{name}” created", "name" to fil.displayName))
         done()
     }
 
-    /** Tag-Nummer holen und den naechsten aufgelegten Tag damit beschreiben lassen. */
-    /** side 2 = nur den Tag fuer die zweite Spulenseite schreiben (der erste ist schon verknuepft). */
+    /** Get a tag number and have the next tag put on written with it. */
+    /** side 2 = only write the tag for the second spool side (the first is already linked). */
     fun prepareTag(spoolId: Int, scanner: TagScanner, side: Int = 1) = launchSafe {
         _tagJob.value = null
         val issue = it.issueTag(spoolId)
         val ace = try { issue.tag.toAceTag() } catch (e: IllegalStateException) {
-            _messages.send(e.message ?: "Tag-Inhalt unvollständig"); return@launchSafe
+            _messages.send(e.message ?: tr("Tag content incomplete")); return@launchSafe
         } catch (e: IllegalArgumentException) {
-            _messages.send(e.message ?: "Tag-Inhalt unvollständig"); return@launchSafe
+            _messages.send(e.message ?: tr("Tag content incomplete")); return@launchSafe
         }
         scanner.armWrite(ace.encode())
         val first = if (side == 2) state.value?.let { s -> (s.slots.mapNotNull { it.spool } + s.shelf)
@@ -190,8 +192,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Tag ist beschrieben: Kennung mit der Spule verknuepfen. Nach dem ersten Tag geht es gleich mit dem
-     * zweiten weiter (gleicher Inhalt, andere Spulenseite); derselbe Sticker zaehlt nicht als zweiter.
+ * The tag is written: link its ID with the spool. After the first tag it goes straight on to the
+ * second (same content, other spool side); the same sticker does not count as the second one.
      */
     fun onTagWritten(r: WriteResult, scanner: TagScanner, done: (Int) -> Unit) = launchSafe {
         val job = _tagJob.value ?: return@launchSafe
@@ -202,16 +204,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.linkTag(job.spoolId, r.uid, force = true, reset = true)
                     scanner.armWrite(job.ace.encode())
                     _tagJob.value = job.copy(side = 2, firstUid = r.uid)
-                    _messages.send("Tag 1 geschrieben – jetzt den zweiten Sticker für die andere Spulenseite")
+                    _messages.send(tr("Tag 1 written – now the second sticker for the other spool side"))
                 }
                 r.uid == job.firstUid -> {
                     scanner.armWrite(job.ace.encode())
-                    _messages.send("Das ist derselbe Sticker – bitte den zweiten ans Handy halten")
+                    _messages.send(tr("That is the same sticker – please hold the second one to the phone"))
                 }
                 else -> {
                     it.linkTag(job.spoolId, r.uid, force = true, reset = false)
                     _tagJob.value = null
-                    _messages.send("Beide Tags ${job.content.sku} geschrieben und mit Spule #${job.spoolId} verknüpft")
+                    _messages.send(tr("Both tags {sku} written and linked to spool #{id}", "sku" to job.content.sku, "id" to job.spoolId))
                     refresh()
                     done(job.spoolId)
                 }
@@ -221,26 +223,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun dryerStart(temp: Int?, hours: Double?) = launchSafe {
         it.dryerStart(temp, hours)
-        _messages.send("Trocknen gestartet")
+        _messages.send(tr("Drying started"))
         refresh()
     }
 
     fun dryerStop() = launchSafe {
         it.dryerStop()
-        _messages.send("Trocknen gestoppt")
+        _messages.send(tr("Drying stopped"))
         refresh()
     }
 
     fun dryerConfig(c: DryerConfig) = launchSafe {
         it.dryerConfig(c)
-        _messages.send(if (c.enabled) "Automatik gespeichert: ab ${c.startAbove.toInt()} %, bis ${c.stopBelow.toInt()} %" else "Automatik aus")
+        _messages.send(if (c.enabled) tr("Automatic saved: from {start} %, until {stop} %", "start" to c.startAbove.toInt(), "stop" to c.stopBelow.toInt()) else tr("Automatic off"))
         refresh()
     }
 
-    /** Endlosspule an/aus (endless_spool) oder Modus (endless_mode: exact | material | next). */
+    /** Endless spool on/off (endless_spool) or mode (endless_mode: exact | material | next). */
     fun setAceOption(key: String, value: JsonPrimitive) = launchSafe {
         it.setAceOption(key, value)
-        _messages.send("ACE: gespeichert")
+        _messages.send(tr("ACE: saved"))
         refresh()
     }
 
@@ -251,7 +253,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resume(start: Boolean) = launchSafe {
         it.resume(start)
-        _messages.send(if (start) "Fortsetzen gestartet – heizen, antasten, weiterdrucken" else "Unterbrochener Druck verworfen")
+        _messages.send(if (start) tr("Resume started – heating, probing, printing on") else tr("Interrupted print discarded"))
         refresh()
     }
 
@@ -272,29 +274,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun paCalibrate(slot: Int) = launchSafe {
         it.paCalibrate(slot)
-        _messages.send("PA-Messung läuft – Ergebnis in ~2 Minuten")
+        _messages.send(tr("PA measurement running – result in ~2 minutes"))
         refresh()
     }
 
     fun paForget(filamentId: Int) = launchSafe {
         it.paForget(filamentId)
-        _messages.send("PA verworfen – wird beim nächsten Druck neu gemessen")
+        _messages.send(tr("PA discarded – measured again at the next print"))
         refresh()
     }
 
     fun dryerSchedule(atEpochS: Double, temp: Int?, hours: Double?) = launchSafe {
         it.dryerSchedule(atEpochS, temp, hours)
-        _messages.send("Trocknen geplant")
+        _messages.send(tr("Drying scheduled"))
         refresh()
     }
 
     fun clearDryerSchedule() = launchSafe {
         it.clearDryerSchedule()
-        _messages.send("Plan gelöscht")
+        _messages.send(tr("Schedule deleted"))
         refresh()
     }
 
-    /** Bild von der Bridge holen (Kamera nur gekoppelt); null bei Fehler oder ohne Bild. */
+    /** Get an image from the bridge (camera only when paired); null on error or without an image. */
     suspend fun image(path: String): ByteArray? = runCatching { client()?.image(path) }.getOrNull()
 
     fun printAction(action: String, done: String) = launchSafe {
@@ -303,54 +305,54 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
-    // ------------------------------------------------ 3D-Modell
+    // ------------------------------------------------ 3D model
     val render3d: StateFlow<String> = settings.render3d.stateIn(viewModelScope, SharingStarted.Eagerly, "auto")
 
     fun setRender3d(v: String) = viewModelScope.launch { settings.setRender3d(v) }
 
-    /** Adresse der 3D-Ansicht der Bridge (/viewer) - null: das Bild der Bridge zeigen. */
+    /** Address of the bridge's 3D view (/viewer, in the app language) - null: show the bridge image. */
     fun viewerUrl(c: Connection?, mode: String): String? =
         if (c == null || !c.configured || mode == "image") null
-        else BridgeClient.normalizeUrl(c.url) + "/viewer?q=" + mode
+        else BridgeClient.normalizeUrl(c.url) + "/viewer?q=" + mode + "&lang=" + I18n.lang
 
-    // ------------------------------------------------ Feuchte
+    // ------------------------------------------------ humidity
     suspend fun humidity(hours: Int): HumidityData? = runCatching { client()?.humidity(hours) }.getOrNull()
     suspend fun spoolMoisture(id: Int): SpoolMoistureFull? = runCatching { client()?.spoolMoisture(id) }.getOrNull()
 
     fun spoolDried(id: Int, temp: Int, hours: Double, done: () -> Unit) = launchSafe {
         it.spoolDried(id, temp, hours * 60)
-        _messages.send("Als getrocknet gemerkt")
+        _messages.send(tr("Marked as dried"))
         done()
     }
 
-    // ------------------------------------------------ KI
+    // ------------------------------------------------ AI
     suspend fun vision(): VisionFull? = runCatching { client()?.vision() }.getOrNull()
 
     fun visionSettings(changes: kotlinx.serialization.json.JsonObject, done: () -> Unit) = launchSafe {
         it.visionSettings(changes)
-        _messages.send("KI-Einstellung gespeichert")
+        _messages.send(tr("AI setting saved"))
         done()
     }
 
     fun visionMute(on: Boolean, done: () -> Unit) = launchSafe {
         it.visionMute(on)
-        _messages.send(if (on) "Dieser Druck wird nicht überwacht" else "KI überwacht wieder")
+        _messages.send(if (on) tr("This print is not watched") else tr("The AI is watching again"))
         done()
     }
 
     fun visionFeedback(id: String, verdict: String, done: () -> Unit) = launchSafe {
         it.visionFeedback(id, verdict)
-        _messages.send(if (verdict == "false_alarm") "Als Fehlalarm gemerkt" else "Als Fehldruck gemerkt")
+        _messages.send(if (verdict == "false_alarm") tr("Marked as a false alarm") else tr("Marked as a failure"))
         done()
     }
 
     fun tune(body: kotlinx.serialization.json.JsonObject) = launchSafe {
         it.tune(body)
-        _messages.send("Übernommen")
+        _messages.send(tr("Applied"))
         refresh()
     }
 
-    // ------------------------------------------------ Druck-Ueberwachung im Hintergrund
+    // ------------------------------------------------ print monitoring in the background
     val monitor: StateFlow<Boolean> = settings.monitor.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     fun setMonitor(on: Boolean) = viewModelScope.launch {
@@ -359,14 +361,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (on) MonitorService.start(ctx) else MonitorService.stop(ctx)
     }
 
-    /** Beim App-Start: Ueberwachung starten, wenn eingeschaltet und eingerichtet. */
+    /** At app start: start monitoring if switched on and set up. */
     fun ensureMonitor() = viewModelScope.launch {
         if (settings.monitor.first() && settings.connection.first().configured) MonitorService.start(getApplication())
     }
 
-    // ------------------------------------------------ App-Update von der Bridge
+    // ------------------------------------------------ app update from the bridge
     private val _appUpdate = MutableStateFlow<AppUpdate?>(null)
-    /** Neuere App, die die Bridge mitbringt (nur Release-Build; die Debug-App hat eine eigene Paket-ID). */
+    /** Newer app the bridge brings along (release build only; the debug app has its own package ID). */
     val appUpdate: StateFlow<AppUpdate?> = _appUpdate
     private val _updateProgress = MutableStateFlow<Float?>(null)
     val updateProgress: StateFlow<Float?> = _updateProgress
@@ -375,11 +377,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val u = client()?.let { c -> runCatching { c.appUpdate() }.getOrNull() }
         _appUpdate.value = u?.takeIf { it.available && it.code > BuildConfig.VERSION_CODE && !BuildConfig.DEBUG }
         if (announce) _messages.send(when {
-            BuildConfig.DEBUG -> "Debug-Build: Updates gibt es nur für die Release-App"
-            u == null -> "Bridge nicht erreichbar"
-            _appUpdate.value != null -> "Update auf ${u.version} verfügbar"
-            u.available -> "Die App ist aktuell (${BuildConfig.VERSION_NAME})"
-            else -> "Diese Bridge bringt keine App mit"
+            BuildConfig.DEBUG -> tr("Debug build: updates only exist for the release app")
+            u == null -> tr("Bridge not reachable")
+            _appUpdate.value != null -> tr("Update to {version} available", "version" to u.version)
+            u.available -> tr("The app is up to date ({version})", "version" to BuildConfig.VERSION_NAME)
+            else -> tr("This bridge brings no app along")
         })
     }
 
@@ -388,7 +390,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ctx = getApplication<Application>()
         if (!Installer.allowed(ctx)) {
             Installer.openPermission(ctx)
-            _messages.send("„Unbekannte Apps installieren“ erlauben, dann noch einmal auf Installieren tippen")
+            _messages.send(tr("Allow “Install unknown apps”, then tap Install once more"))
             return@launchSafe
         }
         val file = java.io.File(ctx.cacheDir, "update/kobra-spoolman-${u.version}.apk")
@@ -405,19 +407,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun console(after: Long): ConsoleLines? = runCatching { client()?.console(after) }.getOrNull()
     suspend fun logs(after: Long, level: String): LogLines? = runCatching { client()?.logs(after, level) }.getOrNull()
 
-    /** Kamera live ueber den Restream der Bridge; leer ohne Verbindung. */
+    /** Live camera via the bridge restream; empty without a connection. */
     fun cameraStream(): Flow<ByteArray> = client()?.cameraStream() ?: emptyFlow()
 
     suspend fun printInfo(): PrintInfo? = runCatching { client()?.printInfo() }.getOrNull()
 
     fun linkTag(spoolId: Int, uid: String, done: () -> Unit) = launchSafe {
         it.linkTag(spoolId, uid)
-        _messages.send("Tag mit Spule #$spoolId verknüpft")
+        _messages.send(tr("Tag linked to spool #{id}", "id" to spoolId))
         refresh()
         done()
     }
 
-    /** Mit der Bridge koppeln: Code (6 Ziffern, Einrichtungscode oder uebergangsweise APP_TOKEN) gegen Schluessel. */
+    /** Pair with the bridge: code (6 digits, setup code or for a transition the APP_TOKEN) against a key. */
     fun pair(url: String, code: String, name: String, done: () -> Unit) = viewModelScope.launch {
         _busy.value = true
         try {
@@ -425,16 +427,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             settings.save(Connection(url, res.token))
             _me.value = res.device
             _meChecked.value = true
-            _messages.send("Gekoppelt als „${res.device.name}“")
+            _messages.send(tr("Paired as “{name}”", "name" to res.device.name))
             done()
         } catch (e: BridgeException) {
-            _messages.send(e.message ?: "Koppeln fehlgeschlagen")
+            _messages.send(e.message ?: tr("Pairing failed"))
         } finally {
             _busy.value = false
         }
     }
 
-    /** Nur hier vergessen; in der Bridge bleibt das Geraet gelistet, bis es dort entfernt wird. */
+    /** Forget only here; the bridge keeps the device listed until it is removed there. */
     fun forgetPairing() = viewModelScope.launch {
         settings.save(Connection(connection.value?.url.orEmpty(), ""))
         _me.value = null
@@ -452,11 +454,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun removeDevice(id: String) = launchSafe {
         it.removeDevice(id)
-        _messages.send("Gerät entfernt")
+        _messages.send(tr("Device removed"))
         _devices.value = it.devices()
     }
 
-    /** Gescannter Tag -> Spule nachschlagen. */
+    /** Scanned tag -> look up the spool. */
     fun onTag(tag: ScannedTag) = launchSafe(showBusy = false) {
         try {
             _scans.send(ScanResult.Known(it.spoolByTag(tag.uid).spoolId))
@@ -466,12 +468,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun launchSafe(showBusy: Boolean = true, block: suspend (BridgeClient) -> Unit) = viewModelScope.launch {
-        val c = client() ?: run { _messages.send("Erst die Bridge einrichten (Einstellungen)"); return@launch }
+        val c = client() ?: run { _messages.send(tr("Set up the bridge first (Settings)")); return@launch }
         if (showBusy) _busy.value = true
         try {
             block(c)
         } catch (e: BridgeException) {
-            _messages.send(e.message ?: "Fehler")
+            _messages.send(e.message ?: tr("Error"))
         } finally {
             if (showBusy) _busy.value = false
         }

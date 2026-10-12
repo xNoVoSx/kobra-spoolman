@@ -8,10 +8,10 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
 class MjpegTest {
-    private fun jpeg(i: Int) = byteArrayOf(0xFF.toByte(), 0xD8.toByte()) + "bild $i".toByteArray() +
+    private fun jpeg(i: Int) = byteArrayOf(0xFF.toByte(), 0xD8.toByte()) + "image $i".toByteArray() +
         byteArrayOf(0xFF.toByte(), 0xD9.toByte())
 
-    /** Liefert hoechstens 5 Bytes pro read() wie ein langsames Netz. */
+    /** Returns at most 5 bytes per read() like a slow network. */
     private class Trickle(private val data: ByteArray) : InputStream() {
         private var pos = 0
         override fun read(): Int = if (pos < data.size) data[pos++].toInt() and 0xFF else -1

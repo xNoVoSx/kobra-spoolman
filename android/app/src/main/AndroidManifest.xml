@@ -3,28 +3,30 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.NFC" />
-    <!-- Ab Android 17 (API 37) ist das Heimnetz ohne diese Berechtigung gesperrt - die Bridge liegt dort -->
+    <!-- From Android 17 (API 37) the home network is blocked without this permission - the bridge lives there -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
-    <!-- Kamera nur zum Scannen des Kopplungs-QR-Codes; ohne Kamera Code eintippen -->
+    <!-- Camera only to scan the pairing QR code; without a camera type the code -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
-    <!-- Die App funktioniert auch ohne NFC (dann ohne Scannen/Tag schreiben) -->
+    <!-- The app also works without NFC (then without scanning/writing tags) -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
-    <!-- App-Updates von der Bridge installieren (Android fragt vor jeder Installation nach) -->
+    <!-- Install app updates from the bridge (Android asks before every installation) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Druck-Ueberwachung im Hintergrund: Benachrichtigungen, Dienst im Vordergrund, nach Neustart wieder an -->
+    <!-- Print monitoring in the background: notifications, foreground service, back on after a reboot -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Android 16: Fortschritt als Live-Update (immer oben, Sperrbildschirm, Statusleiste) -->
+    <!-- Android 16: progress as a live update (always on top, lock screen, status bar) -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Die Bridge laeuft im Heimnetz ohne TLS (http://<docker-host>:7913) -->
+    <!-- The bridge runs in the home network without TLS (http://<docker-host>:7913) -->
     <application
+        android:name=".KobraApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.KobraSpoolman"
         android:usesCleartextTraffic="true">
@@ -40,7 +42,7 @@
         </activity>
         <receiver android:name=".update.InstallReceiver" android:exported="false" />
         <receiver android:name=".monitor.VisionActionReceiver" android:exported="false" />
-        <receiver android:name=".monitor.PrintWidget" android:exported="false" android:label="Kobra Druck">
+        <receiver android:name=".monitor.PrintWidget" android:exported="false" android:label="@string/widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -52,7 +54,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Überwachung eines laufenden 3D-Drucks im Heimnetz: Fortschritt in der Leiste und Alarm bei Fehlern" />
+                android:value="Monitoring a running 3D print in the home network: progress in the status bar and an alarm on failures" />
         </service>
         <receiver android:name=".monitor.BootReceiver" android:exported="true">
             <intent-filter>

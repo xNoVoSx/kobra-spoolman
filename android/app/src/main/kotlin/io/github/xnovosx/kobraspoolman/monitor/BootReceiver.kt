@@ -7,7 +7,7 @@ import io.github.xnovosx.kobraspoolman.data.Settings
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
 
-/** Nach einem Neustart des Handys die Ueberwachung wieder starten (wenn eingeschaltet). */
+/** After a reboot of the phone start the monitoring again (if switched on). */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return

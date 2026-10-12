@@ -1,22 +1,24 @@
 package io.github.xnovosx.kobraspoolman.nfc
 
+import io.github.xnovosx.kobraspoolman.data.tr
+
 /**
- * Inhalt eines ACE-Tags (Anycubic ACE Pro / ACE 2 Pro) - eigene Umsetzung.
+ * Content of an ACE tag (Anycubic ACE Pro / ACE 2 Pro) - own implementation.
  *
- * Seitenbelegung (je 4 Byte, MIFARE Ultralight/NTAG), geprueft an einem Original-Tag
- * (Anycubic PETG Schwarz, NTAG213) und an ACE-RFID (github.com/DnG-Crafts/ACE-RFID) orientiert:
+ * Page layout (4 bytes each, MIFARE Ultralight/NTAG), checked on an original tag
+ * (Anycubic PETG black, NTAG213) and based on ACE-RFID (github.com/DnG-Crafts/ACE-RFID):
  *
- *   4      7B 00 65 00               Kopf
- *   5-9    SKU, ASCII, 20 Byte       "AHPEBK-102" -> die ACE meldet 102 als gate_spool_id
- *   10-14  Marke, ASCII, 20 Byte     "AC" = Anycubic
- *   15-19  Material, ASCII, 20 Byte  "PETG"
- *   20     Farbe A B G R             FF 21 27 21
- *   23     Geschwindigkeit min/max   50 / 200 (mm/s, je 2 Byte, niedriges Byte zuerst)
- *   24     Duese min/max             230 / 250 (degC)
- *   29     Bett min/max              60 / 70 (degC)
- *   30     Durchmesser x100, Laenge  175 / 320 (m)
- *   31     Gewicht                   1000 (g)
- * Alle anderen Seiten von 4 bis 31 sind 0.
+ *   4      7B 00 65 00               header
+ *   5-9    SKU, ASCII, 20 bytes      "AHPEBK-102" -> the ACE reports 102 as gate_spool_id
+ *   10-14  brand, ASCII, 20 bytes    "AC" = Anycubic
+ *   15-19  material, ASCII, 20 bytes "PETG"
+ *   20     colour A B G R            FF 21 27 21
+ *   23     speed min/max             50 / 200 (mm/s, 2 bytes each, low byte first)
+ *   24     nozzle min/max            230 / 250 (degC)
+ *   29     bed min/max               60 / 70 (degC)
+ *   30     diameter x100, length     175 / 320 (m)
+ *   31     weight                    1000 (g)
+ * All other pages from 4 to 31 are 0.
  */
 data class AceTag(
     val sku: String,
@@ -31,10 +33,10 @@ data class AceTag(
     val weightG: Int,
     val speedMin: Int = 50, val speedMax: Int = 200,
 ) {
-    /** Zahl hinter dem Bindestrich der SKU - so meldet sie die ACE (gate_spool_id). */
+    /** Number after the dash of the SKU - that is how the ACE reports it (gate_spool_id). */
     val skuNumber: Long? get() = sku.substringAfterLast('-', "").toLongOrNull()
 
-    /** Seiten 4..31 zum Schreiben (auch leere, damit alte Inhalte verschwinden). */
+    /** Pages 4..31 for writing (empty ones too, so old content disappears). */
     fun encode(): Map<Int, ByteArray> {
         val data = ByteArray((LAST - FIRST + 1) * 4)
         fun put(page: Int, bytes: ByteArray) = bytes.copyInto(data, (page - FIRST) * 4)
@@ -58,19 +60,19 @@ data class AceTag(
 
         private fun ascii(s: String, len: Int): ByteArray {
             val b = s.filter { it.code in 32..126 }.toByteArray(Charsets.US_ASCII)
-            require(b.size <= len) { "„$s“ ist zu lang (max. $len Zeichen)" }
+            require(b.size <= len) { tr("“{text}” is too long (max. {max} characters)", "text" to s, "max" to len) }
             return b.copyOf(len)
         }
 
         private fun pair(a: Int, b: Int): ByteArray {
-            require(a in 0..0xFFFF && b in 0..0xFFFF) { "Wert ausserhalb 0..65535" }
+            require(a in 0..0xFFFF && b in 0..0xFFFF) { tr("Value outside 0..65535") }
             return byteArrayOf(a.toByte(), (a shr 8).toByte(), b.toByte(), (b shr 8).toByte())
         }
 
-        /** RRGGBB -> A B G R. Reines Schwarz schreibt man als 010101 (wie ACE-RFID), 000000 gilt als "keine Farbe". */
+        /** RRGGBB -> A B G R. Pure black is written as 010101 (like ACE-RFID), 000000 counts as "no colour". */
         fun colorBytes(rgb: String): ByteArray {
             var h = rgb.removePrefix("#").uppercase()
-            require(Regex("[0-9A-F]{6}").matches(h)) { "Farbe als RRGGBB" }
+            require(Regex("[0-9A-F]{6}").matches(h)) { tr("Colour as RRGGBB") }
             if (h == "000000") h = "010101"
             val r = h.substring(0, 2).toInt(16)
             val g = h.substring(2, 4).toInt(16)
@@ -78,7 +80,7 @@ data class AceTag(
             return byteArrayOf(0xFF.toByte(), b.toByte(), g.toByte(), r.toByte())
         }
 
-        /** Tag aus den Seiten 0..n lesen (z.B. Speicherabbild); null = kein ACE-Tag. */
+        /** Read a tag from pages 0..n (e.g. a memory dump); null = not an ACE tag. */
         fun decode(pages: ByteArray): AceTag? {
             if (pages.size < (LAST + 1) * 4) return null
             fun page(p: Int) = pages.copyOfRange(p * 4, p * 4 + 4)

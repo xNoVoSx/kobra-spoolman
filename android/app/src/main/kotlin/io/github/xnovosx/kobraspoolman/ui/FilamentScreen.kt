@@ -53,13 +53,14 @@ import io.github.xnovosx.kobraspoolman.data.placeholder
 import io.github.xnovosx.kobraspoolman.data.templateFor
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
+import io.github.xnovosx.kobraspoolman.data.tr
 
-private val STEPS = listOf("Produkt", "Farbe", "Material & Gewicht", "Temperaturen", "Kühlung",
-    "Extrusion & Retraction", "Übersicht")
+private val STEPS get() = listOf(tr("Product"), tr("Colour"), tr("Material & weight"), tr("Temperatures"), tr("Cooling"),
+    tr("Extrusion & retraction"), tr("Summary"))
 
 private val REQUIRED = setOf("name", "material", "vendor")
 
-/** Gaengige Filamentfarben als Schnellauswahl. */
+/** Common filament colours as a quick choice. */
 private val PALETTE = listOf("FFFFFF", "F2F2F2", "C0C0C0", "808080", "212721", "000000", "D32F2F", "F57C00",
     "FBC02D", "388E3C", "3FA46A", "52D2BC", "1976D2", "685BC7", "7B1FA2", "C52E79", "8D6E63", "E8C9A0")
 
@@ -90,9 +91,9 @@ fun FilamentScreen(
         Column(Modifier.padding(start = 20.dp, end = 20.dp, top = contentPadding.calculateTopPadding() + 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RoundIconButton(KIcons.Close, "Abbrechen", onCancel)
+                RoundIconButton(KIcons.Close, tr("Cancel"), onCancel)
                 Column {
-                    Text("Neues Filament · Schritt ${step + 1} von ${STEPS.size}", style = MaterialTheme.typography.bodySmall,
+                    Text(tr("New filament · step {n} of {total}", "n" to step + 1, "total" to STEPS.size), style = MaterialTheme.typography.bodySmall,
                         color = K.Muted)
                     Text(STEPS[step], style = MaterialTheme.typography.headlineSmall)
                 }
@@ -102,9 +103,9 @@ fun FilamentScreen(
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (catalog == null) { Text("Lade …", color = K.Muted); return@Column }
+            if (catalog == null) { Text(tr("Loading …"), color = K.Muted); return@Column }
             when (step) {
-                // Fehlende Pflichtfelder nicht rot anzeigen - "Weiter" bleibt einfach aus, bis sie gesetzt sind
+                // don't show missing required fields in red - "Next" simply stays off until they are set
                 0 -> ProductStep(draft, catalog, errors - REQUIRED) { draft = it }
                 1 -> ColorStep(draft, errors) { draft = it }
                 6 -> SummaryStep(draft, specs, fields, tpl?.name) { draft = it }
@@ -118,12 +119,12 @@ fun FilamentScreen(
         }
         Row(Modifier.fillMaxWidth().background(K.Sunken).padding(start = 20.dp, end = 20.dp, top = 12.dp,
             bottom = contentPadding.calculateBottomPadding() + 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SecondaryButton(if (step == 0) "Abbrechen" else "Zurück", { if (step == 0) onCancel() else step-- },
+            SecondaryButton(if (step == 0) tr("Cancel") else tr("Back"), { if (step == 0) onCancel() else step-- },
                 Modifier.weight(1f))
             if (step < STEPS.lastIndex) {
-                PrimaryButton("Weiter", { step++ }, Modifier.weight(1.4f), enabled = !stepHasError)
+                PrimaryButton(tr("Next"), { step++ }, Modifier.weight(1.4f), enabled = !stepHasError)
             } else {
-                PrimaryButton("Filament anlegen", { onCreate(draft, specs) }, Modifier.weight(1.4f),
+                PrimaryButton(tr("Create filament"), { onCreate(draft, specs) }, Modifier.weight(1.4f),
                     enabled = canWrite && !busy && errors.isEmpty())
             }
         }
@@ -144,53 +145,52 @@ private fun DraftHeader(d: FilamentDraft, template: String?) {
         .padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         SpoolDisc(d.colorHex.removePrefix("#").ifBlank { null }, 28.dp)
         Column(Modifier.weight(1f)) {
-            Text(d.name.ifBlank { "Neues Filament" }, style = MaterialTheme.typography.bodyMedium)
+            Text(d.name.ifBlank { tr("New filament") }, style = MaterialTheme.typography.bodyMedium)
             Text(listOfNotNull(d.material.ifBlank { null }, d.orcaBasis.ifBlank { null } ?: template).joinToString(" · ")
-                .ifBlank { "Material noch offen" }, style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                .ifBlank { tr("Material still open") }, style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
     }
 }
 
 @Composable
 private fun InheritLegend(template: String?, orcaBasis: String) {
-    val from = when {
-        orcaBasis.isNotBlank() -> "dem Orca-Profil „$orcaBasis“"
-        template != null -> "der $template"
-        else -> "Orcas Standardprofil"
-    }
-    Hint("Leer lassen = Wert aus $from. Grau steht, was dann gilt. Gespeichert wird nur, was du einträgst.")
+    Hint(when {
+        orcaBasis.isNotBlank() -> tr("Leave empty = value from the Orca profile “{name}”.", "name" to orcaBasis)
+        template != null -> tr("Leave empty = value from the template “{name}”.", "name" to template)
+        else -> tr("Leave empty = value from Orca's default profile.")
+    } + " " + tr("Grey shows what then applies. Only what you enter is saved."))
 }
 
 @Composable
 private fun ProductStep(d: FilamentDraft, cat: Catalog, errors: Map<String, String>, set: (FilamentDraft) -> Unit) {
-    SectionLabel("Hersteller")
+    SectionLabel(tr("Vendor"))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         cat.vendors.forEach { v ->
             Pill(v.name, d.vendorId == v.id && d.newVendor.isBlank()) { set(d.copy(vendorId = v.id, newVendor = "")) }
         }
     }
-    TextInput("…oder neuer Hersteller", d.newVendor, { set(d.copy(newVendor = it, vendorId = if (it.isBlank()) d.vendorId else null)) })
-    TextInput("Name (ohne Hersteller), z.B. PETG 2.0 Mintgrün", d.name, { set(d.copy(name = it)) }, error = errors["name"])
+    TextInput(tr("…or a new vendor"), d.newVendor, { set(d.copy(newVendor = it, vendorId = if (it.isBlank()) d.vendorId else null)) })
+    TextInput(tr("Name (without vendor), e.g. PETG 2.0 Mint green"), d.name, { set(d.copy(name = it)) }, error = errors["name"])
 
-    SectionLabel("Material", Modifier.padding(top = 6.dp))
+    SectionLabel(tr("Material"), Modifier.padding(top = 6.dp))
     val materials = cat.templates.map { it.material.uppercase() }.distinct()
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         materials.forEach { m -> Pill(m, d.material.equals(m, true)) { set(d.copy(material = m)) } }
     }
-    TextInput("…oder anderes Material", d.material.takeIf { m -> materials.none { it.equals(m, true) } }.orEmpty(),
+    TextInput(tr("…or another material"), d.material.takeIf { m -> materials.none { it.equals(m, true) } }.orEmpty(),
         { set(d.copy(material = it)) }, error = errors["material"])
 
-    SectionLabel("Vorlage", Modifier.padding(top = 6.dp))
+    SectionLabel(tr("Template"), Modifier.padding(top = 6.dp))
     val auto = templateFor(d.copy(values = d.values - "vorlage"), cat.templates)?.name
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Pill("Automatisch" + (auto?.let { ": $it" } ?: ""), d.template.isBlank()) { set(d.with("vorlage", "")) }
+        Pill(tr("Automatic") + (auto?.let { ": $it" } ?: ""), d.template.isBlank()) { set(d.with("vorlage", "")) }
         cat.templates.filter { d.material.isBlank() || it.material.equals(d.material, true) }.forEach { t ->
             Pill(t.name, d.template == t.name) { set(d.with("vorlage", t.name)) }
         }
     }
 
-    SectionLabel("Eigenes Orca-Profil (optional)", Modifier.padding(top = 6.dp))
-    TextInput("z.B. Sunlu PETG @System – ersetzt die Vorlage", d.orcaBasis, { set(d.with("orca_basis", it)) })
+    SectionLabel(tr("Own Orca profile (optional)"), Modifier.padding(top = 6.dp))
+    TextInput(tr("e.g. Sunlu PETG @System – replaces the template"), d.orcaBasis, { set(d.with("orca_basis", it)) })
     val q = d.orcaBasis.trim()
     if (q.length >= 2) {
         cat.orcaBases.filter { it.contains(q, true) && it != q }.take(6).forEach { name ->
@@ -198,14 +198,14 @@ private fun ProductStep(d: FilamentDraft, cat: Catalog, errors: Map<String, Stri
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { set(d.with("orca_basis", name)) }
                     .padding(horizontal = 8.dp, vertical = 8.dp))
         }
-        if (cat.orcaBases.isEmpty()) Text("Keine Liste – das Orca-Plugin meldet die Profile beim nächsten Sync.",
+        if (cat.orcaBases.isEmpty()) Text(tr("No list – the Orca plugin reports the profiles at the next sync."),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
     }
 
     val sameVendor = cat.filaments.filter { d.vendorId == null || it.vendorId == d.vendorId }
     if (sameVendor.isNotEmpty()) {
-        SectionLabel("Werte übernehmen von …", Modifier.padding(top = 6.dp))
-        Text("Für eine neue Farbe derselben Produktreihe: Temperaturen, Lüfter, Flow usw. werden kopiert.",
+        SectionLabel(tr("Copy values from …"), Modifier.padding(top = 6.dp))
+        Text(tr("For a new colour of the same product line: temperatures, fans, flow etc. are copied."),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
         sameVendor.forEach { f -> ShelfLikeRow(f.displayName, f.color) { set(d.copyFrom(f)) } }
     }
@@ -224,7 +224,7 @@ private fun ColorStep(d: FilamentDraft, errors: Map<String, String>, set: (Filam
                 .clickable(role = Role.RadioButton) { set(d.copy(colorHex = hex)) })
         }
     }
-    TextInput("Farbe als Hex (RRGGBB), z.B. vom Hersteller", d.colorHex, { set(d.copy(colorHex = it.trim().removePrefix("#").take(6))) },
+    TextInput(tr("Colour as hex (RRGGBB), e.g. from the vendor"), d.colorHex, { set(d.copy(colorHex = it.trim().removePrefix("#").take(6))) },
         error = errors["color"])
 }
 
@@ -232,8 +232,8 @@ private fun ColorStep(d: FilamentDraft, errors: Map<String, String>, set: (Filam
 private fun SummaryStep(d: FilamentDraft, specs: List<FieldSpec>, fields: List<io.github.xnovosx.kobraspoolman.data.ExtraField>,
                         template: String?, set: (FilamentDraft) -> Unit) {
     val own = specs.filter { d.value(it.key).isNotBlank() && it.key !in setOf("orca_overrides") }
-    Text("Eigene Werte (${own.size})", style = MaterialTheme.typography.titleLarge)
-    if (own.isEmpty()) Text("Keine – alles kommt aus ${template ?: "dem Orca-Profil"}.", color = K.Muted,
+    Text(tr("Own values ({n})", "n" to own.size), style = MaterialTheme.typography.titleLarge)
+    if (own.isEmpty()) Text(if (template != null) tr("None – everything comes from “{name}”.", "name" to template) else tr("None – everything comes from the Orca profile."), color = K.Muted,
         style = MaterialTheme.typography.bodyMedium)
     own.forEach { s ->
         Row(Modifier.fillMaxWidth()) {
@@ -242,8 +242,8 @@ private fun SummaryStep(d: FilamentDraft, specs: List<FieldSpec>, fields: List<i
         }
     }
     FilamentForm.spec("orca_overrides", fields)?.let { s ->
-        SectionLabel("Orca-Overrides (optional)", Modifier.padding(top = 12.dp))
-        Text("Weitere Orca-Einstellungen, eine je Zeile: schluessel = wert", style = MaterialTheme.typography.bodySmall,
+        SectionLabel(tr("Orca overrides (optional)"), Modifier.padding(top = 12.dp))
+        Text(tr("More Orca settings, one per line: key = value"), style = MaterialTheme.typography.bodySmall,
             color = K.Muted)
         OutlinedTextField(d.value(s.key), { set(d.with(s.key, it)) }, modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp),
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = PlexMono), shape = RoundedCornerShape(12.dp),
@@ -251,7 +251,7 @@ private fun SummaryStep(d: FilamentDraft, specs: List<FieldSpec>, fields: List<i
     }
 }
 
-/** Ein Wert mit Platzhalter aus der Vorlage; eigener Wert wird gelb umrandet. */
+/** A value with a placeholder from the template; an own value gets a yellow border. */
 @Composable
 private fun FieldRow(s: FieldSpec, value: String, inherited: String?, error: String?, onChange: (String) -> Unit) {
     val own = value.isNotBlank()
@@ -265,11 +265,11 @@ private fun FieldRow(s: FieldSpec, value: String, inherited: String?, error: Str
                 color = if (error != null) K.DangerText else K.Muted)
         }
         if (s.kind == Kind.BOOL) {
-            val inh = inherited?.let { if (it == "true") "an" else "aus" }
+            val inh = inherited?.let { if (it == "true") tr("on") else tr("off") }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill("Vorlage" + (inh?.let { " ($it)" } ?: ""), value.isBlank(), small = true) { onChange("") }
-                Pill("an", value == "true", small = true) { onChange("true") }
-                Pill("aus", value == "false", small = true) { onChange("false") }
+                Pill(tr("Template") + (inh?.let { " ($it)" } ?: ""), value.isBlank(), small = true) { onChange("") }
+                Pill(tr("on"), value == "true", small = true) { onChange("true") }
+                Pill(tr("off"), value == "false", small = true) { onChange("false") }
             }
         } else {
             OutlinedTextField(
@@ -313,6 +313,6 @@ private fun ShelfLikeRow(title: String, color: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         SpoolDisc(color, 28.dp)
         Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text("übernehmen", style = MaterialTheme.typography.labelMedium, color = K.Accent)
+        Text(tr("copy"), style = MaterialTheme.typography.labelMedium, color = K.Accent)
     }
 }

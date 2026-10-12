@@ -36,24 +36,26 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import io.github.xnovosx.kobraspoolman.data.tr
+import io.github.xnovosx.kobraspoolman.data.I18n
 
-private val MODE_LABEL = mapOf("exact" to "Gleiche Farbe", "material" to "Gleiches Material", "next" to "Nächste Spule")
+private val MODE_LABEL get() = mapOf("exact" to tr("Same colour"), "material" to tr("Same material"), "next" to tr("Next spool"))
 
 /**
- * Einstellungen des ACE-Treibers, die das Druckerdisplay nicht zeigt: Endlosspule und ihr Modus. Beides gilt erst
- * beim naechsten leeren Slot und darf auch waehrend eines Drucks geaendert werden. Die Spuelmengen kommen aus Orca.
+ * Settings of the ACE driver the printer display does not show: endless spool and its mode. Both only apply at
+ * the next empty slot and may be changed during a print too. The purge volumes come from Orca.
  */
 @Composable
 fun AceSection(ace: AceSettings, onOption: (String, JsonPrimitive) -> Unit) {
-    SectionLabel("Einstellungen der ACE", Modifier.padding(top = 12.dp))
+    SectionLabel(tr("ACE settings"), Modifier.padding(top = 12.dp))
     if (!ace.present) {
-        Hint("Der ACE-Treiber meldet keine verbundene ACE.")
+        Hint(tr("The ACE driver reports no connected ACE."))
         return
     }
-    OptionRow("Endlosspule", "Ist eine Spule leer, lädt die ACE eine passende andere und druckt weiter",
+    OptionRow(tr("Endless spool"), tr("If a spool runs empty, the ACE loads a matching other one and keeps printing"),
         ace.endlessSpool, true) { onOption("endless_spool", JsonPrimitive(it)) }
     if (ace.endlessSpool == true) {
-        Text("Welche Spule passt?", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+        Text(tr("Which spool matches?"), style = MaterialTheme.typography.bodySmall, color = K.Muted)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ace.endlessModes.keys.forEach { key ->
                 val on = ace.endlessMode == key
@@ -66,8 +68,8 @@ fun AceSection(ace: AceSettings, onOption: (String, JsonPrimitive) -> Unit) {
             }
         }
     }
-    Text("Spülmengen pro Farbwechsel stellst du in Orca ein (Spülmengen-Dialog neben „Filament“)." +
-        (ace.firmware?.let { " ACE-Firmware $it." } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Faint)
+    Text(tr("Purge volumes per colour change are set in Orca (flushing volumes dialog next to “Filament”).") +
+        (ace.firmware?.let { " " + tr("ACE firmware {version}.", "version" to it) } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Faint)
 }
 
 @Composable
@@ -82,7 +84,7 @@ private fun OptionRow(title: String, hint: String, value: Boolean?, enabled: Boo
     }
 }
 
-/** Einmaliges Trocknen planen (heute/morgen, Uhrzeit, optional Temperatur und Dauer). */
+/** Schedule a one-off drying (today/tomorrow, time, optional temperature and duration). */
 @Composable
 fun DryPlanSection(d: Dryer, onPlan: (Double, Int?, Double?) -> Unit, onClear: () -> Unit) {
     val zone = ZoneId.systemDefault()
@@ -91,18 +93,18 @@ fun DryPlanSection(d: Dryer, onPlan: (Double, Int?, Double?) -> Unit, onClear: (
     var temp by remember { mutableStateOf("") }
     var hours by remember { mutableStateOf(Format.decimal(d.config.maxHours, 0)) }
 
-    SectionLabel("Trocknen planen", Modifier.padding(top = 12.dp))
+    SectionLabel(tr("Schedule drying"), Modifier.padding(top = 12.dp))
     d.schedule?.let { s ->
         val at = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli((s.at * 1000).toLong()), zone)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Geplant: ${at.format(DateTimeFormatter.ofPattern("dd.MM. HH:mm"))}" +
+            Text(tr("Scheduled: {at}", "at" to at.format(DateTimeFormatter.ofPattern(if (I18n.lang == "de") "dd.MM. HH:mm" else "d MMM HH:mm", I18n.locale))) +
                 (s.temp?.let { " · ${it.toInt()} °C" } ?: "") + (s.hours?.let { " · ${Format.decimal(it, 1)} h" } ?: ""),
                 style = MaterialTheme.typography.bodyMedium, color = K.Accent, modifier = Modifier.weight(1f))
-            TextButton(onClick = onClear) { Text("Löschen", color = K.DangerText) }
+            TextButton(onClick = onClear) { Text(tr("Delete"), color = K.DangerText) }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(false to "Heute", true to "Morgen").forEach { (v, label) ->
+        listOf(false to tr("Today"), true to tr("Tomorrow")).forEach { (v, label) ->
             Text(label, style = MaterialTheme.typography.labelMedium, color = if (tomorrow == v) K.Accent else K.Muted,
                 modifier = Modifier.clip(RoundedCornerShape(50))
                     .border(1.dp, if (tomorrow == v) K.Accent else K.LineStrong, RoundedCornerShape(50))
@@ -115,15 +117,15 @@ fun DryPlanSection(d: Dryer, onPlan: (Double, Int?, Double?) -> Unit, onClear: (
     val h = Format.parseDecimal(hours)
     val ok = atEpoch != null && atEpoch > System.currentTimeMillis() / 1000.0 && h != null && h in 0.5..24.0
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(time, { time = it.filter { c -> c.isDigit() || c == ':' }.take(5) }, label = { Text("Uhrzeit") },
+        OutlinedTextField(time, { time = it.filter { c -> c.isDigit() || c == ':' }.take(5) }, label = { Text(tr("Time")) },
             singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), isError = t == null)
         OutlinedTextField(temp, { temp = it.filter(Char::isDigit) }, label = { Text("°C") }, singleLine = true,
-            placeholder = { Text("auto", color = K.Faint) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp),
+            placeholder = { Text(tr("auto"), color = K.Faint) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-        OutlinedTextField(hours, { hours = it.filter { c -> c.isDigit() || c == ',' || c == '.' } }, label = { Text("Stunden") },
+        OutlinedTextField(hours, { hours = it.filter { c -> c.isDigit() || c == ',' || c == '.' } }, label = { Text(tr("Hours")) },
             singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
     }
-    PrimaryButton(if (d.schedule != null) "Plan ersetzen" else "Planen",
+    PrimaryButton(if (d.schedule != null) tr("Replace schedule") else tr("Schedule"),
         { atEpoch?.let { onPlan(it, temp.toIntOrNull(), h) } }, Modifier.fillMaxWidth(), enabled = ok)
 }

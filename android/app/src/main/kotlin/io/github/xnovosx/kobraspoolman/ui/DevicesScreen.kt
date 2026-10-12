@@ -36,9 +36,10 @@ import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+import io.github.xnovosx.kobraspoolman.data.tr
+import io.github.xnovosx.kobraspoolman.data.I18n
 
-private val KIND = mapOf("app" to "App", "web" to "Browser", "plugin" to "Orca-Plugin", "other" to "Sonstiges")
+private val KIND get() = mapOf("app" to tr("App"), "web" to tr("Browser"), "plugin" to tr("Orca plugin"), "other" to tr("Other"))
 
 @Composable
 fun DevicesScreen(
@@ -62,44 +63,44 @@ fun DevicesScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RoundIconButton(KIcons.Back, "Zurück", onBack)
-            Text("Geräte", style = MaterialTheme.typography.headlineSmall)
+            RoundIconButton(KIcons.Back, tr("Back"), onBack)
+            Text(tr("Devices"), style = MaterialTheme.typography.headlineSmall)
         }
         if (code == null) {
-            PrimaryButton("Gerät hinzufügen", onNewCode, Modifier.fillMaxWidth(), enabled = !busy)
+            PrimaryButton(tr("Add device"), onNewCode, Modifier.fillMaxWidth(), enabled = !busy)
         } else {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.Surface).border(1.dp, K.Line, RoundedCornerShape(18.dp))
                 .padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Auf dem neuen Gerät scannen oder eintippen", style = MaterialTheme.typography.bodyMedium, color = K.Muted,
+                Text(tr("Scan or type it on the new device"), style = MaterialTheme.typography.bodyMedium, color = K.Muted,
                     textAlign = TextAlign.Center)
                 QrImage(PairLink(bridgeUrl, code.code).toUri(), Modifier.size(220.dp))
                 Text(code.code.chunked(3).joinToString(" "), fontFamily = PlexMono, fontSize = 40.sp, color = K.Accent)
-                Text("Gültig ${code.expiresIn / 60} Minuten, einmal verwendbar · $bridgeUrl", style = MaterialTheme.typography.bodySmall,
+                Text(tr("Valid for {n} minutes, single use · {url}", "n" to code.expiresIn / 60, "url" to bridgeUrl), style = MaterialTheme.typography.bodySmall,
                     color = K.Muted, textAlign = TextAlign.Center)
-                SecondaryButton("Fertig", onCloseCode, Modifier.fillMaxWidth())
+                SecondaryButton(tr("Done"), onCloseCode, Modifier.fillMaxWidth())
             }
         }
-        SectionLabel("Gekoppelt", Modifier.padding(top = 8.dp))
+        SectionLabel(tr("Paired"), Modifier.padding(top = 8.dp))
         devices.forEach { d ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(K.Sunken).border(1.dp, K.Line, RoundedCornerShape(14.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(d.name + if (d.me) "  (dieses Gerät)" else "", style = MaterialTheme.typography.bodyLarge)
-                    Text(KIND[d.kind].orEmpty() + (d.lastSeen?.let { " · zuletzt " + SimpleDateFormat("dd.MM.yy HH:mm", Locale.GERMANY)
-                        .format(Date((it * 1000).toLong())) } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                    Text(d.name + if (d.me) "  " + tr("(this device)") else "", style = MaterialTheme.typography.bodyLarge)
+                    Text(KIND[d.kind].orEmpty() + (d.lastSeen?.let { " · " + tr("last {when}", "when" to SimpleDateFormat(if (I18n.lang == "de") "dd.MM.yy HH:mm" else "d MMM yy HH:mm", I18n.locale)
+                        .format(Date((it * 1000).toLong()))) } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Muted)
                 }
-                TextButton(onClick = { confirm = d }) { Text("Entfernen", color = K.DangerText) }
+                TextButton(onClick = { confirm = d }) { Text(tr("Remove"), color = K.DangerText) }
             }
         }
     }
     confirm?.let { d ->
         AlertDialog(
             onDismissRequest = { confirm = null },
-            title = { Text("„${d.name}“ entfernen?") },
-            text = { Text(if (d.me) "Das ist dieses Gerät – danach kann es nichts mehr ändern, bis es neu gekoppelt ist."
-                else "Das Gerät kann danach nichts mehr ändern, bis es neu gekoppelt ist.") },
-            confirmButton = { TextButton(onClick = { confirm = null; onRemove(d) }) { Text("Entfernen", color = K.DangerText) } },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Abbrechen") } },
+            title = { Text(tr("Remove “{name}”?", "name" to d.name)) },
+            text = { Text(if (d.me) tr("This is this device – afterwards it cannot change anything until it is paired again.")
+                else tr("The device cannot change anything afterwards until it is paired again.")) },
+            confirmButton = { TextButton(onClick = { confirm = null; onRemove(d) }) { Text(tr("Remove"), color = K.DangerText) } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(tr("Cancel")) } },
             containerColor = K.Surface,
         )
     }

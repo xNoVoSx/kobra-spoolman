@@ -6,8 +6,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 
-// Datenmodelle der Bridge-API (/api/app/..., docs/api.md). Unbekannte Felder werden ignoriert,
-// damit eine neuere Bridge die App nicht bricht.
+// Data models of the bridge API (/api/app/..., docs/api.md). Unknown fields are ignored,
+// so a newer bridge does not break the app.
 
 @Serializable
 data class AppState(
@@ -19,13 +19,13 @@ data class AppState(
     val shelf: List<SpoolInfo> = emptyList(),
     val dryer: Dryer? = null,
     val ace: AceSettings? = null,
-    /** Auto-PA (Klipper-Modul kobra_pa) - fehlt bei aelteren Bridges */
+    /** Auto PA (Klipper module kobra_pa) - missing with older bridges */
     val pa: PaState? = null,
-    /** Fortsetzen nach Stromausfall (Klipper-Modul kobra_resume) - fehlt bei aelteren Bridges */
+    /** Resume after power loss (Klipper module kobra_resume) - missing with older bridges */
     val resume: ResumeState? = null,
-    /** Verstopfung erkennen (Klipper-Modul kobra_clog) - fehlt bei aelteren Bridges */
+    /** Clog detection (Klipper module kobra_clog) - missing with older bridges */
     val clog: ClogState? = null,
-    /** USB-Tunnel-Waechter am Klipper-Rechner (Bridge >= 3.11.0) - null ohne Waechter */
+    /** USB tunnel watchdog on the Klipper computer (bridge >= 3.11.0) - null without a watchdog */
     val usb: UsbState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
@@ -35,7 +35,7 @@ data class AppState(
     val uses: List<SlotUse> = emptyList(),
 )
 
-/** Slot, den die laufende Druckdatei benutzt: gesamt und noch offen (inkl. Spuelen). */
+/** Slot the running print file uses: total and still open (incl. purging). */
 @Serializable
 data class SlotUse(
     val slot: Int,
@@ -45,7 +45,7 @@ data class SlotUse(
     @SerialName("rest_g") val restG: Double? = null,
 )
 
-/** Feuchte-Schaetzung einer Spule in /api/app/state (Kurzform). state: unknown | ok | soon | wet */
+/** Moisture estimate of a spool in /api/app/state (short form). state: unknown | ok | soon | wet */
 @Serializable
 data class MoistureBrief(
     val score: Int? = null,
@@ -82,7 +82,7 @@ data class MoistHist(
     val minutes: Double? = null, val score: Int? = null, val manual: Boolean = false,
 )
 
-/** GET /api/humidity - Punkte [Zeit, Feuchte, ACE-Temp, Soll, trocknet] */
+/** GET /api/humidity - points [time, humidity, ACE temp, target, drying] */
 @Serializable
 data class HumidityData(
     val hours: Double = 24.0,
@@ -112,7 +112,7 @@ data class HumAutomation(
     @SerialName("stop_below") val stopBelow: Double? = null,
 )
 
-/** KI-Fehldruck-Erkennung (kobra-vision ueber die Bridge). level: ok | warn | fail; event: offenes Ereignis. */
+/** AI failure detection (kobra-vision via the bridge). level: ok | warn | fail; event: open event. */
 @Serializable
 data class VisionInfo(
     val enabled: Boolean = false,
@@ -128,7 +128,7 @@ data class VisionEvent(
     val p: Double? = null, val verdict: String? = null, val file: String? = null, val paused: Boolean = false,
 )
 
-/** GET /api/vision - alles fuer die KI-Seite. */
+/** GET /api/vision - everything for the AI page. */
 @Serializable
 data class VisionFull(
     val enabled: Boolean = false,
@@ -180,11 +180,11 @@ data class VisionHealth(val model: VisionModel? = null)
 @Serializable
 data class VisionModel(val loaded: Boolean = false, val provider: String? = null)
 
-/** Zuletzt ueber die Bridge ausgeloeste Druckaktion (pause, resume, cancel ...); at = Unix-Sekunden. */
+/** Print action last triggered via the bridge (pause, resume, cancel ...); at = Unix seconds. */
 @Serializable
 data class LastControl(val action: String, val source: String = "", val at: Double = 0.0)
 
-/** Meldungen (nach Wichtigkeit) und Zustand der Verbindungen - von der Bridge berechnet. */
+/** Messages (by importance) and state of the connections - computed by the bridge. */
 @Serializable
 data class Notices(val messages: List<Notice> = emptyList(), val status: List<StatusLine> = emptyList())
 
@@ -192,17 +192,17 @@ data class Notices(val messages: List<Notice> = emptyList(), val status: List<St
 @Serializable
 data class Notice(val level: String, val text: String, val key: String = "")
 
-/** state: ok | warn | bad | off; seen = zuletzt gemeldet (Unix-Sekunden, nur Geraete) */
+/** state: ok | warn | bad | off; seen = last reported (Unix seconds, devices only) */
 @Serializable
 data class StatusLine(val key: String, val label: String, val state: String, val detail: String? = null, val seen: Double? = null)
 
-/** Einstellungen des ACE-Treibers (Klipper + ACEPRO, GET /api/ace, auch in /api/app/state). */
+/** Settings of the ACE driver (Klipper + ACEPRO, GET /api/ace, also in /api/app/state). */
 @Serializable
 data class AceSettings(
     val present: Boolean = false,
     @SerialName("endless_spool") val endlessSpool: Boolean? = null,
     @SerialName("endless_mode") val endlessMode: String? = null,
-    /** Modus -> Beschreibung, z. B. "material" -> "gleiches Material" */
+    /** mode -> description, e.g. "material" -> "same material" */
     @SerialName("endless_modes") val endlessModes: Map<String, String> = emptyMap(),
     val firmware: String? = null,
     val model: String? = null,
@@ -213,7 +213,7 @@ data class AceSettings(
 @Serializable
 data class AceResponse(val settings: AceSettings = AceSettings())
 
-/** Auto-PA (GET /api/pa, auch in /api/app/state): Schalter in Klipper, PA je Slot aus Spoolman. */
+/** Auto PA (GET /api/pa, also in /api/app/state): switches in Klipper, PA per slot from Spoolman. */
 @Serializable
 data class PaState(
     val present: Boolean = false,
@@ -227,7 +227,7 @@ data class PaState(
     val last: PaLast? = null,
 )
 
-/** state: table | needed | failed | empty | measuring; source: table (gemessen) | manual | null */
+/** state: table | needed | failed | empty | measuring; source: table (measured) | manual | null */
 @Serializable
 data class PaSlot(
     val slot: Int,
@@ -242,7 +242,7 @@ data class PaSlot(
     val active: Boolean = false,
 )
 
-/** USB-Tunnel Drucker <-> Klipper-Rechner: state ok|warn|bad|off, detail als Text, Schalter watch/auto_restart/full_speed. */
+/** USB tunnel printer <-> Klipper computer: state ok|warn|bad|off, detail as text, switches watch/auto_restart/full_speed. */
 @Serializable
 data class UsbState(
     val available: Boolean = false,
@@ -260,7 +260,7 @@ data class UsbEvent(val at: Long = 0, val text: String = "")
 data class ClogState(
     val present: Boolean = false,
     val enabled: Boolean? = null,
-    /** warn oder pause */
+    /** warn or pause */
     val action: String? = null,
     val available: Boolean? = null,
     val suspect: Boolean = false,
@@ -289,7 +289,7 @@ data class ResumePending(
 @Serializable
 data class PaLast(val t: Int = 0, val kind: String = "", val k: List<Double> = emptyList(), val message: String? = null)
 
-/** Stand der Druckvorschau (GET /api/print/info). */
+/** State of the print preview (GET /api/print/info). */
 @Serializable
 data class PrintInfo(
     val file: String? = null,
@@ -302,7 +302,7 @@ data class PrintInfo(
 @Serializable
 data class DrySchedule(val at: Double, val temp: Double? = null, val hours: Double? = null)
 
-/** ACE-Trockner (GET /api/dryer, auch in /api/app/state). */
+/** ACE dryer (GET /api/dryer, also in /api/app/state). */
 @Serializable
 data class Dryer(
     val present: Boolean = false,
@@ -316,11 +316,11 @@ data class Dryer(
     val config: DryerConfig = DryerConfig(),
     @SerialName("last_event") val lastEvent: DryerEvent? = null,
     val schedule: DrySchedule? = null,
-    /** laufender Durchgang (nur waehrend des Trocknens) */
+    /** running pass (only while drying) */
     val run: DryerRun? = null,
 )
 
-/** source: hand | plan | spule | auto. Nicht-automatische Laeufe halten bis until, egal wie trocken. */
+/** source: hand | plan | spule | auto (stable API codes). Non-automatic runs hold until `until`, however dry. */
 @Serializable
 data class DryerRun(
     val source: String = "",
@@ -348,7 +348,7 @@ data class DryerConfig(
     @SerialName("max_hours") val maxHours: Double = 6.0,
     @SerialName("pause_minutes") val pauseMinutes: Double = 60.0,
     @SerialName("while_printing") val whilePrinting: Boolean = true,
-    /** so lange muss die Feuchte am Stueck ueber startAbove liegen (Deckel kurz offen zaehlt nicht) */
+    /** humidity must stay above startAbove this long in one go (lid open briefly does not count) */
     @SerialName("start_delay_minutes") val startDelayMinutes: Double = 15.0,
 )
 
@@ -404,16 +404,16 @@ data class Printer(
     @SerialName("flow_factor") val flowFactor: Double? = null,
     @SerialName("moonraker_connected") val moonrakerConnected: Boolean = false,
     @SerialName("klippy_ready") val klippyReady: Boolean = false,
-    /** Was gerade passiert ("Vorheizen 5/15 min", "Wechsel auf Slot 2 · lädt", "Druckt · Schicht 3/80"); ab Bridge 3.9.0. */
+    /** What is happening now ("Preheating 5/15 min", "Change to slot 2 · loading", "Printing · layer 3/80"); bridge 3.9.0+. */
     val phase: String? = null,
     @SerialName("phase_key") val phaseKey: String? = null,
 )
 
-/** Heizung: Ist, Soll (0 = aus), Leistung 0..1. */
+/** Heater: actual, target (0 = off), power 0..1. */
 @Serializable
 data class Heater(val temp: Double, val target: Double = 0.0, val power: Double = 0.0)
 
-/** Luefter: part (Bauteil), box (Gehaeuse), filter (Luftfilter); speed 0..1. */
+/** Fan: part (part cooling), box (enclosure), filter (air filter); speed 0..1. */
 @Serializable
 data class Fan(val key: String, val name: String, val speed: Double, val rpm: Int? = null)
 
@@ -455,7 +455,7 @@ data class SpoolInfo(
     val template: String? = null,
     @SerialName("tag_nr") val tagNr: Long? = null,
     @SerialName("nfc_uid") val nfcUid: String? = null,
-    /** ACE 2 Pro: ein Tag pro Spulenseite - bis zu zwei Kennungen. */
+    /** ACE 2 Pro: one tag per spool side - up to two IDs. */
     @SerialName("nfc_uids") val nfcUids: List<String> = emptyList(),
 )
 
@@ -490,7 +490,7 @@ data class FilamentInfo(
     @SerialName("spool_weight") val spoolWeight: Double? = null,
     val spools: Int = 0,
     @SerialName("vendor_id") val vendorId: Int? = null,
-    /** Nur am Filament selbst gesetzte Werte (fuer "Werte uebernehmen von ...") */
+    /** Values set on the filament itself only (for "Copy values from ...") */
     val native: Map<String, JsonElement> = emptyMap(),
     val extra: Map<String, JsonElement> = emptyMap(),
 )
@@ -502,13 +502,13 @@ data class Catalog(
     val filaments: List<FilamentInfo> = emptyList(),
     val fields: List<ExtraField> = emptyList(),
     @SerialName("orca_bases") val orcaBases: List<String> = emptyList(),
-    @SerialName("shelf_location") val shelfLocation: String = "Regal",
+    @SerialName("shelf_location") val shelfLocation: String = "Regal",   // Spoolman location name of the bridge (setting SHELF)
 )
 
 @Serializable
 data class Vendor(val id: Int, val name: String, @SerialName("empty_spool_weight") val emptySpoolWeight: Double? = null)
 
-/** Vorlage (Hersteller "Vorlage") mit ihren Werten - in der App nur Platzhalter, nie kopiert. */
+/** Template (vendor "Vorlage" in Spoolman) with its values - in the app only placeholders, never copied. */
 @Serializable
 data class Template(
     val id: Int,
@@ -518,7 +518,7 @@ data class Template(
     val extra: Map<String, JsonElement> = emptyMap(),
 )
 
-/** Spoolman-Zusatzfeld am Filament (aus spoolman_setup.py). */
+/** Spoolman extra field on the filament (from spoolman_setup.py). */
 @Serializable
 data class ExtraField(
     val key: String,
@@ -539,7 +539,7 @@ data class FilamentResponse(val filament: FilamentInfo)
 @Serializable
 data class SpoolResponse(val spool: SpoolInfo)
 
-/** Antwort von POST /api/app/tag/issue: reservierte Tag-Nummer und Inhalt fuer den ACE-Tag. */
+/** Answer of POST /api/app/tag/issue: reserved tag number and content for the ACE tag. */
 @Serializable
 data class TagIssue(@SerialName("spool_id") val spoolId: Int, val tag: TagContent)
 
@@ -584,11 +584,11 @@ data class TagLink(
     @SerialName("spool_id") val spoolId: Int,
     val uid: String,
     val force: Boolean = false,
-    /** true: diese Kennung ersetzt alle; false: zweiter Tag (andere Spulenseite) kommt dazu */
+    /** true: this ID replaces all; false: a second tag (other spool side) is added */
     val reset: Boolean = true,
 )
 
-/** Druck aus der Historie (GET /api/jobs). */
+/** Print from the history (GET /api/jobs). */
 @Serializable
 data class PrintJob(
     val job: String,
@@ -606,21 +606,21 @@ data class JobSlot(val slot: Int, val g: Double = 0.0, val mm: Double = 0.0)
 @Serializable
 data class PrintJobList(val jobs: List<PrintJob> = emptyList())
 
-/** Zeile der Drucker-Konsole: kind = command | response | error; source = wer gesendet hat. */
+/** Line of the printer console: kind = command | response | error; source = who sent it. */
 @Serializable
 data class ConsoleLine(val id: Long, val time: Double, val kind: String, val text: String, val source: String? = null)
 
 @Serializable
 data class ConsoleLines(val lines: List<ConsoleLine> = emptyList(), val printing: Boolean = false)
 
-/** Zeile des Bridge-Logs. */
+/** Line of the bridge log. */
 @Serializable
 data class LogLine(val id: Long, val time: Double, val level: String, val name: String, val text: String)
 
 @Serializable
 data class LogLines(val lines: List<LogLine> = emptyList())
 
-/** App-Update, das die Bridge mitbringt (GET /api/app/update). */
+/** App update the bridge brings along (GET /api/app/update). */
 @Serializable
 data class AppUpdate(
     val available: Boolean = false,

@@ -21,27 +21,27 @@ import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.monitor.EventKind
 import io.github.xnovosx.kobraspoolman.monitor.Notifier
 import io.github.xnovosx.kobraspoolman.ui.theme.K
+import io.github.xnovosx.kobraspoolman.data.tr
 
-/** Ein Ton zum Probehoeren: Name, wann er kommt, Kanal. */
+/** A sound to listen to: name, when it comes, channel. */
 private data class SoundRow(val kind: EventKind, val name: String, val whenText: String)
 
-private val rows = listOf(
-    SoundRow(EventKind.ALARM, "Alarm", "Fehler, Abbruch, Pause (nicht von dir), Farbwechsel hängt, Düse kühlt ab, " +
-        "Drucker/Bridge weg, Spule reicht nicht"),
-    SoundRow(EventKind.DONE, "Druck fertig", "Druck erfolgreich beendet"),
-    SoundRow(EventKind.START, "Druck gestartet", "Ein Druck beginnt"),
-    SoundRow(EventKind.LAYER, "Erste Schicht fertig", "Zeit für einen Blick aufs Bett"),
-    SoundRow(EventKind.HINT, "Hinweis", "Unbekannter Tag, Slot ohne Material, Spoolman länger weg"),
+private val rows get() = listOf(
+    SoundRow(EventKind.ALARM, tr("Alarm"), tr("Error, cancel, pause (not by you), colour change stuck, nozzle cooling, printer/bridge gone, spool not enough")),
+    SoundRow(EventKind.DONE, tr("Print finished"), tr("Print ended successfully")),
+    SoundRow(EventKind.START, tr("Print started"), tr("A print begins")),
+    SoundRow(EventKind.LAYER, tr("First layer done"), tr("Time for a look at the bed")),
+    SoundRow(EventKind.HINT, tr("Hint"), tr("Unknown tag, slot without material, Spoolman gone for longer")),
 )
 
-/** Spielt einen Ton aus res/raw; der vorige wird gestoppt. */
+/** Plays a sound from res/raw; the previous one is stopped. */
 private class SoundPlayer(private val context: Context) {
     private var player: MediaPlayer? = null
 
     fun play(kind: EventKind) {
         val res = Notifier.sounds[Notifier.channelOf(kind)] ?: return
         stop()
-        // gleiche Lautstaerke wie die echte Benachrichtigung
+        // same volume as the real notification
         player = MediaPlayer.create(context, res, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(), 0)
             ?.apply {
@@ -56,16 +56,15 @@ private class SoundPlayer(private val context: Context) {
     }
 }
 
-/** Einstellungen -> Toene: jeden Ton anhoeren und eine echte Probe-Benachrichtigung senden. */
+/** Settings -> sounds: listen to every sound and send a real test notification. */
 @Composable
 fun SoundsSection() {
     val context = LocalContext.current
     val player = remember { SoundPlayer(context.applicationContext) }
     DisposableEffect(Unit) { onDispose { player.stop() } }
 
-    SectionLabel("Töne", Modifier.fillMaxWidth())
-    Text("„Anhören“ spielt den Ton direkt. „Probe“ schickt eine echte Benachrichtigung – so prüfst du Lautstärke, " +
-        "„Nicht stören“ und die Android-Einstellungen des Kanals.",
+    SectionLabel(tr("Sounds"), Modifier.fillMaxWidth())
+    Text(tr("“Listen” plays the sound directly. “Test” sends a real notification – that is how you check the volume, “Do not disturb” and the channel's Android settings."),
         style = MaterialTheme.typography.bodySmall, color = K.Muted)
     rows.forEach { r ->
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -74,14 +73,14 @@ fun SoundsSection() {
                 Text(r.name, style = MaterialTheme.typography.bodyLarge)
                 Text(r.whenText, style = MaterialTheme.typography.bodySmall, color = K.Muted)
             }
-            SecondaryButton("Anhören", { player.play(r.kind) })
-            SecondaryButton("Probe", {
+            SecondaryButton(tr("Listen"), { player.play(r.kind) })
+            SecondaryButton(tr("Test"), {
                 Notifier.channels(context)
                 Notifier.test(context, r.kind)
             })
         }
     }
-    SecondaryButton("Benachrichtigungen in Android einstellen", {
+    SecondaryButton(tr("Set up notifications in Android"), {
         context.startActivity(Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS)
             .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

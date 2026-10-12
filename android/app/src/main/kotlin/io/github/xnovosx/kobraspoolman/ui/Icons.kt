@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
 
-/** Linien-Symbole (24er Raster) wie in den Entwuerfen; Farbe kommt ueber Icon(tint=...). */
+/** Line icons (24 grid) as in the designs; the colour comes via Icon(tint=...). */
 object KIcons {
     private fun stroke(name: String, vararg paths: String, width: Float = 2f): ImageVector =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {

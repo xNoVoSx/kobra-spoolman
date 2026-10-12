@@ -11,7 +11,7 @@ import io.github.xnovosx.kobraspoolman.data.PairLink
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Der Kopplungs-QR-Code (wie in der App erzeugt) laesst sich mit ZXing wieder lesen. */
+/** The pairing QR code (as made in the app) can be read again with ZXing. */
 class PairQrTest {
     @Test fun generated_code_decodes_to_the_same_pair_link() {
         val link = PairLink("http://192.168.1.10:7913", "772182")

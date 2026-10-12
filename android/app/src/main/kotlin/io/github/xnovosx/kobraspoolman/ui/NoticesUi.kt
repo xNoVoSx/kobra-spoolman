@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.xnovosx.kobraspoolman.data.Notices
 import io.github.xnovosx.kobraspoolman.ui.theme.K
+import io.github.xnovosx.kobraspoolman.data.tr
 
 private fun levelColor(level: String): Color = when (level) {
     "error" -> K.Danger
@@ -40,7 +41,7 @@ private fun stateColor(state: String): Color = when (state) {
 @Composable
 private fun Dot(c: Color) = Box(Modifier.padding(top = 6.dp).size(8.dp).clip(CircleShape).background(c))
 
-/** Meldungen & Status der Uebersicht, wie in der Weboberflaeche (GET /api/app/state -> notices). */
+/** Messages & status of the overview, like in the web UI (GET /api/app/state -> notices). */
 @Composable
 fun NoticesCard(n: Notices, bridgeVersion: String, title: Boolean = true) {
     Column(
@@ -49,8 +50,8 @@ fun NoticesCard(n: Notices, bridgeVersion: String, title: Boolean = true) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(if (title) "Meldungen" else "", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (n.messages.isEmpty()) Text("alles gut", style = MaterialTheme.typography.labelMedium, color = K.Ok)
+            Text(if (title) tr("Messages") else "", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (n.messages.isEmpty()) Text(tr("all good"), style = MaterialTheme.typography.labelMedium, color = K.Ok)
         }
         n.messages.forEach { m ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -59,9 +60,9 @@ fun NoticesCard(n: Notices, bridgeVersion: String, title: Boolean = true) {
                     color = if (m.level == "info") K.Muted else levelColor(m.level))
             }
         }
-        Text("STATUS", style = MaterialTheme.typography.labelSmall, color = K.Muted, modifier = Modifier.padding(top = 4.dp))
+        Text(tr("STATUS"), style = MaterialTheme.typography.labelSmall, color = K.Muted, modifier = Modifier.padding(top = 4.dp))
         val lines = n.status.map { Triple(it.state, it.label, listOfNotNull(it.detail, it.seen?.let { s -> Format.ago(s.toLong()) }).joinToString(" · ")) } +
-            Triple("ok", "Bridge", "$bridgeVersion · verbunden")
+            Triple("ok", "Bridge", "$bridgeVersion · " + tr("connected"))
         lines.forEach { (state, label, detail) ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Dot(stateColor(state))

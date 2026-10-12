@@ -12,10 +12,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.xnovosx.kobraspoolman.data.tr
 
 /**
- * Knoepfe am KI-Alarm: "Pausieren" pausiert den Druck ueber die Bridge und merkt das Bild als Fehldruck,
- * "Stimmt" merkt es nur als Fehldruck, "Fehlalarm" als Fehlalarm (die KI ist dann fuer den Rest des Drucks still).
+ * Buttons on the AI alarm: "Pause" pauses the print via the bridge and marks the image as a failure, "Correct"
+ * only marks it as a failure, "False alarm" as a false alarm (the AI is then quiet for the rest of the print).
  */
 class VisionActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -30,18 +31,18 @@ class VisionActionReceiver : BroadcastReceiver() {
                     ACTION_PAUSE -> {
                         client.printAction("pause")
                         client.visionFeedback(eventId, "confirmed")
-                        "Druck pausiert"
+                        tr("Print paused")
                     }
                     ACTION_CONFIRM -> {
                         client.visionFeedback(eventId, "confirmed")
-                        "Als Fehldruck gemerkt"
+                        tr("Marked as a failure")
                     }
                     else -> {
                         client.visionFeedback(eventId, "false_alarm")
-                        "Als Fehlalarm gemerkt – KI für diesen Druck still"
+                        tr("Marked as a false alarm – AI quiet for this print")
                     }
                 }
-            }.getOrElse { "Nicht geklappt: ${it.message ?: it.javaClass.simpleName}" }
+            }.getOrElse { tr("Did not work: {error}", "error" to (it.message ?: it.javaClass.simpleName)) }
             withContext(Dispatchers.Main) {
                 context.getSystemService(NotificationManager::class.java).cancel(notificationId)
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()

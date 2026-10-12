@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import io.github.xnovosx.kobraspoolman.R
 
-// Werkstatt-Look aus den Entwuerfen: dunkler Grund, Bernstein als Akzent, Spulenfarben als Hauptfarben.
+// Workshop look from the designs: dark ground, amber as accent, spool colours as main colours.
 object K {
     val Ground = Color(0xFF101215)
     val Surface = Color(0xFF191C21)
@@ -35,7 +35,7 @@ object K {
     val Ok = Color(0xFF4ADE80)
 }
 
-/** Farben der Statuskarte je Druckerzustand. */
+/** Colours of the status card per printer state. */
 data class StatusColors(val dot: Color, val fg: Color, val bg: Color, val line: Color)
 
 fun statusColors(state: String): StatusColors = when (state) {
@@ -46,13 +46,13 @@ fun statusColors(state: String): StatusColors = when (state) {
     else -> StatusColors(Color(0xFF60A5FA), Color(0xFFBFDBFE), Color(0xFF141C28), Color(0xFF233A5A))
 }
 
-/** "685BC7" -> Farbe; ungueltig -> neutrales Grau. */
+/** "685BC7" -> colour; invalid -> neutral grey. */
 fun spoolColor(hex: String?): Color {
     val h = hex?.trim()?.removePrefix("#")?.take(6) ?: return K.Surface2
     return h.toLongOrNull(16)?.takeIf { h.length == 6 }?.let { Color(0xFF000000 or it) } ?: K.Surface2
 }
 
-/** Dunkle Kopffarbe aus der Spulenfarbe (fuer die Spulenkarte), heller Text bleibt lesbar. */
+/** Dark header colour from the spool colour (for the spool card), light text stays readable. */
 fun headerTint(c: Color): Color {
     val f = if (c.luminance() > 0.5f) 0.22f else 0.35f
     return Color(c.red * f + 0.04f, c.green * f + 0.04f, c.blue * f + 0.05f)

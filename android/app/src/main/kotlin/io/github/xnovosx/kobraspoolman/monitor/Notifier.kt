@@ -16,16 +16,18 @@ import android.os.Bundle
 import io.github.xnovosx.kobraspoolman.MainActivity
 import io.github.xnovosx.kobraspoolman.R
 import io.github.xnovosx.kobraspoolman.data.Printer
+import io.github.xnovosx.kobraspoolman.data.tr
 import io.github.xnovosx.kobraspoolman.ui.Format
 
 /**
- * Benachrichtigungen der Druck-Ueberwachung. Jeder Kanal ist in den Android-Einstellungen einzeln stellbar:
- *  - Ueberwachung: stiller Dienst ohne Druck (ganz unten, ohne Symbol in der Statusleiste)
- *  - Druck laeuft: Fortschritt; ab Android 16 als Live-Update (immer oben, Sperrbildschirm, Statusleiste "48 %")
- *  - Druck gestartet / Erste Schicht / Druck fertig: je ein eigener Ton
- *  - Alarm: eigener Alarmton, mit Kamerabild
- *  - Hinweise: leiser eigener Ton, nur was man tun kann
- * Android legt den Ton eines Kanals beim Anlegen fest - neue Toene brauchen neue Kanal-IDs (Suffix _2).
+ * Notifications of the print monitoring. Every channel can be set separately in the Android settings
+ *  - Monitoring: silent service without a print (at the very bottom, no icon in the status bar)
+ *  - Print running: progress; from Android 16 as a live update (always on top, lock screen, status bar "48 %")
+ *  - Print started / First layer / Print finished: one sound each
+ *  - Alarm: own alarm sound, with a camera image
+ *  - Hints: quieter own sound, only things you can act on
+ * Android fixes a channel's sound when it is created - new sounds need new channel IDs (suffix _2). Names and
+ * descriptions follow the app language (channels() runs again at every service start).
  */
 object Notifier {
     const val CH_MONITOR = "monitor_2"
@@ -39,7 +41,7 @@ object Notifier {
     private const val GROUP_PRINT = "print"
     private val OLD_CHANNELS = listOf("progress", "print", "alarm", "hint")
 
-    /** Ton je Kanal (res/raw, erzeugt von tools/make_sounds.py). */
+    /** Sound per channel (res/raw, made by tools/make_sounds.py). */
     val sounds = linkedMapOf(
         CH_START to R.raw.snd_start, CH_LAYER to R.raw.snd_first_layer, CH_DONE to R.raw.snd_done,
         CH_ALARM to R.raw.snd_alarm, CH_HINT to R.raw.snd_hint,
@@ -50,8 +52,8 @@ object Notifier {
 
     fun channels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
-        OLD_CHANNELS.forEach { runCatching { nm.deleteNotificationChannel(it) } }   // Kanaele von App 1.3
-        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_PRINT, "Druck"))
+        OLD_CHANNELS.forEach { runCatching { nm.deleteNotificationChannel(it) } }   // channels of app 1.3
+        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_PRINT, tr("Print")))
         val notif = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
 
@@ -62,44 +64,43 @@ object Notifier {
                 block()
             })
 
-        ch(CH_MONITOR, "Überwachung", NotificationManager.IMPORTANCE_MIN,
-            "Stiller Hinweis, dass die App im Hintergrund auf den Drucker achtet (ohne Druck)") { setShowBadge(false) }
-        ch(CH_LIVE, "Druck läuft", NotificationManager.IMPORTANCE_DEFAULT,
-            "Fortschritt, Restzeit, Fertig-Uhrzeit – immer oben, solange gedruckt wird (ohne Ton)") {
+        ch(CH_MONITOR, tr("Monitoring"), NotificationManager.IMPORTANCE_MIN,
+            tr("Silent note that the app watches the printer in the background (without a print)")) { setShowBadge(false) }
+        ch(CH_LIVE, tr("Print running"), NotificationManager.IMPORTANCE_DEFAULT,
+            tr("Progress, time left, finish time – always on top while printing (no sound)")) {
             setSound(null, null)
             enableVibration(false)
             setShowBadge(false)
             group = GROUP_PRINT
         }
-        ch(CH_START, "Druck gestartet", NotificationManager.IMPORTANCE_DEFAULT, "Ein Druck beginnt") { group = GROUP_PRINT }
-        ch(CH_LAYER, "Erste Schicht fertig", NotificationManager.IMPORTANCE_DEFAULT,
-            "Die erste Schicht ist durch – Zeit für einen Blick aufs Bett") { group = GROUP_PRINT }
-        ch(CH_DONE, "Druck fertig", NotificationManager.IMPORTANCE_DEFAULT, "Druck erfolgreich beendet") { group = GROUP_PRINT }
-        ch(CH_ALARM, "Alarm", NotificationManager.IMPORTANCE_HIGH,
-            "Druckerfehler, Abbruch oder Pause (nicht von dir), Farbwechsel hängt, Düse kühlt ab, " +
-                "Drucker oder Bridge weg, Spule reicht nicht") {
-            // USAGE_ALARM setzt Android bei Kanaelen auf USAGE_NOTIFICATION zurueck (im Emulator geprueft) - also
-            // normale Benachrichtigungs-Lautstaerke; auffallen soll der Alarm ueber Ton, Vibration und Aufpoppen
+        ch(CH_START, tr("Print started"), NotificationManager.IMPORTANCE_DEFAULT, tr("A print begins")) { group = GROUP_PRINT }
+        ch(CH_LAYER, tr("First layer done"), NotificationManager.IMPORTANCE_DEFAULT,
+            tr("The first layer is through – time for a look at the bed")) { group = GROUP_PRINT }
+        ch(CH_DONE, tr("Print finished"), NotificationManager.IMPORTANCE_DEFAULT, tr("Print ended successfully")) { group = GROUP_PRINT }
+        ch(CH_ALARM, tr("Alarm"), NotificationManager.IMPORTANCE_HIGH,
+            tr("Printer error, cancel or pause (not by you), colour change stuck, nozzle cooling, printer or bridge gone, spool not enough")) {
+            // Android resets USAGE_ALARM to USAGE_NOTIFICATION for channels (checked in the emulator) - so normal
+            // notification volume; the alarm should stand out by sound, vibration and popping up
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 400, 200, 400, 200, 400)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        ch(CH_HINT, "Hinweise", NotificationManager.IMPORTANCE_DEFAULT,
-            "Unbekannter Tag im Slot, Slot ohne Material, Spoolman länger weg …")
+        ch(CH_HINT, tr("Hints"), NotificationManager.IMPORTANCE_DEFAULT,
+            tr("Unknown tag in the slot, slot without material, Spoolman gone for longer …"))
     }
 
     private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(context, 0,
         Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-    /** Kann diese App Live-Updates zeigen? (Android 16+, vom Nutzer nicht abgeschaltet) */
+    /** Can this app show live updates? (Android 16+, not switched off by the user) */
     fun liveUpdates(context: Context): Boolean = Build.VERSION.SDK_INT >= 36 &&
         context.getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
 
     /**
-     * Dauerhafte Benachrichtigung des Dienstes. Im Druck: Live-Update (ohne Bild, das erlaubt Android dort nicht);
-     * ist das abgeschaltet oder das Handy aelter, eine normale Benachrichtigung mit Kamerabild.
-     * Ohne Druck: still im Kanal "Ueberwachung".
+     * Ongoing notification of the service. While printing: live update (without an image, Android does not allow one
+     * there); if that is switched off or the phone is older, a normal notification with the camera image.
+     * Without a print: silent in the channel "Monitoring".
      */
     fun progress(context: Context, p: Printer?, camera: Bitmap?, reachable: Boolean): Notification {
         val running = reachable && p != null && (p.state == "printing" || p.state == "paused")
@@ -110,26 +111,21 @@ object Notifier {
             .setContentIntent(openApp(context))
             .setCategory(if (running) Notification.CATEGORY_PROGRESS else Notification.CATEGORY_SERVICE)
         if (!running || p == null) {
-            val what = if (!reachable) "Bridge nicht erreichbar" else p?.let { Format.stateLabel(it) } ?: "–"
-            return b.setContentTitle("Kobra S1 · $what").setContentText("Überwachung läuft").build()
+            val what = if (!reachable) tr("Bridge not reachable") else p?.let { Format.stateLabel(it) } ?: "–"
+            return b.setContentTitle("Kobra S1 · $what").setContentText(tr("Monitoring active")).build()
         }
         val pct = ((p.progress ?: 0.0) * 100).toInt()
-        val file = p.file?.substringAfterLast('/')?.removeSuffix(".gcode") ?: "Druck"
-        val title = if (p.state == "paused") "Pausiert · $pct %" else "$pct % · $file"
-        val text = listOfNotNull(
-            Format.extraPhase(p),
-            p.etaS?.let { "noch ${Format.duration(it)}" },
-            p.etaS?.let { "fertig ${Format.finishAt(it)}" },
-            if (p.layer != null && p.layers != null) "Schicht ${p.layer}/${p.layers}" else null,
-        ).joinToString(" · ")
-        // Fortschritt ist nicht geheim: auch auf dem Sperrbildschirm vollstaendig zeigen
+        val file = p.file?.substringAfterLast('/')?.removeSuffix(".gcode") ?: tr("Print")
+        val title = if (p.state == "paused") tr("Paused · {pct} %", "pct" to pct) else "$pct % · $file"
+        val text = Format.progressLine(p)
+        // progress is not secret: show it completely on the lock screen too
         b.setContentTitle(title).setContentText(text).setVisibility(Notification.VISIBILITY_PUBLIC)
         if (Build.VERSION.SDK_INT >= 36 && liveUpdates(context)) {
             b.setStyle(Notification.ProgressStyle().setProgress(pct).setStyledByProgress(true)
                 .setProgressSegments(listOf(Notification.ProgressStyle.Segment(100).setColor(ACCENT))))
-                // als Extra statt setRequestPromotedOngoing(): die Methode gibt es erst ab 36.1, das Extra ab 36
+                // as an extra instead of setRequestPromotedOngoing(): the method exists from 36.1, the extra from 36
                 .addExtras(Bundle().apply { putBoolean(Notification.EXTRA_REQUEST_PROMOTED_ONGOING, true) })
-                .setShortCriticalText(if (p.state == "paused") "Pause" else "$pct %")
+                .setShortCriticalText(if (p.state == "paused") tr("Pause") else "$pct %")
         } else {
             b.setProgress(100, pct, false)
             if (camera != null) b.setLargeIcon(camera).setStyle(Notification.BigPictureStyle().bigPicture(camera)
@@ -146,7 +142,7 @@ object Notifier {
         EventKind.HINT -> CH_HINT
     }
 
-    /** Ereignis melden; Alarme mit dem letzten Kamerabild (sieht man, was los ist, ohne die App zu oeffnen). */
+    /** Report an event; alarms with the latest camera image (you see what is going on without opening the app). */
     fun event(context: Context, e: PrintEvent, camera: Bitmap? = null) {
         val b = Notification.Builder(context, channelOf(e.kind))
             .setSmallIcon(R.drawable.ic_stat_printer)
@@ -160,29 +156,29 @@ object Notifier {
         } else {
             b.setStyle(Notification.BigTextStyle().bigText(e.text))
         }
-        // gleiche Meldung (key) ersetzt die vorige statt sich zu stapeln
+        // the same message (key) replaces the previous one instead of stacking
         val id = 1000 + (e.key.hashCode() and 0xffff)
         e.aiEvent?.let { ev ->
-            // KI-Alarm: direkt aus der Benachrichtigung pausieren oder als Fehlalarm melden
+            // AI alarm: pause right from the notification or report a false alarm
             fun action(what: String, label: String, req: Int) = Notification.Action.Builder(null, label,
                 PendingIntent.getBroadcast(context, req, Intent(context, VisionActionReceiver::class.java).setAction(what)
                     .putExtra(VisionActionReceiver.EXTRA_EVENT, ev).putExtra(VisionActionReceiver.EXTRA_NOTIFICATION, id),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build()
-            b.addAction(action(VisionActionReceiver.ACTION_PAUSE, "Pausieren", id * 3))
-            b.addAction(action(VisionActionReceiver.ACTION_CONFIRM, "Stimmt", id * 3 + 2))
-            b.addAction(action(VisionActionReceiver.ACTION_FALSE_ALARM, "Fehlalarm", id * 3 + 1))
+            b.addAction(action(VisionActionReceiver.ACTION_PAUSE, tr("Pause"), id * 3))
+            b.addAction(action(VisionActionReceiver.ACTION_CONFIRM, tr("Correct"), id * 3 + 2))
+            b.addAction(action(VisionActionReceiver.ACTION_FALSE_ALARM, tr("False alarm"), id * 3 + 1))
         }
         context.getSystemService(NotificationManager::class.java).notify(id, b.build())
     }
 
-    /** Probe-Benachrichtigung aus den Einstellungen: prueft Ton, Lautstaerke und "Nicht stoeren" des Kanals. */
+    /** Test notification from the settings: checks sound, volume and "Do not disturb" of the channel. */
     fun test(context: Context, kind: EventKind) {
         val (title, text) = when (kind) {
-            EventKind.START -> "Druck gestartet" to "Probe – so klingt ein Druckstart"
-            EventKind.LAYER -> "Erste Schicht fertig" to "Probe – so klingt die erste Schicht"
-            EventKind.DONE -> "Druck fertig" to "Probe – so klingt ein fertiger Druck"
-            EventKind.ALARM -> "Alarm (Probe)" to "So klingt ein Alarm – z. B. Druckerfehler oder Farbwechsel hängt"
-            EventKind.HINT -> "Hinweis (Probe)" to "So klingt ein Hinweis – z. B. unbekannter Tag im Slot"
+            EventKind.START -> tr("Print started") to tr("Test – this is how a print start sounds")
+            EventKind.LAYER -> tr("First layer done") to tr("Test – this is how the first layer sounds")
+            EventKind.DONE -> tr("Print finished") to tr("Test – this is how a finished print sounds")
+            EventKind.ALARM -> tr("Alarm (test)") to tr("This is how an alarm sounds – e.g. printer error or colour change stuck")
+            EventKind.HINT -> tr("Hint (test)") to tr("This is how a hint sounds – e.g. unknown tag in the slot")
         }
         event(context, PrintEvent(kind, title, text, "test-${kind.name}"))
     }

@@ -54,7 +54,7 @@ def test_resolve_prefers_parents_of_the_same_vendor(ks, system, monkeypatch):
     assert pla["nozzle_temperature"] == ["210"] and pla["fan_max_speed"] == ["100"]
     petg = sp.resolve("Generic PETG @System")          # nur im AppImage-Ordner vorhanden
     assert petg["nozzle_temperature"] == ["255"] and petg["fan_max_speed"] == ["90"]
-    assert sp.resolve("Gibt es nicht") is None
+    assert sp.resolve("Does not exist") is None
 
 
 def test_build_profile_json(ks, system):
@@ -200,13 +200,13 @@ def test_sync_falls_back_to_generic_and_explains_missing_base(ks, core, monkeypa
     """Issue #1: ohne Basisprofil in Spoolman (alte Bridge 2.x liefert base leer) -> Generic <Typ> @System; ohne
     Material eine klare Meldung statt „–“ nicht gefunden."""
     profs = [profile("SM000001", None, "PETG", "PETG"), profile("SM000002", None, ""),
-             profile("SM000003", "Gibt es nicht", "PLA")]
+             profile("SM000003", "Does not exist", "PLA")]
     monkeypatch.setattr(core, "http", lambda *a, **k: {"profiles": profs, "hash": "h"})
     res = core.sync_profiles()
     assert len(res["written"]) == 1
     errs = " | ".join(res["errors"])
-    assert "kein Orca-Basisprofil in Spoolman" in errs and "„Gibt es nicht“ nicht in Orca gefunden" in errs
+    assert "no Orca base profile in Spoolman" in errs and "“Does not exist” not found in Orca" in errs
     assert "„–“" not in errs
-    assert core.missing_bases == {"Gibt es nicht"}
+    assert core.missing_bases == {"Does not exist"}
     # zweiter Sync: nichts neu geschrieben (Issue #2: kein Neuschreiben bei jedem Start)
     assert core.sync_profiles()["written"] == []

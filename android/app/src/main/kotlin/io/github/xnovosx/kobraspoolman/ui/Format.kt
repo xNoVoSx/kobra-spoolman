@@ -1,9 +1,11 @@
 package io.github.xnovosx.kobraspoolman.ui
 
+import io.github.xnovosx.kobraspoolman.data.I18n
 import io.github.xnovosx.kobraspoolman.data.Printer
+import io.github.xnovosx.kobraspoolman.data.tr
 import kotlin.math.roundToInt
 
-/** Anzeige-Texte (deutsch), ohne Android-Abhaengigkeiten - per JVM-Test pruefbar. */
+/** Display texts in the app language (I18n), without Android dependencies - testable on the JVM. */
 object Format {
     fun grams(g: Double?): String = if (g == null) "? g" else "${g.roundToInt()} g"
 
@@ -14,7 +16,7 @@ object Format {
     }
 
     /**
-     * Ungefaehre Uhrzeit, wann der Druck fertig ist: "~14:35", "morgen ~02:10", sonst mit Wochentag "Fr. ~09:00".
+     * Approximate time the print is done: "~14:35", "tomorrow ~02:10", else with the weekday "Fri ~09:00".
      */
     fun finishAt(etaS: Long?, now: java.time.ZonedDateTime = java.time.ZonedDateTime.now()): String {
         if (etaS == null || etaS < 0) return "–"
@@ -23,55 +25,63 @@ object Format {
         val days = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), end.toLocalDate())
         return when (days) {
             0L -> time
-            1L -> "morgen $time"
-            else -> end.format(java.time.format.DateTimeFormatter.ofPattern("EE", java.util.Locale.GERMANY)) + " $time"
+            1L -> tr("tomorrow {time}", "time" to time)
+            else -> end.format(java.time.format.DateTimeFormatter.ofPattern("EE", I18n.locale)) + " $time"
         }
     }
 
-    /** "gerade eben", "vor 5 min", "vor 3 h", "vor 2 Tagen" (epochS = Unix-Sekunden). */
+    /** "just now", "5 min ago", "3 h ago", "2 days ago" (epochS = Unix seconds). */
     fun ago(epochS: Long, nowS: Long = System.currentTimeMillis() / 1000): String {
         val d = (nowS - epochS).coerceAtLeast(0)
         return when {
-            d < 60 -> "gerade eben"
-            d < 3600 -> "vor ${d / 60} min"
-            d < 86400 -> "vor ${d / 3600} h"
-            d < 2 * 86400 -> "vor 1 Tag"
-            else -> "vor ${d / 86400} Tagen"
+            d < 60 -> tr("just now")
+            d < 3600 -> tr("{n} min ago", "n" to d / 60)
+            d < 86400 -> tr("{n} h ago", "n" to d / 3600)
+            d < 2 * 86400 -> tr("1 day ago")
+            else -> tr("{n} days ago", "n" to d / 86400)
         }
     }
 
-    /** Feste Nachkommastellen mit Komma: decimal(1.0, 1) = "1,0". */
+    /** Fixed decimals in the app language: decimal(1.0, 1) = "1.0" / "1,0". */
     fun decimal(v: Double?, digits: Int = 1): String =
-        if (v == null) "–" else String.format(java.util.Locale.GERMANY, "%.${digits}f", v)
+        if (v == null) "–" else String.format(I18n.locale, "%.${digits}f", v)
 
-    /** Eingabe "0,8" / "0.8" -> 0.8; leer oder ungueltig -> null. */
+    /** Input "0,8" / "0.8" -> 0.8; empty or invalid -> null. */
     fun parseDecimal(t: String): Double? = t.trim().replace(',', '.').toDoubleOrNull()
 
     fun percent(p: Double?): String = if (p == null) "" else "${(p * 100).roundToInt()} %"
 
-    /** Anteil Rest/Anfang fuer den Balken, 0..1. */
+    /** Share remaining/initial for the bar, 0..1. */
     fun fill(remaining: Double?, initial: Double?): Float {
         if (remaining == null || initial == null || initial <= 0) return 0f
         return (remaining / initial).toFloat().coerceIn(0f, 1f)
     }
 
-    /** Zustand fuer Farben/Beschriftung; Filamentwechsel hat eine eigene Anzeige. */
+    /** State for colours/labels; a filament change has its own display. */
     fun stateKey(p: Printer): String = if (p.state == "printing" && p.changingFilament) "changing" else p.state
 
-    /** Ueberschrift: die Druckphase der Bridge, sonst der Zustand. */
+    /** Headline: the print phase of the bridge, else the state. */
     fun headline(p: Printer): String = p.phase ?: stateLabel(p)
 
-    /** Druckphase nur, wenn sie mehr sagt als "Druckt · Schicht" (fuer Benachrichtigung/Widget). */
+    /** Print phase only when it says more than "Printing · layer" (for notification/widget). */
     fun extraPhase(p: Printer): String? = p.phase?.takeIf { p.phaseKey != null && p.phaseKey != "printing" }
 
+    /** Second line of notification and widget: phase · time left · finish · layer. */
+    fun progressLine(p: Printer): String = listOfNotNull(
+        extraPhase(p),
+        p.etaS?.let { tr("{time} left", "time" to duration(it)) },
+        p.etaS?.let { tr("done {time}", "time" to finishAt(it)) },
+        if (p.layer != null && p.layers != null) tr("layer {layer}/{layers}", "layer" to p.layer, "layers" to p.layers) else null,
+    ).joinToString(" · ")
+
     fun stateLabel(p: Printer): String = when (stateKey(p)) {
-        "printing" -> "Druckt"
-        "changing" -> "Wechselt Filament"
-        "paused" -> "Pausiert"
-        "complete" -> "Fertig"
-        "cancelled" -> "Abgebrochen"
-        "error" -> "Fehler"
-        "offline" -> "Offline"
-        else -> "Bereit"
+        "printing" -> tr("Printing")
+        "changing" -> tr("Changing filament")
+        "paused" -> tr("Paused")
+        "complete" -> tr("Finished")
+        "cancelled" -> tr("Cancelled")
+        "error" -> tr("Error")
+        "offline" -> tr("Offline")
+        else -> tr("Ready")
     }
 }

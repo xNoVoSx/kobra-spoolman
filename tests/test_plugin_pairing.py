@@ -43,7 +43,7 @@ class FakeBridge(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/auth/status":
-            self._send(200, {"device": {"id": "p1", "name": "Orca-Plugin"} if self._authed() else None})
+            self._send(200, {"device": {"id": "p1", "name": "Orca plugin"} if self._authed() else None})
         else:
             self._send(404, {"error": "?"})
 
@@ -55,7 +55,7 @@ class FakeBridge(BaseHTTPRequestHandler):
                 return self._send(401, {"error": "Code falsch oder abgelaufen"})
             return self._send(201, {"token": self.token, "device": {"id": "p1", "name": body["name"], "kind": body["kind"]}})
         if not self._authed():
-            return self._send(401, {"error": "Dieses Gerät ist nicht (mehr) gekoppelt"})
+            return self._send(401, {"error": "This device is not paired (any more)"})
         self._send(200, {"ok": True, "applied": {"a": 1}, "ignored": []})
 
 
@@ -99,7 +99,7 @@ def test_unpaired_write_is_refused_then_pairing_fixes_it(ks, core):
     core.redeem_pair_code()
     assert core.paired is True and not core.pair_msg["error"]
     path, body, _ = FakeBridge.seen[-1]
-    assert path == "/api/auth/pair" and body["kind"] == "plugin" and body["name"].startswith("Orca-Plugin")
+    assert path == "/api/auth/pair" and body["kind"] == "plugin" and body["name"].startswith("Orca plugin")
     assert json.loads(ks.DEVICE_FILE.read_text())["token"] == FakeBridge.token
 
     res = core.http("POST", "/api/orca/backsync", {"orca_id": "SM000001", "changes": {"a": 1}})
@@ -118,6 +118,6 @@ def test_panel_shows_pairing_only_when_needed(ks, core):
     core.bridge_state = {"slots": [], "version": "2.6.0"}
     core.paired = False
     msg = ks.build_panel_message(core)
-    assert msg["pair"]["show"] is True and "nicht gekoppelt" in msg["status"]
+    assert msg["pair"]["show"] is True and "not paired" in msg["status"]
     core.paired = True
     assert ks.build_panel_message(core)["pair"]["show"] is False

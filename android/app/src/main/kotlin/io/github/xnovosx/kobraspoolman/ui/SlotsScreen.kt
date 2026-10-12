@@ -37,6 +37,7 @@ import io.github.xnovosx.kobraspoolman.data.SpoolInfo
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import io.github.xnovosx.kobraspoolman.data.tr
 
 @Composable
 fun SlotsScreen(
@@ -64,16 +65,16 @@ fun SlotsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            ScreenHeader("Kobra S1", action = { RoundIconButton(KIcons.Refresh, "Aktualisieren", onRefresh) })
+            ScreenHeader("Kobra S1", action = { RoundIconButton(KIcons.Refresh, tr("Refresh"), onRefresh) })
         }
         if (lanMissing) item { LanMissing(onGrantLan) }
         if (error != null) item { Hint(error, danger = true) }
         if (state == null) {
-            if (error == null) item { Text("Lade …", color = K.Muted) }
+            if (error == null) item { Text(tr("Loading …"), color = K.Muted) }
             return@LazyColumn
         }
-        if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // aeltere Bridge
-        // Startseite: Kamera oben, darunter der Druck, dann die Slots und die ACE - der Rest steckt in den Tabs
+        if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // older bridge
+        // home screen: camera on top, then the print, then the slots and the ACE - the rest lives in the tabs
         if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera, viewerUrl) }
         state.resume?.takeIf { it.pending != null || it.running || it.error != null }?.let { r ->
             item { ResumeCard(r, state.canWrite, onResume) }
@@ -97,7 +98,7 @@ fun SlotsScreen(
         }
         state.dryer?.takeIf { it.present }?.let { d -> item { DryerCard(d, onDryer) } }
         if (!state.canWrite) item {
-            Hint("Nur lesen: Die App ist nicht gekoppelt. Koppeln unter Einstellungen.")
+            Hint(tr("Read only: the app is not paired. Pair under Settings."))
         }
     }
 }
@@ -114,12 +115,12 @@ private fun SlotCard(slot: Slot, active: Boolean, modifier: Modifier, onClick: (
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("SLOT ${slot.slot}", style = MaterialTheme.typography.titleSmall, color = K.Muted, modifier = Modifier.weight(1f))
-            if (active) Badge("AKTIV", K.Ok, androidx.compose.ui.graphics.Color(0xFF0B2415))
+            Text(tr("SLOT {slot}", "slot" to slot.slot), style = MaterialTheme.typography.titleSmall, color = K.Muted, modifier = Modifier.weight(1f))
+            if (active) Badge(tr("ACTIVE"), K.Ok, androidx.compose.ui.graphics.Color(0xFF0B2415))
             if ((slot.ace.tagId ?: 0) > 0) Badge("RFID", K.Surface2, K.Text)
         }
         SpoolDisc(sp?.color ?: slot.ace.color.ifBlank { null }, 64.dp)
-        Text(sp?.displayName ?: if (slot.ace.present) "ACE: ${slot.ace.material.ifBlank { "ohne Material" }}" else "leer",
+        Text(sp?.displayName ?: if (slot.ace.present) "ACE: " + slot.ace.material.ifBlank { tr("no material") } else tr("empty"),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 2,
             overflow = TextOverflow.Ellipsis)
         if (sp != null) {
@@ -130,7 +131,7 @@ private fun SlotCard(slot: Slot, active: Boolean, modifier: Modifier, onClick: (
             val low = (sp.remainingWeight ?: 1000.0) < 100
             FillBar(Format.fill(sp.remainingWeight, sp.initialWeight), color = if (low) K.Danger else K.Accent)
         } else {
-            Text("Tippen zum Zuordnen", style = MaterialTheme.typography.bodySmall, color = K.Accent)
+            Text(tr("Tap to assign"), style = MaterialTheme.typography.bodySmall, color = K.Accent)
         }
         slot.hints.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = K.DangerText) }
     }

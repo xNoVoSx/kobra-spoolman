@@ -37,6 +37,7 @@ import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
 import io.github.xnovosx.kobraspoolman.ui.theme.headerTint
 import io.github.xnovosx.kobraspoolman.ui.theme.spoolColor
+import io.github.xnovosx.kobraspoolman.data.tr
 
 @Composable
 fun SpoolScreen(
@@ -55,9 +56,9 @@ fun SpoolScreen(
     Column(Modifier.fillMaxSize().background(K.Ground).verticalScroll(rememberScrollState())) {
         if (detail == null) {
             Row(Modifier.padding(start = 20.dp, top = contentPadding.calculateTopPadding() + 16.dp)) {
-                RoundIconButton(KIcons.Back, "Zurück", onBack)
+                RoundIconButton(KIcons.Back, tr("Back"), onBack)
             }
-            Text("Lade …", color = K.Muted, modifier = Modifier.padding(20.dp))
+            Text(tr("Loading …"), color = K.Muted, modifier = Modifier.padding(20.dp))
             return@Column
         }
         val sp = detail.spool
@@ -68,8 +69,8 @@ fun SpoolScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RoundIconButton(KIcons.Back, "Zurück", onBack, bg = K.Ground.copy(alpha = 0.4f))
-                Text("Spule #${sp.spoolId}" + tagsLabel(sp), style = MaterialTheme.typography.labelMedium,
+                RoundIconButton(KIcons.Back, tr("Back"), onBack, bg = K.Ground.copy(alpha = 0.4f))
+                Text(tr("Spool #{id}", "id" to sp.spoolId) + tagsLabel(sp), style = MaterialTheme.typography.labelMedium,
                     color = K.Text, modifier = Modifier.padding(start = 12.dp))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -84,7 +85,7 @@ fun SpoolScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                 Text(gramsText(sp.remainingWeight), style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.weight(1f))
-                Text("von ${Format.grams(sp.initialWeight)} · " + (sp.slot?.let { "in Slot $it" } ?: sp.location.orEmpty()),
+                Text(tr("of {weight}", "weight" to Format.grams(sp.initialWeight)) + " · " + (sp.slot?.let { tr("in slot {slot}", "slot" to it) } ?: sp.location.orEmpty()),
                     style = MaterialTheme.typography.bodySmall, color = K.Muted)
             }
             FillBar(Format.fill(sp.remainingWeight, sp.initialWeight), track = K.Ground.copy(alpha = 0.5f), height = 8.dp)
@@ -93,11 +94,11 @@ fun SpoolScreen(
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(sp.material)
-                sp.nozzleTemp?.let { Chip("Düse ${it.toInt()} °C") }
-                sp.bedTemp?.let { Chip("Bett ${it.toInt()} °C") }
+                sp.nozzleTemp?.let { Chip(tr("Nozzle {t} °C", "t" to it.toInt())) }
+                sp.bedTemp?.let { Chip(tr("Bed {t} °C", "t" to it.toInt())) }
                 sp.template?.let { Chip(it, muted = true) }
             }
-            SectionLabel("In Slot legen", Modifier.padding(top = 10.dp))
+            SectionLabel(tr("Put into a slot"), Modifier.padding(top = 10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 (1..slots).forEach { n ->
                     val here = sp.slot == n
@@ -111,19 +112,19 @@ fun SpoolScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton("Ins Regal", { onMove(null) }, Modifier.weight(1f), enabled = canWrite && !busy && sp.slot != null)
+                SecondaryButton(tr("To the shelf"), { onMove(null) }, Modifier.weight(1f), enabled = canWrite && !busy && sp.slot != null)
                 val tags = tagCount(sp)
-                // ACE 2 Pro: ein Tag pro Spulenseite. Fehlt der zweite, nur den nachschreiben.
-                SecondaryButton(when (tags) { 0 -> "Tags schreiben"; 1 -> "2. Tag schreiben"; else -> "Tags neu schreiben" },
+                // ACE 2 Pro: one tag per spool side. If the second is missing, write only that one.
+                SecondaryButton(when (tags) { 0 -> tr("Write tags"); 1 -> tr("Write 2nd tag"); else -> tr("Rewrite tags") },
                     { onWriteTag(if (tags == 1) 2 else 1) }, Modifier.weight(1f), enabled = canWrite && !busy)
             }
-            SecondaryButton("Leer · archivieren", { confirmArchive = true }, Modifier.fillMaxWidth(),
+            SecondaryButton(tr("Empty · archive"), { confirmArchive = true }, Modifier.fillMaxWidth(),
                 enabled = canWrite && !busy, danger = true)
-            if (!canWrite) Hint("Ändern geht erst, wenn die App gekoppelt ist (Einstellungen).")
+            if (!canWrite) Hint(tr("Changing only works once the app is paired (Settings)."))
 
             moisture()
-            SectionLabel("Letzte Drucke", Modifier.padding(top = 12.dp))
-            if (detail.jobs.isEmpty()) Text("Noch keine Drucke mit dieser Spule.", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            SectionLabel(tr("Recent prints"), Modifier.padding(top = 12.dp))
+            if (detail.jobs.isEmpty()) Text(tr("No prints with this spool yet."), style = MaterialTheme.typography.bodySmall, color = K.Muted)
             detail.jobs.forEach { j ->
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(K.Sunken)
@@ -140,10 +141,10 @@ fun SpoolScreen(
     if (confirmArchive) {
         AlertDialog(
             onDismissRequest = { confirmArchive = false },
-            title = { Text("Spule archivieren?") },
-            text = { Text("Die Spule ist leer: Sie kommt aus dem Slot und wird in Spoolman archiviert.") },
-            confirmButton = { TextButton(onClick = { confirmArchive = false; onArchive() }) { Text("Archivieren", color = K.DangerText) } },
-            dismissButton = { TextButton(onClick = { confirmArchive = false }) { Text("Abbrechen") } },
+            title = { Text(tr("Archive the spool?")) },
+            text = { Text(tr("The spool is empty: it leaves the slot and is archived in Spoolman.")) },
+            confirmButton = { TextButton(onClick = { confirmArchive = false; onArchive() }) { Text(tr("Archive"), color = K.DangerText) } },
+            dismissButton = { TextButton(onClick = { confirmArchive = false }) { Text(tr("Cancel")) } },
             containerColor = K.Surface,
         )
     }
@@ -163,6 +164,6 @@ private fun tagCount(sp: SpoolInfo): Int = sp.nfcUids.size.takeIf { it > 0 } ?: 
 
 private fun tagsLabel(sp: SpoolInfo): String = when (tagCount(sp)) {
     0 -> ""
-    1 -> " · 1 NFC-Tag (zweite Seite fehlt)"
-    else -> " · 2 NFC-Tags"
+    1 -> " · " + tr("1 NFC tag (second side missing)")
+    else -> " · " + tr("2 NFC tags")
 }

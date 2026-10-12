@@ -3,36 +3,37 @@
 #
 # [tool.orcaslicer.plugin]
 # name = "Kobra Spoolman"
-# description = "Spoolman als Filament-Quelle: legt fuer jedes Spoolman-Filament ein Orca-Profil an, zeigt die ACE-Slots im Seitenpanel und uebernimmt Profil-Aenderungen nach Rueckfrage nach Spoolman. Braucht die ace-lane-bridge."
+# description = "Spoolman as the filament source: creates an Orca profile for every Spoolman filament, shows the ACE slots in a side panel and writes profile changes back to Spoolman after asking. Needs the ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.6.0"
+# version = "0.7.0"
 # ///
-"""Kobra Spoolman - Orca-Plugin zur ace-lane-bridge (Etappe 3).
+"""Kobra Spoolman - Orca plugin for the ace-lane-bridge.
 
-Aufgaben
-- Profil-Sync: Die Bridge liefert pro Spoolman-Filament (mit aktiver Spule) die Werte aus
-  Spoolman. Das Plugin loest das Orca-Basisprofil aus den System-Profilen auf (JSON unter
-  <datenordner>/system) und schreibt ein eigenes Basisprofil (inherits "", filament_id SMxxxxxx)
-  nach <datenordner>/user/<benutzer>/filament/base/. Orca liest Profile nur beim Start - neue
-  oder geaenderte Profile erscheinen nach einem Neustart; das Panel sagt Bescheid.
-- Seitenpanel: Slots mit Spule, Restgewicht, Verbrauch; Warnung, wenn Filament 1-4 in Orca
-  nicht zu Slot 1-4 passt.
-- Ruecksync: Speichert man ein verwaltetes Profil in Orca, fragt das Plugin, ob die
-  Aenderungen nach Spoolman sollen.
-- Koppeln: Was in Spoolman schreibt (Ruecksync, Basisprofile melden), braucht einen eigenen
-  Schluessel. Das Panel fragt einmal nach einem 6-stelligen Code (App/Weboberflaeche: Geraete ->
-  Geraet hinzufuegen); der Schluessel liegt danach in kobra_device.json neben dem Plugin.
-- Verbrauchsvorschau: Nach dem Slicen zeigt das Panel pro Slot Bedarf / Rest (Orcas Zahlen wie in
-  der Legende plus das Spuelen der Firmware pro Ladevorgang) und warnt, wenn eine Spule nicht reicht
-  oder ein benutzter Slot am Drucker kein Material hat (dann bricht die Firmware den Druck ab).
-  Braucht orca.host.slice_statistics (orca-kobra, Patch 0003); ohne fehlt nur die Vorschau.
+Tasks
+- Profile sync: per Spoolman filament (with an active spool) the bridge delivers the values from Spoolman. The
+  plugin resolves the Orca base profile from the system profiles (JSON under <data folder>/system) and writes an
+  own base profile (inherits "", filament_id SMxxxxxx) to <data folder>/user/<user>/filament/base/. Orca reads
+  profiles only at start - new or changed profiles appear after a restart; the panel says so.
+- Side panel: slots with spool, remaining weight, usage; a warning when filament 1-4 in Orca does not match
+  slot 1-4.
+- Back sync: when a managed profile is saved in Orca, the plugin asks whether the changes should go to Spoolman.
+- Pairing: whatever writes to Spoolman (back sync, reporting base profiles) needs an own key. The panel asks once
+  for a 6-digit code (app/web UI: Devices -> Add device); the key then lives in kobra_device.json next to the
+  plugin.
+- Usage forecast: after slicing the panel shows need / rest per slot (Orca's numbers as in the legend plus the
+  firmware's purge per load) and warns when a spool is not enough or a used slot has no material at the printer
+  (then the firmware cancels the print). Needs orca.host.slice_statistics (orca-kobra, patch 0003); without it
+  only the forecast is missing.
 
-Drucken und die Profilwahl beim Sync-Knopf macht Orcas eingebauter Moonraker-Agent
-(mit Patch 0001 aus orca-kobra waehlt er das Profil ueber lane_data.filament_id).
+Printing and the profile choice of the sync button are done by Orca's built-in Moonraker agent (with patch 0001 of
+orca-kobra it picks the profile via lane_data.filament_id).
 
-Netzwerk und Dateien laufen in einem eigenen Hintergrund-Thread; Preset-Objekte liest das
-Plugin nur im UI-Thread (Panel-Nachrichten, Ereignisse).
+Language: English, German as the second language (setting "Language": auto = the bridge's language). The German
+texts are in DE at the end of this file - the plugin is a single file. tests/test_i18n_plugin.py checks them.
+
+Network and files run in an own background thread; the plugin reads preset objects only in the UI thread (panel
+messages, events).
 """
 
 from __future__ import annotations
@@ -52,45 +53,64 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.6.1"
+PLUGIN_VERSION = "0.7.0"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
-    "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
-    "user_folder": "default",       # Unterordner in <datenordner>/user (ohne Orca-Login: default)
+    "bridge_url": "http://localhost:7913",   # change in the plugin settings
+    "user_folder": "default",       # sub folder in <data folder>/user (without an Orca login: default)
+    "language": "auto",             # auto (the bridge's language) | en | de
     "sync_on_start": True,
     "open_panel_on_start": True,
     "ask_backsync": True,
     "poll_seconds": 5,
-    "reserve_g": 5,                 # Verbrauchsvorschau: "knapp", wenn weniger als das uebrig bleibt
-    "warn_after_slice": True,       # Orca-Hinweis, wenn eine Spule nach dem Slicen nicht reicht
+    "reserve_g": 5,                 # usage forecast: "tight" when less than this is left
+    "warn_after_slice": True,       # Orca notification when a spool is not enough after slicing
 }
-# Schluessel, die das Plugin selbst setzt und die nie als "Aenderung" nach Spoolman gehen
-ACTIVE_VARIANT = "Direct Drive Standard"    # printer_extruder_variant des Kobra S1
+ACTIVE_VARIANT = "Direct Drive Standard"    # printer_extruder_variant of the Kobra S1
+# keys the plugin sets itself and that never go to Spoolman as a "change"
 META_KEYS = {"name", "inherits", "from", "instantiation", "setting_id", "filament_id", "version", "type",
              "filament_settings_id", "compatible_printers", "compatible_printers_condition",
              "compatible_prints", "compatible_prints_condition", "filament_notes", "is_custom_defined",
              "base_id", "user_id", "updated_time", "filament_extruder_variant"}
-FORBIDDEN = ("secret", "cert", "conf")   # Orcas Sandbox sperrt Pfade mit diesen Woertern
+FORBIDDEN = ("secret", "cert", "conf")   # Orca's sandbox blocks paths with these words
 
-DATA_DIR = Path(__file__).resolve().parents[2]      # <datenordner>/orca_plugins/<plugin>/<datei>.py
+DATA_DIR = Path(__file__).resolve().parents[2]      # <data folder>/orca_plugins/<plugin>/<file>.py
 PLUGIN_DIR = Path(__file__).resolve().parent
 STATE_FILE = PLUGIN_DIR / "kobra_state.json"
-DEVICE_FILE = PLUGIN_DIR / "kobra_device.json"       # Schluessel dieses Plugins bei der Bridge
-WRITTEN_DIR = PLUGIN_DIR / "written"                 # zuletzt geschriebene Profile (fuer den Ruecksync-Vergleich)
+DEVICE_FILE = PLUGIN_DIR / "kobra_device.json"       # this plugin's key at the bridge
+WRITTEN_DIR = PLUGIN_DIR / "written"                 # profiles written last (for the back sync comparison)
+
+
+# ====================================================================== language
+LANG = {"current": "en"}
+
+
+def tr(text, **params):
+    """Translate an English text into the current language; {name} placeholders are filled from params."""
+    s = DE.get(text, text) if LANG["current"] == "de" else text
+    return s.format(**params) if params else s
+
+
+def num(v, nd=1):
+    """Number with nd decimals in the current language ("1.5" / "1,5"); None -> "–"."""
+    if v is None:
+        return "–"
+    s = f"{v:.{nd}f}"
+    return s.replace(".", ",") if LANG["current"] == "de" else s
 
 
 def log(*args):
-    print("[kobra-spoolman]", *args, flush=True)   # landet in <datenordner>/log/python_*.log
+    print("[kobra-spoolman]", *args, flush=True)   # ends up in <data folder>/log/python_*.log
 
 
 def notify(text, level="RegularNotificationLevel"):
     try:
         orca.host.ui.push_notification(getattr(orca.host.ui.NotificationLevel, level), text)
     except Exception as e:  # noqa: BLE001
-        log("Hinweis nicht moeglich:", e, text)
+        log("Notification not possible:", e, text)
 
 
-# ====================================================================== Hilfen
+# ====================================================================== helpers
 def fmt_value(v):
     if isinstance(v, bool):
         return "1" if v else "0"
@@ -101,8 +121,8 @@ def fmt_value(v):
 
 
 def as_list(v):
-    """Profilwert als Liste: Orca 2.5 speichert viele Filamentwerte je Extruder-Variante (6 Eintraege).
-    Ein Text, der eine JSON-Liste ist (so kam er frueher per Ruecksync nach Spoolman), wird wieder zur Liste."""
+    """Profile value as a list: Orca 2.5 stores many filament values per extruder variant (6 entries).
+    A text that is a JSON list (that is how it reached Spoolman via back sync before) becomes a list again."""
     if isinstance(v, list):
         return v
     if isinstance(v, str) and v.strip().startswith("["):
@@ -116,7 +136,7 @@ def as_list(v):
 
 
 def normalize(v):
-    """Vergleichsform eines Profilwerts (Liste mit einem Element oder lauter gleichen Werten == Einzelwert)."""
+    """Comparison form of a profile value (a list with one element or only equal values == single value)."""
     lst = as_list(v)
     if lst is not None:
         if len(lst) == 1 or (lst and all(str(x) == str(lst[0]) for x in lst)):
@@ -139,28 +159,28 @@ def safe_name(name, orca_id, material):
 
 
 def base_key(name):
-    """Vergleichsform eines Basisprofil-Namens: ohne Gross/Klein, Leerraum und Endung " @System"."""
+    """Comparison form of a base profile name: ignoring case, white space and the ending " @System"."""
     n = " ".join(str(name).split()).casefold()
     return n[:-len(" @system")] if n.endswith(" @system") else n
 
 
 def fallback_base(prof):
-    """Ersatz, wenn Spoolman kein Orca-Basisprofil nennt (weder Filament noch Vorlage): "Generic <Typ> @System".
-    Bridge ab 3.11.2 setzt das selbst; aeltere Bridges (2.x auf Rinkhals) liefern base leer."""
+    """Fallback when Spoolman names no Orca base profile (neither filament nor template): "Generic <type> @System".
+    Bridges from 3.11.2 set it themselves; older bridges (2.x on Rinkhals) deliver base empty."""
     ftype = (prof.get("values") or {}).get("filament_type") or prof.get("material") or ""
     ftype = str(ftype[0] if isinstance(ftype, list) and ftype else ftype).strip()
     return f"Generic {ftype} @System" if ftype else None
 
 
 class SystemProfiles:
-    """Index der Orca-System-Filamentprofile (JSON).
+    """Index of Orca's system filament profiles (JSON).
 
-    Gesucht wird in dieser Reihenfolge:
-      1. <datenordner>/system            (von Orca gepflegte Kopien der Herstellerprofile)
-      2. $APPDIR/resources/profiles      (im AppImage mitgelieferte Profile, u.a. OrcaFilamentLibrary)
-      3. Ordner, die Orca selbst fuer ein Basisprofil nennt (Preset.file, aus dem UI-Thread)
-    Profildateien heissen wie das Profil ("Generic PETG @System.json"); nur wenn das nicht
-    passt, wird der Inhalt gelesen.
+    Searched in this order:
+      1. <data folder>/system            (copies of the vendor profiles kept by Orca)
+      2. $APPDIR/resources/profiles      (profiles shipped in the AppImage, e.g. OrcaFilamentLibrary)
+      3. folders Orca itself names for a base profile (Preset.file, from the UI thread)
+    Profile files are named like the profile ("Generic PETG @System.json"); only when that does not fit is the
+    content read.
     """
 
     def __init__(self, root: Path):
@@ -169,7 +189,7 @@ class SystemProfiles:
         if appdir:
             self.roots.append(Path(appdir) / "resources" / "profiles")
         self.extra_roots = []
-        self.by_vendor = {}   # (wurzel, vendor) -> {name: pfad}
+        self.by_vendor = {}   # (root, vendor) -> {name: path}
         self.loaded_at = 0.0
 
     def add_root(self, vendor_dir: Path):
@@ -199,8 +219,8 @@ class SystemProfiles:
         self.loaded_at = time.time()
 
     def names(self):
-        """Namen der waehlbaren Filament-Basisprofile (fuer die Auswahl in der Android-App).
-        Abstrakte Elternprofile (fdm_..., ... @base) bleiben weg."""
+        """Names of the selectable filament base profiles (for the choice in the Android app).
+        Abstract parent profiles (fdm_..., ... @base) are left out."""
         if not self.by_vendor:
             self.scan()
         out = set()
@@ -209,7 +229,7 @@ class SystemProfiles:
         return sorted(out)
 
     def _lookup(self, index, name):
-        """Exakt, sonst ohne Gross/Klein und mit/ohne " @System" ("eSun PLA+" -> "eSUN PLA+ @System")."""
+        """Exact, else ignoring case and with/without " @System" ("eSun PLA+" -> "eSUN PLA+ @System")."""
         p = index.get(name)
         if p is not None:
             return p
@@ -231,7 +251,7 @@ class SystemProfiles:
             p = self._lookup(self.by_vendor[k], name)
             if p:
                 return k, p
-        # langsamer Rueckfall: Name steht nur in der Datei
+        # slow fallback: the name is only inside the file
         for k in order:
             for p in self.by_vendor[k].values():
                 try:
@@ -243,7 +263,7 @@ class SystemProfiles:
         return None, None
 
     def resolve(self, name):
-        """Voll aufgeloestes Profil (Vererbung zusammengefuehrt) oder None."""
+        """Fully resolved profile (inheritance merged) or None."""
         if not self.by_vendor:
             self.scan()
         chain = []
@@ -267,8 +287,8 @@ class SystemProfiles:
 
 
 def profile_values(values):
-    """Werte der Bridge fuer das Profil. Orca verwirft filament_colour in Filament-Presets und nimmt
-    beim Auswaehlen default_filament_colour - eine aeltere Bridge (bis 2.2.1) liefert noch filament_colour."""
+    """The bridge's values for the profile. Orca drops filament_colour in filament presets and takes
+    default_filament_colour on selection - an older bridge (up to 2.2.1) still delivers filament_colour."""
     values = dict(values)
     legacy = values.pop("filament_colour", None)
     if legacy not in (None, "") and values.get("default_filament_colour") in (None, ""):
@@ -277,7 +297,7 @@ def profile_values(values):
 
 
 def build_profile_json(base, prof, name):
-    """Orca-Basisprofil + Spoolman-Werte -> vollstaendiges eigenes Basisprofil."""
+    """Orca base profile + Spoolman values -> complete own base profile."""
     out = {k: v for k, v in base.items()
            if k not in ("setting_id", "base_id", "user_id", "updated_time", "filament_colour")}
     for key, val in profile_values(prof["values"]).items():
@@ -285,7 +305,7 @@ def build_profile_json(base, prof, name):
             continue
         cur = out.get(key)
         lst = as_list(val)
-        if lst is not None:                       # Liste (je Variante) bleibt Liste
+        if lst is not None:                       # a list (per variant) stays a list
             out[key] = lst
             continue
         s = fmt_value(val)
@@ -300,15 +320,15 @@ def build_profile_json(base, prof, name):
         "filament_settings_id": [name],
         "compatible_printers": [],
         "compatible_printers_condition": "",
-        "filament_notes": [f"{MARKER}: verwaltet ueber Spoolman ({prof['orca_id']}, Filament #{prof['filament_id']}). "
-                           "Aenderungen hier werden nach Rueckfrage nach Spoolman uebernommen."],
+        "filament_notes": [f"{MARKER}: managed via Spoolman ({prof['orca_id']}, filament #{prof['filament_id']}). "
+                           "Changes made here go to Spoolman after asking."],
     })
     out.setdefault("version", base.get("version", "2.5.0.0"))
     return out
 
 
 def _variant_value(v, idx):
-    """Wert der aktiven Extruder-Variante, wenn v eine Liste je Variante ist; sonst v unveraendert."""
+    """Value of the active extruder variant if v is a list per variant; else v unchanged."""
     lst = as_list(v)
     if lst is not None and len(lst) > 1:
         return lst[idx] if idx < len(lst) else lst[0]
@@ -316,11 +336,11 @@ def _variant_value(v, idx):
 
 
 def diff_profiles(written, saved):
-    """Schluessel, deren Wert der Nutzer in Orca geaendert hat: {key: neuer Wert (Text)}.
+    """Keys whose value the user changed in Orca: {key: new value (text)}.
 
-    Nur Schluessel aus unserer geschriebenen Datei zaehlen: Sie enthaelt das ganze Basisprofil. Was dort fehlt,
-    fuegt Orca beim Speichern als eigenen Standardwert hinzu (Orca 2.5: ~80 Schluessel, viele je Extruder-Variante)
-    - das ist keine Aenderung des Nutzers."""
+    Only keys of our written file count: it contains the whole base profile. Whatever is missing there, Orca adds
+    as its own default when saving (Orca 2.5: ~80 keys, many per extruder variant) - that is not a change by the
+    user."""
     changes = {}
     idx_a, idx_b = active_variant_index(written), active_variant_index(saved)
     for key in written:
@@ -329,11 +349,11 @@ def diff_profiles(written, saved):
         a, b = written.get(key), saved.get(key)
         if b is None:
             continue
-        # Orca aendert in der Oberflaeche nur die aktive Variante ("Direct Drive Standard" beim S1) - in
-        # Spoolman steht ein Wert pro Feld, also zaehlt genau dieser (eine Liste als Text loescht sonst das Feld).
-        # Beide Seiten gleich behandeln: sonst ist eine Liste mit verschiedenen Werten je Variante
-        # (z.B. filament_max_volumetric_speed) nie gleich und jeder Sync schreibt das Profil neu
-        # (gefunden von MineTech13, Issue #2).
+        # In its UI Orca changes only the active variant ("Direct Drive Standard" on the S1) - Spoolman holds one
+        # value per field, so exactly that one counts (a list as text would otherwise clear the field).
+        # Treat both sides the same: otherwise a list with different values per variant
+        # (e.g. filament_max_volumetric_speed) is never equal and every sync rewrites the profile
+        # (found by MineTech13, issue #2).
         a, b = _variant_value(a, idx_a), _variant_value(b, idx_b)
         if normalize(a) != normalize(b):
             v = as_list(b)
@@ -343,7 +363,7 @@ def diff_profiles(written, saved):
 
 
 def active_variant_index(profile):
-    """Index der Extruder-Variante des Druckers in filament_extruder_variant (Kobra S1: Direct Drive Standard)."""
+    """Index of the printer's extruder variant in filament_extruder_variant (Kobra S1: Direct Drive Standard)."""
     variants = profile.get("filament_extruder_variant") or []
     try:
         return list(variants).index(ACTIVE_VARIANT)
@@ -351,23 +371,23 @@ def active_variant_index(profile):
         return 0
 
 
-# ====================================================================== Verbrauchsvorschau
+# ====================================================================== usage forecast
 def _mm_to_g(mm, diameter, density):
     r = (diameter or 1.75) / 2
     return mm * 3.141592653589793 * r * r * (density or 1.24) / 1000
 
 
 def build_forecast(stats, slots, reserve_g=5.0):
-    """Bedarf pro Slot fuer den gesliceten Druck.
+    """Need per slot for the sliced print.
 
-    stats  - Ergebnis von orca.host.slice_statistics() (Volumen in mm3, Filament-Index ab 0)
-    slots  - Slots aus /api/orca/state (slot, name, spool_id, remaining_weight)
+    stats  - result of orca.host.slice_statistics() (volumes in mm3, filament index from 0)
+    slots  - slots from /api/orca/state (slot, name, spool_id, remaining_weight)
 
-    Filament N in Orca gehoert zu Slot N (so setzt es der Sync-Knopf). Die Werte sind dieselben wie in
-    Orcas Legende: Modell, Stuetzen, Gereinigt, Turm, Gesamt = Summe davon (nicht total_volumes_per_extruder -
-    das verteilt den Turm beim Wechsel anders). Das Spuelen der ACE steht unter "Gereinigt": der
-    Filamentwechsel-G-Code des Drucker-Profils meldet es Orca mit "; EXTERNAL_PURGE <mm>" (Laden + Spuelmenge
-    aus Orcas Matrix). Fehlt das, obwohl gewechselt wird, ist purge_missing gesetzt.
+    Filament N in Orca belongs to slot N (that is how the sync button sets it). The values are the same as in Orca's
+    legend: model, support, flushed, tower, total = their sum (not total_volumes_per_extruder - that distributes
+    the tower differently at a change). The ACE's purge is under "flushed": the printer profile's change-filament
+    G-code reports it to Orca with "; EXTERNAL_PURGE <mm>" (load + purge volume from Orca's matrix). If that is
+    missing although there are changes, purge_missing is set.
     """
     by_slot = {s["slot"]: s for s in slots or []}
 
@@ -376,7 +396,7 @@ def build_forecast(stats, slots, reserve_g=5.0):
 
     used = [f for f in (stats or {}).get("filaments", []) if orca_mm3(f) > 0]
     transitions = (stats or {}).get("transitions") or []
-    if transitions:                             # jeder Wechsel einzeln (Patch 0003), erster Ladevorgang from=None
+    if transitions:                             # every change on its own (patch 0003), first load from=None
         loads = {f["index"]: 0 for f in used}
         for t in transitions:
             loads[int(t["to"])] = loads.get(int(t["to"]), 0) + int(t.get("count") or 1)
@@ -437,43 +457,43 @@ def build_forecast(stats, slots, reserve_g=5.0):
 
 
 def forecast_warnings(fc):
-    """Kurze Texte fuer Hinweise und das Panel."""
+    """Short texts for notifications and the panel."""
     out = []
     for r in fc.get("rows", []):
         if r["status"] == "short":
-            out.append(f"Slot {r['slot']}: braucht ca. {r['need_g']:.0f} g, auf der Spule sind noch "
-                       f"{r['remaining_g']:.0f} g")
+            out.append(tr("Slot {slot}: needs about {need} g, the spool has {rest} g left",
+                          slot=r["slot"], need=num(r["need_g"], 0), rest=num(r["remaining_g"], 0)))
         elif r["status"] == "tight":
-            out.append(f"Slot {r['slot']}: knapp – braucht ca. {r['need_g']:.0f} g, "
-                       f"noch {r['remaining_g']:.0f} g")
+            out.append(tr("Slot {slot}: tight – needs about {need} g, {rest} g left",
+                          slot=r["slot"], need=num(r["need_g"], 0), rest=num(r["remaining_g"], 0)))
         elif r["status"] == "nospool":
-            out.append(f"Slot {r['slot']} wird benutzt, hat aber keine Spule zugeordnet")
+            out.append(tr("Slot {slot} is used but has no spool assigned", slot=r["slot"]))
         elif r["status"] == "noslot":
-            out.append(f"Filament {r['slot']} hat keinen ACE-Slot")
+            out.append(tr("Filament {slot} has no ACE slot", slot=r["slot"]))
     if fc.get("purge_missing"):
-        out.append("Spülen der ACE fehlt in Orcas Zahlen – Drucker-Profil neu anlegen (make-profile.py)")
+        out.append(tr("The ACE purge is missing in Orca's numbers – create the printer profile again (make-profile.py)"))
     return out
 
 
 def read_slice_statistics(require_valid=True):
-    """orca.host.slice_statistics (orca-kobra Patch 0003) - None, wenn nicht vorhanden/nicht gesliced."""
+    """orca.host.slice_statistics (orca-kobra patch 0003) - None if missing / not sliced."""
     fn = getattr(orca.host, "slice_statistics", None)
     if fn is None:
         return None
     try:
         return fn(-1, require_valid)
     except Exception as e:  # noqa: BLE001
-        log("Slice-Statistik nicht lesbar:", e)
+        log("Slice statistics not readable:", e)
         return None
 
 
-# ====================================================================== Kopplung
+# ====================================================================== pairing
 class NotPaired(Exception):
-    """Die Bridge lehnt ab: dieses Plugin ist nicht (mehr) gekoppelt."""
+    """The bridge refuses: this plugin is not (or no longer) paired."""
 
 
 class DeviceKey:
-    """Schluessel des Plugins bei der Bridge. Gilt nur fuer die Bridge-Adresse, bei der gekoppelt wurde."""
+    """The plugin's key at the bridge. Valid only for the bridge address it was paired with."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -507,12 +527,12 @@ def device_name():
         host = socket.gethostname()
     except Exception:  # noqa: BLE001
         host = ""
-    return f"Orca-Plugin ({host})" if host else "Orca-Plugin"
+    return f"Orca plugin ({host})" if host else "Orca plugin"
 
 
-# ====================================================================== Kern
+# ====================================================================== core
 class Core:
-    """Ein Exemplar pro Orca-Sitzung: Bridge-Abfragen, Profil-Sync, Zustand."""
+    """One instance per Orca session: bridge queries, profile sync, state."""
 
     def __init__(self, get_config):
         self.get_config = get_config
@@ -525,19 +545,20 @@ class Core:
         self.stop = threading.Event()
         self.sync_request = threading.Event()
         self.wake = threading.Event()
-        self.saved_queue = queue.Queue()   # in Orca gespeicherte Profilnamen (Ruecksync)
+        self.saved_queue = queue.Queue()   # profile names saved in Orca (back sync)
         self.system = SystemProfiles(DATA_DIR / "system")
         self.thread = None
-        self.missing_bases = set()     # Basisprofile, die im letzten Sync nicht gefunden wurden
-        self.slice = None              # {"stats", "at", "from_event"} - letztes Slice-Ergebnis
-        self.slice_warned = None       # Warnungen, fuer die schon ein Hinweis kam
+        self.missing_bases = set()     # base profiles not found in the last sync
+        self.slice = None              # {"stats", "at", "from_event"} - last slice result
+        self.slice_warned = None       # warnings a notification already came for
         self.key = DeviceKey(DEVICE_FILE)
-        self.paired = None             # None = noch nicht geprueft
+        self.paired = None             # None = not checked yet
         self.paired_checked = 0.0
-        self.pair_code = None          # vom Panel, wird im Hintergrund eingeloest
+        self.pair_code = None          # from the panel, redeemed in the background
         self.pair_msg = None           # {"error": bool, "text": str}
+        self.update_language()
 
-    # ---------------------------------------------------------------- Zustand
+    # ---------------------------------------------------------------- state
     def _load_state(self):
         try:
             with open(STATE_FILE, encoding="utf-8") as fh:
@@ -558,11 +579,18 @@ class Core:
             c = {}
         return c.get(key, DEFAULT_CONFIG[key])
 
+    def update_language(self):
+        """Language of the plugin's texts: the setting, with auto = the bridge's language (bridge 3.12+)."""
+        want = str(self.cfg("language") or "auto")
+        if want not in ("en", "de"):
+            want = (self.bridge_state or {}).get("language") or "en"
+        LANG["current"] = want if want in ("en", "de") else "en"
+
     def user_filament_dir(self):
         return DATA_DIR / "user" / str(self.cfg("user_folder")) / "filament" / "base"
 
     def managed(self):
-        """orca_id -> Eintrag (name, file)"""
+        """orca_id -> entry (name, file)"""
         return self.state.setdefault("profiles", {})
 
     def managed_by_name(self, name):
@@ -576,6 +604,8 @@ class Core:
         base = str(self.cfg("bridge_url")).rstrip("/")
         data = json.dumps(body).encode() if body is not None else None
         headers = dict(self.key.headers(base))
+        if str(self.cfg("language")) in ("en", "de"):
+            headers["X-Lang"] = str(self.cfg("language"))   # else the bridge answers in its own language
         if data:
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(base + path, data=data, method=method, headers=headers)
@@ -592,9 +622,9 @@ class Core:
                 raise NotPaired(msg) from None
             raise RuntimeError(f"{e.code}: {msg}") from None
 
-    # ---------------------------------------------------------------- Koppeln
+    # ---------------------------------------------------------------- pairing
     def check_pairing(self, force=False):
-        """Alle paar Minuten fragen, ob der Schluessel noch gilt (nur Bridge, nie der Drucker)."""
+        """Ask every few minutes whether the key is still valid (bridge only, never the printer)."""
         if not force and self.paired is not None and time.time() - self.paired_checked < 300:
             return
         self.paired_checked = time.time()
@@ -607,7 +637,7 @@ class Core:
             return
         self.paired = bool(st and st.get("device"))
         if not self.paired:
-            log("Schluessel gilt nicht mehr - neu koppeln")
+            log("Key no longer valid - pair again")
             self.key.forget()
 
     def redeem_pair_code(self):
@@ -620,15 +650,16 @@ class Core:
             self.paired = False
             return
         except Exception as e:  # noqa: BLE001
-            self.pair_msg = {"error": True, "text": f"Bridge nicht erreichbar ({e})"}
+            self.pair_msg = {"error": True, "text": tr("Bridge not reachable ({error})", error=e)}
             return
         self.key.save(base, res["token"], res.get("device"))
         self.paired, self.paired_checked = True, time.time()
-        self.pair_msg = {"error": False, "text": f"Gekoppelt als „{(res.get('device') or {}).get('name', device_name())}“."}
-        self.state.pop("bases_reported", None)   # Basisprofile jetzt melden
-        log("Mit der Bridge gekoppelt")
+        self.pair_msg = {"error": False, "text": tr("Paired as “{name}”.",
+                                                    name=(res.get("device") or {}).get("name", device_name()))}
+        self.state.pop("bases_reported", None)   # report the base profiles now
+        log("Paired with the bridge")
 
-    # ---------------------------------------------------------------- Hintergrund
+    # ---------------------------------------------------------------- background
     def start(self):
         if self.thread and self.thread.is_alive():
             return
@@ -646,7 +677,8 @@ class Core:
                 if known and self.bridge_state.get("profiles_hash") != known and not self.sync_request.is_set():
                     self.bridge_state["profiles_outdated"] = True
             except Exception as e:  # noqa: BLE001
-                self.bridge_error = f"Bridge nicht erreichbar ({e.__class__.__name__}: {e})"
+                self.bridge_error = tr("Bridge not reachable ({error})", error=f"{e.__class__.__name__}: {e}")
+            self.update_language()
             if self.pair_code:
                 self.redeem_pair_code()
             if not self.bridge_error:
@@ -656,9 +688,9 @@ class Core:
                 try:
                     self.sync_profiles()
                 except Exception as e:  # noqa: BLE001
-                    log("Sync fehlgeschlagen:", e, traceback.format_exc())
+                    log("Sync failed:", e, traceback.format_exc())
                     self.last_sync = {"at": time.strftime("%H:%M:%S"), "written": [], "deleted": [],
-                                      "errors": [f"Sync fehlgeschlagen: {e}"]}
+                                      "errors": [tr("Sync failed: {error}", error=e)]}
             while True:
                 try:
                     name = self.saved_queue.get_nowait()
@@ -667,11 +699,11 @@ class Core:
                 try:
                     self.handle_saved(name)
                 except Exception as e:  # noqa: BLE001
-                    log("Ruecksync fehlgeschlagen:", e, traceback.format_exc())
+                    log("Back sync failed:", e, traceback.format_exc())
             self.wake.wait(max(2, int(self.cfg("poll_seconds"))))
             self.wake.clear()
 
-    # ---------------------------------------------------------------- Profil-Sync
+    # ---------------------------------------------------------------- profile sync
     def sync_profiles(self):
         with self.lock:
             data = self.http("GET", "/api/orca/profiles", timeout=10)
@@ -690,28 +722,31 @@ class Core:
                 base = self.system.resolve(base_name) if base_name else None
                 if base is None:
                     if not base_name:
-                        errors.append(f"{prof['display_name']}: kein Orca-Basisprofil in Spoolman und kein Material – "
-                                      "am Filament „Orca base profile“ setzen oder eine Vorlage anlegen "
-                                      "(spoolman_setup.py)")
+                        errors.append(tr("{name}: no Orca base profile in Spoolman and no material – set “Orca base "
+                                         "profile” on the filament or create a template (spoolman_setup.py)",
+                                         name=prof["display_name"]))
                         continue
                     missing.add(base_name)
-                    hint = "" if prof.get("base") else " (Ersatz, weil in Spoolman keins gesetzt ist)"
-                    errors.append(f"{prof['display_name']}: Orca-Basisprofil „{base_name}“{hint} nicht in Orca "
-                                  "gefunden")
+                    if prof.get("base"):
+                        errors.append(tr("{name}: Orca base profile “{base}” not found in Orca",
+                                         name=prof["display_name"], base=base_name))
+                    else:
+                        errors.append(tr("{name}: Orca base profile “{base}” (fallback, because none is set in "
+                                         "Spoolman) not found in Orca", name=prof["display_name"], base=base_name))
                     continue
                 if not prof.get("base"):
-                    log(f"{prof['display_name']}: kein Orca-Basisprofil in Spoolman - nutze {base_name}")
+                    log(f"{prof['display_name']}: no Orca base profile in Spoolman - using {base_name}")
                 name = safe_name(prof["display_name"], oid, prof.get("material"))
                 profile = build_profile_json(base, prof, name)
                 old = managed.get(oid)
                 path = target / f"{name}.json"
-                if old and old.get("name") != name:          # umbenannt: alte Datei weg
+                if old and old.get("name") != name:          # renamed: old file goes
                     self._remove_files(Path(old["file"]))
                 cache = WRITTEN_DIR / f"{oid}.json"
                 prev = None
                 if path.exists():
-                    # Vergleich mit der Datei auf der Platte: hat jemand das Profil in Orca geaendert und
-                    # den Ruecksync abgelehnt, setzt der Sync es auf die Spoolman-Werte zurueck.
+                    # Compare with the file on disk: if someone changed the profile in Orca and declined the back
+                    # sync, the sync resets it to the Spoolman values.
                     try:
                         prev = json.loads(path.read_text(encoding="utf-8"))
                     except Exception:
@@ -727,7 +762,7 @@ class Core:
                 cache.write_text(text, encoding="utf-8")
                 managed[oid] = {"name": name, "file": str(path), "hash": prof["hash"]}
                 written.append(name)
-            # Profile von Filamenten ohne aktive Spule entfernen (nur eigene Dateien)
+            # remove profiles of filaments without an active spool (own files only)
             for oid in [o for o in managed if o not in wanted]:
                 entry = managed.pop(oid)
                 if self._remove_files(Path(entry["file"])):
@@ -741,41 +776,41 @@ class Core:
                 self.restart_needed = True
             self.last_sync = {"at": time.strftime("%H:%M:%S"), "written": written, "deleted": deleted,
                               "errors": errors}
-            log(f"Sync: {len(written)} geschrieben, {len(deleted)} entfernt, {len(errors)} Fehler")
+            log(f"Sync: {len(written)} written, {len(deleted)} removed, {len(errors)} errors")
             return self.last_sync
 
     def _report_bases(self):
-        """Basisprofil-Namen an die Bridge melden, nur wenn sie sich geaendert haben."""
+        """Report the base profile names to the bridge, only when they changed."""
         names = self.system.names()
         digest = hashlib.sha1("\n".join(names).encode("utf-8")).hexdigest()[:12]
         if not names or self.state.get("bases_reported") == digest:
             return
         if self.paired is False:
-            return   # meldet das Plugin nach dem Koppeln
+            return   # the plugin reports after pairing
         try:
             self.http("POST", "/api/orca/bases", {"names": names}, timeout=10)
             self.state["bases_reported"] = digest
-            log(f"{len(names)} Orca-Basisprofile an die Bridge gemeldet")
+            log(f"{len(names)} Orca base profiles reported to the bridge")
         except NotPaired:
-            log("Basisprofile melden: Plugin nicht gekoppelt")
+            log("Reporting base profiles: plugin not paired")
         except Exception as e:  # noqa: BLE001
-            log("Basisprofile melden fehlgeschlagen:", e)
+            log("Reporting base profiles failed:", e)
 
     def _remove_files(self, path: Path):
         try:
             with open(path, encoding="utf-8") as fh:
                 notes = json.load(fh).get("filament_notes") or []
             if not any(MARKER in str(n) for n in notes):
-                return False   # nicht von uns - nie anfassen
+                return False   # not ours - never touch
         except Exception:
             return False
         path.unlink(missing_ok=True)
         path.with_suffix(".info").unlink(missing_ok=True)
         return True
 
-    # ---------------------------------------------------------------- Ruecksync
+    # ---------------------------------------------------------------- back sync
     def pending_changes(self, preset_name):
-        """Nach dem Speichern in Orca: Unterschiede zwischen Orca-Datei und unserem Stand."""
+        """After saving in Orca: differences between Orca's file and our state."""
         oid, entry = self.managed_by_name(preset_name)
         if not oid:
             return None, None
@@ -783,22 +818,22 @@ class Core:
             saved = json.loads(Path(entry["file"]).read_text(encoding="utf-8"))
             written = json.loads((WRITTEN_DIR / f"{oid}.json").read_text(encoding="utf-8"))
         except Exception as e:  # noqa: BLE001
-            log("Ruecksync: Dateien nicht lesbar:", e)
+            log("Back sync: files not readable:", e)
             return oid, None
         return oid, diff_profiles(written, saved)
 
     def handle_saved(self, name):
-        """Ruecksync im Hintergrund-Thread (Dialoge sind thread-sicher)."""
+        """Back sync in the background thread (dialogs are thread-safe)."""
         oid, changes = self.pending_changes(name)
         if not oid or not changes:
             return
         _, entry = self.managed_by_name(name)
         lines = "\n".join(f"  {k} = {v}" for k, v in sorted(changes.items())[:25])
-        more = f"\n  … und {len(changes) - 25} weitere" if len(changes) > 25 else ""
+        more = "\n  " + tr("… and {n} more", n=len(changes) - 25) if len(changes) > 25 else ""
         if self.cfg("ask_backsync"):
             answer = orca.host.ui.message(
-                f"Du hast das Spoolman-Profil „{name}“ geändert:\n\n{lines}{more}\n\n"
-                "Nach Spoolman übernehmen? Bei „Nein“ setzt der nächste Sync das Profil auf die Spoolman-Werte zurück.",
+                tr("You changed the Spoolman profile “{name}”:", name=name) + f"\n\n{lines}{more}\n\n"
+                + tr("Write it to Spoolman? With “No” the next sync resets the profile to the Spoolman values."),
                 "Kobra Spoolman", buttons="yes_no", icon="question")
             if answer != "yes":
                 return
@@ -806,20 +841,22 @@ class Core:
             res = self.http("POST", "/api/orca/backsync", {"orca_id": oid, "changes": changes}, timeout=6)
             self.accept_saved(oid, entry)
             ign = res.get("ignored") or []
-            notify(f"Kobra Spoolman: nach Spoolman übernommen ({len(res.get('applied', {}))} Werte"
-                   + (f", ignoriert: {', '.join(ign)}" if ign else "") + ")")
+            applied = len(res.get("applied", {}))
+            notify("Kobra Spoolman: " + (tr("written to Spoolman ({n} values, ignored: {keys})", n=applied,
+                                            keys=", ".join(ign)) if ign
+                                         else tr("written to Spoolman ({n} values)", n=applied)))
         except NotPaired:
-            orca.host.ui.message("Übernehmen nach Spoolman geht erst, wenn das Plugin mit der Bridge gekoppelt ist.\n\n"
-                                 "Code holen: App oder Weboberfläche → Geräte → Gerät hinzufügen, dann im Panel "
-                                 "„Kobra Spoolman“ eingeben und danach das Profil noch einmal speichern.",
+            orca.host.ui.message(tr("Writing to Spoolman only works once the plugin is paired with the bridge.") + "\n\n"
+                                 + tr("Get a code: app or web UI → Devices → Add device, enter it in the panel “Kobra "
+                                      "Spoolman”, then save the profile once more."),
                                  "Kobra Spoolman", buttons="ok", icon="warning")
         except Exception as e:  # noqa: BLE001
-            orca.host.ui.message(f"Übernehmen nach Spoolman fehlgeschlagen:\n{e}", "Kobra Spoolman",
+            orca.host.ui.message(tr("Writing to Spoolman failed:") + f"\n{e}", "Kobra Spoolman",
                                  buttons="ok", icon="error")
 
-    # ---------------------------------------------------------------- Verbrauchsvorschau (UI-Thread)
+    # ---------------------------------------------------------------- usage forecast (UI thread)
     def on_slice_complete(self):
-        """Direkt nach SlicingJobComplete: Orca setzt das Gueltig-Flag erst danach."""
+        """Right after SlicingJobComplete: Orca sets the valid flag only afterwards."""
         stats = read_slice_statistics(require_valid=False)
         if stats is None:
             return None
@@ -827,14 +864,14 @@ class Core:
         return self.forecast()
 
     def refresh_slice(self):
-        """Bei jeder Panel-Aktualisierung: gueltiges Slice-Ergebnis der aktuellen Platte lesen."""
+        """At every panel refresh: read the valid slice result of the current plate."""
         stats = read_slice_statistics(require_valid=True)
         now = time.time()
         if stats is not None:
             self.slice = {"stats": stats, "at": now, "from_event": False, "stale": False}
         elif self.slice and not self.slice["stale"]:
             if not (self.slice["from_event"] and now - self.slice["at"] < 8):
-                self.slice["stale"] = True   # Modell/Einstellung geaendert oder andere Platte
+                self.slice["stale"] = True   # model/setting changed or another plate
 
     def forecast(self):
         st = self.bridge_state
@@ -843,43 +880,46 @@ class Core:
         return build_forecast(self.slice["stats"], st.get("slots"), self.cfg("reserve_g"))
 
     def accept_saved(self, oid, entry):
-        """Die von Orca gespeicherte Datei ist jetzt unser Stand (nach Ruecksync)."""
+        """The file Orca saved is now our state (after back sync)."""
         try:
             text = Path(entry["file"]).read_text(encoding="utf-8")
             (WRITTEN_DIR / f"{oid}.json").write_text(text, encoding="utf-8")
         except Exception as e:  # noqa: BLE001
-            log("Stand uebernehmen fehlgeschlagen:", e)
+            log("Taking over the saved state failed:", e)
 
 
 CONFIG_UI = r"""
 <style>
   body { font: 13px system-ui, sans-serif; margin: 12px; color: var(--orca-fg, #222); background: var(--orca-bg, transparent); }
   label { display: block; margin: 10px 0 4px; font-weight: 600; }
-  input[type=text], input[type=number] { width: 100%; box-sizing: border-box; padding: 6px 8px; }
+  input[type=text], input[type=number], select { width: 100%; box-sizing: border-box; padding: 6px 8px; }
   .row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
   .row label { display: inline; margin: 0; font-weight: normal; }
   .hint { color: var(--orca-muted, #777); font-size: 12px; margin-top: 3px; }
   button { margin-top: 14px; padding: 6px 14px; }
 </style>
-<label for="bridge_url">Adresse der ace-lane-bridge</label>
+<label for="bridge_url">{{Address of the ace-lane-bridge}}</label>
 <input type="text" id="bridge_url" placeholder="http://192.168.1.10:7913">
-<div class="hint">Die Seite, auf der du die ACE-Slots zuordnest (Port 7913).</div>
-<label for="user_folder">Orca-Benutzerordner</label>
+<div class="hint">{{The page where you assign the ACE slots (port 7913).}}</div>
+<label for="user_folder">{{Orca user folder}}</label>
 <input type="text" id="user_folder" placeholder="default">
-<div class="hint">Ohne Orca-Anmeldung „default“. Profile landen in user/&lt;ordner&gt;/filament/base.</div>
-<label for="poll_seconds">Aktualisierung (Sekunden)</label>
+<div class="hint">{{Without an Orca login “default”. Profiles go to user/&lt;folder&gt;/filament/base.}}</div>
+<label for="language">{{Language}}</label>
+<select id="language"><option value="auto">{{Automatic (language of the bridge)}}</option>
+  <option value="en">English</option><option value="de">Deutsch</option></select>
+<label for="poll_seconds">{{Refresh (seconds)}}</label>
 <input type="number" id="poll_seconds" min="2" max="60">
-<div class="row"><input type="checkbox" id="sync_on_start"><label for="sync_on_start">Profile beim Orca-Start aktualisieren</label></div>
-<div class="row"><input type="checkbox" id="open_panel_on_start"><label for="open_panel_on_start">Panel beim Start öffnen</label></div>
-<div class="row"><input type="checkbox" id="ask_backsync"><label for="ask_backsync">Vor dem Rücksync nach Spoolman fragen</label></div>
-<div class="row"><input type="checkbox" id="warn_after_slice"><label for="warn_after_slice">Nach dem Slicen warnen, wenn eine Spule nicht reicht</label></div>
-<label for="reserve_g">Reserve (g)</label>
+<div class="row"><input type="checkbox" id="sync_on_start"><label for="sync_on_start">{{Update profiles when Orca starts}}</label></div>
+<div class="row"><input type="checkbox" id="open_panel_on_start"><label for="open_panel_on_start">{{Open the panel at start}}</label></div>
+<div class="row"><input type="checkbox" id="ask_backsync"><label for="ask_backsync">{{Ask before writing back to Spoolman}}</label></div>
+<div class="row"><input type="checkbox" id="warn_after_slice"><label for="warn_after_slice">{{Warn after slicing when a spool is not enough}}</label></div>
+<label for="reserve_g">{{Reserve (g)}}</label>
 <input type="number" id="reserve_g" min="0" max="200">
-<div class="hint">Bleibt nach dem Druck weniger als das auf der Spule, zeigt die Vorschau „knapp“.</div>
-<button type="button" id="save">Speichern</button> <button type="button" id="defaults">Standardwerte</button>
+<div class="hint">{{If less than this stays on the spool after the print, the forecast shows “tight”.}}</div>
+<button type="button" id="save">{{Save}}</button> <button type="button" id="defaults">{{Defaults}}</button>
 <script>
 (function () {
-  var fields = ["bridge_url", "user_folder", "poll_seconds", "reserve_g"], checks = ["sync_on_start", "open_panel_on_start", "ask_backsync", "warn_after_slice"];
+  var fields = ["bridge_url", "user_folder", "language", "poll_seconds", "reserve_g"], checks = ["sync_on_start", "open_panel_on_start", "ask_backsync", "warn_after_slice"];
   var defaults = __DEFAULTS__;
   function fill(cfg) {
     cfg = Object.assign({}, defaults, cfg || {});
@@ -902,7 +942,9 @@ CONFIG_UI = r"""
 """
 
 
-# ====================================================================== Panel
+# ====================================================================== panel
+# Static texts carry data-t (English); every state message brings the translations (labels), so the panel follows a
+# language change without being reopened.
 PAGE = r"""
 <style>
   body { margin:0; padding:10px; font-size:13px; }
@@ -931,47 +973,52 @@ PAGE = r"""
   .fct { margin:6px 0 2px; }
 </style>
 <h3>Kobra Spoolman</h3>
-<div id="status" class="muted">lade …</div>
+<div id="status" class="muted" data-t="loading …">loading …</div>
 <div id="boxes"></div>
 <div id="pair" class="box" style="display:none">
-  <b>Plugin koppeln</b>
-  <div class="muted" style="margin:4px 0 6px">Nötig für den Rücksync nach Spoolman. Code: App oder Weboberfläche → Geräte → Gerät hinzufügen.</div>
-  <div style="display:flex;gap:6px"><input id="paircode" inputmode="numeric" autocomplete="off" placeholder="6-stelliger Code" style="flex:1;min-width:0">
-  <button type="button" id="pairbtn">Koppeln</button></div>
+  <b data-t="Pair the plugin">Pair the plugin</b>
+  <div class="muted" style="margin:4px 0 6px" data-t="Needed for writing back to Spoolman. Code: app or web UI → Devices → Add device.">Needed for writing back to Spoolman. Code: app or web UI → Devices → Add device.</div>
+  <div style="display:flex;gap:6px"><input id="paircode" inputmode="numeric" autocomplete="off" data-tp="6-digit code" placeholder="6-digit code" style="flex:1;min-width:0">
+  <button type="button" id="pairbtn" data-t="Pair">Pair</button></div>
   <div id="pairmsg" class="muted" style="margin-top:4px"></div>
 </div>
 <div id="forecast"></div>
 <div id="slots"></div>
 <div class="actions">
-  <button type="button" id="sync">Profile aktualisieren</button>
-  <button type="button" id="refresh" class="quiet">Neu laden</button>
+  <button type="button" id="sync" data-t="Update profiles">Update profiles</button>
+  <button type="button" id="refresh" class="quiet" data-t="Reload">Reload</button>
 </div>
-<div class="muted hint">„Profile aktualisieren“ legt die Orca-Profile aus Spoolman an. In die Filament-Felder kommen sie danach über Orcas Sync-Symbol im Filament-Bereich (bei neuen Profilen erst Orca neu starten).</div>
+<div class="muted hint" data-t="“Update profiles” creates the Orca profiles from Spoolman. They reach the filament fields via Orca's sync icon in the filament area (for new profiles restart Orca first).">“Update profiles” creates the Orca profiles from Spoolman. They reach the filament fields via Orca's sync icon in the filament area (for new profiles restart Orca first).</div>
 <div id="foot" class="muted"></div>
 <script>
 (function () {
+  var L = {}, lang = "en";
+  function t(s) { return L[s] || s; }
   function esc(v) { var s = document.createElement("span"); s.textContent = v == null ? "" : String(v); return s.innerHTML; }
-  function g(v) { return v == null ? "?" : (Math.round(v * 10) / 10).toLocaleString("de-DE") + " g"; }
+  function g(v) { return v == null ? "?" : (Math.round(v * 10) / 10).toLocaleString(lang === "de" ? "de-DE" : "en-GB") + " g"; }
   function render(m) {
+    L = m.labels || {}; lang = m.lang || "en";
+    document.querySelectorAll("[data-t]").forEach(function (e) { if (e.id !== "status") e.textContent = t(e.getAttribute("data-t")); });
+    document.querySelectorAll("[data-tp]").forEach(function (e) { e.placeholder = t(e.getAttribute("data-tp")); });
     document.getElementById("status").innerHTML = m.status;
     document.getElementById("boxes").innerHTML = (m.boxes || []).map(function (b) {
       return '<div class="box' + (b.error ? ' err' : '') + '">' + b.html + '</div>'; }).join("");
     document.getElementById("slots").innerHTML = (m.slots || []).map(function (s) {
       var sw = s.color ? 'style="background:#' + esc(s.color) + '"' : '';
       return '<div class="slot"><div class="sw" ' + sw + '></div><div class="grow">' +
-        '<div><b>Slot ' + s.slot + '</b>' + (s.active ? ' · <span class="ok">aktiv</span>' : '') + '</div>' +
-        '<div class="name">' + esc(s.name || "nicht zugeordnet") + '</div>' +
+        '<div><b>' + esc(t("Slot") + " " + s.slot) + '</b>' + (s.active ? ' · <span class="ok">' + esc(t("active")) + '</span>' : '') + '</div>' +
+        '<div class="name">' + esc(s.name || t("not assigned")) + '</div>' +
         '<div class="muted">' + (s.spool_id ? '#' + s.spool_id + ' · ' + esc(s.material) + ' · ' + g(s.remaining_weight) : esc(s.ace || "")) + '</div>' +
         (s.check ? '<div class="' + s.check_cls + '">' + esc(s.check) + '</div>' : '') +
         (s.use ? '<div class="muted">' + esc(s.use) + '</div>' : '') +
         '</div></div>'; }).join("");
-    // aufgeklappte Details ueber die regelmaessige Aktualisierung hinweg offen halten
+    // keep expanded details open across the regular refresh
     var d = document.getElementById("fcd"), open = d ? d.open : false;
     document.getElementById("forecast").innerHTML = m.forecast || "";
     d = document.getElementById("fcd");
     if (d) d.open = open;
     document.getElementById("foot").innerHTML = m.foot || "";
-    // Kopplungsfeld nicht neu zeichnen (sonst ginge die Eingabe verloren), nur ein-/ausblenden
+    // don't redraw the pairing field (the input would be lost), only show/hide it
     document.getElementById("pair").style.display = m.pair && m.pair.show ? "" : "none";
     var pm = document.getElementById("pairmsg");
     pm.textContent = (m.pair && m.pair.msg) || "";
@@ -980,7 +1027,7 @@ PAGE = r"""
   function pair() {
     var c = document.getElementById("paircode").value.replace(/\s/g, "");
     if (!c) return;
-    document.getElementById("pairmsg").textContent = "koppelt …";
+    document.getElementById("pairmsg").textContent = t("pairing …");
     orca.postMessage({ command: "pair", code: c });
   }
   document.getElementById("pairbtn").addEventListener("click", pair);
@@ -994,89 +1041,107 @@ PAGE = r"""
 </script>
 """
 
+# texts the panel's script translates itself (data-t and t(...) in PAGE)
+PANEL_TEXTS = ["loading …", "Pair the plugin", "Needed for writing back to Spoolman. Code: app or web UI → Devices → "
+               "Add device.", "6-digit code", "Pair", "Update profiles", "Reload",
+               "“Update profiles” creates the Orca profiles from Spoolman. They reach the filament fields via Orca's "
+               "sync icon in the filament area (for new profiles restart Orca first).",
+               "Slot", "active", "not assigned", "pairing …"]
 
-def _de(v, nd=1):
-    return "–" if v is None else f"{v:.{nd}f}".replace(".", ",")
+
+def panel_labels():
+    return {s: tr(s) for s in PANEL_TEXTS} if LANG["current"] != "en" else {}
+
+
+def config_ui():
+    """Settings page with the {{English}} texts translated."""
+    page = re.sub(r"\{\{(.+?)\}\}", lambda m: tr(m.group(1)), CONFIG_UI)
+    return page.replace("__DEFAULTS__", json.dumps(DEFAULT_CONFIG))
 
 
 def _esc(s):
     return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-FC_STATUS = {"ok": ("✓", "ok", "reicht"), "tight": ("⚠", "warn", "knapp"), "short": ("✗", "bad", "reicht nicht"),
-             "unknown": ("?", "muted", "Rest unbekannt"), "nospool": ("✗", "bad", "keine Spule zugeordnet"),
-             "noslot": ("✗", "bad", "kein ACE-Slot")}
+# symbol, CSS class, English label
+FC_STATUS = {"ok": ("✓", "ok", "enough"), "tight": ("⚠", "warn", "tight"), "short": ("✗", "bad", "not enough"),
+             "unknown": ("?", "muted", "rest unknown"), "nospool": ("✗", "bad", "no spool assigned"),
+             "noslot": ("✗", "bad", "no ACE slot")}
 
 
 def forecast_html(fc):
-    """Verbrauchsvorschau: pro Slot eine Zeile (Bedarf / Rest), Aufschluesselung zum Aufklappen.
-    Die Spalten heissen und rechnen wie Orcas Legende (Filament, Modell, Stuetzen, Gereinigt, Turm, Gesamt);
-    "Gereinigt" enthaelt das Spuelen der ACE beim Farbwechsel (EXTERNAL_PURGE im Wechsel-G-Code)."""
+    """Usage forecast: one line per slot (need / rest), breakdown to expand.
+    The columns are named and computed like Orca's legend (filament, model, support, flushed, tower, total);
+    "flushed" includes the ACE's purge at a colour change (EXTERNAL_PURGE in the change G-code)."""
     def g(v, nd=1):
-        return _de(v, nd)
+        return num(v, nd)
 
     lines = []
     for r in fc["rows"]:
         sym, cls, label = FC_STATUS.get(r["status"], ("", "muted", ""))
-        name = _esc(r.get("name") or f"Filament {r['slot']}")
+        label = tr(label) if label else ""
+        name = _esc(r.get("name") or tr("Filament {n}", n=r["slot"]))
         if r.get("remaining_g") is not None:
             amount = f"{g(r['need_g'])} / {g(r['remaining_g'])} g"
         else:
             amount = f"{g(r['need_g'])} g"
-        lines.append(f"<div class='fcl' title='{_esc(label)}'><span class='fcn'><b>Slot {r['slot']}</b> · {name}</span>"
-                     f"<span class='fca'>{amount} <span class='{cls}'>{sym}</span></span></div>")
+        lines.append(f"<div class='fcl' title='{_esc(label)}'><span class='fcn'><b>{_esc(tr('Slot {n}', n=r['slot']))}"
+                     f"</b> · {name}</span><span class='fca'>{amount} <span class='{cls}'>{sym}</span></span></div>")
         if r["status"] not in ("ok", "unknown"):
             lines.append(f"<div class='{cls} fcw'>{_esc(label)}</div>")
 
-    cols = [("Modell", "model_g"), ("Stützen", "support_g"), ("Gereinigt", "flush_g"), ("Turm", "tower_g")]
+    cols = [(tr("Model"), "model_g"), (tr("Support"), "support_g"), (tr("Flushed"), "flush_g"), (tr("Tower"), "tower_g")]
     cols = [c for c in cols if c[1] == "model_g" or any(r[c[1]] for r in fc["rows"])]
     head = "".join(f"<td class='r'>{t}</td>" for t, _ in cols)
     body = "".join(
         f"<tr><td>{r['slot']}</td>" + "".join(f"<td class='r'>{g(r[k], 2)}</td>" for _, k in cols)
         + f"<td class='r'><b>{g(r['orca_g'], 2)}</b></td><td class='r'>{g(r.get('remaining_g'))}</td></tr>"
         for r in fc["rows"])
-    orca_tab = (f"<table><tr class='h'><td>Filament</td>{head}<td class='r'>Gesamt</td><td class='r'>Rest</td></tr>{body}"
-                f"<tr class='s'><td>Summe</td>{'<td></td>' * len(cols)}<td class='r'>{g(fc['total_g'], 2)}</td>"
+    orca_tab = (f"<table><tr class='h'><td>{tr('Filament')}</td>{head}<td class='r'>{tr('Total')}</td>"
+                f"<td class='r'>{tr('Rest')}</td></tr>{body}"
+                f"<tr class='s'><td>{tr('Sum')}</td>{'<td></td>' * len(cols)}<td class='r'>{g(fc['total_g'], 2)}</td>"
                 "<td></td></tr></table>")
     if fc.get("purge_missing"):
-        purge_text = ("<span class='warn'>Das Spülen der ACE fehlt in diesen Zahlen: Der Filamentwechsel-G-Code des "
-                      "Drucker-Profils meldet es Orca nicht (EXTERNAL_PURGE). Profil mit make-profile.py neu anlegen.</span>")
+        purge_text = ("<span class='warn'>" + tr("The ACE purge is missing in these numbers: the printer profile's "
+                      "change-filament G-code does not report it to Orca (EXTERNAL_PURGE). Create the profile again "
+                      "with make-profile.py.") + "</span>")
     else:
-        how = "von Orca gezählt" if fc.get("loads_exact") else "Gesamtzahl ohne Reihenfolge"
-        purge_text = (f"{fc['changes']} Farbwechsel ({how}). „Gereinigt“ ist das Spülen der ACE: Laden bis zur "
-                      "Düse plus Spülmenge aus Orcas Matrix (Spülmengen-Dialog).")
-    plate = f"Platte {fc['plate'] + 1} · " if isinstance(fc.get("plate"), int) else ""
-    return (f"<div class='fc'><div class='fch'><b>Geplanter Verbrauch</b><span class='muted'>{plate}Gramm</span></div>"
+        how = tr("counted by Orca") if fc.get("loads_exact") else tr("total without order")
+        purge_text = tr("{n} colour changes ({how}). “Flushed” is the ACE purge: loading up to the nozzle plus the "
+                        "purge volume from Orca's matrix (flushing volumes dialog).", n=fc["changes"], how=how)
+    plate = tr("Plate {n}", n=fc["plate"] + 1) + " · " if isinstance(fc.get("plate"), int) else ""
+    return (f"<div class='fc'><div class='fch'><b>{tr('Planned usage')}</b><span class='muted'>{plate}"
+            f"{tr('grams')}</span></div>"
             + "".join(lines)
-            + "<details id='fcd'><summary>Details (wie Orcas Legende)</summary>"
-            f"<div class='muted fct'>Wie Orcas Legende (Vorschau → Filament):</div>{orca_tab}"
-            f"<div class='muted fct'>{purge_text} Rest = was laut Spoolman auf der Spule ist.</div>"
+            + f"<details id='fcd'><summary>{tr('Details (like Orca’s legend)')}</summary>"
+            f"<div class='muted fct'>{tr('Like Orca’s legend (preview → filament):')}</div>{orca_tab}"
+            f"<div class='muted fct'>{purge_text} {tr('Rest = what is on the spool according to Spoolman.')}</div>"
             "</details></div>")
 
 
 def build_panel_message(core: Core):
-    """Laeuft im UI-Thread (Panel-Nachricht): darf Orca-Presets lesen."""
+    """Runs in the UI thread (panel message): may read Orca presets."""
     st = core.bridge_state or {}
     boxes = []
     if core.bridge_error:
-        boxes.append({"error": True, "html": _esc(core.bridge_error) +
-                      f"<br>Adresse: <code>{_esc(core.cfg('bridge_url'))}</code> – anpassen unter "
-                      "<b>Plugins → Kobra Spoolman → Konfiguration</b>."})
+        boxes.append({"error": True, "html": _esc(core.bridge_error) + "<br>" +
+                      tr("Address: {url} – change it under <b>Plugins → Kobra Spoolman → Configuration</b>.",
+                         url=f"<code>{_esc(core.cfg('bridge_url'))}</code>")})
     for w in st.get("warnings") or []:
         boxes.append({"error": True, "html": _esc(w)})
     if core.restart_needed:
-        boxes.append({"html": "<b>Profile aktualisiert.</b> Orca neu starten, dann Orcas Sync-Symbol im Filament-Bereich drücken."})
+        boxes.append({"html": tr("<b>Profiles updated.</b> Restart Orca, then press Orca's sync icon in the filament area.")})
     elif st.get("profiles_outdated"):
-        boxes.append({"html": "In Spoolman hat sich etwas geändert. <b>Profile aktualisieren</b> und Orca neu starten."})
+        boxes.append({"html": tr("Something changed in Spoolman. <b>Update profiles</b> and restart Orca.")})
     ls = core.last_sync or {}
     for e in ls.get("errors") or []:
         boxes.append({"error": True, "html": _esc(e)})
 
-    # aktuelle Filament-Auswahl in Orca (Filament 1..n <-> Slot 1..n)
+    # current filament choice in Orca (filament 1..n <-> slot 1..n)
     selected, loaded = [], set()
     try:
         bundle = orca.host.preset_bundle()
-        # Basisprofile, die der Sync nicht gefunden hat: Orca weiss, wo die Datei liegt
+        # base profiles the sync did not find: Orca knows where the file is
         found_new = False
         for base_name in list(core.missing_bases):
             p = bundle.filaments.find_preset(base_name)
@@ -1093,15 +1158,16 @@ def build_panel_message(core: Core):
             if bundle.filaments.find_preset(e["name"]) is not None:
                 loaded.add(oid)
     except Exception as e:  # noqa: BLE001
-        log("Presets nicht lesbar:", e)
+        log("Presets not readable:", e)
 
-    # Verbrauchsvorschau nach dem Slicen
+    # usage forecast after slicing
     core.refresh_slice()
     fc = core.forecast()
     if fc:
         for r in fc["rows"]:
             if r["status"] in ("short", "nospool", "noslot"):
-                boxes.append({"error": True, "html": "<b>Reicht nicht:</b> " + _esc(forecast_warnings({"rows": [r]})[0])})
+                boxes.append({"error": True, "html": "<b>" + tr("Not enough:") + "</b> "
+                              + _esc(forecast_warnings({"rows": [r]})[0])})
 
     live = ((st.get("usage") or {}).get("live") or {})
     live_by_slot = {x["slot"]: x for x in live.get("slots", [])}
@@ -1109,58 +1175,62 @@ def build_panel_message(core: Core):
     slots = []
     for s in st.get("slots") or []:
         item = dict(s)
-        item["ace"] = ("ACE: " + (s.get("ace_material") or "leer")) if s.get("present") else "ACE: leer"
+        item["ace"] = "ACE: " + ((s.get("ace_material") or tr("empty")) if s.get("present") else tr("empty"))
         oid = s.get("orca_id")
         idx = s["slot"] - 1
         if oid:
             entry = core.managed().get(oid)
             if not entry:
-                item["check"], item["check_cls"] = "Kein Orca-Profil – Profile aktualisieren", "warn"
+                item["check"], item["check_cls"] = tr("No Orca profile – update profiles"), "warn"
             elif oid not in loaded:
-                item["check"], item["check_cls"] = "Profil angelegt – Orca neu starten", "warn"
+                item["check"], item["check_cls"] = tr("Profile created – restart Orca"), "warn"
             elif idx < len(selected) and selected[idx] == entry["name"]:
-                item["check"], item["check_cls"] = f"Filament {s['slot']} in Orca: passt", "ok"
+                item["check"], item["check_cls"] = tr("Filament {n} in Orca: matches", n=s["slot"]), "ok"
             elif idx < len(selected):
-                item["check"] = f"Filament {s['slot']} in Orca ist „{selected[idx]}“ – erwartet „{entry['name']}“ (Sync-Knopf in Orca)"
+                item["check"] = tr("Filament {n} in Orca is “{have}” – expected “{want}” (sync button in Orca)",
+                                   n=s["slot"], have=selected[idx], want=entry["name"])
                 item["check_cls"] = "bad"
         if s.get("present") and not s.get("ace_material"):
-            item["check"] = "Am Drucker ist kein Material eingetragen – ein Druck mit diesem Slot bricht ab"
+            item["check"] = tr("No material is set at the printer – a print with this slot gets cancelled")
             item["check_cls"] = "bad"
         lv = live_by_slot.get(s["slot"])
         la = last_by_slot.get(str(s["slot"])) or last_by_slot.get(s["slot"])
         if lv:
-            item["use"] = f"Dieser Druck: {_de(lv['g'])} g"
+            item["use"] = tr("This print: {g} g", g=num(lv["g"]))
         elif la:
-            item["use"] = f"Letzter Druck: {_de(la['g'])} g"
+            item["use"] = tr("Last print: {g} g", g=num(la["g"]))
         slots.append(item)
 
     forecast = ""
     if fc and fc["rows"]:
         forecast = forecast_html(fc)
     elif core.slice and core.slice["stale"]:
-        forecast = "<div class='muted'>Vorschau: Slice-Ergebnis nicht mehr aktuell – neu slicen.</div>"
+        forecast = "<div class='muted'>" + tr("Forecast: the slice result is outdated – slice again.") + "</div>"
     status = []
-    status.append("Bridge " + ("<span class='ok'>verbunden</span>" if st and not core.bridge_error else "<span class='bad'>getrennt</span>"))
+    status.append("Bridge " + ("<span class='ok'>" + tr("connected") + "</span>" if st and not core.bridge_error
+                               else "<span class='bad'>" + tr("disconnected") + "</span>"))
     if st and not core.bridge_error and core.paired is not None:
-        status.append("gekoppelt" if core.paired else "<span class='warn'>nicht gekoppelt</span>")
+        status.append(tr("paired") if core.paired else "<span class='warn'>" + tr("not paired") + "</span>")
     if st:
-        status.append(f"Drucker {_esc(st.get('print_state') or '–')}")
-    foot = f"Plugin {PLUGIN_VERSION} · Bridge {_esc(st.get('version', '–'))} · {len(core.managed())} Profile"
+        status.append(tr("Printer {state}", state=_esc(st.get("print_state") or "–")))
+    foot = tr("Plugin {version} · bridge {bridge} · {n} profiles", version=PLUGIN_VERSION,
+              bridge=_esc(st.get("version", "–")), n=len(core.managed()))
     if not hasattr(orca.host, "slice_statistics"):
-        foot += " · Verbrauchsvorschau braucht orca-kobra (Patch 0003)"
+        foot += " · " + tr("the usage forecast needs orca-kobra (patch 0003)")
     if ls.get("at"):
-        foot += f" · Sync {ls['at']}: {len(ls.get('written', []))} neu/geändert, {len(ls.get('deleted', []))} entfernt"
+        foot += " · " + tr("sync {at}: {written} new/changed, {deleted} removed", at=ls["at"],
+                           written=len(ls.get("written", [])), deleted=len(ls.get("deleted", [])))
     pm = core.pair_msg or {}
     pair = {"show": bool(st) and not core.bridge_error and core.paired is False,
             "msg": pm.get("text") if pm.get("error") else None, "error": pm.get("error", False)}
     if pm and not pm.get("error"):
         boxes.insert(0, {"html": _esc(pm["text"])})
         core.pair_msg = None
-    return {"command": "state", "status": " · ".join(status), "boxes": boxes, "slots": slots,
-            "forecast": forecast, "foot": foot, "pair": pair}
+    return {"command": "state", "lang": LANG["current"], "labels": panel_labels(), "status": " · ".join(status),
+            "boxes": boxes, "slots": slots, "forecast": forecast, "foot": foot, "pair": pair}
 
 
-# ====================================================================== Capabilities
+# ====================================================================== capabilities
 _core = None
 
 
@@ -1184,14 +1254,15 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
         return True
 
     def get_config_ui(self):
-        return CONFIG_UI.replace("__DEFAULTS__", json.dumps(DEFAULT_CONFIG))
+        core_for(self).update_language()
+        return config_ui()
 
     def on_load(self):
         core = core_for(self)
         core.start()
         if core.cfg("open_panel_on_start"):
-            # Beim Orca-Start laedt das Plugin oft, bevor das Hauptfenster fertig ist - dann
-            # verwirft Orca das Panel still. Deshalb im Hintergrund nachfassen, bis es offen ist.
+            # At Orca's start the plugin often loads before the main window is ready - then Orca silently drops the
+            # panel. So keep trying in the background until it is open.
             threading.Thread(target=self._ensure_panel, name="kobra-spoolman-panel", daemon=True).start()
 
     def _ensure_panel(self):
@@ -1207,9 +1278,9 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
                     self.panel.show()
                     return
             except Exception as e:  # noqa: BLE001
-                log("Panel oeffnen:", e)
+                log("Opening the panel:", e)
                 time.sleep(3)
-        log("Panel konnte beim Start nicht geoeffnet werden - ueber den Plugins-Dialog starten")
+        log("The panel could not be opened at start - start it from the plugins dialog")
 
     def on_unload(self):
         if _core:
@@ -1219,7 +1290,7 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
 
     def execute(self):
         self.open_panel()
-        return orca.ExecutionResult.success("Kobra Spoolman geöffnet.")
+        return orca.ExecutionResult.success(tr("Kobra Spoolman opened."))
 
     def open_panel(self):
         if self.panel is not None and self.panel.is_open():
@@ -1273,15 +1344,15 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
 
 class KobraSync(orca.script.ScriptPluginCapabilityBase):
     def get_name(self):
-        return "Kobra Spoolman: Profile aktualisieren"
+        return "Kobra Spoolman: update profiles"
 
     def execute(self):
-        # Netzwerk und Dateien laufen im Hintergrund-Thread; das Ergebnis zeigt das Panel.
+        # network and files run in the background thread; the panel shows the result
         core = core_for(self)
         core.start()
         core.sync_request.set()
         core.wake.set()
-        return orca.ExecutionResult.success("Sync gestartet - Ergebnis im Panel „Kobra Spoolman“.")
+        return orca.ExecutionResult.success(tr("Sync started - result in the panel “Kobra Spoolman”."))
 
 
 @orca.plugin
@@ -1289,3 +1360,131 @@ class KobraSpoolmanPlugin(orca.base):
     def register_capabilities(self):
         orca.register_capability(KobraPanel)
         orca.register_capability(KobraSync)
+
+
+# ====================================================================== German texts
+DE = {
+    "Slot {slot}: needs about {need} g, the spool has {rest} g left":
+        "Slot {slot}: braucht ca. {need} g, auf der Spule sind noch {rest} g",
+    "Slot {slot}: tight – needs about {need} g, {rest} g left": "Slot {slot}: knapp – braucht ca. {need} g, noch {rest} g",
+    "Slot {slot} is used but has no spool assigned": "Slot {slot} wird benutzt, hat aber keine Spule zugeordnet",
+    "Filament {slot} has no ACE slot": "Filament {slot} hat keinen ACE-Slot",
+    "The ACE purge is missing in Orca's numbers – create the printer profile again (make-profile.py)":
+        "Spülen der ACE fehlt in Orcas Zahlen – Drucker-Profil neu anlegen (make-profile.py)",
+    "Bridge not reachable ({error})": "Bridge nicht erreichbar ({error})",
+    "Paired as “{name}”.": "Gekoppelt als „{name}“.",
+    "Sync failed: {error}": "Sync fehlgeschlagen: {error}",
+    "{name}: no Orca base profile in Spoolman and no material – set “Orca base profile” on the filament or create a "
+    "template (spoolman_setup.py)":
+        "{name}: kein Orca-Basisprofil in Spoolman und kein Material – am Filament „Orca base profile“ setzen oder "
+        "eine Vorlage anlegen (spoolman_setup.py)",
+    "{name}: Orca base profile “{base}” not found in Orca": "{name}: Orca-Basisprofil „{base}“ nicht in Orca gefunden",
+    "{name}: Orca base profile “{base}” (fallback, because none is set in Spoolman) not found in Orca":
+        "{name}: Orca-Basisprofil „{base}“ (Ersatz, weil in Spoolman keins gesetzt ist) nicht in Orca gefunden",
+    "… and {n} more": "… und {n} weitere",
+    "You changed the Spoolman profile “{name}”:": "Du hast das Spoolman-Profil „{name}“ geändert:",
+    "Write it to Spoolman? With “No” the next sync resets the profile to the Spoolman values.":
+        "Nach Spoolman übernehmen? Bei „Nein“ setzt der nächste Sync das Profil auf die Spoolman-Werte zurück.",
+    "written to Spoolman ({n} values, ignored: {keys})": "nach Spoolman übernommen ({n} Werte, ignoriert: {keys})",
+    "written to Spoolman ({n} values)": "nach Spoolman übernommen ({n} Werte)",
+    "Writing to Spoolman only works once the plugin is paired with the bridge.":
+        "Übernehmen nach Spoolman geht erst, wenn das Plugin mit der Bridge gekoppelt ist.",
+    "Get a code: app or web UI → Devices → Add device, enter it in the panel “Kobra Spoolman”, then save the profile "
+    "once more.":
+        "Code holen: App oder Weboberfläche → Geräte → Gerät hinzufügen, dann im Panel „Kobra Spoolman“ eingeben und "
+        "danach das Profil noch einmal speichern.",
+    "Writing to Spoolman failed:": "Übernehmen nach Spoolman fehlgeschlagen:",
+    "Address of the ace-lane-bridge": "Adresse der ace-lane-bridge",
+    "The page where you assign the ACE slots (port 7913).": "Die Seite, auf der du die ACE-Slots zuordnest (Port 7913).",
+    "Orca user folder": "Orca-Benutzerordner",
+    "Without an Orca login “default”. Profiles go to user/&lt;folder&gt;/filament/base.":
+        "Ohne Orca-Anmeldung „default“. Profile landen in user/&lt;ordner&gt;/filament/base.",
+    "Language": "Sprache",
+    "Automatic (language of the bridge)": "Automatisch (Sprache der Bridge)",
+    "Refresh (seconds)": "Aktualisierung (Sekunden)",
+    "Update profiles when Orca starts": "Profile beim Orca-Start aktualisieren",
+    "Open the panel at start": "Panel beim Start öffnen",
+    "Ask before writing back to Spoolman": "Vor dem Rücksync nach Spoolman fragen",
+    "Warn after slicing when a spool is not enough": "Nach dem Slicen warnen, wenn eine Spule nicht reicht",
+    "Reserve (g)": "Reserve (g)",
+    "If less than this stays on the spool after the print, the forecast shows “tight”.":
+        "Bleibt nach dem Druck weniger als das auf der Spule, zeigt die Vorschau „knapp“.",
+    "Save": "Speichern",
+    "Defaults": "Standardwerte",
+    "loading …": "lade …",
+    "Pair the plugin": "Plugin koppeln",
+    "Needed for writing back to Spoolman. Code: app or web UI → Devices → Add device.":
+        "Nötig für den Rücksync nach Spoolman. Code: App oder Weboberfläche → Geräte → Gerät hinzufügen.",
+    "6-digit code": "6-stelliger Code",
+    "Pair": "Koppeln",
+    "Update profiles": "Profile aktualisieren",
+    "Reload": "Neu laden",
+    "“Update profiles” creates the Orca profiles from Spoolman. They reach the filament fields via Orca's sync icon in "
+    "the filament area (for new profiles restart Orca first).":
+        "„Profile aktualisieren“ legt die Orca-Profile aus Spoolman an. In die Filament-Felder kommen sie danach über "
+        "Orcas Sync-Symbol im Filament-Bereich (bei neuen Profilen erst Orca neu starten).",
+    "Slot": "Slot",
+    "active": "aktiv",
+    "not assigned": "nicht zugeordnet",
+    "pairing …": "koppelt …",
+    "enough": "reicht",
+    "tight": "knapp",
+    "not enough": "reicht nicht",
+    "rest unknown": "Rest unbekannt",
+    "no spool assigned": "keine Spule zugeordnet",
+    "no ACE slot": "kein ACE-Slot",
+    "Filament {n}": "Filament {n}",
+    "Slot {n}": "Slot {n}",
+    "Model": "Modell",
+    "Support": "Stützen",
+    "Flushed": "Gereinigt",
+    "Tower": "Turm",
+    "Filament": "Filament",
+    "Total": "Gesamt",
+    "Rest": "Rest",
+    "Sum": "Summe",
+    "The ACE purge is missing in these numbers: the printer profile's change-filament G-code does not report it to Orca "
+    "(EXTERNAL_PURGE). Create the profile again with make-profile.py.":
+        "Das Spülen der ACE fehlt in diesen Zahlen: Der Filamentwechsel-G-Code des Drucker-Profils meldet es Orca nicht "
+        "(EXTERNAL_PURGE). Profil mit make-profile.py neu anlegen.",
+    "counted by Orca": "von Orca gezählt",
+    "total without order": "Gesamtzahl ohne Reihenfolge",
+    "{n} colour changes ({how}). “Flushed” is the ACE purge: loading up to the nozzle plus the purge volume from "
+    "Orca's matrix (flushing volumes dialog).":
+        "{n} Farbwechsel ({how}). „Gereinigt“ ist das Spülen der ACE: Laden bis zur Düse plus Spülmenge aus Orcas "
+        "Matrix (Spülmengen-Dialog).",
+    "Plate {n}": "Platte {n}",
+    "Planned usage": "Geplanter Verbrauch",
+    "grams": "Gramm",
+    "Details (like Orca’s legend)": "Details (wie Orcas Legende)",
+    "Like Orca’s legend (preview → filament):": "Wie Orcas Legende (Vorschau → Filament):",
+    "Rest = what is on the spool according to Spoolman.": "Rest = was laut Spoolman auf der Spule ist.",
+    "Address: {url} – change it under <b>Plugins → Kobra Spoolman → Configuration</b>.":
+        "Adresse: {url} – anpassen unter <b>Plugins → Kobra Spoolman → Konfiguration</b>.",
+    "<b>Profiles updated.</b> Restart Orca, then press Orca's sync icon in the filament area.":
+        "<b>Profile aktualisiert.</b> Orca neu starten, dann Orcas Sync-Symbol im Filament-Bereich drücken.",
+    "Something changed in Spoolman. <b>Update profiles</b> and restart Orca.":
+        "In Spoolman hat sich etwas geändert. <b>Profile aktualisieren</b> und Orca neu starten.",
+    "Not enough:": "Reicht nicht:",
+    "empty": "leer",
+    "No Orca profile – update profiles": "Kein Orca-Profil – Profile aktualisieren",
+    "Profile created – restart Orca": "Profil angelegt – Orca neu starten",
+    "Filament {n} in Orca: matches": "Filament {n} in Orca: passt",
+    "Filament {n} in Orca is “{have}” – expected “{want}” (sync button in Orca)":
+        "Filament {n} in Orca ist „{have}“ – erwartet „{want}“ (Sync-Knopf in Orca)",
+    "No material is set at the printer – a print with this slot gets cancelled":
+        "Am Drucker ist kein Material eingetragen – ein Druck mit diesem Slot bricht ab",
+    "This print: {g} g": "Dieser Druck: {g} g",
+    "Last print: {g} g": "Letzter Druck: {g} g",
+    "Forecast: the slice result is outdated – slice again.": "Vorschau: Slice-Ergebnis nicht mehr aktuell – neu slicen.",
+    "connected": "verbunden",
+    "disconnected": "getrennt",
+    "paired": "gekoppelt",
+    "not paired": "nicht gekoppelt",
+    "Printer {state}": "Drucker {state}",
+    "Plugin {version} · bridge {bridge} · {n} profiles": "Plugin {version} · Bridge {bridge} · {n} Profile",
+    "the usage forecast needs orca-kobra (patch 0003)": "Verbrauchsvorschau braucht orca-kobra (Patch 0003)",
+    "sync {at}: {written} new/changed, {deleted} removed": "Sync {at}: {written} neu/geändert, {deleted} entfernt",
+    "Kobra Spoolman opened.": "Kobra Spoolman geöffnet.",
+    "Sync started - result in the panel “Kobra Spoolman”.": "Sync gestartet - Ergebnis im Panel „Kobra Spoolman“.",
+}

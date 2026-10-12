@@ -43,6 +43,7 @@ import io.github.xnovosx.kobraspoolman.data.Catalog
 import io.github.xnovosx.kobraspoolman.data.FilamentInfo
 import io.github.xnovosx.kobraspoolman.data.NewSpool
 import io.github.xnovosx.kobraspoolman.ui.theme.K
+import io.github.xnovosx.kobraspoolman.data.tr
 
 @Composable
 fun NewSpoolScreen(
@@ -66,7 +67,7 @@ fun NewSpoolScreen(
     var slot by rememberSaveable { mutableStateOf<Int?>(null) }
     LaunchedEffect(preselect) { if (preselect != null) selectedId = preselect }
     val selected = catalog?.filaments?.firstOrNull { it.filamentId == selectedId }
-    // Gewichte aus dem Filament vorschlagen, sobald eins gewaehlt ist
+    // suggest weights from the filament as soon as one is chosen
     LaunchedEffect(selectedId) {
         selected?.let { f ->
             weight = f.weight?.toInt()?.toString().orEmpty()
@@ -82,30 +83,30 @@ fun NewSpoolScreen(
         Column(Modifier.padding(start = 20.dp, end = 20.dp, top = contentPadding.calculateTopPadding() + 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RoundIconButton(KIcons.Close, "Abbrechen", onCancel)
-                Text("Neue Spule", style = MaterialTheme.typography.headlineSmall)
+                RoundIconButton(KIcons.Close, tr("Cancel"), onCancel)
+                Text(tr("New spool"), style = MaterialTheme.typography.headlineSmall)
             }
-            if (tagUid != null) Hint("Wird mit dem gescannten Tag $tagUid verknüpft.")
+            if (tagUid != null) Hint(tr("Will be linked to the scanned tag {uid}.", "uid" to tagUid))
             OutlinedTextField(
                 value = query, onValueChange = { query = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Filament suchen") }, shape = RoundedCornerShape(14.dp),
+                placeholder = { Text(tr("Search filament")) }, shape = RoundedCornerShape(14.dp),
                 leadingIcon = { Icon(KIcons.Search, contentDescription = null, tint = K.Muted) },
             )
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (catalog == null) item { Text("Lade Filamente …", color = K.Muted) }
+            if (catalog == null) item { Text(tr("Loading filaments …"), color = K.Muted) }
             items(list, key = { it.filamentId }) { f ->
                 FilamentRow(f, selected = f.filamentId == selectedId) { selectedId = f.filamentId }
             }
             if (catalog != null && list.isEmpty()) item {
-                Text("Nichts gefunden.", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                Text(tr("Nothing found."), style = MaterialTheme.typography.bodySmall, color = K.Muted)
             }
             item {
                 OutlinedButton(onClick = onNewFilament, enabled = canWrite, modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, K.Faint)) {
                     Icon(KIcons.Plus, contentDescription = null, tint = K.Accent, modifier = Modifier.size(18.dp))
-                    Text("  Nicht dabei? Neues Filament", color = K.Accent, style = MaterialTheme.typography.labelLarge)
+                    Text("  " + tr("Not there? New filament"), color = K.Accent, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -116,16 +117,16 @@ fun NewSpoolScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                NumberField("Anfangsgewicht (g)", weight, { weight = it }, Modifier.weight(1f))
-                NumberField("Leerspule (g)", spoolWeight, { spoolWeight = it }, Modifier.weight(1f))
+                NumberField(tr("Initial weight (g)"), weight, { weight = it }, Modifier.weight(1f))
+                NumberField(tr("Empty spool (g)"), spoolWeight, { spoolWeight = it }, Modifier.weight(1f))
             }
-            Text("Direkt einlegen", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            Text(tr("Put in right away"), style = MaterialTheme.typography.bodySmall, color = K.Muted)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Choice("Regal", slot == null, Modifier.weight(1.4f)) { slot = null }
+                Choice(tr("Shelf"), slot == null, Modifier.weight(1.4f)) { slot = null }
                 (1..slots).forEach { n -> Choice("$n", slot == n, Modifier.weight(1f)) { slot = n } }
             }
             PrimaryButton(
-                if (tagUid != null) "Anlegen und Tag verknüpfen" else "Spule anlegen",
+                if (tagUid != null) tr("Create and link the tag") else tr("Create spool"),
                 onClick = {
                     selected?.let { f ->
                         onCreate(NewSpool(f.filamentId, weight.toDoubleOrNull(), spoolWeight.toDoubleOrNull(), slot))
@@ -133,7 +134,7 @@ fun NewSpoolScreen(
                 },
                 modifier = Modifier.fillMaxWidth(), enabled = canWrite && !busy && selected != null,
             )
-            if (!canWrite) Hint("Anlegen geht erst, wenn die App gekoppelt ist (Einstellungen).")
+            if (!canWrite) Hint(tr("Creating only works once the app is paired (Settings)."))
         }
     }
 }
@@ -150,10 +151,10 @@ private fun FilamentRow(f: FilamentInfo, selected: Boolean, onClick: () -> Unit)
         SpoolDisc(f.color, 40.dp)
         Column(Modifier.weight(1f)) {
             Text(f.displayName, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(f.material, f.nozzleTemp?.let { "${it.toInt()} °C" }, "${f.spools} Spule(n)").joinToString(" · "),
+            Text(listOfNotNull(f.material, f.nozzleTemp?.let { "${it.toInt()} °C" }, if (f.spools == 1) tr("1 spool") else tr("{n} spools", "n" to f.spools)).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
-        if (selected) Icon(KIcons.Check, contentDescription = "gewählt", tint = K.Accent, modifier = Modifier.size(22.dp))
+        if (selected) Icon(KIcons.Check, contentDescription = tr("selected"), tint = K.Accent, modifier = Modifier.size(22.dp))
     }
 }
 

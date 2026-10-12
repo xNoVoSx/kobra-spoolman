@@ -39,16 +39,18 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+import io.github.xnovosx.kobraspoolman.data.tr
+import io.github.xnovosx.kobraspoolman.data.I18n
 
-private val SOURCE = mapOf("auto" to "Automatik", "hand" to "von Hand", "plan" to "geplant", "spule" to "Spule eingelegt",
-    "drucker" to "Display/Mainsail", "unbekannt" to "schon vorher")
+// keys: stable API codes of the bridge (dryer.py)
+private val SOURCE get() = mapOf("auto" to tr("Automatic"), "hand" to tr("by hand"), "plan" to tr("scheduled"), "spule" to tr("Spool inserted"),
+    "drucker" to tr("Display/Mainsail"), "unbekannt" to tr("already running"))
 private fun JsonArray.num(i: Int): Double? = getOrNull(i)?.jsonPrimitive?.doubleOrNull
 private fun time(t: Double, long: Boolean = false): String =
-    SimpleDateFormat(if (long) "dd.MM. HH:mm" else "HH:mm", Locale.GERMANY).format(Date((t * 1000).toLong()))
-private fun dur(min: Double): String = if (min >= 90) String.format(Locale.GERMANY, "%.1f h", min / 60) else "${min.toInt()} min"
+    SimpleDateFormat(if (!long) "HH:mm" else if (I18n.lang == "de") "dd.MM. HH:mm" else "d MMM HH:mm", I18n.locale).format(Date((t * 1000).toLong()))
+private fun dur(min: Double): String = if (min >= 90) Format.decimal(min / 60, 1) + " h" else "${min.toInt()} min"
 
-/** Feuchte-Verlauf der ACE mit Trocknungen (im Trockner-Fenster). */
+/** Humidity history of the ACE with drying runs (in the dryer sheet). */
 @Composable
 fun HumiditySection(load: suspend (Int) -> HumidityData?) {
     var hours by remember { mutableIntStateOf(24) }
@@ -57,26 +59,26 @@ fun HumiditySection(load: suspend (Int) -> HumidityData?) {
         while (isActive) { d = load(hours) ?: d; delay(60_000) }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel("Feuchte-Verlauf", Modifier.padding(top = 12.dp))
-        Segmented(listOf("6" to "6 h", "24" to "24 h", "168" to "7 Tage", "720" to "30 Tage"), hours.toString()) { hours = it.toInt() }
+        SectionLabel(tr("Humidity history"), Modifier.padding(top = 12.dp))
+        Segmented(listOf("6" to "6 h", "24" to "24 h", "168" to tr("7 days"), "720" to tr("30 days")), hours.toString()) { hours = it.toInt() }
         val data = d
         if (data == null) {
-            Text("lädt …", color = K.Muted)
+            Text(tr("loading …"), color = K.Muted)
         } else if (data.points.isEmpty()) {
-            Text("Noch kein Verlauf – die Bridge zeichnet ab jetzt jede Minute auf.", style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            Text(tr("No history yet – the bridge records every minute from now on."), style = MaterialTheme.typography.bodySmall, color = K.Muted)
         } else {
             HumidityChart(data, hours)
-            Text("Gelb: Feuchte · Grau: ACE-Temperatur · Rot: Soll beim Trocknen · Flächen: Trocknung / Druck",
+            Text(tr("Yellow: humidity · grey: ACE temperature · red: target while drying · areas: drying / print"),
                 style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
         data?.sessions?.take(6)?.forEach { s ->
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(K.Sunken).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 val temps = s.temps.mapNotNull { it.num(1)?.toInt() }.joinToString(" → ")
-                Text("${time(s.start, true)} · ${if (s.running) "läuft" else dur((s.minutes ?: 0).toDouble())} · $temps °C · " +
+                Text("${time(s.start, true)} · ${if (s.running) tr("running") else dur((s.minutes ?: 0).toDouble())} · $temps °C · " +
                     (SOURCE[s.source] ?: s.source), fontFamily = PlexMono, style = MaterialTheme.typography.bodySmall)
                 Text(s.reason + (s.endReason?.let { " → $it" } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Muted)
-                Text("Feuchte ${s.humidityStart?.toInt() ?: "?"} %" + if (s.running) "" else " → ${s.humidityEnd?.toInt() ?: "?"} %",
+                Text(tr("Humidity {h} %", "h" to (s.humidityStart?.toInt() ?: "?")) + if (s.running) "" else " → ${s.humidityEnd?.toInt() ?: "?"} %",
                     style = MaterialTheme.typography.bodySmall, color = K.Muted)
             }
         }
@@ -133,7 +135,7 @@ private fun HumidityChart(d: HumidityData, hours: Int) {
     }
 }
 
-/** Feuchte einer Spule auf der Spulenkarte. */
+/** Moisture of a spool on the spool card. */
 @Composable
 fun SpoolMoistureSection(spoolId: Int, canWrite: Boolean, load: suspend (Int) -> SpoolMoistureFull?,
                          onDried: (Int, Double, () -> Unit) -> Unit) {
@@ -143,13 +145,13 @@ fun SpoolMoistureSection(spoolId: Int, canWrite: Boolean, load: suspend (Int) ->
     LaunchedEffect(spoolId, tick) { m = load(spoolId) }
     val s = m ?: return
     val (word, color) = when (s.state) {
-        "ok" -> "trocken" to K.Ok
-        "soon" -> "bald trocknen" to K.Accent
-        "wet" -> "trocknen empfohlen" to K.Danger
-        else -> "unbekannt – noch kein Verlauf" to K.Muted
+        "ok" -> tr("dry") to K.Ok
+        "soon" -> tr("dry soon") to K.Accent
+        "wet" -> tr("drying recommended") to K.Danger
+        else -> tr("unknown – no history yet") to K.Muted
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionLabel("Feuchte", Modifier.padding(top = 12.dp))
+        SectionLabel(tr("Humidity"), Modifier.padding(top = 12.dp))
         Row {
             Text(word, style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.weight(1f))
             Text(s.score?.let { "$it %" } ?: "–", fontFamily = PlexMono)
@@ -159,27 +161,27 @@ fun SpoolMoistureSection(spoolId: Int, canWrite: Boolean, load: suspend (Int) ->
         }
         val p = s.params
         Text(listOfNotNull(
-            s.where?.let { "Ort: $it" },
-            s.lastDried?.let { "zuletzt getrocknet ${time(it.at, true)}" + (it.temp?.let { t -> " · ${t.toInt()} °C" } ?: "") },
-            if (s.needsDrying) "jetzt nötig ~${String.format(Locale.GERMANY, "%.1f", s.hoursNeeded ?: p.dryHours)} h bei ${p.dryTemp} °C" else null,
-            "${p.material}: offen bis trocknen ${String.format(Locale.GERMANY, "%.1f", p.openDays)} Tage (50 % rF)",
+            s.where?.let { tr("Place: {where}", "where" to it) },
+            s.lastDried?.let { tr("last dried {when}", "when" to time(it.at, true)) + (it.temp?.let { t -> " · ${t.toInt()} °C" } ?: "") },
+            if (s.needsDrying) tr("needed now ~{hours} h at {temp} °C", "hours" to Format.decimal(s.hoursNeeded ?: p.dryHours, 1), "temp" to p.dryTemp) else null,
+            p.material + ": " + tr("open until drying {days} days (50 % RH)", "days" to Format.decimal(p.openDays, 1)),
         ).joinToString("\n"), style = MaterialTheme.typography.bodySmall, color = K.Muted)
         if (canWrite) {
             if (form) {
                 var temp by remember { mutableStateOf(p.dryTemp?.toString() ?: "") }
-                var hrs by remember { mutableStateOf(String.format(Locale.GERMANY, "%.0f", p.dryHours)) }
+                var hrs by remember { mutableStateOf(Format.decimal(p.dryHours, 0)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    NumField("Temperatur (°C)", temp, { temp = it }, Modifier.weight(1f))
-                    NumField("Dauer (h)", hrs, { hrs = it }, Modifier.weight(1f))
+                    NumField(tr("Temperature (°C)"), temp, { temp = it }, Modifier.weight(1f))
+                    NumField(tr("Duration (h)"), hrs, { hrs = it }, Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PrimaryButton("Speichern", {
+                    PrimaryButton(tr("Save"), {
                         onDried(temp.toIntOrNull() ?: 0, hrs.replace(',', '.').toDoubleOrNull() ?: 0.0) { form = false; tick++ }
                     }, Modifier.weight(1f))
-                    SecondaryButton("Abbrechen", { form = false }, Modifier.weight(1f))
+                    SecondaryButton(tr("Cancel"), { form = false }, Modifier.weight(1f))
                 }
             } else {
-                SecondaryButton("Außerhalb getrocknet …", { form = true }, Modifier.fillMaxWidth())
+                SecondaryButton(tr("Dried elsewhere …"), { form = true }, Modifier.fillMaxWidth())
             }
         }
     }

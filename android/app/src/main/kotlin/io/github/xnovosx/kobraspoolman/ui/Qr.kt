@@ -48,8 +48,9 @@ import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeWriter
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import java.util.concurrent.Executors
+import io.github.xnovosx.kobraspoolman.data.tr
 
-/** QR-Code als Bild (schwarz auf weiss, mit Rand) - zum Abscannen durch ein anderes Geraet. */
+/** QR code as an image (black on white, with a margin) - for scanning by another device. */
 fun qrBitmap(text: String, size: Int = 720): Bitmap {
     val m = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, mapOf(EncodeHintType.MARGIN to 2))
     val px = IntArray(size * size) { i -> if (m[i % size, i / size]) 0xFF000000.toInt() else 0xFFFFFFFF.toInt() }
@@ -59,10 +60,10 @@ fun qrBitmap(text: String, size: Int = 720): Bitmap {
 @Composable
 fun QrImage(text: String, modifier: Modifier = Modifier) {
     val bmp = remember(text) { qrBitmap(text).asImageBitmap() }
-    Image(bmp, contentDescription = "QR-Code zum Koppeln", modifier = modifier.clip(RoundedCornerShape(12.dp)))
+    Image(bmp, contentDescription = tr("QR code for pairing"), modifier = modifier.clip(RoundedCornerShape(12.dp)))
 }
 
-/** Liest Y-Ebene eines Kamerabilds und sucht einen QR-Code darin. */
+/** Reads the Y plane of a camera frame and looks for a QR code in it. */
 private class QrAnalyzer(private val onText: (String) -> Unit) : ImageAnalysis.Analyzer {
     private val reader = MultiFormatReader().apply {
         setHints(mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE), DecodeHintType.TRY_HARDER to true))
@@ -76,7 +77,7 @@ private class QrAnalyzer(private val onText: (String) -> Unit) : ImageAnalysis.A
             val source = PlanarYUVLuminanceSource(data, plane.rowStride, image.height, 0, 0, image.width, image.height, false)
             onText(reader.decodeWithState(BinaryBitmap(HybridBinarizer(source))).text)
         } catch (_: NotFoundException) {
-            // kein Code in diesem Bild
+            // no code in this frame
         } finally {
             reader.reset()
             image.close()
@@ -84,7 +85,7 @@ private class QrAnalyzer(private val onText: (String) -> Unit) : ImageAnalysis.A
     }
 }
 
-/** Kameravorschau, die beim ersten erkannten QR-Code onResult aufruft. Fragt selbst nach der Kamera. */
+/** Camera preview that calls onResult at the first QR code recognised. Asks for the camera itself. */
 @Composable
 fun QrScanner(onResult: (String) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -101,7 +102,7 @@ fun QrScanner(onResult: (String) -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(K.Sunken),
         contentAlignment = Alignment.Center) {
         if (!granted) {
-            Text("Kamera nicht erlaubt – Code stattdessen eintippen.", style = MaterialTheme.typography.bodyMedium,
+            Text(tr("Camera not allowed – type the code instead."), style = MaterialTheme.typography.bodyMedium,
                 color = K.Muted, modifier = Modifier.padding(16.dp))
             return@Box
         }

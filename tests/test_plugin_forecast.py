@@ -67,7 +67,7 @@ def test_purge_missing_when_the_profile_does_not_report_it(ks):
     assert fc["purge_missing"] and fc["changes"] == 8
     assert [r["loads"] for r in fc["rows"]] == [5, 4]
     assert any("make-profile.py" in w for w in ks.forecast_warnings(fc))
-    assert "fehlt" in ks.forecast_html(fc)
+    assert "missing" in ks.forecast_html(fc)
     single = ks.build_forecast({"filaments": [fil(0, 1000)], "transitions": [{"from": None, "to": 0, "count": 1}]},
                                slots(900))
     assert not single["purge_missing"]           # einfarbig: kein Wechsel, nichts zu spuelen
@@ -80,7 +80,7 @@ def test_short_and_tight(ks):
     assert by[1]["status"] == "short" and by[3]["status"] == "tight"
     assert fc["short"] == [1] and fc["tight"] == [3]
     w = ks.forecast_warnings(fc)
-    assert w[0].startswith("Slot 1: braucht ca.") and "knapp" in w[1]
+    assert w[0].startswith("Slot 1: needs about") and "tight" in w[1]
 
 
 def test_orca_flush_and_tower_are_included(ks):
@@ -135,12 +135,26 @@ def test_panel_html_uses_orca_terms(ks):
              "transitions": [{"from": None, "to": 0, "count": 1}, {"from": 0, "to": 1, "count": 1}]}
     fc = ks.build_forecast(stats, slots(580, 50))
     html = ks.forecast_html(fc)
-    assert "Platte 1" in html and "Details" in html
-    for word in ("Filament", "Modell", "Gereinigt", "Turm", "Gesamt", "Rest"):
+    assert "Plate 1" in html and "Details" in html
+    for word in ("Filament", "Model", "Flushed", "Tower", "Total", "Rest"):
         assert word in html
-    assert "Stützen" not in html                                     # leere Spalten wie in Orca weglassen
-    assert "reicht nicht" in html                                   # Slot 2 reicht nicht
-    assert "1 Farbwechsel (von Orca gezählt)" in html
+    assert "Support" not in html                                     # leave out empty columns like Orca
+    assert "not enough" in html                                      # slot 2 is not enough
+    assert "1 colour changes (counted by Orca)" in html
+
+
+def test_panel_html_in_german(ks):
+    stats = {"plate_index": 0, "filaments": [fil(0, 1400, tower_mm=10), fil(1, 30000, flush_mm=300)],
+             "transitions": [{"from": None, "to": 0, "count": 1}, {"from": 0, "to": 1, "count": 1}]}
+    fc = ks.build_forecast(stats, slots(580, 50))
+    ks.LANG["current"] = "de"
+    try:
+        html = ks.forecast_html(fc)
+        assert "Platte 1" in html and "Gereinigt" in html and "reicht nicht" in html   # i18n: keep
+        assert "1 Farbwechsel (von Orca gezählt)" in html                              # i18n: keep
+        assert ks.forecast_warnings(fc)[0].startswith("Slot 2: braucht ca.")           # i18n: keep
+    finally:
+        ks.LANG["current"] = "en"
 
 
 def test_without_patch_there_is_no_preview(ks):

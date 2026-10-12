@@ -1,18 +1,19 @@
 package io.github.xnovosx.kobraspoolman.monitor
 
 import io.github.xnovosx.kobraspoolman.data.AppState
+import io.github.xnovosx.kobraspoolman.data.tr
 import kotlin.math.abs
 
-/** Art einer Benachrichtigung - je Art ein eigener Android-Kanal mit eigenem Ton (einzeln einstellbar). */
+/** Kind of notification - one Android channel per kind with its own sound (adjustable separately). */
 enum class EventKind { START, LAYER, DONE, ALARM, HINT }
 
-/** Ein Ereignis fuer eine Benachrichtigung. key: dieselbe Meldung ersetzt sich selbst statt zu stapeln. */
+/** An event for a notification. key: the same message replaces itself instead of stacking. */
 data class PrintEvent(val kind: EventKind, val title: String, val text: String, val key: String,
                       val aiEvent: String? = null)
 
 /**
- * Erkennt aus aufeinanderfolgenden Abfragen der Bridge, was gemeldet werden soll (ohne Android - testbar).
- * state = null heisst: Bridge nicht erreichbar.
+ * Detects from consecutive bridge queries what should be reported (without Android - testable).
+ * state = null means: bridge not reachable.
  */
 class EventDetector(
     private val changeStuckMs: Long = 3 * 60_000L,
@@ -29,7 +30,7 @@ class EventDetector(
     private var changeAlarmed = false
     private var coldSince: Long? = null
     private var coldAlarmed = false
-    // Duese: erst wenn das Soll einmal erreicht war, ist "darunter" ein Abkuehlen (sonst Aufheizen)
+    // nozzle: only once the target was reached is "below" a cool-down (otherwise heating up)
     private var nozzleTarget = 0.0
     private var nozzleReached = false
     private var errorSince: Long? = null
@@ -42,7 +43,7 @@ class EventDetector(
     private var spoolmanSince: Long? = null
     private val noticeKeys = mutableSetOf<String>()
 
-    /** Diese Meldungen der Bridge deckt der Druckzustand schon ab (sonst doppelt). */
+    /** These bridge messages are already covered by the print state (else duplicate). */
     private val ownKeys = setOf("printer", "klippy", "paused", "error", "done", "camera", "rfid")
 
     fun update(state: AppState?, now: Long): List<PrintEvent> {
@@ -51,22 +52,22 @@ class EventDetector(
             val since = bridgeGoneSince ?: now.also { bridgeGoneSince = it }
             if (wasPrinting && !bridgeAlarmed && now - since >= goneMs) {
                 bridgeAlarmed = true
-                out += PrintEvent(EventKind.ALARM, "Bridge nicht erreichbar",
-                    "Seit über einer Minute keine Verbindung – der Druck lief zuletzt noch.", "bridge")
+                out += PrintEvent(EventKind.ALARM, tr("Bridge not reachable"),
+                    tr("No connection for over a minute – the print was still running."), "bridge")
             }
             return out
         }
-        if (bridgeAlarmed) out += PrintEvent(EventKind.HINT, "Bridge wieder erreichbar", "Verbindung steht wieder.", "bridge")
+        if (bridgeAlarmed) out += PrintEvent(EventKind.HINT, tr("Bridge reachable again"), tr("Connection is back."), "bridge")
         bridgeGoneSince = null
         bridgeAlarmed = false
 
         val p = state.printer
         val st = p.state
         val printing = st == "printing" || st == "paused"
-        val file = p.file?.substringAfterLast('/')?.removeSuffix(".gcode") ?: "Druck"
+        val file = p.file?.substringAfterLast('/')?.removeSuffix(".gcode") ?: tr("Print")
         val prev = prevState
         if (prev == null) {
-            // erster Stand nach dem Start des Dienstes: nur merken, nichts melden, was schon vorher so war
+            // first state after the service started: only remember, report nothing that was already so
             prevState = st
             wasPrinting = printing
             if (printing && (p.layer ?: 0) >= 2) firstLayerFile = file
@@ -74,47 +75,47 @@ class EventDetector(
             return out
         }
 
-        // ---- Druckzustand
+        // ---- print state
         if (prev != st) {
             val was = prev == "printing" || prev == "paused"
-            // Pause/Abbruch ueber Web oder App kam von dir - kein Alarm (die Live-Leiste zeigt "Pausiert")
+            // pause/cancel via web or app came from you - no alarm (the live bar shows "Paused")
             val lc = state.lastControl
             fun own(action: String) = lc != null && lc.action == action && abs(now - (lc.at * 1000).toLong()) < ownActionMs
             when {
                 st == "printing" && !was -> {
                     firstLayerFile = null
-                    out += PrintEvent(EventKind.START, "Druck gestartet", file, "state")
+                    out += PrintEvent(EventKind.START, tr("Print started"), file, "state")
                 }
-                st == "paused" && !own("pause") -> out += PrintEvent(EventKind.ALARM, "Druck pausiert",
+                st == "paused" && !own("pause") -> out += PrintEvent(EventKind.ALARM, tr("Print paused"),
                     listOfNotNull(file, p.message).joinToString(" – "), "state")
-                st == "complete" && was -> out += PrintEvent(EventKind.DONE, "Druck fertig",
+                st == "complete" && was -> out += PrintEvent(EventKind.DONE, tr("Print finished"),
                     file + (p.printDurationS?.let { " · ${formatDuration(it)}" } ?: ""), "state")
                 st == "cancelled" && was && !own("cancel") ->
-                    out += PrintEvent(EventKind.ALARM, "Druck abgebrochen", file, "state")
-                // "error" meldet GoKlipper in der Vorbereitung auch fuer < 1 s - erst unten nach errorMs melden
+                    out += PrintEvent(EventKind.ALARM, tr("Print cancelled"), file, "state")
+                // GoKlipper also reports "error" for < 1 s during preparation - only report below after errorMs
             }
         }
         prevState = st
 
-        // ---- Druckerfehler, der bleibt (kurzes Flackern in der Vorbereitung ignorieren)
+        // ---- printer error that stays (ignore brief flicker during preparation)
         if (st == "error") {
             val since = errorSince ?: now.also { errorSince = it }
             if (!errorAlarmed && now - since >= errorMs) {
                 errorAlarmed = true
-                out += PrintEvent(EventKind.ALARM, "Druckerfehler", p.message ?: "Der Drucker meldet einen Fehler.", "state")
+                out += PrintEvent(EventKind.ALARM, tr("Printer error"), p.message ?: tr("The printer reports an error."), "state")
             }
         } else {
             errorSince = null
             errorAlarmed = false
         }
 
-        // ---- Drucker weg (nur, wenn gerade gedruckt wurde)
+        // ---- printer gone (only while a print was running)
         if (st == "offline") {
             val since = printerGoneSince ?: now.also { printerGoneSince = it }
             if (wasPrinting && !printerAlarmed && now - since >= goneMs) {
                 printerAlarmed = true
-                out += PrintEvent(EventKind.ALARM, "Drucker nicht erreichbar",
-                    "Moonraker antwortet seit über einer Minute nicht – der Druck lief zuletzt noch.", "printer")
+                out += PrintEvent(EventKind.ALARM, tr("Printer not reachable"),
+                    tr("Moonraker has not answered for over a minute – the print was still running."), "printer")
             }
         } else {
             printerGoneSince = null
@@ -122,28 +123,28 @@ class EventDetector(
             wasPrinting = printing
         }
 
-        // ---- erste Schicht
+        // ---- first layer
         val layer = p.layer
         if (st == "printing" && layer != null && layer >= 2 && firstLayerFile != file) {
             firstLayerFile = file
-            out += PrintEvent(EventKind.LAYER, "Erste Schicht fertig", "$file – jetzt kurz aufs Bett schauen", "layer")
+            out += PrintEvent(EventKind.LAYER, tr("First layer done"), tr("{file} – have a quick look at the bed now", "file" to file), "layer")
         }
 
-        // ---- Farbwechsel haengt
+        // ---- colour change stuck
         if (st == "printing" && p.changingFilament) {
             val since = changingSince ?: now.also { changingSince = it }
             if (!changeAlarmed && now - since >= changeStuckMs) {
                 changeAlarmed = true
-                out += PrintEvent(EventKind.ALARM, "Farbwechsel hängt",
-                    "Seit ${(now - since) / 60_000} Minuten" + (p.mmuAction?.let { " – ACE: $it" } ?: ""), "change")
+                out += PrintEvent(EventKind.ALARM, tr("Colour change stuck"),
+                    tr("For {n} minutes", "n" to (now - since) / 60_000) + (p.mmuAction?.let { " – ACE: $it" } ?: ""), "change")
             }
         } else {
             changingSince = null
             changeAlarmed = false
         }
 
-        // ---- Duese kuehlt im Druck ab: nur wenn das Soll schon erreicht war (neues/hoeheres Soll = Aufheizen),
-        // erst ab Schicht 1 (Vorbereitung: Abtasten bei 140 degC, Aufheizen) und erst nach tempDropMs
+        // ---- nozzle cools down during the print: only if the target was reached (new/higher target = heating up),
+        // only from layer 1 (preparation: probing at 140 degC, heating) and only after tempDropMs
         val n = p.nozzle
         if (n == null || n.target <= 0 || n.target != nozzleTarget) {
             nozzleTarget = n?.target ?: 0.0
@@ -154,17 +155,17 @@ class EventDetector(
             val since = coldSince ?: now.also { coldSince = it }
             if (!coldAlarmed && now - since >= tempDropMs) {
                 coldAlarmed = true
-                out += PrintEvent(EventKind.ALARM, "Düsentemperatur fällt",
-                    "${n.temp.toInt()} °C statt ${n.target.toInt()} °C", "temp")
+                out += PrintEvent(EventKind.ALARM, tr("Nozzle temperature dropping"),
+                    tr("{temp} °C instead of {target} °C", "temp" to n.temp.toInt(), "target" to n.target.toInt()), "temp")
             }
         } else {
             coldSince = null
             coldAlarmed = false
         }
 
-        // ---- Meldungen der Bridge: nur, was man tun kann. Rot und "reicht nicht" -> Alarm; unbekannter Tag und
-        // Spoolman laenger weg -> Hinweis; alles andere (fast leer, offene Buchung, Feuchte ...) bleibt in der App.
-        // Gleiche Meldung = gleicher key (der Text aendert sich, z. B. "braucht noch 12 g" -> "11 g").
+        // ---- bridge messages: only what you can act on. Red and "not enough" -> alarm; unknown tag and
+        // Spoolman gone for longer -> hint; everything else (almost empty, open booking, moisture ...) stays in the app.
+        // Same message = same key (the text changes, e.g. "needs 12 g more" -> "11 g").
         val messages = state.notices?.messages.orEmpty()
         spoolmanSince = if (messages.any { it.key == "spoolman" }) spoolmanSince ?: now else null
         val current = messages.filter { m ->
@@ -178,8 +179,8 @@ class EventDetector(
             val alarm = m.level == "error" || m.key.startsWith("reach")
             val ai = m.key.startsWith("ai-") && m.key != "ai-down"
             out += PrintEvent(if (alarm) EventKind.ALARM else EventKind.HINT,
-                // KI: warn und fail teilen sich eine Benachrichtigung - "Fehldruck" ersetzt "verdaechtig"
-                if (ai) "KI: möglicher Fehldruck" else if (alarm) "Achtung" else "Hinweis", m.text,
+                // AI: warn and fail share one notification - "failure" replaces "suspicious"
+                if (ai) tr("AI: possible failure") else if (alarm) tr("Attention") else tr("Note"), m.text,
                 if (ai) "notice-ai" else "notice-" + m.key,
                 aiEvent = if (ai) state.vision?.event?.id else null)
         }

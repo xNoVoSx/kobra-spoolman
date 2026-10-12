@@ -18,12 +18,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Immer dunkles Design -> helle Symbole in den Systemleisten, auch wenn das Handy hell eingestellt ist
+        // the per-app language may have changed (Android recreates the activity) - texts follow it
+        KobraApp.applyLanguage(this)
+        // Always the dark theme -> light icons in the system bars, even when the phone is set to light
         enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
         setContent { KobraTheme { AppRoot(vm, scanner) } }
     }
 
-    // NFC nur im Vordergrund: Reader-Modus faengt jeden Tag ab, solange die App offen ist
+    // NFC only in the foreground: reader mode catches every tag while the app is open
     override fun onResume() {
         super.onResume()
         scanner.resume(this)

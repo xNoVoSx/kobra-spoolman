@@ -13,10 +13,11 @@ import io.github.xnovosx.kobraspoolman.MainActivity
 import io.github.xnovosx.kobraspoolman.R
 import io.github.xnovosx.kobraspoolman.data.Printer
 import io.github.xnovosx.kobraspoolman.ui.Format
+import io.github.xnovosx.kobraspoolman.data.tr
 
 /**
- * Startbildschirm-Widget "Kobra Druck". Die Daten kommen vom Ueberwachungsdienst (MonitorService), der die Bridge
- * ohnehin abfragt - das Widget selbst fragt nichts ab. Ohne Dienst zeigt es den letzten Stand bzw. einen Hinweis.
+ * Home screen widget "Kobra print". The data comes from the monitoring service (MonitorService), which queries the
+ * bridge anyway - the widget itself queries nothing. Without the service it shows the last state or a hint.
  */
 class PrintWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
@@ -32,7 +33,7 @@ class PrintWidget : AppWidgetProvider() {
         private fun ids(context: Context): IntArray =
             AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, PrintWidget::class.java))
 
-        /** Vom Dienst nach jedem Abruf. Kamerabild klein halten (RemoteViews-Grenze ~1 MB). */
+        /** From the service after every query. Keep the camera image small (RemoteViews limit ~1 MB). */
         fun update(context: Context, p: Printer?, camera: Bitmap?, reachable: Boolean) {
             if (ids(context).isEmpty()) return
             last = p
@@ -56,21 +57,16 @@ class PrintWidget : AppWidgetProvider() {
             val file = p?.file?.substringAfterLast('/')?.removeSuffix(".gcode")
             val title = when {
                 monitorOff -> "Kobra S1"
-                !reachable -> "Kobra S1 · Bridge nicht erreichbar"
+                !reachable -> "Kobra S1 · " + tr("Bridge not reachable")
                 p == null -> "Kobra S1"
-                running && p.state == "paused" -> "Pausiert · $pct %"
-                running -> "$pct % · ${file ?: "Druck"}"
+                running && p.state == "paused" -> tr("Paused · {pct} %", "pct" to pct)
+                running -> "$pct % · ${file ?: tr("Print")}"
                 else -> "Kobra S1 · ${Format.stateLabel(p)}"
             }
             val sub = when {
-                monitorOff -> "Überwachung aus – in der App unter Einstellungen einschalten"
-                running && p != null -> listOfNotNull(
-                    Format.extraPhase(p),
-                    p.etaS?.let { "noch ${Format.duration(it)}" },
-                    p.etaS?.let { "fertig ${Format.finishAt(it)}" },
-                    if (p.layer != null && p.layers != null) "Schicht ${p.layer}/${p.layers}" else null,
-                ).joinToString(" · ")
-                else -> "Kein Druck"
+                monitorOff -> tr("Monitoring off – switch it on in the app under Settings")
+                running && p != null -> Format.progressLine(p)
+                else -> tr("No print")
             }
             v.setTextViewText(R.id.widget_title, title)
             v.setTextViewText(R.id.widget_sub, sub)

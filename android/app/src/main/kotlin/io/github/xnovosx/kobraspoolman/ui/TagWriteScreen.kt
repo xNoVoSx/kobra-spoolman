@@ -30,6 +30,7 @@ import io.github.xnovosx.kobraspoolman.BuildConfig
 import io.github.xnovosx.kobraspoolman.nfc.TagScanner
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
+import io.github.xnovosx.kobraspoolman.data.tr
 
 @Composable
 fun TagWriteScreen(
@@ -48,8 +49,8 @@ fun TagWriteScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RoundIconButton(KIcons.Back, "Zurück", onCancel)
-            Text(if (job?.side == 2) "Tag 2 von 2" else "Tag 1 von 2", style = MaterialTheme.typography.headlineSmall)
+            RoundIconButton(KIcons.Back, tr("Back"), onCancel)
+            Text(if (job?.side == 2) tr("Tag 2 of 2") else tr("Tag 1 of 2"), style = MaterialTheme.typography.headlineSmall)
         }
         Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
             Box(Modifier.size(232.dp).clip(CircleShape).border(1.dp, K.AccentSoft, CircleShape), contentAlignment = Alignment.Center) {
@@ -63,42 +64,41 @@ fun TagWriteScreen(
             }
         }
         Text(when {
-            job == null -> "Tag-Inhalt wird vorbereitet …"
-            job.side == 2 -> "Zweiten Sticker ans Handy halten"
-            else -> "Ersten Sticker ans Handy halten"
+            job == null -> tr("Preparing the tag content …")
+            job.side == 2 -> tr("Hold the second sticker to the phone")
+            else -> tr("Hold the first sticker to the phone")
         },
             style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Text(when {
-            !scanner.nfcAvailable -> "Dieses Gerät hat kein NFC."
-            !scanner.nfcEnabled -> "NFC ist ausgeschaltet – in den Android-Einstellungen einschalten."
-            else -> "Mitte der Handy-Rückseite auf den Sticker. Nicht bewegen, bis die Meldung kommt."
+            !scanner.nfcAvailable -> tr("This device has no NFC.")
+            !scanner.nfcEnabled -> tr("NFC is switched off – switch it on in the Android settings.")
+            else -> tr("Centre of the phone's back onto the sticker. Don't move until the message comes.")
         }, style = MaterialTheme.typography.bodyMedium, color = K.Muted, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth())
 
         if (job != null) {
-            SectionLabel("Wird geschrieben", Modifier.padding(top = 8.dp))
+            SectionLabel(tr("Being written"), Modifier.padding(top = 8.dp))
             val a = job.ace
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.Surface)
                 .border(1.dp, K.Line, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 4.dp)) {
-                InfoRow("Spule", "#${job.spoolId}")
-                InfoRow("SKU / Tag-Nummer", a.sku)
-                InfoRow("Marke", a.brand)
-                InfoRow("Material", a.material)
-                InfoRow("Farbe", "#${a.color}", swatch = a.color)
-                InfoRow("Düse", "${a.nozzleMin}–${a.nozzleMax} °C")
-                InfoRow("Bett", "${a.bedMin}–${a.bedMax} °C")
-                InfoRow("Menge", "${a.weightG} g · ${a.lengthM} m", last = true)
+                InfoRow(tr("Spool"), "#${job.spoolId}")
+                InfoRow(tr("SKU / tag number"), a.sku)
+                InfoRow(tr("Brand"), a.brand)
+                InfoRow(tr("Material"), a.material)
+                InfoRow(tr("Colour"), "#${a.color}", swatch = a.color)
+                InfoRow(tr("Nozzle"), "${a.nozzleMin}–${a.nozzleMax} °C")
+                InfoRow(tr("Bed"), "${a.bedMin}–${a.bedMax} °C")
+                InfoRow(tr("Amount"), "${a.weightG} g · ${a.lengthM} m", last = true)
             }
-            Hint(if (job.side == 2) "Für die andere Spulenseite: Die ACE 2 Pro liest nur die Seite zum Leser. Beide Sticker bekommen denselben Inhalt."
-                 else "Die ACE 2 Pro braucht einen Sticker pro Spulenseite – gleich danach kommt der zweite. " +
-                     "Original-Anycubic-Tags sind schreibgeschützt – dafür leere NTAG213/215/216-Sticker nehmen.")
+            Hint(if (job.side == 2) tr("For the other spool side: the ACE 2 Pro reads only the side facing the reader. Both stickers get the same content.")
+                 else tr("The ACE 2 Pro needs one sticker per spool side – the second one follows right after. Original Anycubic tags are write-protected – use empty NTAG213/215/216 stickers."))
             if (BuildConfig.DEBUG) {
                 TextButton(onClick = { scanner.simulate(TagScanner.randomUid()) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Virtuellen Tag beschreiben (Test ohne NFC)", color = K.Accent)
+                    Text(tr("Write a virtual tag (test without NFC)"), color = K.Accent)
                 }
             }
         }
-        SecondaryButton(if (job?.side == 2) "Fertig – nur ein Tag" else "Später schreiben", onCancel, Modifier.fillMaxWidth())
+        SecondaryButton(if (job?.side == 2) tr("Done – only one tag") else tr("Write later"), onCancel, Modifier.fillMaxWidth())
     }
 }
 

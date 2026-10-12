@@ -10,14 +10,15 @@ import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import java.io.File
+import io.github.xnovosx.kobraspoolman.data.tr
 
 /**
- * Installiert eine von der Bridge geladene APK ueber den PackageInstaller. Android fragt dabei immer selbst
- * nach ("Aktualisieren?") - still im Hintergrund geht das ausserhalb des Play Store nicht.
- * Voraussetzung: einmalig "Unbekannte Apps installieren" fuer diese App erlauben.
+ * Installs an APK loaded from the bridge via the PackageInstaller. Android always asks itself ("Update?") - silently
+ * in the background that is not possible outside the Play Store.
+ * Requirement: allow "Install unknown apps" for this app once.
  */
 object Installer {
-    /** Darf die App Pakete installieren? Sonst zuerst die Einstellung oeffnen. */
+    /** May the app install packages? Else open the setting first. */
     fun allowed(context: Context): Boolean = context.packageManager.canRequestPackageInstalls()
 
     fun openPermission(context: Context) {
@@ -36,7 +37,7 @@ object Installer {
                 session.fsync(out)
             }
             val intent = Intent(context, InstallReceiver::class.java)
-            // MUTABLE: das System traegt Status und Bestaetigungs-Intent ein
+            // MUTABLE: the system fills in status and confirmation intent
             val pending = PendingIntent.getBroadcast(context, id, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
             session.commit(pending.intentSender)
@@ -44,20 +45,20 @@ object Installer {
     }
 }
 
-/** Ergebnis der Installation: Bestaetigung anzeigen oder Fehler melden. */
+/** Result of the installation: show the confirmation or report an error. */
 class InstallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                // die typisierte Variante gibt es erst ab Android 13 (API 33)
+                // the typed variant exists only from Android 13 (API 33)
                 val confirm = (if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
                     else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)) ?: return
                 context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
-            PackageInstaller.STATUS_SUCCESS -> Unit      // die App wird neu gestartet
+            PackageInstaller.STATUS_SUCCESS -> Unit      // the app is restarted
             else -> {
-                val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "Fehler $status"
-                Toast.makeText(context, "Update nicht installiert: $msg", Toast.LENGTH_LONG).show()
+                val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: tr("Error {status}", "status" to status)
+                Toast.makeText(context, tr("Update not installed: {message}", "message" to msg), Toast.LENGTH_LONG).show()
             }
         }
     }

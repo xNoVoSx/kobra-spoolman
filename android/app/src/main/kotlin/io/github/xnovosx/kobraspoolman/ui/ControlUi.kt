@@ -51,12 +51,13 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.roundToInt
+import io.github.xnovosx.kobraspoolman.data.tr
 
 private const val HOLD_MS = 2000
 
 /**
- * Drucksteuerung unter dem Druckstatus: Pause/Weiter, Abbrechen (Rueckfrage), Nachjustieren, Not-Aus
- * (2 s halten + Rueckfrage). Ist Klipper nicht bereit (Not-Aus, Fehler), Moonraker aber da: nur "Klipper neu laden".
+ * Print control below the print status: pause/resume, cancel (confirmation), tune, emergency stop (hold 2 s +
+ * confirmation). If Klipper is not ready (emergency stop, error) but Moonraker is there: only "Reload Klipper".
  */
 @Composable
 fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Unit) {
@@ -64,36 +65,35 @@ fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Uni
     if (p.state == "offline") {
         if (!p.moonrakerConnected || p.klippyReady) return
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Klipper ist nicht bereit.", style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.weight(1f))
-            PrimaryButton("Klipper neu laden", { ask = "firmware_restart" })
+            Text(tr("Klipper is not ready."), style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.weight(1f))
+            PrimaryButton(tr("Reload Klipper"), { ask = "firmware_restart" })
         }
-        if (ask == "firmware_restart") ConfirmDialog("Klipper neu laden?",
-            "Klipper ist nicht bereit (Not-Aus oder Fehler). Neu laden dauert einige Sekunden; die Achsen müssen danach " +
-                "neu referenziert werden.", "Neu laden",
-            onOk = { ask = null; onAction("firmware_restart", "Klipper wird neu geladen") }, onDismiss = { ask = null })
+        if (ask == "firmware_restart") ConfirmDialog(tr("Reload Klipper?"),
+            tr("Klipper is not ready (emergency stop or error). Reloading takes a few seconds; the axes must be homed again afterwards."), tr("Reload"),
+            onOk = { ask = null; onAction("firmware_restart", tr("Klipper is reloading")) }, onDismiss = { ask = null })
         return
     }
     val printing = p.state == "printing"
     val paused = p.state == "paused"
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (printing || paused) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (printing) SecondaryButton("Pause", { onAction("pause", "Pausiert") }, Modifier.weight(1f))
-            if (paused) PrimaryButton("Weiter", { onAction("resume", "Läuft weiter") }, Modifier.weight(1f))
-            SecondaryButton("Abbrechen", { ask = "cancel" }, Modifier.weight(1f))
+            if (printing) SecondaryButton(tr("Pause"), { onAction("pause", tr("Paused")) }, Modifier.weight(1f))
+            if (paused) PrimaryButton(tr("Resume"), { onAction("resume", tr("Running again")) }, Modifier.weight(1f))
+            SecondaryButton(tr("Cancel"), { ask = "cancel" }, Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            SecondaryButton("Nachjustieren", onTune, Modifier.weight(1f))
-            HoldButton("Not-Aus (halten)", Modifier.weight(1f)) { ask = "emergency_stop" }
+            SecondaryButton(tr("Tune"), onTune, Modifier.weight(1f))
+            HoldButton(tr("Emergency stop (hold)"), Modifier.weight(1f)) { ask = "emergency_stop" }
         }
     }
     when (ask) {
-        "cancel" -> ConfirmDialog("Druck abbrechen?",
-            "${p.file?.removeSuffix(".gcode") ?: "Laufender Druck"}${p.progress?.let { " · ${(it * 100).roundToInt()} %" } ?: ""}. " +
-                "Ein abgebrochener Druck lässt sich nicht fortsetzen.", "Druck abbrechen",
-            onOk = { ask = null; onAction("cancel", "Druck abgebrochen") }, onDismiss = { ask = null })
-        "emergency_stop" -> ConfirmDialog("Not-Aus auslösen?",
-            "Stoppt sofort alle Motoren und Heizungen. Danach Klipper neu laden (der Knopf erscheint hier).",
-            "Not-Aus", onOk = { ask = null; onAction("emergency_stop", "Not-Aus ausgelöst") }, onDismiss = { ask = null })
+        "cancel" -> ConfirmDialog(tr("Cancel the print?"),
+            "${p.file?.removeSuffix(".gcode") ?: tr("Running print")}${p.progress?.let { " · ${(it * 100).roundToInt()} %" } ?: ""}. " +
+                tr("A cancelled print cannot be resumed."), tr("Cancel print"),
+            onOk = { ask = null; onAction("cancel", tr("Print cancelled")) }, onDismiss = { ask = null })
+        "emergency_stop" -> ConfirmDialog(tr("Trigger the emergency stop?"),
+            tr("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here)."),
+            tr("Emergency stop"), onOk = { ask = null; onAction("emergency_stop", tr("Emergency stop triggered")) }, onDismiss = { ask = null })
     }
 }
 
@@ -102,10 +102,10 @@ private fun ConfirmDialog(title: String, text: String, ok: String, onOk: () -> U
     AlertDialog(onDismissRequest = onDismiss, containerColor = K.Surface,
         title = { Text(title) }, text = { Text(text) },
         confirmButton = { TextButton(onClick = onOk) { Text(ok, color = K.DangerText) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Zurück") } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Back")) } })
 }
 
-/** Loest erst aus, wenn HOLD_MS lang gedrueckt gehalten wurde; der Balken zeigt den Fortschritt. */
+/** Triggers only after being held for HOLD_MS; the bar shows the progress. */
 @Composable
 private fun HoldButton(label: String, modifier: Modifier, onHeld: () -> Unit) {
     val progress = remember { Animatable(0f) }
@@ -113,7 +113,7 @@ private fun HoldButton(label: String, modifier: Modifier, onHeld: () -> Unit) {
     Box(
         modifier.height(48.dp).clip(RoundedCornerShape(14.dp)).background(K.DangerSoft)
             .border(1.dp, K.DangerLine, RoundedCornerShape(14.dp))
-            .semantics { role = Role.Button; contentDescription = "$label – 2 Sekunden gedrückt halten" }
+            .semantics { role = Role.Button; contentDescription = tr("{label} – hold for 2 seconds", "label" to label) }
             .pointerInput(Unit) {
                 detectTapGestures(onPress = {
                     val job = scope.launch {
@@ -133,7 +133,7 @@ private fun HoldButton(label: String, modifier: Modifier, onHeld: () -> Unit) {
     }
 }
 
-// ====================================================================== Nachjustieren
+// ====================================================================== tune
 @Composable
 private fun TuneSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int,
                        presets: List<Int> = emptyList(), onChange: (Float) -> Unit) {
@@ -151,7 +151,7 @@ private fun TuneSlider(label: String, value: Float, range: ClosedFloatingPointRa
     }
 }
 
-/** Tempo, Fluss, Luefter, Solltemperaturen - gesendet wird nur, was geaendert wurde. */
+/** Speed, flow, fans, target temperatures - only what was changed is sent. */
 @Composable
 fun TuneSheet(p: Printer, onApply: (JsonObject) -> Unit) {
     val fans = p.fans.associateBy { it.key }
@@ -186,26 +186,26 @@ fun TuneSheet(p: Printer, onApply: (JsonObject) -> Unit) {
 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Nachjustieren", style = MaterialTheme.typography.titleLarge)
-        TuneSlider("Tempo", speed, 50f..200f, 29, listOf(50, 100, 150)) { speed = it }
-        TuneSlider("Fluss", flow, 90f..110f, 19, listOf(95, 100, 105)) { flow = it }
-        listOf("part" to "Bauteillüfter", "box" to "Gehäuselüfter", "filter" to "Luftfilter").forEach { (k, label) ->
+        Text(tr("Tune"), style = MaterialTheme.typography.titleLarge)
+        TuneSlider(tr("Speed"), speed, 50f..200f, 29, listOf(50, 100, 150)) { speed = it }
+        TuneSlider(tr("Flow"), flow, 90f..110f, 19, listOf(95, 100, 105)) { flow = it }
+        listOf("part" to tr("Part fan"), "box" to tr("Enclosure fan"), "filter" to tr("Air filter")).forEach { (k, label) ->
             if (fans.containsKey(k)) TuneSlider(label, fanVals.value[k] ?: 0f, 0f..100f, 19) { v -> fanVals.value = fanVals.value + (k to v) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(nozzle, { nozzle = it.filter(Char::isDigit).take(3); confirmHot = false },
-                label = { Text("Düse °C (ist ${p.nozzle?.temp?.roundToInt() ?: "–"})") }, singleLine = true,
+                label = { Text(tr("Nozzle °C (now {t})", "t" to (p.nozzle?.temp?.roundToInt() ?: "–"))) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
             OutlinedTextField(bed, { bed = it.filter(Char::isDigit).take(3) },
-                label = { Text("Bett °C (ist ${p.bed?.temp?.roundToInt() ?: "–"})") }, singleLine = true,
+                label = { Text(tr("Bed °C (now {t})", "t" to (p.bed?.temp?.roundToInt() ?: "–"))) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
         }
-        if (badTemp) Text("Düse 0–300 °C, Bett 0–110 °C", color = K.DangerText, style = MaterialTheme.typography.bodySmall)
-        if (confirmHot) Text("Düse über 260 °C – noch einmal tippen, um es trotzdem zu senden.", color = K.DangerText,
+        if (badTemp) Text(tr("Nozzle 0–300 °C, bed 0–110 °C"), color = K.DangerText, style = MaterialTheme.typography.bodySmall)
+        if (confirmHot) Text(tr("Nozzle above 260 °C – tap once more to send it anyway."), color = K.DangerText,
             style = MaterialTheme.typography.bodySmall)
-        Text("Gesendet wird nur, was du änderst. Der Slicer setzt Lüfter und Temperaturen evtl. später wieder.",
+        Text(tr("Only what you change is sent. The slicer may set fans and temperatures again later."),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
-        PrimaryButton(if (confirmHot) "Trotzdem senden" else "Übernehmen", {
+        PrimaryButton(if (confirmHot) tr("Send anyway") else tr("Apply"), {
             if ((n ?: 0) > 260 && !confirmHot && changes.containsKey("nozzle")) confirmHot = true
             else onApply(body(confirmHot))
         }, Modifier.fillMaxWidth(), enabled = changes.isNotEmpty() && !badTemp)

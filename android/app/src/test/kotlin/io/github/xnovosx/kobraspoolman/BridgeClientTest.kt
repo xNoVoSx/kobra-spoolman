@@ -18,13 +18,13 @@ class BridgeClientTest {
     @Before fun start() = server.start()
     @After fun stop() = server.close()
 
-    private fun client(token: String = "geheim") = BridgeClient(server.url("/").toString(), token)
+    private fun client(token: String = "secret") = BridgeClient(server.url("/").toString(), token)
     private fun reply(code: Int, body: String) = server.enqueue(MockResponse.Builder().code(code).body(body).build())
 
     @Test fun state_is_parsed_and_unknown_fields_ignored() = runTest {
-        reply(200, """{"version":"2.4.0","neu":1,"printer":{"state":"printing","progress":0.42,"eta_s":1740,"active_slot":1},
+        reply(200, """{"version":"2.4.0","new":1,"printer":{"state":"printing","progress":0.42,"eta_s":1740,"active_slot":1},
             "can_write":true,"slots":[{"slot":1,"ace":{"present":true,"active":true,"material":"PETG","color":"685BC7","tag_id":0},
-            "hints":[],"spool":{"spool_id":1,"display_name":"Sunlu PETG 2.0 Lavendelviolett","remaining_weight":972.6,"color":"685BC7"}}],
+            "hints":[],"spool":{"spool_id":1,"display_name":"Sunlu PETG 2.0 Lavender","remaining_weight":972.6,"color":"685BC7"}}],
             "shelf":[],"warnings":[]}""")
         val st = client().state()
         assertEquals("printing", st.printer.state)
@@ -32,13 +32,14 @@ class BridgeClientTest {
         assertEquals(1, st.slots.single().spool!!.spoolId)
         val req = server.takeRequest()
         assertEquals("/api/app/state", req.url.encodedPath)
-        assertEquals("Bearer geheim", req.headers["Authorization"])   // Geraet auch beim Lesen erkennbar
+        assertEquals("Bearer secret", req.headers["Authorization"])   // the device is recognisable when reading too
+        assertEquals("en", req.headers["X-Lang"])                      // bridge messages in the app language
     }
 
     @Test fun null_in_a_list_field_does_not_break_the_state() = runTest {
-        // Bridge 3.11.0 nach gescheiterter PA-Messung: "k":null - die App darf daran nicht scheitern
+        // bridge 3.11.0 after a failed PA measurement: "k":null - the app must not fail on it
         reply(200, """{"version":"3.11.0","printer":{"state":"printing"},"slots":[],"shelf":[],
-            "pa":{"present":true,"slots":[],"last":{"t":3,"kind":"error","speeds":null,"k":null,"message":"außer Bereich"}}}""")
+            "pa":{"present":true,"slots":[],"last":{"t":3,"kind":"error","speeds":null,"k":null,"message":"out of range"}}}""")
         val st = client().state()
         assertEquals(emptyList<Double>(), st.pa!!.last!!.k)
         assertEquals("error", st.pa!!.last!!.kind)
@@ -47,13 +48,13 @@ class BridgeClientTest {
 
     @Test fun usb_watchdog_state_and_switch() = runTest {
         reply(200, """{"version":"3.11.0","printer":{"state":"standby"},"slots":[],"shelf":[],
-            "usb":{"available":true,"alive":true,"state":"warn","detail":"verbindet … Versuch 2/10","gadget":"default",
+            "usb":{"available":true,"alive":true,"state":"warn","detail":"connecting … attempt 2/10","gadget":"default",
             "switches":{"watch":true,"auto_restart":true,"full_speed":false},
-            "events":[{"at":1791674913,"text":"neu anstecken, Versuch 2/10"}],"at":1791674920}}""")
+            "events":[{"at":1791674913,"text":"reconnecting, attempt 2/10"}],"at":1791674920}}""")
         val st = client().state()
         assertEquals("warn", st.usb!!.state)
         assertEquals(true, st.usb!!.switches["watch"])
-        assertEquals("neu anstecken, Versuch 2/10", st.usb!!.events.single().text)
+        assertEquals("reconnecting, attempt 2/10", st.usb!!.events.single().text)
         server.takeRequest()
         reply(200, """{"ok":true,"key":"usb_full_speed","value":true}""")
         client().setSwitch("usb_full_speed", true)
@@ -65,18 +66,18 @@ class BridgeClientTest {
         val sp = client().createSpool(NewSpool(filamentId = 20, initialWeight = 1000.0, slot = 2))
         assertEquals(9, sp.spoolId)
         val req = server.takeRequest()
-        assertEquals("Bearer geheim", req.headers["Authorization"])
+        assertEquals("Bearer secret", req.headers["Authorization"])
         assertEquals("""{"filament_id":20,"initial_weight":1000.0,"slot":2}""", req.body!!.utf8())
     }
 
     @Test fun bridge_error_message_is_passed_on() = runTest {
-        reply(409, """{"error":"Dieser Tag gehoert schon zu Spule #3"}""")
+        reply(409, """{"error":"This tag already belongs to spool #3"}""")
         try {
             client().linkTag(1, "04A1B2C3D4E5F6")
-            fail("erwartet BridgeException")
+            fail("expected BridgeException")
         } catch (e: BridgeException) {
             assertEquals(409, e.status)
-            assertEquals("Dieser Tag gehoert schon zu Spule #3", e.message)
+            assertEquals("This tag already belongs to spool #3", e.message)
         }
     }
 }

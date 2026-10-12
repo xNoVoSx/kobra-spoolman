@@ -56,6 +56,7 @@ import io.github.xnovosx.kobraspoolman.BuildConfig
 import io.github.xnovosx.kobraspoolman.data.SpoolInfo
 import io.github.xnovosx.kobraspoolman.nfc.TagScanner
 import io.github.xnovosx.kobraspoolman.ui.theme.K
+import io.github.xnovosx.kobraspoolman.data.tr
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,12 +85,12 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     val slotCount = state?.slots?.size?.takeIf { it > 0 } ?: 4
     val canWrite = state?.canWrite == true && connection?.token?.isNotBlank() == true
 
-    // Android 17: Zugriff aufs Heimnetz (Bridge) braucht eine Berechtigung, sonst haengt jede Verbindung
+    // Android 17: access to the home network (bridge) needs a permission, else every connection hangs
     val context = LocalContext.current
     var lanGranted by remember { mutableStateOf(LocalNetwork.granted(context)) }
     val lanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { lanGranted = it }
     LaunchedEffect(Unit) { if (!lanGranted) lanLauncher.launch(LocalNetwork.PERMISSION) }
-    // Benachrichtigungen (Druck-Ueberwachung) brauchen ab Android 13 eine Erlaubnis - nach der fuers Heimnetz fragen
+    // notifications (print monitoring) need a permission from Android 13 - ask after the one for the home network
     val notifyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.ensureMonitor() }
     LaunchedEffect(lanGranted, connection?.configured) {
         if (connection?.configured != true || !lanGranted) return@LaunchedEffect
@@ -99,7 +100,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     }
     val askLan = { lanLauncher.launch(LocalNetwork.PERMISSION) }
 
-    // Nur im Vordergrund die Bridge abfragen
+    // query the bridge only in the foreground
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(connection) {
         if (connection?.configured != true) return@LaunchedEffect
@@ -109,7 +110,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
         }
     }
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(it) } }
-    // Einmal pro Start nachsehen, ob die Bridge eine neuere App mitbringt
+    // once per start check whether the bridge brings a newer app
     LaunchedEffect(connection?.configured) { if (connection?.configured == true) vm.checkUpdate() }
     val hasUpdate = vm.appUpdate.collectAsState().value != null
     LaunchedEffect(Unit) { scanner.tags.collect { vm.onTag(it) } }
@@ -128,13 +129,13 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             }
         }
     }
-    val c = connection ?: return   // Einstellungen noch nicht geladen
+    val c = connection ?: return   // settings not loaded yet
 
     Scaffold(
         containerColor = K.Ground,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            // Auf den Haupt-Tabs; Unterseiten (Spule, Neue Spule, ...) haben eigene Zurueck-Knoepfe
+            // on the main tabs; sub pages (spool, new spool, ...) have their own back buttons
             if (route in TABS) BottomBar(
                 current = route,
                 notices = state?.notices?.messages.orEmpty().let { m -> m.size to (m.firstOrNull()?.level) },
@@ -203,7 +204,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onNewFilament = { nav.navigate("filament/new") },
                     onCancel = { nav.popBackStack() },
                     onCreate = { req ->
-                        // Nach dem Anlegen gleich den Tag beschreiben ("Spaeter" fuehrt zur Spulenkarte)
+                        // after creating, write the tag right away ("Later" leads to the spool card)
                         vm.createSpool(req, uid) { sp ->
                             nav.navigate("tag/${sp.spoolId}") { popUpTo("slots") }
                         }
@@ -287,42 +288,41 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     unknownTag?.let { uid ->
         AlertDialog(
             onDismissRequest = { unknownTag = null },
-            title = { Text("Unbekannter Tag") },
-            text = { Text("Dieser Tag ($uid) ist beschrieben, gehört aber noch zu keiner Spule – z. B. ein Original-Anycubic-Tag.") },
+            title = { Text(tr("Unknown tag")) },
+            text = { Text(tr("This tag ({uid}) is written but belongs to no spool yet – e.g. an original Anycubic tag.", "uid" to uid)) },
             confirmButton = {
-                TextButton(onClick = { unknownTag = null; nav.navigate("new?uid=$uid") }) { Text("Neue Spule") }
+                TextButton(onClick = { unknownTag = null; nav.navigate("new?uid=$uid") }) { Text(tr("New spool")) }
             },
             dismissButton = {
-                TextButton(onClick = { unknownTag = null; linkTagUid = uid }) { Text("Mit vorhandener verknüpfen") }
+                TextButton(onClick = { unknownTag = null; linkTagUid = uid }) { Text(tr("Link with an existing one")) }
             },
             containerColor = K.Surface,
         )
     }
-    // Leerer Sticker: nicht verknuepfen (er bliebe leer, die ACE koennte ihn nicht lesen), sondern beschreiben -
-    // fuer eine neue oder eine vorhandene Spule; danach fragt die App nach dem zweiten Sticker (andere Seite).
+    // Empty sticker: don't link it (it would stay empty, the ACE could not read it) but write it - for a new or an
+    // existing spool; afterwards the app asks for the second sticker (other side).
     blankTag?.let { uid ->
         AlertDialog(
             onDismissRequest = { blankTag = null },
-            title = { Text("Leerer Sticker") },
-            text = { Text("Dieser Sticker ist noch leer. Für welche Spule soll er beschrieben werden? " +
-                "Danach kommt gleich der zweite Sticker für die andere Spulenseite.") },
+            title = { Text(tr("Empty sticker")) },
+            text = { Text(tr("This sticker is still empty. Which spool should it be written for? The second sticker for the other spool side follows right after.")) },
             confirmButton = {
-                TextButton(onClick = { blankTag = null; writeFor = true }) { Text("Vorhandene Spule") }
+                TextButton(onClick = { blankTag = null; writeFor = true }) { Text(tr("Existing spool")) }
             },
             dismissButton = {
-                TextButton(onClick = { blankTag = null; nav.navigate("new") }) { Text("Neue Spule") }
+                TextButton(onClick = { blankTag = null; nav.navigate("new") }) { Text(tr("New spool")) }
             },
             containerColor = K.Surface,
         )
     }
     if (writeFor) {
         SpoolPicker(
-            title = "Sticker beschreiben für …",
+            title = tr("Write sticker for …"),
             spools = state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty(),
             onDismiss = { writeFor = false },
             onPick = { sp ->
                 writeFor = false
-                // hat die Spule schon einen Tag, ist dieser Sticker der zweite
+                // if the spool already has a tag, this sticker is the second one
                 val side = if (sp.nfcUids.size == 1 || (sp.nfcUids.isEmpty() && sp.nfcUid != null)) 2 else 1
                 nav.navigate("tag/${sp.spoolId}?side=$side")
             },
@@ -330,7 +330,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     }
     linkTagUid?.let { uid ->
         SpoolPicker(
-            title = "Tag verknüpfen mit …",
+            title = tr("Link tag with …"),
             spools = state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty(),
             onDismiss = { linkTagUid = null },
             onPick = { sp -> linkTagUid = null; vm.linkTag(sp.spoolId, uid) { nav.navigate("spool/${sp.spoolId}") } },
@@ -338,7 +338,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     }
     fillSlot?.let { slot ->
         SpoolPicker(
-            title = "Spule für Slot $slot",
+            title = tr("Spool for slot {slot}", "slot" to slot),
             spools = state?.shelf.orEmpty(),
             onDismiss = { fillSlot = null },
             onPick = { sp -> fillSlot = null; vm.moveSpool(sp.spoolId, slot) },
@@ -350,24 +350,24 @@ private fun allSpools(list: List<SpoolInfo>) = list.distinctBy { it.spoolId }
 
 private val TABS = setOf("slots", "notices", "filament", "more")
 
-/** Start · Meldungen (Zaehler: rot bei Fehlern, gelb bei Warnungen) · NFC · Filament · Mehr */
+/** Home · messages (counter: red on errors, yellow on warnings) · NFC · filament · more */
 @Composable
 private fun BottomBar(current: String?, notices: Pair<Int, String?>, hasUpdate: Boolean, onTab: (String) -> Unit, onScan: () -> Unit) {
     Box(Modifier.fillMaxWidth().background(K.Sunken).navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically) {
-            NavItem(KIcons.Grid, "Start", current == "slots") { onTab("slots") }
+            NavItem(KIcons.Grid, tr("Home"), current == "slots") { onTab("slots") }
             Box {
-                NavItem(KIcons.Bell, "Meldungen", current == "notices") { onTab("notices") }
+                NavItem(KIcons.Bell, tr("Messages"), current == "notices") { onTab("notices") }
                 val (n, level) = notices
                 if (n > 0 && level != "info") Text("$n", style = MaterialTheme.typography.labelSmall,
                     color = K.OnAccent, modifier = Modifier.align(Alignment.TopEnd).padding(end = 10.dp)
                         .clip(CircleShape).background(if (level == "error") K.Danger else K.Accent).padding(horizontal = 6.dp))
             }
             Box(Modifier.size(64.dp))
-            NavItem(KIcons.Spool, "Filament", current == "filament") { onTab("filament") }
+            NavItem(KIcons.Spool, tr("Filament"), current == "filament") { onTab("filament") }
             Box {
-                NavItem(KIcons.More, "Mehr", current == "more") { onTab("more") }
+                NavItem(KIcons.More, tr("More"), current == "more") { onTab("more") }
                 if (hasUpdate) Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 14.dp).size(9.dp)
                     .clip(CircleShape).background(K.Accent))
             }
@@ -376,7 +376,7 @@ private fun BottomBar(current: String?, notices: Pair<Int, String?>, hasUpdate: 
             Modifier.align(Alignment.TopCenter).offset(y = (-22).dp).size(68.dp).clip(CircleShape).background(K.Accent)
                 .border(4.dp, K.Ground, CircleShape).clickable(role = Role.Button, onClick = onScan),
             contentAlignment = Alignment.Center,
-        ) { Icon(KIcons.Nfc, contentDescription = "Scannen", tint = K.OnAccent, modifier = Modifier.size(30.dp)) }
+        ) { Icon(KIcons.Nfc, contentDescription = tr("Scan"), tint = K.OnAccent, modifier = Modifier.size(30.dp)) }
     }
 }
 
@@ -399,19 +399,19 @@ private fun ScanSheet(scanner: TagScanner, spools: List<SpoolInfo>) {
                 Icon(KIcons.Nfc, contentDescription = null, tint = K.Accent, modifier = Modifier.size(52.dp))
             }
         }
-        item { Text("Spule ans Handy halten", style = MaterialTheme.typography.titleLarge) }
+        item { Text(tr("Hold the spool to the phone"), style = MaterialTheme.typography.titleLarge) }
         item {
             Text(when {
-                !scanner.nfcAvailable -> "Dieses Gerät hat kein NFC."
-                !scanner.nfcEnabled -> "NFC ist ausgeschaltet – in den Android-Einstellungen einschalten."
-                else -> "Mitte der Handy-Rückseite auf den Tag der Spule."
+                !scanner.nfcAvailable -> tr("This device has no NFC.")
+                !scanner.nfcEnabled -> tr("NFC is switched off – switch it on in the Android settings.")
+                else -> tr("Centre of the phone's back onto the spool's tag.")
             }, style = MaterialTheme.typography.bodyMedium, color = K.Muted)
         }
         if (BuildConfig.DEBUG) {
-            item { SectionLabel("Virtuelle Tags (Test ohne NFC)", Modifier.fillMaxWidth().padding(top = 12.dp)) }
+            item { SectionLabel(tr("Virtual tags (test without NFC)"), Modifier.fillMaxWidth().padding(top = 12.dp)) }
             item {
                 TextButton(onClick = { scanner.simulate(TagScanner.randomUid()) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Neuer, leerer Tag", color = K.Accent)
+                    Text(tr("New, empty tag"), color = K.Accent)
                 }
             }
             items(spools.filter { it.nfcUid != null }, key = { it.spoolId }) { sp ->
@@ -427,12 +427,12 @@ private fun SpoolPicker(title: String, spools: List<SpoolInfo>, onDismiss: () ->
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            if (spools.isEmpty()) Text("Keine passende Spule.", color = K.Muted)
+            if (spools.isEmpty()) Text(tr("No matching spool."), color = K.Muted)
             else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(spools, key = { it.spoolId }) { ShelfRow(it) { onPick(it) } }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
         containerColor = K.Surface,
     )
 }

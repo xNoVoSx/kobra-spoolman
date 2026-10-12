@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 
-from . import __version__
+from . import __version__, i18n
 from .i18n import tr
 from .webcommon import Ctx, json_response, msg_of, _err
 
@@ -76,7 +76,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
                           "remaining_weight": sp["remaining_weight"] if sp else None,
                           "hints": sl["hints"]})
         return json_response({
-            "version": __version__, "print_state": bridge.slots.print_state,
+            "version": __version__, "language": i18n.default_lang(), "print_state": bridge.slots.print_state,
             "moonraker": bridge.moon.connected, "spoolman": bridge.sm.connected,
             "slots": slots, "profiles_hash": digest,
             "usage": {"live": bridge.usage.live(), "last": bridge.usage.last_by_slot(),

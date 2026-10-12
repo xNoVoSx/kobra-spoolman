@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Nur fuer Start und Systemleisten; die Oberflaeche selbst ist Compose (ui/theme) -->
+    <!-- Only for start and system bars; the UI itself is Compose (ui/theme) -->
     <style name="Theme.KobraSpoolman" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/ground</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

@@ -26,46 +26,46 @@ import io.github.xnovosx.kobraspoolman.data.UsbState
 import io.github.xnovosx.kobraspoolman.data.ResumeState
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import kotlin.math.roundToInt
+import io.github.xnovosx.kobraspoolman.data.tr
 
-/** Nach einem Stromausfall: Druck fortsetzen (mit Rueckfrage) oder verwerfen. Das Kamerabild steht direkt darueber. */
+/** After a power loss: resume the print (with confirmation) or discard it. The camera image is right above. */
 @Composable
 fun ResumeCard(r: ResumeState, canWrite: Boolean, onResume: (Boolean) -> Unit) {
     var ask by remember { mutableStateOf<Boolean?>(null) }
     val p = r.pending
     Column(Modifier.fillMaxWidth().border(1.dp, K.DangerText, RoundedCornerShape(18.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(if (r.running) "Druck wird fortgesetzt …" else "Druck unterbrochen", style = MaterialTheme.typography.titleMedium)
+        Text(if (r.running) tr("Resuming the print …") else tr("Print interrupted"), style = MaterialTheme.typography.titleMedium)
         p?.let {
-            Text("${it.file} · Schicht ${it.layer ?: "?"}" + (it.layers?.let { n -> " von $n" } ?: "") +
+            Text(it.file + " · " + (it.layers?.let { n -> tr("layer {layer} of {layers}", "layer" to (it.layer ?: "?"), "layers" to n) } ?: tr("layer {layer}", "layer" to (it.layer ?: "?"))) +
                 " · ${((it.progress ?: 0.0) * 100).roundToInt()} %", style = MaterialTheme.typography.bodySmall, color = K.Muted)
-            Text("Prüf im Kamerabild oben, ob das Teil noch fest auf dem Bett ist.", style = MaterialTheme.typography.bodySmall)
+            Text(tr("Check in the camera image above whether the part is still stuck to the bed."), style = MaterialTheme.typography.bodySmall)
         }
-        r.error?.let { Text("Fortsetzen abgebrochen: $it", style = MaterialTheme.typography.bodySmall, color = K.DangerText) }
+        r.error?.let { Text(tr("Resume cancelled: {error}", "error" to it), style = MaterialTheme.typography.bodySmall, color = K.DangerText) }
         if (p != null && !r.running && canWrite) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PrimaryButton("Fortsetzen …", { ask = true }, Modifier.weight(1f))
-            SecondaryButton("Verwerfen", { ask = false }, Modifier.weight(1f))
+            PrimaryButton(tr("Resume …"), { ask = true }, Modifier.weight(1f))
+            SecondaryButton(tr("Discard"), { ask = false }, Modifier.weight(1f))
         }
     }
     ask?.let { start ->
         AlertDialog(onDismissRequest = { ask = null }, containerColor = K.Surface,
-            title = { Text(if (start) "Druck fortsetzen?" else "Unterbrochenen Druck verwerfen?") },
-            text = { Text(if (start) "Ist das Teil noch fest? Der Drucker heizt das Bett, fährt X/Y nach Hause, tastet die " +
-                "Höhe auf dem Teil an und druckt an der Stelle weiter (einige Minuten). Passt die Höhe nicht, bricht er ab."
-                else "${p?.file} wird nicht fortgesetzt; die Sicherung wird gelöscht.") },
+            title = { Text(if (start) tr("Resume the print?") else tr("Discard the interrupted print?")) },
+            text = { Text(if (start) tr("Is the part still stuck? The printer heats the bed, homes X/Y, probes the height on the part and continues printing there (a few minutes). If the height does not fit, it stops.")
+                else tr("{file} is not resumed; the saved state is deleted.", "file" to p?.file)) },
             confirmButton = { TextButton(onClick = { ask = null; onResume(start) }) {
-                Text(if (start) "Fortsetzen" else "Verwerfen", color = if (start) K.Accent else K.DangerText) } },
-            dismissButton = { TextButton(onClick = { ask = null }) { Text("Zurück") } })
+                Text(if (start) tr("Resume print") else tr("Discard"), color = if (start) K.Accent else K.DangerText) } },
+            dismissButton = { TextButton(onClick = { ask = null }) { Text(tr("Back")) } })
     }
 }
 
-/** Schalter im ACE-Fenster: Fortsetzen nach Stromausfall an/aus (im Drucker gespeichert). */
+/** Switch in the ACE sheet: resume after power loss on/off (stored in the printer). */
 @Composable
 fun PowerlossSwitch(r: ResumeState, onSwitch: (Boolean) -> Unit) {
     if (!r.present) return
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
         Column(Modifier.weight(1f)) {
-            Text("Fortsetzen nach Stromausfall", style = MaterialTheme.typography.bodyLarge)
-            Text("Der Drucker sichert im Druck laufend die Stelle und fragt nach dem Einschalten, ob er weitermacht",
+            Text(tr("Resume after power loss"), style = MaterialTheme.typography.bodyLarge)
+            Text(tr("The printer keeps saving the position while printing and asks after switching on whether to continue"),
                 style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
         Switch(r.enabled == true, onSwitch,
@@ -73,14 +73,14 @@ fun PowerlossSwitch(r: ResumeState, onSwitch: (Boolean) -> Unit) {
     }
 }
 
-/** Schalter im ACE-Fenster: Verstopfung erkennen an/aus, bei Verdacht nur warnen oder pausieren. */
+/** Switch in the ACE sheet: clog detection on/off, on suspicion only warn or pause. */
 @Composable
 fun ClogSwitch(c: ClogState, onSwitch: (Boolean) -> Unit, onAction: (String) -> Unit) {
     if (!c.present) return
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
         Column(Modifier.weight(1f)) {
-            Text("Verstopfung erkennen", style = MaterialTheme.typography.bodyLarge)
-            Text("Vergleicht im Druck die Förderung des Extruders mit dem Encoder am Filament-Eingang",
+            Text(tr("Detect clogs"), style = MaterialTheme.typography.bodyLarge)
+            Text(tr("Compares, while printing, what the extruder pushes with the encoder at the filament inlet"),
                 style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
         Switch(c.enabled == true, onSwitch,
@@ -88,29 +88,29 @@ fun ClogSwitch(c: ClogState, onSwitch: (Boolean) -> Unit, onAction: (String) -> 
     }
     if (c.enabled == true) {
         Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Bei Verdacht", style = MaterialTheme.typography.bodySmall, color = K.Muted)
-            Segmented(listOf("warn" to "Nur warnen", "pause" to "Pausieren"), c.action ?: "warn") {
+            Text(tr("On suspicion"), style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            Segmented(listOf("warn" to tr("Warn only"), "pause" to tr("Pause")), c.action ?: "warn") {
                 if (it != c.action) onAction(it)
             }
         }
     }
     if (c.available == false) {
-        Text("Kein Encoder gefunden – Erkennung inaktiv", style = MaterialTheme.typography.bodySmall,
+        Text(tr("No encoder found – detection inactive"), style = MaterialTheme.typography.bodySmall,
             color = K.DangerText, modifier = Modifier.padding(top = 4.dp))
     }
     c.lastRatio?.let { r ->
-        Text("Zuletzt gemessen: ${(100 * r).roundToInt()} % (Grenze ${(100 * (c.minRatio ?: 0.0)).roundToInt()} %)",
+        Text(tr("Last measured: {pct} % (limit {min} %)", "pct" to (100 * r).roundToInt(), "min" to (100 * (c.minRatio ?: 0.0)).roundToInt()),
             style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
-private val USB_SWITCHES = listOf(
-    Triple("usb_watch", "watch", "USB selbst neu anstecken" to "Drucker an, aber nicht verbunden → der Klipper-Rechner steckt sich neu an"),
-    Triple("usb_auto_restart", "auto_restart", "Klipper danach neu laden" to "Wenn Klipper die Platinen verloren hat (nie im Druck)"),
-    Triple("usb_full_speed", "full_speed", "USB langsam, robust" to "12 Mbit/s – nur wenn die Verbindung trotz Wächter oft scheitert"),
+private val USB_SWITCHES get() = listOf(
+    Triple("usb_watch", "watch", tr("Reconnect USB automatically") to tr("Printer on but not connected → the Klipper computer reconnects itself")),
+    Triple("usb_auto_restart", "auto_restart", tr("Reload Klipper afterwards") to tr("When Klipper lost the boards (never during a print)")),
+    Triple("usb_full_speed", "full_speed", tr("Slow, robust USB (12 Mbit/s)") to tr("Only if the connection often fails despite the watchdog")),
 )
 
-/** ACE-Fenster: USB-Tunnel Drucker <-> Klipper-Rechner - Zustand und die drei Schalter des Waechters. */
+/** ACE sheet: USB tunnel printer <-> Klipper computer - state and the three switches of the watchdog. */
 @Composable
 fun UsbSection(u: UsbState, onSwitch: (String, Boolean) -> Unit) {
     if (!u.available) return
@@ -121,7 +121,7 @@ fun UsbSection(u: UsbState, onSwitch: (String, Boolean) -> Unit) {
         else -> K.Muted
     }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
-        Text("USB-Tunnel", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(tr("USB tunnel"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Text(u.detail, style = MaterialTheme.typography.bodySmall, color = colour)
     }
     USB_SWITCHES.forEach { (key, field, texts) ->

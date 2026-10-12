@@ -4,8 +4,8 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 
 /**
- * Inhalt des Kopplungs-QR-Codes: kobraspoolman://pair?b=<bridge-adresse>&c=<code>.
- * Die Weboberflaeche und die App zeigen ihn bei "Geraet hinzufuegen" an.
+ * Content of the pairing QR code: kobraspoolman://pair?b=<bridge-address>&c=<code>.
+ * The web UI and the app show it under "Add device".
  */
 data class PairLink(val bridge: String, val code: String) {
     fun toUri(): String = "kobraspoolman://pair?b=${URLEncoder.encode(bridge, "UTF-8")}&c=$code"

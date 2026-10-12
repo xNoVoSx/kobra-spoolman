@@ -36,15 +36,16 @@ import io.github.xnovosx.kobraspoolman.data.DryerConfig
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
 import kotlinx.serialization.json.JsonPrimitive
+import io.github.xnovosx.kobraspoolman.data.tr
 
 private val DryingBg = Color(0xFF231A10)
 private val DryingLine = Color(0xFF6B4A18)
 
-private val RUN_SOURCE = mapOf("hand" to "von Hand", "plan" to "geplant", "spule" to "nach dem Einlegen")
+private val RUN_SOURCE get() = mapOf("hand" to tr("by hand"), "plan" to tr("scheduled"), "spule" to tr("after inserting"))   // keys: stable API codes
 
 private fun num(v: Double?): String = v?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "?"
 
-/** Karte auf der Startseite: Feuchte, Temperatur, Trockner-Zustand. Tippen oeffnet die Steuerung. */
+/** Card on the home screen: humidity, temperature, dryer state. Tapping opens the controls. */
 @Composable
 fun DryerCard(d: Dryer, onOpen: () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
@@ -55,7 +56,7 @@ fun DryerCard(d: Dryer, onOpen: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column {
-            Text("FEUCHTE", style = MaterialTheme.typography.labelSmall, color = K.Muted)
+            Text(tr("HUMIDITY"), style = MaterialTheme.typography.labelSmall, color = K.Muted)
             Text("${num(d.humidity)} %", fontFamily = PlexMono, style = MaterialTheme.typography.titleLarge)
         }
         Column {
@@ -63,19 +64,19 @@ fun DryerCard(d: Dryer, onOpen: () -> Unit) {
             Text("${num(d.temp)} °C", fontFamily = PlexMono, style = MaterialTheme.typography.titleLarge)
         }
         Column(Modifier.weight(1f)) {
-            Text(if (d.drying) "Trocknet auf ${num(d.targetTemp)} °C" else "Trockner aus",
+            Text(if (d.drying) tr("Drying at {temp} °C", "temp" to num(d.targetTemp)) else tr("Dryer off"),
                 style = MaterialTheme.typography.bodyMedium, color = if (d.drying) K.Accent else K.Text)
             val sub = buildList {
-                if (d.drying && d.remainingMin != null) add("noch ${Format.duration(d.remainingMin * 60)}")
+                if (d.drying && d.remainingMin != null) add(tr("{time} left", "time" to Format.duration(d.remainingMin * 60)))
                 if (d.drying) d.run?.source?.let { RUN_SOURCE[it] }?.let { add(it) }
-                add(if (d.config.enabled) "Automatik ab ${num(d.config.startAbove)} %" else "Automatik aus")
+                add(if (d.config.enabled) tr("Automatic from {pct} %", "pct" to num(d.config.startAbove)) else tr("Automatic off"))
             }.joinToString(" · ")
             Text(sub, style = MaterialTheme.typography.bodySmall, color = K.Muted)
         }
     }
 }
 
-/** Inhalt des Trockner-Fensters: jetzt trocknen + Automatik. */
+/** Content of the dryer sheet: dry now + automatic. */
 @Composable
 fun DryerSheet(
     d: Dryer, ace: AceSettings?,
@@ -98,52 +99,51 @@ fun DryerSheet(
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("ACE", style = MaterialTheme.typography.headlineSmall)
-        Text("Feuchte ${num(d.humidity)} % · ACE ${num(d.temp)} °C" + (d.model?.let { " · $it" } ?: ""),
+        Text(tr("Humidity {h} % · ACE {t} °C", "h" to num(d.humidity), "t" to num(d.temp)) + (d.model?.let { " · $it" } ?: ""),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
 
-        SectionLabel("Jetzt trocknen", Modifier.padding(top = 8.dp))
-        val why = req.slots.filter { it.slot in req.limitedBy }.joinToString { "Slot ${it.slot} ${it.name}" }
-        Hint(if (req.temp != null) "Höchstens ${req.temp} °C" + (if (why.isNotBlank()) " – wegen $why" else "") +
-            ". Die Bridge geht nie darüber, auch wenn du mehr einträgst." else "Keine Spule eingelegt – Temperatur angeben.")
+        SectionLabel(tr("Dry now"), Modifier.padding(top = 8.dp))
+        val why = req.slots.filter { it.slot in req.limitedBy }.joinToString { tr("Slot {slot}", "slot" to it.slot) + " " + it.name }
+        Hint(if (req.temp != null) tr("At most {temp} °C", "temp" to req.temp) + (if (why.isNotBlank()) " – " + tr("because of {why}", "why" to why) else "") +
+            ". " + tr("The bridge never goes above it, even if you enter more.") else tr("No spool loaded – enter a temperature."))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NumField("Temperatur (°C)", temp, { temp = it }, Modifier.weight(1f), placeholder = req.temp?.toString())
-            NumField("Dauer (h)", hours, { hours = it }, Modifier.weight(1f))
+            NumField(tr("Temperature (°C)"), temp, { temp = it }, Modifier.weight(1f), placeholder = req.temp?.toString())
+            NumField(tr("Duration (h)"), hours, { hours = it }, Modifier.weight(1f))
         }
         d.run?.takeIf { d.drying && it.source != "auto" }?.let { r ->
-            Hint("Läuft ${RUN_SOURCE[r.source] ?: r.source} bis zum Ende der Zeit – auch wenn die ACE schon trocken " +
-                "meldet. Hört die ACE vorher auf, startet die Bridge sie mit der Restzeit neu.")
+            Hint(tr("Runs {source} until the time is up – even if the ACE already reports dry. If the ACE stops earlier, the bridge restarts it with the time left.", "source" to (RUN_SOURCE[r.source] ?: r.source)))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton(if (d.drying) "Neu starten" else "Trocknen starten",
+            PrimaryButton(if (d.drying) tr("Restart") else tr("Start drying"),
                 { onStart(temp.toDoubleOrNull()?.toInt(), hours.replace(',', '.').toDoubleOrNull()) }, Modifier.weight(1f))
-            if (d.drying) SecondaryButton("Stoppen", onStop, Modifier.weight(1f))
+            if (d.drying) SecondaryButton(tr("Stop"), onStop, Modifier.weight(1f))
         }
 
-        SectionLabel("Automatik", Modifier.padding(top = 12.dp))
+        SectionLabel(tr("Automatic"), Modifier.padding(top = 12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Automatisch trocknen", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(tr("Dry automatically"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Switch(c.enabled, { c = c.copy(enabled = it) },
                 colors = SwitchDefaults.colors(checkedTrackColor = K.Accent, checkedThumbColor = K.OnAccent))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NumField("Start ab (%)", startAbove, { startAbove = it }, Modifier.weight(1f))
-            NumField("Stopp unter (%)", stopBelow, { stopBelow = it }, Modifier.weight(1f))
+            NumField(tr("Start above (%)"), startAbove, { startAbove = it }, Modifier.weight(1f))
+            NumField(tr("Stop below (%)"), stopBelow, { stopBelow = it }, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NumField("Höchstdauer (h)", maxHours, { maxHours = it }, Modifier.weight(1f))
-            NumField("Pause danach (min)", pause, { pause = it }, Modifier.weight(1f))
+            NumField(tr("Max. duration (h)"), maxHours, { maxHours = it }, Modifier.weight(1f))
+            NumField(tr("Pause afterwards (min)"), pause, { pause = it }, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            NumField("Warten (min)", delay, { delay = it }, Modifier.weight(1f))
-            Text("So lange muss die Feuchte am Stück über der Schwelle liegen – Deckel kurz offen startet nichts.",
+            NumField(tr("Wait (min)"), delay, { delay = it }, Modifier.weight(1f))
+            Text(tr("Humidity must stay above the threshold this long in one go – a lid briefly open starts nothing."),
                 style = MaterialTheme.typography.bodySmall, color = K.Muted, modifier = Modifier.weight(1f))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Auch während eines Drucks", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(tr("Also during a print"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Switch(c.whilePrinting, { c = c.copy(whilePrinting = it) },
                 colors = SwitchDefaults.colors(checkedTrackColor = K.Accent, checkedThumbColor = K.OnAccent))
         }
-        PrimaryButton("Automatik speichern", {
+        PrimaryButton(tr("Save automatic"), {
             onSaveConfig(c.copy(
                 startAbove = startAbove.replace(',', '.').toDoubleOrNull() ?: c.startAbove,
                 stopBelow = stopBelow.replace(',', '.').toDoubleOrNull() ?: c.stopBelow,
@@ -152,13 +152,12 @@ fun DryerSheet(
                 startDelayMinutes = delay.replace(',', '.').toDoubleOrNull() ?: c.startDelayMinutes,
             ))
         }, Modifier.fillMaxWidth())
-        d.lastEvent?.let { Text("Zuletzt: ${it.text}", style = MaterialTheme.typography.bodySmall, color = K.Muted) }
+        d.lastEvent?.let { Text(tr("Last: {text}", "text" to it.text), style = MaterialTheme.typography.bodySmall, color = K.Muted) }
         DryPlanSection(d, onPlan, onClearPlan)
         humidity()
         ace?.let { AceSection(it, onOption) }
         pa()
-        Text("Die Temperatur richtet sich immer nach dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“ in " +
-            "Spoolman, sonst Startwert je Material) und geht nie über das, was die ACE kann (ACE 2 Pro: ${req.aceMax} °C).",
+        Text(tr("The temperature always follows the most sensitive loaded filament (field “Dry max.” in Spoolman, else a default per material) and never goes above what the ACE can do (ACE 2 Pro: {max} °C).", "max" to req.aceMax),
             style = MaterialTheme.typography.bodySmall, color = K.Faint)
     }
 }

@@ -4,8 +4,8 @@ import java.io.IOException
 import java.io.InputStream
 
 /**
- * Liest JPEG-Bilder aus einem multipart/x-mixed-replace-Strom (Restream der Bridge, mjpg-streamer).
- * Nutzt Content-Length, sonst die JPEG-Endmarke FF D9.
+ * Reads JPEG images from a multipart/x-mixed-replace stream (restream of the bridge, mjpg-streamer).
+ * Uses Content-Length, else the JPEG end marker FF D9.
  */
 class MjpegReader(private val input: InputStream) {
     private var buf = ByteArray(0)
@@ -26,11 +26,11 @@ class MjpegReader(private val input: InputStream) {
         return -1
     }
 
-    /** Naechstes Bild oder null am Ende des Stroms. */
+    /** Next image or null at the end of the stream. */
     fun next(): ByteArray? {
         var end = indexOf(HEAD_END)
         while (end < 0) {
-            if (buf.size > MAX_HEAD) throw IOException("Stream ohne erkennbare Bildgrenzen")
+            if (buf.size > MAX_HEAD) throw IOException("Stream without recognisable image boundaries")
             if (!fill()) return null
             end = indexOf(HEAD_END)
         }
@@ -41,7 +41,7 @@ class MjpegReader(private val input: InputStream) {
             ?.substringAfter(':')?.trim()?.toIntOrNull()
         val frame: ByteArray
         if (length != null) {
-            // direkt in ein passendes Feld lesen statt den Puffer staendig zu vergroessern
+            // read straight into a field of the right size instead of growing the buffer all the time
             frame = ByteArray(length)
             val have = minOf(buf.size, length)
             buf.copyInto(frame, 0, 0, have)

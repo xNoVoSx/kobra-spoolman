@@ -18,9 +18,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Druck-Ueberwachung im Hintergrund (ersetzt den OctoApp-Companion, der auf dem Drucker 64 % CPU frass):
- * fragt nur die Bridge ab - alle 5 s waehrend eines Drucks, sonst alle 30 s - und meldet Ereignisse.
- * Am Drucker kostet das nichts. Ein-/ausschalten: Einstellungen -> "Drucker im Hintergrund überwachen".
+ * Print monitoring in the background (replaces the OctoApp companion, which ate 64 % CPU on the printer): only
+ * queries the bridge - every 5 s during a print, else every 30 s - and reports events. It costs nothing on the
+ * printer. Switch on/off: Settings -> "Monitor the printer in the background".
  */
 class MonitorService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -56,14 +56,14 @@ class MonitorService : Service() {
             val p = state?.printer
             val running = p != null && (p.state == "printing" || p.state == "paused")
             val events = detector.update(state, now)
-            // Alarm mit frischem Kamerabild: man sieht sofort, was los ist
+            // alarm with a fresh camera image: you see at once what is going on
             if (events.any { it.kind == EventKind.ALARM } && state?.canWrite == true) {
                 camera = runCatching { client.image("/api/camera/snapshot.jpg") }.getOrNull()
                     ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) } ?: camera
                 lastCamera = now
             }
             events.forEach { Notifier.event(this, it, if (it.kind == EventKind.ALARM) camera else null) }
-            // Kamerabild fuer die Leiste: hoechstens einmal pro Minute (die Bridge holt es ohnehin nur einmal)
+            // camera image for the status bar: at most once a minute (the bridge fetches it only once anyway)
             if (running && state.canWrite && now - lastCamera > 60_000) {
                 lastCamera = now
                 camera = runCatching { client.image("/api/camera/snapshot.jpg") }.getOrNull()

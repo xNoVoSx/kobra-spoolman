@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Kodierung gegen das Speicherabbild eines Original-Tags (Anycubic PETG Schwarz, NTAG213, NFC Tools). */
+/** Encoding against the memory dump of an original tag (Anycubic PETG black, NTAG213, NFC Tools). */
 class AceTagTest {
     private val original: ByteArray = javaClass.getResourceAsStream("/anycubic_petg_black_ntag213.bin")!!.readBytes()
 
@@ -28,11 +28,11 @@ class AceTagTest {
     @Test fun encoding_reproduces_the_original_pages_4_to_31() {
         val pages = AceTag.decode(original)!!.encode()
         for (p in AceTag.FIRST..AceTag.LAST) {
-            assertArrayEquals("Seite $p", original.copyOfRange(p * 4, p * 4 + 4), pages.getValue(p))
+            assertArrayEquals("page $p", original.copyOfRange(p * 4, p * 4 + 4), pages.getValue(p))
         }
     }
 
-    /** Farbige Spule: bestaetigt die Reihenfolge A B G R (Silk Gruen #52D2BC). */
+    /** Coloured spool: confirms the order A B G R (silk green #52D2BC). */
     @Test fun coloured_original_tag_confirms_abgr() {
         val raw = javaClass.getResourceAsStream("/anycubic_pla_silk_green_ntag213.bin")!!.readBytes()
         val t = AceTag.decode(raw)!!
@@ -42,7 +42,7 @@ class AceTagTest {
         assertEquals(210 to 240, t.nozzleMin to t.nozzleMax)
         assertEquals(50 to 150, t.speedMin to t.speedMax)
         val pages = t.encode()
-        for (p in AceTag.FIRST..AceTag.LAST) assertArrayEquals("Seite $p", raw.copyOfRange(p * 4, p * 4 + 4), pages.getValue(p))
+        for (p in AceTag.FIRST..AceTag.LAST) assertArrayEquals("page $p", raw.copyOfRange(p * 4, p * 4 + 4), pages.getValue(p))
     }
 
     @Test fun colour_order_and_black() {
@@ -55,6 +55,6 @@ class AceTagTest {
         val bytes = ByteArray(45 * 4)
         t.encode().forEach { (p, b) -> b.copyInto(bytes, p * 4) }
         assertEquals(t, AceTag.decode(bytes))
-        assertNull(AceTag.decode(ByteArray(45 * 4)))   // leerer Tag ist kein ACE-Tag
+        assertNull(AceTag.decode(ByteArray(45 * 4)))   // an empty tag is not an ACE tag
     }
 }

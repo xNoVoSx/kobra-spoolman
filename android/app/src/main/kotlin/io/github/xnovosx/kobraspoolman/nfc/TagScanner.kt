@@ -9,20 +9,21 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlin.random.Random
+import io.github.xnovosx.kobraspoolman.data.tr
 
-/** Ein gescannter Tag. uid = Seriennummer als Hex (grossgeschrieben, ohne Trenner). */
+/** A scanned tag. uid = serial number as hex (upper case, no separators). */
 data class ScannedTag(val uid: String, val virtual: Boolean = false, val ace: AceTag? = null)
 
-/** Ergebnis eines Schreibvorgangs. */
+/** Result of a write. */
 sealed interface WriteResult {
     data class Written(val uid: String, val virtual: Boolean) : WriteResult
     data class Failed(val message: String) : WriteResult
 }
 
 /**
- * NFC im Vordergrund (Reader-Modus): Jeder aufgelegte Tag wird gelesen - oder beschrieben, wenn
- * vorher [armWrite] aufgerufen wurde. Im Debug-Build gibt es virtuelle Tags, weil der Emulator kein
- * NFC hat; der Rest der App behandelt sie wie echte.
+ * NFC in the foreground (reader mode): every tag put on is read - or written if [armWrite] was called before. The
+ * debug build has virtual tags because the emulator has no NFC; the rest of the app treats them like real
+ * ones.
  */
 class TagScanner {
     private val _tags = MutableSharedFlow<ScannedTag>(extraBufferCapacity = 4, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -31,7 +32,7 @@ class TagScanner {
     val writes: SharedFlow<WriteResult> = _writes
 
     @Volatile private var pendingWrite: Map<Int, ByteArray>? = null
-    /** Virtuelle Tags: UID -> Speicher (Seiten 0..44). */
+    /** Virtual tags: UID -> memory (pages 0..44). */
     private val virtualTags = mutableMapOf<String, ByteArray>()
 
     var nfcAvailable: Boolean = false
@@ -52,7 +53,7 @@ class TagScanner {
         NfcAdapter.getDefaultAdapter(activity)?.disableReaderMode(activity)
     }
 
-    /** Der naechste aufgelegte Tag wird mit diesen Seiten beschrieben (statt nur gelesen). */
+    /** The next tag put on is written with these pages (instead of only read). */
     fun armWrite(pages: Map<Int, ByteArray>) { pendingWrite = pages }
     fun disarm() { pendingWrite = null }
     val armed: Boolean get() = pendingWrite != null
@@ -73,9 +74,9 @@ class TagScanner {
             }
         } catch (e: IOException) {
             if (write != null) _writes.tryEmit(WriteResult.Failed(
-                "Schreiben fehlgeschlagen – Tag zu früh weggenommen oder schreibgeschützt (Original-Anycubic-Tags sind gesperrt). ${e.message ?: ""}".trim()))
+                (tr("Write failed – tag taken away too early or write-protected (original Anycubic tags are locked).") + " " + (e.message ?: "")).trim()))
         } catch (e: VerifyException) {
-            _writes.tryEmit(WriteResult.Failed(e.message ?: "Prüfung fehlgeschlagen"))
+            _writes.tryEmit(WriteResult.Failed(e.message ?: tr("Verification failed")))
         } finally {
             runCatching { nfc.close() }
         }
@@ -83,18 +84,18 @@ class TagScanner {
 
     private class VerifyException(msg: String) : Exception(msg)
 
-    /** WRITE (0xA2) je Seite, dann zuruecklesen und vergleichen. */
+    /** WRITE (0xA2) per page, then read back and compare. */
     private fun writePages(nfc: NfcA, pages: Map<Int, ByteArray>) {
         for ((p, data) in pages.toSortedMap()) nfc.transceive(byteArrayOf(0xA2.toByte(), p.toByte()) + data)
         val first = pages.keys.min()
         val back = readPages(nfc, first, pages.keys.max())
         for ((p, data) in pages) {
             val got = back.copyOfRange((p - first) * 4, (p - first) * 4 + 4)
-            if (!got.contentEquals(data)) throw VerifyException("Tag nach dem Schreiben anders als erwartet (Seite $p) – bitte nochmal auflegen")
+            if (!got.contentEquals(data)) throw VerifyException(tr("Tag differs from what was written (page {page}) – please put it on again", "page" to p))
         }
     }
 
-    /** READ (0x30) liefert 4 Seiten auf einmal. */
+    /** READ (0x30) returns 4 pages at once. */
     private fun readPages(nfc: NfcA, from: Int, to: Int): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         var p = from
@@ -106,8 +107,8 @@ class TagScanner {
         return out.toByteArray()
     }
 
-    // ------------------------------------------------------------ virtuelle Tags (Debug/Emulator)
-    /** Virtuellen Tag auflegen: beschreibt ihn, wenn ein Schreibauftrag wartet, sonst wird er gelesen. */
+    // ------------------------------------------------------------ virtual tags (debug/emulator)
+    /** Put a virtual tag on: writes it if a write job is waiting, else it is read. */
     fun simulate(uid: String) {
         val write = pendingWrite
         val mem = virtualTags.getOrPut(uid) { ByteArray(45 * 4) }
@@ -125,7 +126,7 @@ class TagScanner {
     companion object {
         fun uidHex(bytes: ByteArray): String = bytes.joinToString("") { "%02X".format(it) }
 
-        /** Neue zufaellige 7-Byte-UID wie bei NTAG215 (erstes Byte 04 = NXP). */
+        /** New random 7-byte UID like NTAG215 (first byte 04 = NXP). */
         fun randomUid(random: Random = Random.Default): String =
             uidHex(byteArrayOf(0x04) + random.nextBytes(6))
     }

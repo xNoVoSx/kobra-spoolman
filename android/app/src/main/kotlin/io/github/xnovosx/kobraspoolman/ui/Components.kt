@@ -45,8 +45,9 @@ import androidx.compose.ui.text.withStyle
 import kotlin.math.roundToInt
 import io.github.xnovosx.kobraspoolman.ui.theme.spoolColor
 import io.github.xnovosx.kobraspoolman.ui.theme.statusColors
+import io.github.xnovosx.kobraspoolman.data.tr
 
-/** Spule von der Seite: Scheibe in der Filamentfarbe mit Nabe. */
+/** Spool from the side: disc in the filament colour with a hub. */
 @Composable
 fun SpoolDisc(hex: String?, size: Dp, ring: Color = K.LineStrong, hub: Color = K.Ground) {
     Box(
@@ -100,7 +101,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(text.uppercase(), style = MaterialTheme.typography.titleSmall, color = K.Muted, modifier = modifier)
 }
 
-/** Druckerstatus oben auf dem Startbildschirm. */
+/** Printer status at the top of the home screen. */
 @Composable
 fun StatusCard(p: Printer, activeName: String?, uses: List<SlotUse> = emptyList()) {
     val c = statusColors(Format.stateKey(p))
@@ -120,26 +121,26 @@ fun StatusCard(p: Printer, activeName: String?, uses: List<SlotUse> = emptyList(
         }
         if (p.progress != null) FillBar(p.progress.toFloat(), color = c.dot, track = K.Ground)
         val left = when {
-            p.activeSlot != null -> "Aktiv: Slot ${p.activeSlot}" + (activeName?.let { " · $it" } ?: "")
-            p.state == "offline" -> "Drucker nicht erreichbar"
-            else -> "Kein Slot aktiv"
+            p.activeSlot != null -> tr("Active: slot {slot}", "slot" to p.activeSlot) + (activeName?.let { " · $it" } ?: "")
+            p.state == "offline" -> tr("Printer not reachable")
+            else -> tr("No slot active")
         }
         Text(left, style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1,
             overflow = TextOverflow.Ellipsis)
-        // welche Slots die Druckdatei benutzt (gesamt / noch offen)
+        // which slots the print file uses (total / still open)
         uses.forEach { u ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(Modifier.size(10.dp).clip(CircleShape).background(spoolColor(u.color)).border(1.dp, K.LineStrong, CircleShape))
-                Text("Benutzt: Slot ${u.slot}" + (u.name?.let { " · $it" } ?: "") +
-                    " · ~${Format.grams(u.totalG)}, noch ${Format.grams(u.restG)}",
+                Text(tr("Used: slot {slot}", "slot" to u.slot) + (u.name?.let { " · $it" } ?: "") +
+                    " · " + tr("~{total}, {rest} left", "total" to Format.grams(u.totalG), "rest" to Format.grams(u.restG)),
                     style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         if (p.printDurationS != null || p.etaS != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TimeStat("Läuft", Format.duration(p.printDurationS))
-                TimeStat("Noch ca.", Format.duration(p.etaS))
-                TimeStat("Fertig", Format.finishAt(p.etaS))
+                TimeStat(tr("Running"), Format.duration(p.printDurationS))
+                TimeStat(tr("Left approx."), Format.duration(p.etaS))
+                TimeStat(tr("Done"), Format.finishAt(p.etaS))
             }
         }
         MachineBar(p, inset = false)
@@ -154,18 +155,18 @@ private fun TimeStat(label: String, value: String) {
     }
 }
 
-/** "973 g": Zahl in Festbreitenschrift, Einheit schmal in der Textschrift (sonst wirkt der Abstand zu gross). */
+/** "973 g": number in the monospace font, unit narrow in the text font (else the gap looks too big). */
 fun gramsText(g: Double?): AnnotatedString = buildAnnotatedString {
     withStyle(SpanStyle(fontFamily = PlexMono)) { append(if (g == null) "?" else g.roundToInt().toString()) }
     withStyle(SpanStyle(fontFamily = Plex)) { append("\u202Fg") }
 }
 
-/** Hinweis, wenn Android den Zugriff aufs Heimnetz (noch) nicht erlaubt. */
+/** Hint when Android does not (yet) allow access to the home network. */
 @Composable
 fun LanMissing(onGrant: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Hint("Die App darf noch nicht ins Heimnetz – ohne das erreicht sie die Bridge nicht.", danger = true)
-        SecondaryButton("Zugriff aufs Heimnetz erlauben", onGrant, Modifier.fillMaxWidth())
+        Hint(tr("The app may not access the home network yet – without that it cannot reach the bridge."), danger = true)
+        SecondaryButton(tr("Allow access to the home network"), onGrant, Modifier.fillMaxWidth())
     }
 }
 

@@ -8,7 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/** Bridge-Adresse und App-Schluessel, gespeichert auf dem Geraet (nicht in Backups, siehe Manifest). */
+/** Bridge address and app key, stored on the device (not in backups, see manifest). */
 data class Connection(val url: String = "", val token: String = "") {
     val configured: Boolean get() = url.isNotBlank()
 }
@@ -21,14 +21,14 @@ class Settings(private val context: Context) {
     private val monitorKey = booleanPreferencesKey("monitor")
     private val render3dKey = stringPreferencesKey("render3d")
 
-    /** 3D-Modell: auto | volume | lines | image (Bild der Bridge). */
+    /** 3D model: auto | volume | lines | image (image of the bridge). */
     val render3d: Flow<String> = context.store.data.map { it[render3dKey] ?: "auto" }
 
     suspend fun setRender3d(v: String) {
         context.store.edit { it[render3dKey] = v }
     }
 
-    /** Druck-Ueberwachung im Hintergrund (Benachrichtigungen), Standard an. */
+    /** Print monitoring in the background (notifications), on by default. */
     val monitor: Flow<Boolean> = context.store.data.map { it[monitorKey] ?: true }
 
     suspend fun setMonitor(on: Boolean) {

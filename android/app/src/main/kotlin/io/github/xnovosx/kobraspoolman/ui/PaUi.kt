@@ -22,12 +22,13 @@ import io.github.xnovosx.kobraspoolman.data.PaSlot
 import io.github.xnovosx.kobraspoolman.data.PaState
 import io.github.xnovosx.kobraspoolman.ui.theme.K
 import io.github.xnovosx.kobraspoolman.ui.theme.PlexMono
+import io.github.xnovosx.kobraspoolman.data.tr
 
 private fun k3(v: Double?) = Format.decimal(v, 3)
 
 /**
- * Auto-PA (Klipper-Modul kobra_pa): Schalter, PA je Slot aus Spoolman, jetzt messen / beim naechsten Druck neu messen.
- * Beide Schalter liegen im Drucker und bleiben dort gespeichert.
+ * Auto PA (Klipper module kobra_pa): switches, PA per slot from Spoolman, measure now / measure again at the next
+ * print. Both switches live in the printer and stay stored there.
  */
 @Composable
 fun PaSection(
@@ -35,51 +36,49 @@ fun PaSection(
     onSwitch: (Boolean?, Boolean?) -> Unit, onCalibrate: (Int) -> Unit, onForget: (Int) -> Unit,
 ) {
     var ask by remember { mutableStateOf<Pair<String, PaSlot>?>(null) }
-    SectionLabel("Pressure Advance", Modifier.padding(top = 12.dp))
+    SectionLabel(tr("Pressure advance"), Modifier.padding(top = 12.dp))
     if (!pa.present) {
-        Hint("Auto-PA ist in Klipper nicht eingerichtet (Modul kobra_pa) oder Klipper ist nicht bereit.")
+        Hint(tr("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready."))
         return
     }
-    PaSwitch("Auto-PA", "PA je Geschwindigkeit aus Spoolman anwenden; aus = Klipper nimmt das PA aus Orca",
+    PaSwitch(tr("Auto PA"), tr("Apply PA per speed from Spoolman; off = Klipper takes the PA from Orca"),
         pa.enabled == true) { onSwitch(it, null) }
-    PaSwitch("Automatisch messen", "Hat ein Filament noch kein PA, misst der Drucker beim Druckstart bzw. Farbwechsel (~2 min)",
+    PaSwitch(tr("Measure automatically"), tr("If a filament has no PA yet, the printer measures at print start or colour change (~2 min)"),
         pa.auto == true, enabled = pa.enabled == true) { onSwitch(null, it) }
-    if (pa.patched == false) Hint("Klipper ohne Auto-PA-Patch: nur festes PA, messen geht nicht.")
-    if (!pa.sync) Hint("Verbindung zu Spoolman ist aus (Einstellungen → Pressure Advance).")
-    if (pa.measuring || pa.calibrating != null) Text("Misst gerade …", color = K.Accent, style = MaterialTheme.typography.bodyMedium)
+    if (pa.patched == false) Hint(tr("Klipper without the auto PA patch: fixed PA only, measuring does not work."))
+    if (!pa.sync) Hint(tr("The connection to Spoolman is off (Settings → Pressure advance)."))
+    if (pa.measuring || pa.calibrating != null) Text(tr("Measuring …"), color = K.Accent, style = MaterialTheme.typography.bodyMedium)
     val ready = pa.enabled == true && pa.patched == true && !pa.measuring && pa.calibrating == null && !printing
     pa.slots.filter { it.filamentId != null }.forEach { s ->
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(1f)) {
-                Text("Slot ${s.slot} · ${s.name ?: ""}" + if (s.active) " · aktiv" else "", style = MaterialTheme.typography.bodyLarge)
+                Text(tr("Slot {slot}", "slot" to s.slot) + " · " + (s.name ?: "") + if (s.active) " · " + tr("active") else "", style = MaterialTheme.typography.bodyLarge)
                 Text(when {
-                    s.k.size > 1 -> s.k.joinToString(" / ") { k3(it) } + " bei " + s.speeds.joinToString(" / ") { it.toInt().toString() } + " mm/s"
-                    s.source == "manual" -> "fest ${k3(s.k.firstOrNull())} (von Hand)"
-                    s.state == "failed" -> "Messung gescheitert – bisheriges PA gilt"
-                    else -> "kein PA – misst beim nächsten Druck"
+                    s.k.size > 1 -> tr("{k} at {speeds} mm/s", "k" to s.k.joinToString(" / ") { k3(it) }, "speeds" to s.speeds.joinToString(" / ") { it.toInt().toString() })
+                    s.source == "manual" -> tr("fixed {k} (by hand)", "k" to k3(s.k.firstOrNull()))
+                    s.state == "failed" -> tr("Measurement failed – the previous PA applies")
+                    else -> tr("no PA – measures at the next print")
                 }, style = MaterialTheme.typography.bodySmall, color = if (s.state == "failed") K.DangerText else K.Muted)
             }
             Text(k3(s.kRef), fontFamily = PlexMono, style = MaterialTheme.typography.bodyLarge)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SecondaryButton("Jetzt messen", { ask = "measure" to s }, enabled = ready)
-            if (s.k.isNotEmpty()) SecondaryButton("Neu messen", { ask = "forget" to s })
+            SecondaryButton(tr("Measure now"), { ask = "measure" to s }, enabled = ready)
+            if (s.k.isNotEmpty()) SecondaryButton(tr("Measure again"), { ask = "forget" to s })
         }
     }
-    Text("Der Wert bei 200 mm/s steht auch in Spoolman (Pressure Advance) und damit im Orca-Profil.",
+    Text(tr("The value at 200 mm/s is also in Spoolman (pressure advance) and so in the Orca profile."),
         style = MaterialTheme.typography.bodySmall, color = K.Faint)
     ask?.let { (what, s) ->
         AlertDialog(onDismissRequest = { ask = null }, containerColor = K.Surface,
-            title = { Text(if (what == "measure") "PA für Slot ${s.slot} messen?" else "PA verwerfen?") },
-            text = { Text(if (what == "measure") "${s.name}: Der Drucker heizt auf Drucktemperatur und drückt etwa 120 mm in den " +
-                "Abfallschacht (~2 Minuten). Das Ergebnis landet in Spoolman."
-                else "${s.name}: Der PA-Wert wird in Spoolman gelöscht. Beim nächsten Druck misst der Drucker neu " +
-                    "(wenn „Automatisch messen“ an ist).") },
+            title = { Text(if (what == "measure") tr("Measure PA for slot {slot}?", "slot" to s.slot) else tr("Discard PA?")) },
+            text = { Text(if (what == "measure") tr("{name}: the printer heats to printing temperature and pushes about 120 mm into the waste chute (~2 minutes). The result goes to Spoolman.", "name" to s.name)
+                else tr("{name}: the PA value is deleted in Spoolman. At the next print the printer measures again (if “Measure automatically” is on).", "name" to s.name)) },
             confirmButton = { TextButton(onClick = {
                 ask = null
                 if (what == "measure") onCalibrate(s.slot) else s.filamentId?.let(onForget)
-            }) { Text(if (what == "measure") "Messen" else "Verwerfen", color = K.Accent) } },
-            dismissButton = { TextButton(onClick = { ask = null }) { Text("Zurück") } })
+            }) { Text(if (what == "measure") tr("Measure") else tr("Discard"), color = K.Accent) } },
+            dismissButton = { TextButton(onClick = { ask = null }) { Text(tr("Back")) } })
     }
 }
 

@@ -53,13 +53,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+import io.github.xnovosx.kobraspoolman.data.tr
+import io.github.xnovosx.kobraspoolman.data.I18n
 
-/** Kopfzeile der Unterseiten: Titel, optional Zurueck und ein Knopf rechts. */
+/** Header of the sub pages: title, optional back and a button on the right. */
 @Composable
 fun ScreenHeader(title: String, onBack: (() -> Unit)? = null, action: (@Composable () -> Unit)? = null) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        onBack?.let { RoundIconButton(KIcons.Back, "Zurück", it) }
+        onBack?.let { RoundIconButton(KIcons.Back, tr("Back"), it) }
         Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
         action?.invoke()
     }
@@ -68,7 +69,7 @@ fun ScreenHeader(title: String, onBack: (() -> Unit)? = null, action: (@Composab
 internal fun listPadding(p: PaddingValues) =
     PaddingValues(start = 20.dp, end = 20.dp, top = p.calculateTopPadding() + 16.dp, bottom = p.calculateBottomPadding() + 16.dp)
 
-/** Umschalter wie im Web (Spulen | Sorten, Befehle | Bridge). */
+/** Toggle like in the web UI (spools | filaments, commands | bridge). */
 @Composable
 fun Segmented(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
     Row(Modifier.clip(RoundedCornerShape(12.dp)).background(K.Sunken).border(1.dp, K.Line, RoundedCornerShape(12.dp)).padding(3.dp),
@@ -81,22 +82,22 @@ fun Segmented(options: List<Pair<String, String>>, selected: String, onSelect: (
     }
 }
 
-// ====================================================================== Meldungen
+// ====================================================================== messages
 @Composable
 fun NoticesScreen(state: AppState?, padding: PaddingValues, onRefresh: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), contentPadding = listPadding(padding),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeader("Meldungen", action = { RoundIconButton(KIcons.Refresh, "Aktualisieren", onRefresh) }) }
+        item { ScreenHeader(tr("Messages"), action = { RoundIconButton(KIcons.Refresh, tr("Refresh"), onRefresh) }) }
         val n = state?.notices
         if (n == null) {
-            item { Text(if (state == null) "Lade …" else "Diese Bridge kennt noch keine Meldungen (Update nötig).", color = K.Muted) }
+            item { Text(if (state == null) tr("Loading …") else tr("This bridge knows no messages yet (update needed)."), color = K.Muted) }
         } else {
             item { NoticesCard(n, state.version, title = false) }
         }
     }
 }
 
-// ====================================================================== Filament: Spulen | Sorten
+// ====================================================================== filament: spools | filaments
 @Composable
 fun FilamentHubScreen(
     state: AppState?,
@@ -114,29 +115,29 @@ fun FilamentHubScreen(
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), contentPadding = listPadding(padding),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            ScreenHeader("Filament", action = {
-                RoundIconButton(KIcons.Plus, if (view == "spools") "Neue Spule" else "Neue Sorte",
+            ScreenHeader(tr("Filament"), action = {
+                RoundIconButton(KIcons.Plus, if (view == "spools") tr("New spool") else tr("New filament"),
                     if (view == "spools") onNewSpool else onNewFilament)
             })
         }
         item {
-            Segmented(listOf("spools" to "Spulen ${spools.size}", "types" to "Sorten ${catalog?.filaments?.size ?: ""}".trim()), view) {
+            Segmented(listOf("spools" to tr("Spools {n}", "n" to spools.size), "types" to tr("Filaments {n}", "n" to (catalog?.filaments?.size ?: "")).trim()), view) {
                 view = it; if (it == "types") filter = null
             }
         }
         if (view == "spools") {
             val shown = filter?.let { f -> spools.filter { it.filamentId == f } } ?: spools
             if (filter != null) item {
-                Text("Nur Spulen dieser Sorte – alle zeigen", color = K.Accent, style = MaterialTheme.typography.labelLarge,
+                Text(tr("Only spools of this filament – show all"), color = K.Accent, style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.clickable { filter = null }.padding(vertical = 4.dp))
             }
-            if (shown.isEmpty()) item { Text(if (state == null) "Lade …" else "Keine Spulen.", color = K.Muted) }
+            if (shown.isEmpty()) item { Text(if (state == null) tr("Loading …") else tr("No spools."), color = K.Muted) }
             items(shown.sortedWith(compareBy<SpoolInfo> { it.slot ?: 99 }.thenBy { it.displayName }), key = { it.spoolId }) { sp ->
                 ShelfRow(sp) { onSpool(sp.spoolId) }
             }
         } else {
             val list = catalog?.filaments.orEmpty()
-            if (catalog == null) item { Text("Lade …", color = K.Muted) }
+            if (catalog == null) item { Text(tr("Loading …"), color = K.Muted) }
             items(list, key = { it.filamentId }) { f ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.Surface)
                     .clickable { filter = f.filamentId; view = "spools" }.padding(14.dp),
@@ -146,7 +147,7 @@ fun FilamentHubScreen(
                         Text(f.name.ifBlank { f.displayName }, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${f.vendor} · ${f.material} · ${f.orcaId}", style = MaterialTheme.typography.bodySmall, color = K.Muted)
                     }
-                    Text("${f.spools} ${if (f.spools == 1) "Spule" else "Spulen"}", style = MaterialTheme.typography.labelMedium, color = K.Muted)
+                    Text(if (f.spools == 1) tr("1 spool") else tr("{n} spools", "n" to f.spools), style = MaterialTheme.typography.labelMedium, color = K.Muted)
                 }
             }
         }
@@ -156,7 +157,7 @@ fun FilamentHubScreen(
 private fun parseColor(hex: String): Color =
     runCatching { Color(android.graphics.Color.parseColor("#" + hex.removePrefix("#").take(6))) }.getOrDefault(K.Surface2)
 
-// ====================================================================== Mehr
+// ====================================================================== more
 @Composable
 fun MoreScreen(
     padding: PaddingValues,
@@ -174,32 +175,32 @@ fun MoreScreen(
 ) {
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), contentPadding = listPadding(padding),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { ScreenHeader("Mehr") }
+        item { ScreenHeader(tr("More")) }
         update?.let { u -> item { UpdateCard(u, updateProgress, onInstall) } }
-        if (hasAce) item { MoreRow(KIcons.Dryer, "ACE & Trockner", "Trocknen, Endlosspule", onAce) }
-        item { MoreRow(KIcons.Eye, "KI", "Fehldruck-Erkennung: Zustand, Einstellungen, Ereignisse", onAi) }
-        item { MoreRow(KIcons.Clock, "Drucke", "Verbrauch pro Druck und Spule", onJobs) }
-        item { MoreRow(KIcons.Terminal, "Protokoll", "Gesendete Befehle, Antworten, was die Bridge macht", onProtocol) }
-        item { MoreRow(KIcons.Phone, "Geräte", "Gekoppelte Geräte, Gerät hinzufügen", onDevices) }
-        item { MoreRow(KIcons.Settings, "Einstellungen", "Kopplung, Benachrichtigungen, Töne", onSettings) }
+        if (hasAce) item { MoreRow(KIcons.Dryer, tr("ACE & dryer"), tr("Drying, endless spool"), onAce) }
+        item { MoreRow(KIcons.Eye, tr("AI"), tr("Failure detection: state, settings, events"), onAi) }
+        item { MoreRow(KIcons.Clock, tr("Prints"), tr("Usage per print and spool"), onJobs) }
+        item { MoreRow(KIcons.Terminal, tr("Log"), tr("Sent commands, replies, what the bridge does"), onProtocol) }
+        item { MoreRow(KIcons.Phone, tr("Devices"), tr("Paired devices, add a device"), onDevices) }
+        item { MoreRow(KIcons.Settings, tr("Settings"), tr("Pairing, notifications, sounds, language"), onSettings) }
         item {
-            Text("App ${BuildConfig.VERSION_NAME} · nach Updates suchen", style = MaterialTheme.typography.bodySmall,
+            Text(tr("App {version} · check for updates", "version" to BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodySmall,
                 color = K.Muted, modifier = Modifier.clickable(onClick = onCheckUpdate).padding(vertical = 8.dp))
         }
     }
 }
 
-/** Neue App-Version von der Bridge: Aenderungen, Download mit Fortschritt, dann Androids Installations-Rueckfrage. */
+/** New app version from the bridge: changes, download with progress, then Android's install confirmation. */
 @Composable
 private fun UpdateCard(u: AppUpdate, progress: Float?, onInstall: () -> Unit) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(K.AccentSoft)
         .border(1.dp, K.Accent, RoundedCornerShape(18.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Update auf ${u.version}", style = MaterialTheme.typography.titleMedium, color = K.Accent)
-        Text("Installiert: ${BuildConfig.VERSION_NAME} · ${"%.1f".format(Locale.GERMANY, u.size / 1e6)} MB von der Bridge",
+        Text(tr("Update to {version}", "version" to u.version), style = MaterialTheme.typography.titleMedium, color = K.Accent)
+        Text(tr("Installed: {version} · {mb} MB from the bridge", "version" to BuildConfig.VERSION_NAME, "mb" to Format.decimal(u.size / 1e6, 1)),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
         u.changes.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
         if (progress != null) FillBar(progress, color = K.Accent, track = K.Surface2)
-        else PrimaryButton("Herunterladen und installieren", onInstall, Modifier.fillMaxWidth())
+        else PrimaryButton(tr("Download and install"), onInstall, Modifier.fillMaxWidth())
     }
 }
 
@@ -216,8 +217,8 @@ private fun MoreRow(icon: ImageVector, title: String, sub: String, onClick: () -
     }
 }
 
-// ====================================================================== Drucke
-private val JOB_STATE = mapOf("complete" to "fertig", "cancelled" to "abgebrochen", "error" to "Fehler", "printing" to "läuft")
+// ====================================================================== prints
+private val JOB_STATE get() = mapOf("complete" to tr("finished"), "cancelled" to tr("cancelled"), "error" to tr("Error"), "printing" to tr("running"))
 
 @Composable
 fun JobsScreen(padding: PaddingValues, load: suspend () -> List<PrintJob>?, onBack: () -> Unit) {
@@ -225,37 +226,36 @@ fun JobsScreen(padding: PaddingValues, load: suspend () -> List<PrintJob>?, onBa
     LaunchedEffect(Unit) { jobs = load() ?: emptyList() }
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), contentPadding = listPadding(padding),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { ScreenHeader("Drucke", onBack) }
+        item { ScreenHeader(tr("Prints"), onBack) }
         val list = jobs
-        if (list == null) item { Text("Lade …", color = K.Muted) }
-        else if (list.isEmpty()) item { Text("Noch keine Drucke aufgezeichnet.", color = K.Muted) }
+        if (list == null) item { Text(tr("Loading …"), color = K.Muted) }
+        else if (list.isEmpty()) item { Text(tr("No prints recorded yet."), color = K.Muted) }
         else items(list, key = { it.job }) { j ->
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(K.Surface).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(j.file?.removeSuffix(".gcode") ?: "–", fontFamily = PlexMono, style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    val st = JOB_STATE[j.state] ?: j.state      // aeltere Eintraege: Klipper-Zustaende
+                    val st = JOB_STATE[j.state] ?: j.state      // older entries: Klipper states
                     Text(st, style = MaterialTheme.typography.labelMedium,
-                        color = when (st) { "fertig" -> K.Ok; "läuft" -> K.Accent; "abgebrochen", "Fehler" -> K.DangerText; else -> K.Muted })
+                        color = when (j.state) { "complete" -> K.Ok; "printing" -> K.Accent; "cancelled", "error" -> K.DangerText; else -> K.Muted })
                 }
                 val total = j.slots.sumOf { it.g }
-                Text("${(j.ended ?: j.started)?.replace('T', ' ')?.take(16) ?: ""} · ${Format.grams(total)} · ${j.changes} Wechsel",
+                Text("${(j.ended ?: j.started)?.replace('T', ' ')?.take(16) ?: ""} · ${Format.grams(total)} · " + tr("{n} changes", "n" to j.changes),
                     style = MaterialTheme.typography.bodySmall, color = K.Muted)
-                Text(j.slots.filter { it.slot > 0 }.joinToString("   ") { "Slot ${it.slot}: ${Format.grams(it.g)}" },
+                Text(j.slots.filter { it.slot > 0 }.joinToString("   ") { tr("Slot {slot}", "slot" to it.slot) + ": " + Format.grams(it.g) },
                     style = MaterialTheme.typography.bodySmall, color = K.Text)
             }
         }
     }
 }
 
-// ====================================================================== Protokoll (nur lesen)
-private val clockFmt = SimpleDateFormat("HH:mm:ss", Locale.GERMANY)
-private fun clock(t: Double) = clockFmt.format(Date((t * 1000).toLong()))
+// ====================================================================== log (read only)
+private fun clock(t: Double) = SimpleDateFormat("HH:mm:ss", I18n.locale).format(Date((t * 1000).toLong()))
 
 /**
- * Was ueber die Bridge an den Drucker ging (mit Absender), was er geantwortet hat und was die Bridge selbst
- * macht. In der App nur lesen - Befehle schickt man im Terminal der Weboberflaeche.
+ * What went to the printer via the bridge (with sender), what it replied and what the bridge itself does. Read
+ * only in the app - commands are sent in the terminal of the web UI.
  */
 @Composable
 fun ProtocolScreen(
@@ -284,16 +284,16 @@ fun ProtocolScreen(
     LaunchedEffect(count) { if (count > 0) listState.scrollToItem(count + 1) }
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), state = listState, contentPadding = listPadding(padding),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        item { ScreenHeader("Protokoll", onBack) }
+        item { ScreenHeader(tr("Log"), onBack) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-                Segmented(listOf("console" to "Befehle", "bridge" to "Bridge"), view) { view = it }
-                Text(if (view == "console") "Befehle über die Bridge (mit Absender) und Antworten des Druckers. Senden geht im Terminal der Weboberfläche."
-                     else "Was die Bridge macht: Buchungen, Slots, Trockner, Verbindungen.",
+                Segmented(listOf("console" to tr("Commands"), "bridge" to "Bridge"), view) { view = it }
+                Text(if (view == "console") tr("Commands via the bridge (with sender) and printer replies. Sending works in the terminal of the web UI.")
+                     else tr("What the bridge does: bookings, slots, dryer, connections."),
                     style = MaterialTheme.typography.bodySmall, color = K.Muted)
             }
         }
-        if (count == 0) item { Text("Noch nichts.", color = K.Muted) }
+        if (count == 0) item { Text(tr("Nothing yet."), color = K.Muted) }
         if (view == "console") items(cLines, key = { "c${it.id}" }) { l ->
             ProtocolLine(clock(l.time), if (l.kind == "command") l.source else null,
                 if (l.kind == "command") "› ${l.text}" else l.text,

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Only texts Android needs as resources (manifest, widget metadata); all other texts: tr() and assets/i18n -->
 <resources>
-    <string name="app_name">Kobra Spoolman</string>
-    <string name="widget_description">Druck auf dem Startbildschirm: Fortschritt, Restzeit und Kamerabild</string>
+    <string name="app_name" translatable="false">Kobra Spoolman</string>
+    <string name="widget_label">Kobra print</string>
+    <string name="widget_description">Print on the home screen: progress, time left and camera image</string>
 </resources>

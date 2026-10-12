@@ -8,16 +8,16 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.roundToLong
 
-/** Art eines Eingabefelds. */
+/** Kind of an input field. */
 enum class Kind { INT, FLOAT, BOOL, TEXT, MULTILINE }
 
-/** Ein Feld im Filament-Assistenten. native = Spoolman-Standardfeld, sonst Zusatzfeld (extra). */
+/** A field in the filament wizard. native = standard Spoolman field, else an extra field. */
 data class FieldSpec(val key: String, val label: String, val unit: String? = null, val kind: Kind, val native: Boolean = false,
                      val orcaKey: String? = null)
 
 /**
- * Entwurf eines neuen Filaments, so wie der Nutzer ihn eingibt (Texte). Leere Felder bedeuten
- * "aus der Vorlage bzw. dem Orca-Profil" und werden nie an die Bridge geschickt.
+ * Draft of a new filament as the user types it (texts). Empty fields mean "from the template or the Orca profile"
+ * and are never sent to the bridge.
  */
 data class FilamentDraft(
     val vendorId: Int? = null,
@@ -33,25 +33,25 @@ data class FilamentDraft(
     val template: String get() = value("vorlage")
     val orcaBasis: String get() = value("orca_basis")
 
-    /** Fehler je Feld (fuer die Anzeige); leer = alles gueltig. */
+    /** Error per field (for display); empty = all valid. */
     fun errors(specs: List<FieldSpec>): Map<String, String> {
         val out = mutableMapOf<String, String>()
-        if (name.isBlank()) out["name"] = "Name fehlt"
-        if (material.isBlank()) out["material"] = "Material fehlt"
-        if (vendorId == null && newVendor.isBlank()) out["vendor"] = "Hersteller wählen oder neu eingeben"
-        if (colorHex.isNotBlank() && !HEX.matches(colorHex.removePrefix("#"))) out["color"] = "Farbe als RRGGBB"
+        if (name.isBlank()) out["name"] = tr("Name missing")
+        if (material.isBlank()) out["material"] = tr("Material missing")
+        if (vendorId == null && newVendor.isBlank()) out["vendor"] = tr("Choose a vendor or enter a new one")
+        if (colorHex.isNotBlank() && !HEX.matches(colorHex.removePrefix("#"))) out["color"] = tr("Colour as RRGGBB")
         for (s in specs) {
             val t = value(s.key).trim()
             if (t.isEmpty()) continue
             when (s.kind) {
-                Kind.INT, Kind.FLOAT -> if (number(t) == null) out[s.key] = "Zahl erwartet"
+                Kind.INT, Kind.FLOAT -> if (number(t) == null) out[s.key] = tr("Number expected")
                 else -> {}
             }
         }
         return out
     }
 
-    /** Body fuer POST /api/app/filament - nur gesetzte Felder. vendorId muss dann feststehen. */
+    /** Body for POST /api/app/filament - only fields that are set. vendorId must be known by then. */
     fun toJson(specs: List<FieldSpec>, vendor: Int): JsonObject {
         val body = linkedMapOf<String, JsonElement>(
             "name" to JsonPrimitive(name.trim()),
@@ -75,7 +75,7 @@ data class FilamentDraft(
         return JsonObject(body)
     }
 
-    /** Werte einer vorhandenen Produktreihe uebernehmen (nur deren eigene Werte, nie die der Vorlage). */
+    /** Take over the values of an existing product line (only its own values, never those of the template). */
     fun copyFrom(f: FilamentInfo): FilamentDraft {
         val v = values.toMutableMap()
         for ((k, e) in f.native + f.extra) {
@@ -92,7 +92,7 @@ data class FilamentDraft(
 
         fun number(t: String): Double? = t.replace(',', '.').toDoubleOrNull()
 
-        /** JSON-Wert (Zahl, Text, Wahrheitswert) als Eingabetext. */
+        /** JSON value (number, text, boolean) as input text. */
         fun text(e: JsonElement?): String? {
             if (e == null || e is JsonNull) return null
             val p = runCatching { e.jsonPrimitive }.getOrNull() ?: return null
@@ -102,9 +102,9 @@ data class FilamentDraft(
     }
 }
 
-/** Welche Vorlage gilt fuer den Entwurf - dieselbe Regel wie die Bridge (profiles.find_template). */
+/** Which template applies to the draft - the same rule as the bridge (profiles.find_template). */
 fun templateFor(d: FilamentDraft, templates: List<Template>): Template? {
-    if (d.orcaBasis.isNotBlank()) return null                      // eigenes Orca-Profil ersetzt die Vorlage
+    if (d.orcaBasis.isNotBlank()) return null                      // an own Orca profile replaces the template
     if (d.template.isNotBlank()) templates.firstOrNull { it.name == d.template }?.let { return it }
     val m = d.material.trim().uppercase()
     if (m.isEmpty()) return null
@@ -112,20 +112,21 @@ fun templateFor(d: FilamentDraft, templates: List<Template>): Template? {
     return same.firstOrNull { it.name.uppercase() == "VORLAGE $m" } ?: same.minByOrNull { it.id }
 }
 
-/** Platzhalter fuer ein Feld aus der Vorlage (null = kein Wert). */
+/** Placeholder for a field from the template (null = no value). */
 fun placeholder(t: Template?, spec: FieldSpec): String? =
     t?.let { FilamentDraft.text(if (spec.native) it.native[spec.key] else it.extra[spec.key]) }
 
-/** Feldgruppen des Assistenten. Zusatzfelder kommen mit Name/Einheit aus Spoolman (catalog.fields). */
+/** Field groups of the wizard. Extra fields come with name/unit from Spoolman (catalog.fields). */
 object FilamentForm {
-    private val NATIVE = mapOf(
-        "settings_extruder_temp" to FieldSpec("settings_extruder_temp", "Düse", "°C", Kind.INT, true, "nozzle_temperature"),
-        "settings_bed_temp" to FieldSpec("settings_bed_temp", "Bett texturiert", "°C", Kind.INT, true, "textured_plate_temp"),
-        "density" to FieldSpec("density", "Dichte", "g/cm³", Kind.FLOAT, true, "filament_density"),
-        "diameter" to FieldSpec("diameter", "Durchmesser", "mm", Kind.FLOAT, true, "filament_diameter"),
-        "weight" to FieldSpec("weight", "Netto je Spule", "g", Kind.FLOAT, true),
-        "spool_weight" to FieldSpec("spool_weight", "Leerspule", "g", Kind.FLOAT, true),
-        "price" to FieldSpec("price", "Preis je Spule", "€", Kind.FLOAT, true, "filament_cost"),
+    // a getter, so the labels follow a language change
+    private val NATIVE get() = mapOf(
+        "settings_extruder_temp" to FieldSpec("settings_extruder_temp", tr("Nozzle"), "°C", Kind.INT, true, "nozzle_temperature"),
+        "settings_bed_temp" to FieldSpec("settings_bed_temp", tr("Bed textured"), "°C", Kind.INT, true, "textured_plate_temp"),
+        "density" to FieldSpec("density", tr("Density"), "g/cm³", Kind.FLOAT, true, "filament_density"),
+        "diameter" to FieldSpec("diameter", tr("Diameter"), "mm", Kind.FLOAT, true, "filament_diameter"),
+        "weight" to FieldSpec("weight", tr("Net per spool"), "g", Kind.FLOAT, true),
+        "spool_weight" to FieldSpec("spool_weight", tr("Empty spool"), "g", Kind.FLOAT, true),
+        "price" to FieldSpec("price", tr("Price per spool"), null, Kind.FLOAT, true, "filament_cost"),
     )
     val PHYSICAL = listOf("diameter", "density", "weight", "spool_weight", "price")
     val TEMPS = listOf("settings_extruder_temp", "nozzle_temp_first_layer", "settings_bed_temp", "bed_temp_first_layer",
@@ -151,11 +152,11 @@ object FilamentForm {
 
     fun group(keys: List<String>, fields: List<ExtraField>): List<FieldSpec> = keys.mapNotNull { spec(it, fields) }
 
-    /** Zusatzfelder, die (noch) keiner Gruppe zugeordnet sind - z.B. neue Felder einer neueren Bridge. */
+    /** Extra fields not (yet) in a group - e.g. new fields of a newer bridge. */
     fun others(fields: List<ExtraField>): List<FieldSpec> =
         fields.filter { it.key !in HANDLED }.mapNotNull { spec(it.key, fields) }
 
-    /** Alle Felder, die toJson/errors pruefen (vorlage/orca_basis sind Textfelder aus Schritt 1). */
+    /** All fields toJson/errors check (vorlage/orca_basis are text fields from step 1). */
     fun all(fields: List<ExtraField>): List<FieldSpec> =
         group(PHYSICAL + TEMPS + COOLING + EXTRUSION + OVERRIDES + listOf("vorlage", "orca_basis"), fields) + others(fields)
 }

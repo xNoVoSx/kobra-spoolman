@@ -19,17 +19,20 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** Fehler der Bridge mit ihrer Meldung ({"error": "..."}) und dem HTTP-Status (0 = nicht erreichbar). */
+/** Error of the bridge with its message ({"error": "..."}) and the HTTP status (0 = not reachable). */
 class BridgeException(val status: Int, message: String) : Exception(message)
 
-/** HTTP-Zugriff auf die ace-lane-bridge. Schreibende Aufrufe senden den App-Schluessel. */
+/**
+ * HTTP access to the ace-lane-bridge. Writing calls send the app key; every request carries the app language (X-Lang),
+ * so messages of the bridge come in the same language as the app.
+ */
 class BridgeClient(
     private val baseUrl: String,
     private val token: String,
     private val http: OkHttpClient = defaultHttp,
 ) {
     companion object {
-        // coerceInputValues: null fuer ein Feld mit Vorgabe -> Vorgabe (eine Bridge-Antwort darf die App nie lahmlegen)
+        // coerceInputValues: null for a field with a default -> default (a bridge answer must never break the app)
         val json = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInputValues = true }
         private val JSON_TYPE = "application/json".toMediaType()
         val defaultHttp: OkHttpClient = OkHttpClient.Builder()
@@ -37,7 +40,7 @@ class BridgeClient(
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
 
-        /** "192.168.1.10:7913" -> "http://192.168.1.10:7913", ohne Schraegstrich am Ende. */
+        /** "192.168.1.10:7913" -> "http://192.168.1.10:7913", without a trailing slash. */
         fun normalizeUrl(input: String): String {
             val s = input.trim().trimEnd('/')
             if (s.isEmpty()) return s
@@ -47,11 +50,17 @@ class BridgeClient(
 
     private val base = normalizeUrl(baseUrl)
 
+    /** Request with language and - always: the bridge recognises the paired device by it (also when reading, for
+     *  can_write) - the key. */
+    private fun request(url: String): Request.Builder {
+        val builder = Request.Builder().url(url).header("X-Lang", I18n.lang)
+        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        return builder
+    }
+
     private suspend fun <T> call(method: String, path: String, bodyJson: String?, out: KSerializer<T>): T =
         withContext(Dispatchers.IO) {
-            val builder = Request.Builder().url(base + path)
-            // Immer mitschicken: die Bridge erkennt daran das gekoppelte Geraet (auch beim Lesen, fuer can_write)
-            if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+            val builder = request(base + path)
             builder.method(method, bodyJson?.toRequestBody(JSON_TYPE) ?: if (method == "GET") null else "{}".toRequestBody(JSON_TYPE))
             try {
                 http.newCall(builder.build()).execute().use { resp ->
@@ -63,20 +72,19 @@ class BridgeClient(
                     try {
                         json.decodeFromString(out, text)
                     } catch (e: SerializationException) {
-                        // andere Bridge-Version: nie abstuerzen, sondern melden
-                        throw BridgeException(0, "Antwort der Bridge nicht lesbar – App und Bridge auf denselben Stand bringen " +
-                            "(${e.message?.substringBefore('\n')?.take(120)})")
+                        // other bridge version: never crash, report it
+                        throw BridgeException(0, tr("Bridge answer not readable – bring app and bridge to the same version ({detail})",
+                            "detail" to e.message?.substringBefore('\n')?.take(120)))
                     }
                 }
             } catch (e: IOException) {
-                throw BridgeException(0, "Bridge nicht erreichbar (${e.message ?: e.javaClass.simpleName})")
+                throw BridgeException(0, tr("Bridge not reachable ({detail})", "detail" to (e.message ?: e.javaClass.simpleName)))
             }
         }
 
-    /** Bild der Bridge (Kamera, Druckvorschau); null, wenn es gerade keins gibt (404/503). */
+    /** Image of the bridge (camera, print preview); null when there is none right now (404/503). */
     suspend fun image(path: String): ByteArray? = withContext(Dispatchers.IO) {
-        val builder = Request.Builder().url(base + path)
-        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        val builder = request(base + path)
         try {
             http.newCall(builder.build()).execute().use { resp ->
                 when {
@@ -86,17 +94,16 @@ class BridgeClient(
                 }
             }
         } catch (e: IOException) {
-            throw BridgeException(0, "Bridge nicht erreichbar (${e.message ?: e.javaClass.simpleName})")
+            throw BridgeException(0, tr("Bridge not reachable ({detail})", "detail" to (e.message ?: e.javaClass.simpleName)))
         }
     }
 
     /**
-     * Kamera live: Restream der Bridge (eine Verbindung zum Drucker fuer alle Zuschauer). Laeuft, solange
-     * gesammelt wird; Fehler beenden den Flow mit BridgeException.
+     * Live camera: restream of the bridge (one connection to the printer for all viewers). Runs while collected;
+     * errors end the flow with BridgeException.
      */
     fun cameraStream(): Flow<ByteArray> = flow {
-        val builder = Request.Builder().url("$base/api/camera/stream.mjpg")
-        if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        val builder = request("$base/api/camera/stream.mjpg")
         val call = http.newCall(builder.build())
         try {
             call.execute().use { resp ->
@@ -108,7 +115,7 @@ class BridgeClient(
                 while (true) emit(reader.next() ?: break)
             }
         } catch (e: IOException) {
-            throw BridgeException(0, "Kamera unterbrochen (${e.message ?: e.javaClass.simpleName})")
+            throw BridgeException(0, tr("Camera interrupted ({detail})", "detail" to (e.message ?: e.javaClass.simpleName)))
         } finally {
             call.cancel()
         }
@@ -116,12 +123,12 @@ class BridgeClient(
 
     suspend fun appUpdate(): AppUpdate = call("GET", "/api/app/update", null, AppUpdate.serializer())
 
-    /** APK von der Bridge in eine Datei laden; progress bekommt 0..1. */
+    /** Download the APK from the bridge into a file; progress gets 0..1. */
     suspend fun download(path: String, dest: java.io.File, progress: (Float) -> Unit) = withContext(Dispatchers.IO) {
         val req = Request.Builder().url(base + path).build()
         try {
             http.newBuilder().readTimeout(60, TimeUnit.SECONDS).build().newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) throw BridgeException(resp.code, "Download fehlgeschlagen (HTTP ${resp.code})")
+                if (!resp.isSuccessful) throw BridgeException(resp.code, tr("Download failed (HTTP {code})", "code" to resp.code))
                 val total = resp.body.contentLength().takeIf { it > 0 } ?: -1L
                 dest.parentFile?.mkdirs()
                 resp.body.byteStream().use { input ->
@@ -139,7 +146,7 @@ class BridgeClient(
                 }
             }
         } catch (e: IOException) {
-            throw BridgeException(0, "Download abgebrochen (${e.message ?: e.javaClass.simpleName})")
+            throw BridgeException(0, tr("Download aborted ({detail})", "detail" to (e.message ?: e.javaClass.simpleName)))
         }
     }
 
@@ -172,7 +179,7 @@ class BridgeClient(
         call("POST", "/api/app/vendor", json.encodeToString(JsonObject.serializer(),
             JsonObject(mapOf("name" to JsonPrimitive(name)))), VendorResponse.serializer()).vendor
 
-    /** Filament anlegen; body = nur die gesetzten Felder (siehe FilamentDraft.toJson). */
+    /** Create a filament; body = only the fields set (see FilamentDraft.toJson). */
     suspend fun createFilament(body: JsonObject): FilamentInfo =
         call("POST", "/api/app/filament", json.encodeToString(JsonObject.serializer(), body), FilamentResponse.serializer()).filament
 
@@ -188,7 +195,7 @@ class BridgeClient(
         call("DELETE", "/api/auth/devices/$id", null, ApiError.serializer())
     }
 
-    /** pause, resume, cancel, emergency_stop, firmware_restart - die App hat vorher selbst nachgefragt (confirm). */
+    /** pause, resume, cancel, emergency_stop, firmware_restart - the app asked for confirmation itself (confirm). */
     suspend fun printAction(action: String) {
         call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
     }
@@ -197,7 +204,7 @@ class BridgeClient(
     suspend fun spoolMoisture(id: Int): SpoolMoistureFull =
         call("GET", "/api/spool/$id/moisture", null, SpoolMoistureFull.serializer())
 
-    /** Ausserhalb der ACE getrocknet (eigener Trockner). */
+    /** Dried outside the ACE (own dryer). */
     suspend fun spoolDried(id: Int, temp: Int, minutes: Double) {
         call("POST", "/api/spool/$id/dried", buildJsonObject { put("temp", temp); put("minutes", minutes) }.toString(),
             ApiError.serializer())
@@ -205,23 +212,23 @@ class BridgeClient(
 
     suspend fun vision(): VisionFull = call("GET", "/api/vision", null, VisionFull.serializer())
 
-    /** KI-Einstellungen aendern - nur die mitgeschickten Felder. */
+    /** Change AI settings - only the fields sent. */
     suspend fun visionSettings(changes: JsonObject) {
         call("POST", "/api/vision/settings", changes.toString(), ApiError.serializer())
     }
 
-    /** Diesen Druck (nicht) ueberwachen. */
+    /** (Don't) watch this print. */
     suspend fun visionMute(on: Boolean) {
         call("POST", "/api/vision/mute", buildJsonObject { put("on", on) }.toString(), ApiError.serializer())
     }
 
-    /** KI-Ereignis bewerten: false_alarm (KI fuer den Rest des Drucks still) oder confirmed. */
+    /** Rate an AI event: false_alarm (AI quiet for the rest of the print) or confirmed. */
     suspend fun visionFeedback(eventId: String, verdict: String) {
         call("POST", "/api/vision/feedback", buildJsonObject { put("id", eventId); put("verdict", verdict) }.toString(),
             ApiError.serializer())
     }
 
-    /** Nachjustieren: {speed, flow, fans: {part, box, filter}, nozzle, bed}. */
+    /** Tune: {speed, flow, fans: {part, box, filter}, nozzle, bed}. */
     suspend fun tune(body: JsonObject) {
         call("POST", "/api/print/tune", body.toString(), ApiError.serializer())
     }
@@ -247,12 +254,12 @@ class BridgeClient(
         call("DELETE", "/api/dryer/schedule", null, ApiError.serializer())
     }
 
-    /** Endlosspule (endless_spool: Boolean) oder ihr Modus (endless_mode: exact | material | next). */
+    /** Endless spool (endless_spool: Boolean) or its mode (endless_mode: exact | material | next). */
     suspend fun setAceOption(key: String, value: JsonPrimitive): AceSettings =
         call("POST", "/api/ace/options", json.encodeToString(JsonObject.serializer(), JsonObject(mapOf(key to value))),
             AceResponse.serializer()).settings
 
-    /** Auto-PA-Schalter in Klipper (null = unveraendert). */
+    /** Auto PA switches in Klipper (null = unchanged). */
     suspend fun paSwitch(enabled: Boolean?, auto: Boolean?) {
         val body = buildMap<String, JsonPrimitive> {
             enabled?.let { put("enabled", JsonPrimitive(it)) }
@@ -261,19 +268,19 @@ class BridgeClient(
         call("POST", "/api/pa/switch", json.encodeToString(JsonObject.serializer(), JsonObject(body)), ApiError.serializer())
     }
 
-    /** Unterbrochenen Druck fortsetzen (nur nach Pruefung des Teils) bzw. verwerfen. */
+    /** Resume the interrupted print (only after checking the part) or discard it. */
     suspend fun resume(start: Boolean) {
         if (start) call("POST", "/api/resume", "{\"confirm\":true}", ApiError.serializer())
         else call("POST", "/api/resume/discard", "{}", ApiError.serializer())
     }
 
-    /** Verstopfung erkennen: enabled und/oder action (warn, pause); null = unveraendert. */
+    /** Clog detection: enabled and/or action (warn, pause); null = unchanged. */
     suspend fun clogSwitch(enabled: Boolean?, action: String?) {
         val parts = listOfNotNull(enabled?.let { "\"enabled\":$it" }, action?.let { "\"action\":\"$it\"" })
         call("POST", "/api/clog/switch", parts.joinToString(",", "{", "}"), ApiError.serializer())
     }
 
-    /** Schalter aus /api/switches (z. B. usb_watch) setzen. */
+    /** Set a switch from /api/switches (e.g. usb_watch). */
     suspend fun setSwitch(key: String, value: Boolean) {
         call("POST", "/api/switch", "{\"key\":\"$key\",\"value\":$value}", ApiError.serializer())
     }
@@ -282,12 +289,12 @@ class BridgeClient(
         call("POST", "/api/resume/switch", "{\"enabled\":$enabled}", ApiError.serializer())
     }
 
-    /** PA jetzt messen (nur ohne Druck; Ergebnis kommt nach ~2 min ueber den Status). */
+    /** Measure PA now (only without a print; the result arrives after ~2 min via the state). */
     suspend fun paCalibrate(slot: Int) {
         call("POST", "/api/pa/calibrate", "{\"slot\":$slot}", ApiError.serializer())
     }
 
-    /** PA eines Filaments in Spoolman loeschen - beim naechsten Druck wird neu gemessen. */
+    /** Delete a filament's PA in Spoolman - it is measured again at the next print. */
     suspend fun paForget(filamentId: Int) {
         call("POST", "/api/pa/forget", "{\"filament_id\":$filamentId}", ApiError.serializer())
     }
