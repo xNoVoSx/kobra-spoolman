@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("moonraker")
 
 # printer data for card/app: single fields only, nothing that changes with every move
-# (Position, aktuelle Geschwindigkeit).
+# (position, current speed).
 SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "extruder": ["temperature", "target", "power"],
                      "heater_bed": ["temperature", "target", "power"],

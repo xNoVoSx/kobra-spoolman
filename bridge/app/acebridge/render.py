@@ -37,7 +37,7 @@ CHECKPOINT_BYTES = 256 * 1024    # checkpoints for the remaining consumption
 _MOVE = re.compile(r"^G[0123](?:\s|$)")
 _AXIS = re.compile(r"([XYZEF])(-?\d*\.?\d+)")
 _TOOL = re.compile(r"^T(\d+)\s*$")
-_PURGE = re.compile(r"^ACE_SET_PURGE_AMOUNT\b.*\bPURGELENGTH=(-?\d*\.?\d+)")   # Orca-Wechsel-G-Code vor jedem T
+_PURGE = re.compile(r"^ACE_SET_PURGE_AMOUNT\b.*\bPURGELENGTH=(-?\d*\.?\d+)")   # Orca's change G-code before every T
 _THUMB = re.compile(r"^;\s*thumbnail(?:_PNG)?\s+begin\s+(\d+)x(\d+)\s+(\d+)", re.I)
 
 
@@ -350,7 +350,7 @@ def parse_bytes(data: bytes) -> GcodeModel:
     return m
 
 
-# ====================================================================== Zeichnen
+# ====================================================================== drawing
 def _rgb(hexcol: Optional[str]) -> Tuple[int, int, int]:
     h = str(hexcol or "").lstrip("#")[:6]
     try:
@@ -423,7 +423,7 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
     ox = W / 2 - (minx + maxx) / 2 * scale
     oy = H / 2 - (miny + maxy) / 2 * scale
 
-    # Druckbett als Umriss (Orientierung)
+    # print bed as an outline (orientation)
     corners = [proj(0, 0, 0), proj(BED_MM, 0, 0), proj(BED_MM, BED_MM, 0), proj(0, BED_MM, 0)]
     poly = [(c[0] * scale + ox, c[1] * scale + oy) for c in corners]
     draw.polygon(poly, outline=(46, 51, 58), width=ss * 2)
@@ -482,7 +482,7 @@ class PrintPreview:
         self._task: Optional[asyncio.Task] = None
         self._render_lock = asyncio.Lock()
 
-    # ------------------------------------------------------------ Laden
+    # ------------------------------------------------------------ loading
     def watch(self, status: Dict[str, Dict[str, Any]]) -> None:
         """On every status: new print -> load the file."""
         if not self.cfg.render:
@@ -581,7 +581,7 @@ class PrintPreview:
                 break
         self.model = model if model.thumbnail else None
 
-    # ------------------------------------------------------------ Zeichnen
+    # ------------------------------------------------------------ drawing
     def colours(self, status: Dict[str, Dict[str, Any]]) -> List[Optional[str]]:
         """Colour per tool: ACE colour of the slot (ACEPRO: tool T<n> = slot n+1), else from the G-code."""
         out: List[Optional[str]] = []

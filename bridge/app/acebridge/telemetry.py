@@ -99,7 +99,7 @@ class Recorder:
         log.info("Telemetrie beendet: %s", os.path.basename(self._path or ""))
         self._fh, self._path, self._end_at = None, None, None
 
-    # ------------------------------------------------------------------ Eingang
+    # ------------------------------------------------------------------ input
     def on_status(self, delta: Dict[str, Any], full: bool, status: Dict[str, Dict[str, Any]]) -> None:
         if not self.cfg.telemetry:
             return

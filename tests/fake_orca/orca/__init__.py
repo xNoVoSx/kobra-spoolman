@@ -1,4 +1,4 @@
-"""Minimaler Ersatz fuer Orcas Python-Modul 'orca', damit das Plugin ohne Orca importierbar ist."""
+"""Minimal stand-in for Orca's Python module 'orca', so the plugin can be imported without Orca."""
 import types
 
 

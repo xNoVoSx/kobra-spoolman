@@ -1,4 +1,4 @@
-"""ACE-Karte unter ACEPRO: Endlosspule und Modus lesen/schreiben; der Spuel-Multiplikator ist entfallen."""
+"""ACE card under ACEPRO: read/write endless spool and mode; the purge multiplier is gone."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ class Moon(FakeMoonraker):
 
     async def gcode(self, script, source="Bridge"):
         self.sent.append(script)
-        for line in script.split("\n"):              # wie der Treiber: neuer Stand kommt im Abo zurueck
+        for line in script.split("\n"):              # like the driver: the new state comes back in the subscription
             if line in ("ACE_ENABLE_ENDLESS_SPOOL", "ACE_DISABLE_ENDLESS_SPOOL"):
                 self.merge({"ace": {"endless_spool_enabled": line.startswith("ACE_ENABLE")}})
             elif line.startswith("ACE_SET_ENDLESS_SPOOL_MODE MODE="):
@@ -45,14 +45,14 @@ def test_reads_endless_spool_from_the_driver(ace):
     st = a.state()
     assert st["present"] and st["endless_spool"] is True and st["endless_mode"] == "exact"
     assert st["firmware"] == "V1.1.36" and set(st["endless_modes"]) == {"exact", "material", "next"}
-    assert "flush_multiplier" not in st and "auto_refill" not in st     # GoKlipper-Felder sind weg (11.10.)
+    assert "flush_multiplier" not in st and "auto_refill" not in st     # the GoKlipper fields are gone (11.10.)
 
 
 def test_switch_endless_spool_and_mode(ace):
     a, moon = ace
     st = asyncio.run(a.set_options({"endless_spool": False, "endless_mode": "material"}))
     assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL\nACE_SET_ENDLESS_SPOOL_MODE MODE=material"]
-    assert st["endless_spool"] is False and st["endless_mode"] == "material"     # Antwort zeigt den neuen Stand
+    assert st["endless_spool"] is False and st["endless_mode"] == "material"     # the answer shows the new state
     st = asyncio.run(a.set_options({"endless_spool": True}))
     assert moon.sent[-1] == "ACE_ENABLE_ENDLESS_SPOOL" and st["endless_spool"] is True
 
@@ -62,7 +62,7 @@ def test_answer_does_not_hang_when_the_driver_stays_silent(ace, monkeypatch):
     monkeypatch.setattr("acebridge.ace.CONFIRM_WAIT_S", 0.2)
     moon.gcode = lambda script, source="Bridge": moon.sent.append(script) or asyncio.sleep(0)
     st = asyncio.run(a.set_options({"endless_spool": False}))
-    assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL"] and st["endless_spool"] is True   # alter Stand, kein Fehler
+    assert moon.sent == ["ACE_DISABLE_ENDLESS_SPOOL"] and st["endless_spool"] is True   # old state, no error
 
 
 def test_allowed_while_printing(ace):

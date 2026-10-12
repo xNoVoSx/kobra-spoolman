@@ -10,5 +10,5 @@ bridge/data/
 .env
 push.sh
 
-# App-APK fuers Update (legt der Docker-Workflow ins Image)
+# app APK for the update (the Docker workflow puts it into the image)
 bridge/app/acebridge/appdist/

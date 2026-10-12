@@ -1,4 +1,4 @@
-"""USB-Tunnel-Waechter (acebridge/usb.py): Zustand aus Moonrakers Datenbank, Statuszeile, Meldung, Schalter."""
+"""USB tunnel watchdog (acebridge/usb.py): state from Moonraker's database, status line, message, switches."""
 
 from __future__ import annotations
 
@@ -128,7 +128,7 @@ def test_status_line_and_notice(cfg):
 
 
 def test_app_state_carries_usb(cfg):
-    """/api/app/state: Feld usb (Web-Karte, App) - None ohne Waechter; Schalten ueber /api/switch."""
+    """/api/app/state: field usb (web card, app) - None without a watchdog; switching via /api/switch."""
     from test_appapi import FakeBridge
     from aiohttp.test_utils import TestClient, TestServer
 

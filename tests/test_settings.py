@@ -1,4 +1,4 @@
-"""Einstellungen im laufenden Betrieb: Startwert aus der Umgebung, gespeichert in settings.json."""
+"""Settings at runtime: start value from the environment, stored in settings.json."""
 
 from __future__ import annotations
 
@@ -25,10 +25,10 @@ def test_update_validates_saves_and_survives_restart(cfg, monkeypatch):
     for bad in ({"low_spool_g": -1}, {"camera": "ja"}, {"telemetry_keep": 2.5}, {"moonraker_url": "x"}, {"gibtsnicht": 1}):
         with pytest.raises(ValueError):
             rs.update(bad)
-    with pytest.raises(ValueError):                        # mindestens > hoechstens: nichts uebernommen
+    with pytest.raises(ValueError):                        # minimum > maximum: nothing taken over
         rs.update({"camera_fps_min": 12, "camera_fps_max": 5})
     assert cfg.camera_fps_min == 1.0 and cfg.camera_fps_max == 10.0
-    fresh = Config()                                       # Neustart: Umgebung liefert die Startwerte ...
+    fresh = Config()                                       # restart: the environment delivers the start values ...
     RuntimeSettings(fresh)                                 # ... gespeicherte Werte gewinnen
     assert fresh.low_spool_g == 150 and fresh.camera is False
     rs.reset("low_spool_g")

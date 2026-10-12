@@ -22,7 +22,7 @@ def test_nms_keeps_the_best_of_overlapping_boxes():
 def test_postprocess_threshold_and_relative_boxes():
     boxes = np.zeros((1, 3, 1, 4), dtype=np.float32)
     boxes[0, :, 0] = [[0.1, 0.2, 0.3, 0.6], [0.5, 0.5, 0.7, 0.9], [0.0, 0.0, 1.0, 1.0]]
-    confs = np.array([[[0.6], [0.2], [0.05]]], dtype=np.float32)       # die dritte liegt unter 0.08
+    confs = np.array([[[0.6], [0.2], [0.05]]], dtype=np.float32)       # the third is below 0.08
     out = postprocess(boxes, confs, ["failure"])
     assert [round(d[1], 2) for d in out] == [0.6, 0.2]
     name, conf, (xc, yc, w, h) = out[0]
@@ -30,7 +30,7 @@ def test_postprocess_threshold_and_relative_boxes():
 
 
 class FakeSession:
-    """Statt des 200-MB-Modells: liefert immer eine Box."""
+    """Instead of the 200 MB model: always delivers one box."""
     def get_inputs(self):
         class Inp:
             name, shape = "input", [1, 3, 32, 32]
@@ -65,7 +65,7 @@ def test_lazy_load_and_unload_after_idle(monkeypatch):
     t[0] = 601
     assert d.unload_if_idle() and not d.loaded
     d.detect(jpeg())
-    assert loads == [1, 1]                                            # beim naechsten Bild wieder geladen
+    assert loads == [1, 1]                                            # loaded again at the next image
 
 
 def test_http_api_with_token(monkeypatch):

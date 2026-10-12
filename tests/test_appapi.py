@@ -1,5 +1,5 @@
-"""App-API (Stufe 1): Pruefung/Umwandlung, Tags, Druckerstatus und die HTTP-Routen gegen einen
-Spoolman im Speicher."""
+"""App API (stage 1): validation/conversion, tags, printer status and the HTTP routes against a Spoolman in
+memory."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def test_filament_body_only_contains_what_was_set():
                                FIELDS, VENDORS, [TPL_PETG], creating=True)
     assert body == {"name": "PETG 2.0 Mint", "material": "PETG", "vendor_id": 2, "color_hex": "3FA46A",
                     "settings_extruder_temp": 250, "extra": {"flow_ratio": "0.96"},
-                    "density": 1.27, "diameter": 1.75}   # Dichte/Durchmesser aus der Vorlage (Pflicht in Spoolman)
+                    "density": 1.27, "diameter": 1.75}   # density/diameter from the template (required in Spoolman)
     assert "settings_bed_temp" not in body and "nozzle_temp_first_layer" not in body["extra"]
 
 
@@ -62,7 +62,7 @@ def test_filament_body_validation():
                      ({"name": "x", "material": "EXOTISCH"}, "density")):
         with pytest.raises(AppError, match=msg):
             build_filament_body(bad, FIELDS, VENDORS, [TPL_PETG], creating=True)
-    # Aendern: null leert ein Feld (zurueck zur Vorlage)
+    # change: null clears a field (back to the template)
     assert build_filament_body({"extra": {"flow_ratio": None}, "settings_bed_temp": None}, FIELDS, VENDORS,
                                [TPL_PETG], creating=False) == {"extra": {"flow_ratio": None}, "settings_bed_temp": None}
 
@@ -74,9 +74,9 @@ def test_extra_values_are_spoolman_json():
 
 
 def test_copy_keeps_product_line_values_but_not_name_and_colour():
-    body = copy_filament_body(LAVENDEL, {"name": "PETG 2.0 Mintgrün", "color_hex": "3FA46A"}, FIELDS, VENDORS,
+    body = copy_filament_body(LAVENDEL, {"name": "PETG 2.0 Mint green", "color_hex": "3FA46A"}, FIELDS, VENDORS,
                               [TPL_PETG])
-    assert body["name"] == "PETG 2.0 Mintgrün" and body["color_hex"] == "3FA46A" and body["vendor_id"] == 2
+    assert body["name"] == "PETG 2.0 Mint green" and body["color_hex"] == "3FA46A" and body["vendor_id"] == 2
     assert body["settings_extruder_temp"] == 250 and body["weight"] == 1000
     assert body["extra"] == {"flow_ratio": "0.95", "vorlage": "\"Template PETG\""}
 
@@ -96,7 +96,7 @@ def test_tag_content_uses_filament_then_template():
     t = tag_content(spool, [TPL_PETG], 4711, "AHPEBK")
     assert t["sku"] == "AHPEBK-4711" and t["brand"] == "Sunlu" and t["material"] == "PETG"
     assert t["color"] == "685BC7"
-    assert (t["nozzle_min"], t["nozzle_max"]) == (250, 255)   # 250 vom Filament, 255 erste Schicht aus Vorlage
+    assert (t["nozzle_min"], t["nozzle_max"]) == (250, 255)   # 250 from the filament, 255 first layer from the template
     assert (t["bed_min"], t["bed_max"]) == (75, 80)
     assert 310 < t["length_m"] < 340                          # 1 kg PETG 1,75 mm
 
@@ -107,9 +107,9 @@ def test_printer_state():
     p = printer_state(st, True, True, 1)
     assert p["state"] == "printing" and p["file"] == "a.gcode" and p["eta_s"] == 1800 and p["active_slot"] == 1
     assert p["changing_filament"] is False and p["mmu_action"] is None
-    st["ace"] = {"current_index": -1, "target_index": 2}           # ACEPRO wechselt gerade auf Slot 3
+    st["ace"] = {"current_index": -1, "target_index": 2}           # ACEPRO is changing to slot 3
     p = printer_state(st, True, True, None)
-    assert p["changing_filament"] is True and p["mmu_action"] == "Wechsel auf Slot 3"
+    assert p["changing_filament"] is True and p["mmu_action"] == "Change to slot 3"
     assert printer_state(st, False, False, None)["state"] == "offline"
     idle = printer_state({"print_stats": {"state": "standby", "filename": "a.gcode"}}, True, True, None)
     assert idle["state"] == "standby" and idle["file"] is None and idle["progress"] is None
@@ -117,7 +117,7 @@ def test_printer_state():
 
 
 def test_printer_state_machine_values():
-    """Werte wie GoKlipper am S1 sie meldet (objects/query vom 01.10.)."""
+    """Values as GoKlipper reports them on the S1 (objects/query of 01.10.)."""
     st = {"print_stats": {"state": "printing", "info": {"current_layer": 29, "total_layer": 65}},
           "extruder": {"temperature": 219.6, "target": 220, "power": 0.41},
           "heater_bed": {"temperature": 70, "target": 70, "power": 0.2},
@@ -134,7 +134,7 @@ def test_printer_state_machine_values():
 
 # ====================================================================== HTTP-Routen
 class MemSpoolman:
-    """Spoolman im Speicher mit den Methoden, die Bridge und App-API nutzen."""
+    """Spoolman in memory with the methods bridge and app API use."""
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -246,9 +246,9 @@ class FakeBridge:
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
-        self.camera = Camera(cfg, self.moon, None)       # ohne Zuschauer kein Abruf
+        self.camera = Camera(cfg, self.moon, None)       # no fetching without viewers
         self.preview = PrintPreview(cfg, self.moon, None)
-        self.vision = Vision(cfg, self.moon, self.camera, None)  # VISION_URL leer: aus
+        self.vision = Vision(cfg, self.moon, self.camera, None)  # VISION_URL empty: off
         self.settings = RuntimeSettings(cfg)
 
     def safety_warnings(self):
@@ -276,8 +276,8 @@ def test_state_catalog_and_spool_detail(api):
     bridge, call = api
     status, st = call("GET", "/api/app/state", token=None)
     assert status == 200 and st["printer"]["state"] == "standby" and st["printer"]["active_slot"] == 1
-    assert st["slots"][0]["spool"]["spool_id"] == 1 and st["can_write"] is False   # ohne Schluessel
-    assert call("GET", "/api/app/state")[1]["can_write"] is True                     # mit Schluessel
+    assert st["slots"][0]["spool"]["spool_id"] == 1 and st["can_write"] is False   # without a key
+    assert call("GET", "/api/app/state")[1]["can_write"] is True                     # with a key
     status, cat = call("GET", "/api/app/catalog", token=None)
     assert [v["name"] for v in cat["vendors"]] == ["Sunlu"]            # Vorlagen-Hersteller ausgeblendet
     assert cat["templates"][0]["name"] == "Template PETG"
@@ -291,12 +291,12 @@ def test_writes_need_the_token(api):
     bridge, call = api
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token=None)[0] == 401
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"}, token="falsch")[0] == 401
-    bridge.devices.legacy = ""          # kein APP_TOKEN, nichts gekoppelt -> Einrichtung noetig
+    bridge.devices.legacy = ""          # no APP_TOKEN, nothing paired -> setup needed
     assert call("POST", "/api/app/vendor", {"name": "Elegoo"})[0] == 403
 
 
 def test_every_write_route_needs_a_paired_device(api):
-    """Slots, Trockner, offene Posten und Orca-Ruecksync: ohne Schluessel abgelehnt, Lesen bleibt offen."""
+    """Slots, dryer, open items and Orca back sync: refused without a key, reading stays open."""
     bridge, call = api
     for method, path, body in (("POST", "/api/slots/1", {"spool_id": None}),
                                ("POST", "/api/dryer/start", {}), ("POST", "/api/dryer/stop", None),
@@ -314,7 +314,7 @@ def test_every_write_route_needs_a_paired_device(api):
         assert call(method, path, body, token="falsch")[0] == 401, path
     for path in ("/api/slots", "/api/dryer", "/api/orca/state", "/api/orca/profiles", "/api/app/state", "/api/ace"):
         assert call("GET", path, token=None)[0] == 200, path
-    # mit Schluessel kommt die Anfrage durch (hier: Slot leeren)
+    # with a key the request gets through (here: empty a slot)
     status, res = call("POST", "/api/slots/1", {"spool_id": None})
     assert status == 200 and res["slots"][0]["spool"] is None
 
@@ -326,7 +326,7 @@ def test_spool_patch(api):
     assert status == 200 and res["spool"]["remaining_weight"] == 812.5 and res["spool"]["lot_nr"] == "L17"
     assert bridge.sm.calls[-1] == ("patch_spool", 1, {"remaining_weight": 812.5, "lot_nr": "L17",
                                                       "comment": "getrocknet"})
-    # Spule im Slot: Lagerort nur ueber die Zuordnung; Slot-Ort nie als freier Text
+    # spool in a slot: location only via the assignment; the slot location never as free text
     assert call("PATCH", "/api/app/spool/1", {"location": "Regal A"})[0] == 400
     call("POST", "/api/slots/1", {"spool_id": None})
     assert call("PATCH", "/api/app/spool/1", {"location": "ACE Slot 2"})[0] == 400
@@ -341,7 +341,7 @@ def test_create_vendor_filament_spool_into_slot(api):
     status, v = call("POST", "/api/app/vendor", {"name": "Elegoo", "empty_spool_weight": "150"})
     assert status == 201
     assert call("POST", "/api/app/vendor", {"name": "elegoo"})[0] == 409
-    status, f = call("POST", "/api/app/filament", {"name": "PETG Pro Weiß", "material": "PETG",
+    status, f = call("POST", "/api/app/filament", {"name": "PETG Pro White", "material": "PETG",
                                                   "vendor_id": v["vendor"]["id"], "color_hex": "FFFFFF",
                                                   "weight": 1000})
     assert status == 201 and f["filament"]["orca_id"].startswith("SM")
@@ -351,9 +351,9 @@ def test_create_vendor_filament_spool_into_slot(api):
 
 def test_copy_and_archive(api):
     bridge, call = api
-    status, f = call("POST", "/api/app/filament/20/copy", {"name": "PETG 2.0 Mintgrün", "color_hex": "3FA46A"})
+    status, f = call("POST", "/api/app/filament/20/copy", {"name": "PETG 2.0 Mint green", "color_hex": "3FA46A"})
     assert status == 201 and f["filament"]["color"] == "3FA46A"
-    assert call("POST", "/api/app/filament/10/copy", {"name": "x"})[0] == 404       # Vorlage ist kein Filament
+    assert call("POST", "/api/app/filament/10/copy", {"name": "x"})[0] == 404       # a template is not a filament
     status, _ = call("POST", "/api/app/spool/1/archive")
     assert status == 200 and bridge.sm.spools[0]["archived"] is True
     assert bridge.sm.spools[0]["location"] == "Shelf"
@@ -363,9 +363,9 @@ def test_tag_issue_link_lookup(api):
     bridge, call = api
     status, t = call("POST", "/api/app/tag/issue", {"spool_id": 1})
     assert status == 200 and t["tag"]["sku"] == f"AHPEBK-{t['tag']['tag_nr']}"
-    assert ("field", "spool", "tag_nr") in bridge.sm.calls                # Feld wird bei Bedarf angelegt
+    assert ("field", "spool", "tag_nr") in bridge.sm.calls                # the field is created when needed
     status, t2 = call("POST", "/api/app/tag/issue", {"spool_id": 1})
-    assert t2["tag"]["tag_nr"] == t["tag"]["tag_nr"]                       # bleibt stabil
+    assert t2["tag"]["tag_nr"] == t["tag"]["tag_nr"]                       # stays stable
     status, _ = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04:A1:B2:C3:D4:E5:F6"})
     assert status == 200
     status, hit = call("GET", "/api/app/tag/04a1b2c3d4e5f6", token=None)
@@ -374,21 +374,21 @@ def test_tag_issue_link_lookup(api):
 
 
 def test_two_tags_per_spool(api):
-    """ACE 2 Pro: ein Tag pro Spulenseite. Zweiter Tag kommt dazu (reset=false), beide finden die Spule."""
+    """ACE 2 Pro: one tag per spool side. A second tag is added (reset=false), both find the spool."""
     bridge, call = api
     call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04A1B2C3D4E5F6", "reset": True})
     status, res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04FFEEDDCCBBAA", "reset": False})
     assert status == 200 and res["spool"]["nfc_uids"] == ["04A1B2C3D4E5F6", "04FFEEDDCCBBAA"]
-    assert res["spool"]["nfc_uid"] == "04A1B2C3D4E5F6"                    # aeltere Apps: erste Kennung
+    assert res["spool"]["nfc_uid"] == "04A1B2C3D4E5F6"                    # older apps: first ID
     for uid in ("04a1b2c3d4e5f6", "04ffeeddccbbaa"):
         assert call("GET", f"/api/app/tag/{uid}", token=None)[1]["spool"]["spool_id"] == 1
-    # derselbe Tag noch einmal: keine Dublette
+    # the same tag again: no duplicate
     res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04FFEEDDCCBBAA", "reset": False})[1]
     assert res["spool"]["nfc_uids"] == ["04A1B2C3D4E5F6", "04FFEEDDCCBBAA"]
-    # ein dritter: hoechstens zwei, der aelteste faellt raus
+    # a third: at most two, the oldest drops out
     res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04111111111111", "reset": False})[1]
     assert res["spool"]["nfc_uids"] == ["04FFEEDDCCBBAA", "04111111111111"]
-    # neu schreiben (Standard wie aeltere Apps): ersetzt beide
+    # rewrite (default like older apps): replaces both
     res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04222222222222"})[1]
     assert res["spool"]["nfc_uids"] == ["04222222222222"]
     assert call("GET", "/api/app/tag/04ffeeddccbbaa", token=None)[0] == 404
@@ -397,7 +397,7 @@ def test_two_tags_per_spool(api):
 def test_orca_bases_are_stored(api, cfg):
     bridge, call = api
     names = {"names": ["Generic PETG @System", "Generic PLA @System"]}
-    assert call("POST", "/api/orca/bases", names, token=None)[0] == 401      # Plugin muss gekoppelt sein
+    assert call("POST", "/api/orca/bases", names, token=None)[0] == 401      # the plugin must be paired
     status, res = call("POST", "/api/orca/bases", names)
     assert status == 200 and res["count"] == 2
     assert call("GET", "/api/app/catalog", token=None)[1]["orca_bases"] == ["Generic PETG @System",
@@ -405,8 +405,8 @@ def test_orca_bases_are_stored(api, cfg):
 
 
 def test_bad_requests_and_spoolman_failures_never_break_the_bridge(api):
-    """Die App ist nur ein Client: kaputte Anfragen oder ein ausgefallener Spoolman ergeben eine
-    Fehlerantwort, die Bridge laeuft weiter (Status bleibt abrufbar)."""
+    """The app is only a client: broken requests or a failed Spoolman give an error answer, the bridge keeps
+    running (status stays available)."""
     bridge, call = api
 
     async def raw(method, path, data, headers):

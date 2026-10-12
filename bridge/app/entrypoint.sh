@@ -1,6 +1,6 @@
 #!/bin/sh
-# Startet die Bridge. Die Python-Umgebung liegt im Datenordner und wird nur beim
-# ersten Start bzw. bei geaenderter requirements.txt neu befuellt.
+# Starts the bridge. The Python environment lives in the data folder and is only filled
+# at the first start or when requirements.txt changed.
 set -e
 
 VENV="${DATA_DIR:-/data}/venv"

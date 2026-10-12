@@ -1,4 +1,4 @@
-"""Spoolman -> Orca-Werte und Ruecksync Orca -> Spoolman."""
+"""Spoolman -> Orca values and back sync Orca -> Spoolman."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def test_own_base_profile_replaces_template():
 
 
 def test_base_profile_source_and_generic_fallback():
-    """Issue #1: weder Filament noch Vorlage nennen ein Basisprofil -> Generic <Typ> @System (Typ wie Orca, PLA+ = PLA)."""
+    """Issue #1: neither filament nor template names a base profile -> Generic <type> @System (type like Orca, PLA+ = PLA)."""
     assert build_profile(FILAMENT, [TEMPLATE], base_type, SPOOLS, slot_of)["base_source"] == "template"
     own = dict(FILAMENT, extra=ext(orca_basis="Sunlu PETG @System"))
     assert build_profile(own, [TEMPLATE], base_type, SPOOLS, slot_of)["base_source"] == "filament"
@@ -74,8 +74,8 @@ def test_backsync_maps_known_fields_and_keeps_the_rest_as_overrides():
 
 
 def test_backsync_never_clears_a_field_for_an_unreadable_value():
-    """06.10.: Plugin 0.5.1 schickte eine Liste je Extruder-Variante als Text - die Bridge machte daraus
-    "kein Wert" und loeschte die Duesentemperatur in Spoolman."""
+    """06.10.: plugin 0.5.1 sent a list per extruder variant as text - the bridge turned it into "no value"
+    and cleared the nozzle temperature in Spoolman."""
     patch, applied, ignored = backsync_patch(FILAMENT, {
         "nozzle_temperature": '["255", "260", "260", "260", "260", "260"]',
         "nozzle_temperature_initial_layer": ["255", "260"],
@@ -103,7 +103,7 @@ def test_reset_clears_fields_so_template_applies_again():
 
 
 def test_pa_changed_in_orca_replaces_the_measured_table():
-    """Auto-PA: ein PA von Hand (Orca-Ruecksync) oder Zuruecksetzen verwirft die Messtabelle - sonst ueberstimmte sie."""
+    """Auto PA: a PA by hand (Orca back sync) or a reset discards the measured table - else it would overrule."""
     table = json.dumps(json.dumps({"speeds": [100, 200, 300], "k": [0.04, 0.035, 0.03]}))
     fil = {"id": 1, "extra": {"pa_table": table, "pressure_advance": "0.035"}}
     patch, applied, _ = backsync_patch(fil, {"pressure_advance": "0.05"})
@@ -111,6 +111,6 @@ def test_pa_changed_in_orca_replaces_the_measured_table():
     patch, _ = reset_patch(fil, ["pressure_advance"])
     assert patch["extra"] == {"pressure_advance": None, "pa_table": None}
     patch, _, _ = backsync_patch(fil, {"nozzle_temperature": "250"})
-    assert "pa_table" not in patch.get("extra", {})                      # anderes Feld: Tabelle bleibt
+    assert "pa_table" not in patch.get("extra", {})                      # another field: the table stays
     patch, _, _ = backsync_patch({"id": 2, "extra": {}}, {"pressure_advance": "0.05"})
-    assert patch["extra"] == {"pressure_advance": "0.05"}                # ohne Tabelle nichts extra
+    assert patch["extra"] == {"pressure_advance": "0.05"}                # nothing extra without a table

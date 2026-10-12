@@ -1,4 +1,4 @@
-"""Konsole (console.py): Rueckfragen bei riskanten Befehlen, Verlauf, Bridge-Log - und die HTTP-Routen."""
+"""Console (console.py): confirmations for risky commands, history, bridge log - and the HTTP routes."""
 
 from __future__ import annotations
 
@@ -16,14 +16,14 @@ from acebridge.web import build_app
 @pytest.mark.parametrize("script,printing,needs", [
     ("M115", False, False),
     ("M112", False, True),
-    ("save_config", False, True),                       # klein geschrieben auch
+    ("save_config", False, True),                       # lower case too
     ("G28", False, False),
-    ("G28", True, True),                                # Bewegung im Druck
+    ("G28", True, True),                                # move during a print
     ("M104 S240", False, False),
-    ("M104 S280", False, True),                         # Duese ueber 260 °C
+    ("M104 S280", False, True),                         # nozzle above 260 °C
     ("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=300", False, True),
     ("SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=100", False, False),
-    ("M117 hallo\nFIRMWARE_RESTART", False, True),       # jede Zeile wird geprueft
+    ("M117 hallo\nFIRMWARE_RESTART", False, True),       # every line is checked
     ("; nur Kommentar", False, False),
     ("SET_FAN_SPEED FAN=box_fan SPEED=0.5", True, False),
 ])
@@ -34,10 +34,10 @@ def test_check_command(script, printing, needs):
 def test_console_seed_and_since():
     c = Console(clock=lambda: 100.0)
     c.seed([{"message": "G28", "type": "command", "time": 1.0}, {"message": "ok", "type": "response", "time": 2.0}])
-    c.seed([{"message": "doppelt", "type": "response", "time": 3.0}])       # nach Reconnect kein zweiter Vorlauf
+    c.seed([{"message": "doppelt", "type": "response", "time": 3.0}])       # no second backlog after a reconnect
     assert [(x["kind"], x["text"], x["source"]) for x in c.lines] == [("command", "G28", "History"), ("response", "ok", None)]
     c.add("command", "M115", "Browser")
-    c.add("response", "   ")                                                 # leere Zeilen weg
+    c.add("response", "   ")                                                 # empty lines gone
     new = c.since(2)
     assert [x["text"] for x in new] == ["M115"] and new[0]["time"] == 100.0
 
@@ -54,7 +54,7 @@ def test_log_buffer_levels():
         lg.info("vier")
     finally:
         lg.removeHandler(buf)
-    assert [r["text"] for r in buf.since()] == ["zwei", "drei", "vier"]          # nur die letzten 3
+    assert [r["text"] for r in buf.since()] == ["zwei", "drei", "vier"]          # only the last 3
     assert [r["text"] for r in buf.since(level="WARNING")] == ["zwei", "drei"]
     assert "ERROR" in buf.text()
 

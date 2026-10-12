@@ -35,7 +35,7 @@ jobs:
           python-version: "3.12"
       - name: Abhaengigkeiten
         run: pip install -r requirements.txt pytest
-      - name: Tests (ohne das 200-MB-Modell)
+      - name: Tests (without the 200 MB model)
         run: pytest -q
 
   android:
@@ -49,7 +49,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      # SDK mit angenommenen Lizenzen; fehlende Plattformen laedt das Android-Gradle-Plugin selbst
+      # SDK with accepted licences; the Android Gradle plugin downloads missing platforms itself
       - uses: android-actions/setup-android@v4
       - uses: gradle/actions/setup-gradle@v6
       - name: Tests, Lint und Debug-APK

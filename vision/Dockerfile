@@ -1,7 +1,7 @@
-# kobra-vision - Fehldruck-Erkennung fuer die ace-lane-bridge (Obicos "failure"-Modell, ONNX)
-# Standard: CPU (reicht: ~50 ms pro Bild mit 2 Threads). Mit Nvidia-Grafikkarte:
-#   docker build --build-arg ORT=onnxruntime-gpu -t kobra-vision:gpu vision/   und USE_GPU=true
-# Offizielles Python-Image ueber den AWS-Spiegel (gleicher Inhalt wie Docker Hub, ohne dessen Abruf-Limit fuer CI)
+# kobra-vision - failure detection for the ace-lane-bridge (Obico's "failure" model, ONNX)
+# default: CPU (enough: ~50 ms per image with 2 threads). With an Nvidia graphics card:
+#   docker build --build-arg ORT=onnxruntime-gpu -t kobra-vision:gpu vision/   and USE_GPU=true
+# official Python image via the AWS mirror (same content as Docker Hub, without its pull limit for CI)
 FROM public.ecr.aws/docker/library/python:3.12-slim
 
 ARG ORT=onnxruntime

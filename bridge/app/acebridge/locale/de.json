@@ -569,6 +569,7 @@
  "{name}: allowed {lo:g} to {hi:g}": "{name}: erlaubt {lo:g} bis {hi:g}",
  "{n} booking not in Spoolman yet": "{n} Buchung noch nicht in Spoolman",
  "{n} bookings not in Spoolman yet": "{n} Buchungen noch nicht in Spoolman",
+ "{path} not found": "{path} nicht gefunden",
  "{rh:g} % · {age} min ago": "{rh:g} % · vor {age} min",
  "{rh:g} % · {t:g} °C · {age} min ago": "{rh:g} % · {t:g} °C · vor {age} min",
  "{text} · {step}": "{text} · {step}",

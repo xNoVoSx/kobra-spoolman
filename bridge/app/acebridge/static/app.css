@@ -1,4 +1,4 @@
-/* Kobra Spoolman - Weboberflaeche. Gleiche Gestaltung wie die Android-App (ui/theme/Theme.kt). */
+/* Kobra Spoolman - web UI. Same design as the Android app (ui/theme/Theme.kt). */
 
 @font-face { font-family: "Space Grotesk"; src: url("fonts/space_grotesk.woff2") format("woff2"); font-weight: 300 700; font-display: swap; }
 @font-face { font-family: "IBM Plex Sans"; src: url("fonts/plex_sans.woff2") format("woff2"); font-weight: 100 700; font-display: swap; }
@@ -40,7 +40,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-/* ------------------------------------------------------------ Grundbausteine */
+/* ------------------------------------------------------------ basics */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
 .pad { padding: 20px; }
 .lbl { font: 600 13px var(--grotesk); letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
@@ -87,7 +87,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .stat .v { font: 600 22px var(--mono); white-space: nowrap; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 
-/* Felder */
+/* fields */
 .f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .f > label, .f > .flabel { font: 500 13px var(--sans); color: var(--muted); display: flex; gap: 6px; align-items: baseline; }
 .f .orca { font: 500 11px var(--mono); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -138,7 +138,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .machine b.hot { color: var(--accent); }
 .viewer-machine { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); border-radius: 0 0 8px 8px; }
 .media.tall .media-body { aspect-ratio: 4 / 3; }
-.media:not(.tall) .media-body { width: 100%; max-height: 62vh; }   /* breite Karte: Bild nicht ueber den Bildschirm ziehen; feste Breite, sonst schrumpft sie ueber aspect-ratio und klebt links */
+.media:not(.tall) .media-body { width: 100%; max-height: 62vh; }   /* wide card: do not stretch the image over the screen; fixed width, else it shrinks via aspect-ratio and sticks left */
 .media-body img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
 .media-empty { color: var(--muted); font-size: 14px; padding: 16px; text-align: center; }
 .viewer { background: rgba(0,0,0,.92); }
@@ -151,7 +151,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   font: 600 15px var(--grotesk); cursor: pointer; white-space: nowrap; }
 .tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
 
-/* ------------------------------------------------------------ Rahmen */
+/* ------------------------------------------------------------ frame */
 .shell { display: flex; height: 100%; }
 .rail { width: 232px; flex: none; border-right: 1px solid var(--line); background: var(--sunken); display: flex; flex-direction: column; gap: 4px; padding: 18px 14px; overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 12px; padding: 0 6px 20px; white-space: nowrap; }
@@ -170,7 +170,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .bottomnav { display: none; }
 .status-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ------------------------------------------------------------ Uebersicht */
+/* ------------------------------------------------------------ overview */
 .ov2 { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 1fr); gap: 20px 24px; align-items: start; }
 .ov2-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .ov2-slots { grid-column: 1 / -1; }
@@ -196,7 +196,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .times div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .times span { font-size: 12px; color: var(--muted); }
-.times b { font-size: 15px; color: var(--text); overflow-wrap: anywhere; }   /* schmal: "morgen ~01:37" bricht um statt abgeschnitten */
+.times b { font-size: 15px; color: var(--text); overflow-wrap: anywhere; }   /* narrow: "tomorrow ~01:37" wraps instead of being cut off */
 
 .slot { display: flex; flex-direction: column; overflow: hidden; }
 .slot.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -212,7 +212,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .job { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .job .file { font: 600 14px var(--mono); }
 
-/* ------------------------------------------------------------ Filament: Spulen | Sorten */
+/* ------------------------------------------------------------ filament: spools | filaments */
 .hub { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0; }
 .hub > .split { flex: 1; height: auto; }
 .seg { display: inline-flex; align-self: flex-start; gap: 2px; padding: 3px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--line); }
@@ -222,7 +222,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .spool-link { gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunken); color: var(--text); }
 .spool-link:hover { background: var(--surface2); }
 
-/* ------------------------------------------------------------ Drucksteuerung */
+/* ------------------------------------------------------------ print control */
 .ctl { gap: 8px; }
 .btn.hold { position: relative; overflow: hidden; touch-action: none; user-select: none; }
 .btn.hold::before { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p, 0));
@@ -259,7 +259,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .tl .src { display: none; }
 }
 
-/* ------------------------------------------------------------ Liste + Detail */
+/* ------------------------------------------------------------ list + detail */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(560px, 0.85fr); gap: 24px; height: 100%; min-height: 0; }
 .listcard { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .listbar { padding: 14px 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); }
@@ -280,18 +280,18 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .back { display: none; }
 .section-title { font: 700 16px var(--grotesk); margin: 6px 0 0; display: flex; align-items: center; gap: 10px; }
 
-/* ------------------------------------------------------------ Ultrawide: alles auf einen Blick */
+/* ------------------------------------------------------------ ultrawide: everything at a glance */
 .ultra { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.3fr) minmax(380px, .7fr); gap: 24px; height: 100%; min-height: 0; }
 .ultra > * { min-height: 0; }
 .ucol { display: flex; flex-direction: column; gap: 18px; overflow-y: auto; min-height: 0; padding-right: 2px; }
 .ultra .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* Druckerkarte fuellt die Spaltenhoehe, das Kamerabild nimmt den Rest (nichts faellt unten heraus) */
+/* the printer card fills the column height, the camera image takes the rest (nothing falls out at the bottom) */
 .ultra .ucol:first-child > .printer { flex: 1; min-height: 0; }
 .ultra .printer .media { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ultra .printer .media-body { flex: 1; min-height: 0; aspect-ratio: auto; max-height: none; }
 .ugrid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
 
-/* ------------------------------------------------------------ Dialoge, Meldungen, Menue */
+/* ------------------------------------------------------------ dialogs, messages, menu */
 .scrim { position: fixed; inset: 0; background: rgba(5,6,8,.72); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .dialog { width: min(560px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--surface);
   border: 1px solid var(--line-strong); border-radius: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.5); }
@@ -314,7 +314,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .menu button:hover { background: var(--surface); }
 .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 
-/* ------------------------------------------------------------ Koppeln */
+/* ------------------------------------------------------------ pairing */
 .pair { display: grid; place-items: center; min-height: 100%; padding: 24px 16px; overflow-y: auto; }
 .pair .box { width: min(520px, 100%); padding: 36px; display: flex; flex-direction: column; gap: 22px; border-radius: 20px; }
 .digits { display: flex; gap: 10px; align-items: center; }
@@ -326,7 +326,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .qr svg { width: 100%; height: 100%; display: block; }
 .code-big { font: 600 44px var(--mono); letter-spacing: 6px; }
 
-/* ------------------------------------------------------------ Breiten */
+/* ------------------------------------------------------------ widths */
 @media (min-width: 3000px) {
   .content { padding: 20px 28px 24px; }
 }
@@ -343,7 +343,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
-  /* schmal: eine Spalte in der Reihenfolge Drucker, Meldungen, Slots, Trockner, ACE */
+  /* narrow: one column in the order printer, messages, slots, dryer, ACE */
   .ov2 { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
   .ov2-side { display: contents; }
   .ov2-printer { order: 1; } .o-notices { order: 2; } .ov2-slots { order: 3; } .o-dryer { order: 4; } .o-ace { order: 5; } .o-open { order: 6; }
@@ -390,7 +390,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
   .toasts { left: 16px; right: 16px; bottom: 84px; }
 }
 
-/* KI-Tab */
+/* AI tab */
 .ai-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .ai-grid { grid-template-columns: minmax(0, 1fr); } }
 .ai-img { position: relative; width: 100%; max-width: 100%; background: #0b0c0e; border-radius: var(--r-sm); overflow: hidden; }
@@ -413,7 +413,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .ai-frame .chip { font-size: 11px; padding: 2px 8px; min-height: 26px; }
 .ai-kv { grid-template-columns: max-content minmax(0, 1fr); }
 
-/* 3D-Modell */
+/* 3D model */
 .m3d { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
 .m3d-canvas { flex: 1; width: 100%; min-height: 0; display: block; cursor: grab; background: #545459; }
 .m3d-canvas:active { cursor: grabbing; }
@@ -424,13 +424,13 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .m3d-loading { position: absolute; inset: 0 0 44px 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
 .media-body > .m3d { align-self: stretch; justify-self: stretch; }
 
-/* Einstellungen */
+/* settings */
 .set-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
 .set-row:first-of-type { border-top: 0; }
 .set-num { width: 96px; text-align: right; }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
 
-/* Feuchte */
+/* humidity */
 .hum-chart { position: relative; }
 .hum-chart svg { width: 100%; height: 260px; display: block; }
 .hum-tip { position: absolute; top: 4px; left: 50px; padding: 4px 8px; border-radius: 6px; background: rgba(11,12,14,.9); border: 1px solid var(--line); font-size: 12px; pointer-events: none; }

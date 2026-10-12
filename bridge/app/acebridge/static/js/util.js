@@ -99,8 +99,10 @@ export function printerLook(p) {
   const key = p.changing_filament ? "changing" : p.state;
   return PRINTER[key] || PRINTER.standby;
 }
+// end states of a print in the bridge's history (Klipper states plus the bridge's own codes)
 export const JOB_STATE = { complete: [t("finished"), ""], cancelled: [t("cancelled"), "bad"], error: [t("Error"), "bad"],
-  printing: [t("running"), "ok"] };
+  printing: [t("running"), "ok"], ended: [t("ended"), ""], interrupted: [t("interrupted"), "bad"],
+  cancelled_unnoticed: [t("cancelled (unnoticed)"), "bad"] };
 
 export function fileName(f) { return String(f || "").replace(/\.gcode$/i, ""); }
 export function cls(...parts) { return parts.filter(Boolean).join(" "); }

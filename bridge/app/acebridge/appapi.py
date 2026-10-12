@@ -325,7 +325,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         eta = int(duration * (1 - progress) / progress)
     # a tool change of the ACE driver is running (target set, not loaded yet)
     target = acemodel.target_slot(status) if running else None
-    action = f"Wechsel auf Slot {target + 1}" if target is not None else ""
+    action = tr("Change to slot {slot}", slot=target + 1) if target is not None else ""
     shows_file = running or state in ("complete", "cancelled", "error")
     info = ps.get("info") or {}
     ph = phase.describe(status, steps) if state != "offline" else None

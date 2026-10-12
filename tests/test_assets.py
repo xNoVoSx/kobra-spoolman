@@ -1,4 +1,4 @@
-"""Weboberflaeche mit Fingerabdruck: nach einem Update nie alte JS/CSS-Dateien aus dem Browser-Cache."""
+"""Web UI with a fingerprint: never old JS/CSS files from the browser cache after an update."""
 
 from __future__ import annotations
 

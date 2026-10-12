@@ -1,4 +1,4 @@
-"""Gemeinsame Test-Hilfen: Pfade, Nachbauten von Moonraker, Spoolman und SlotManager."""
+"""Shared test helpers: paths, stand-ins for Moonraker, Spoolman and SlotManager."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ class FakeMoonraker:
 
 
 class FakeSpoolman:
-    """Spulen/Filamente im Speicher; use_length wird mitgeschrieben."""
+    """Spools/filaments in memory; use_length is recorded."""
 
     def __init__(self, spools: List[Dict[str, Any]]):
         self.spools = spools
@@ -65,7 +65,7 @@ class FakeSpoolman:
 
 
 class FakeSlots:
-    """Slot -> Spule wie in Spoolman ('ACE Slot N')."""
+    """Slot -> spool as in Spoolman ('ACE Slot N')."""
 
     def __init__(self, moon: FakeMoonraker, sm: FakeSpoolman):
         self.moon = moon
@@ -86,9 +86,9 @@ class FakeSlots:
 
 def ace_status(slots: List[Optional[Dict[str, Any]]], current: int = -1, humidity: Any = 20, temp: Any = 25,
                dryer: Optional[Dict[str, Any]] = None, endless: bool = False, connected: bool = True) -> Dict[str, Any]:
-    """ACEPRO-Objekte ace/ace_instance_0 wie am Pi (tests/data/acepro_status_2026-10-09.json).
+    """ACEPRO objects ace/ace_instance_0 as on the Pi (tests/data/acepro_status_2026-10-09.json).
 
-    slots: je Slot None (leer) oder {"material", "color" "RRGGBB", optional "sku" (= Spule mit Tag), "temp"}."""
+    slots: per slot None (empty) or {"material", "color" "RRGGBB", optional "sku" (= spool with a tag), "temp"}."""
     raw = []
     for i, sp in enumerate((slots + [None] * 4)[:4]):
         if not sp:
@@ -127,7 +127,7 @@ def grams(mm: float, density: float = 1.24, diameter: float = 1.75) -> float:
 def cfg(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("MOONRAKER_URL", "http://printer.invalid:7125")
-    monkeypatch.setenv("BOOK_INTERVAL_S", "1000000")   # nur Buchungen bei Wechsel/Ende
+    monkeypatch.setenv("BOOK_INTERVAL_S", "1000000")   # bookings only at a change/the end
     monkeypatch.setenv("GATE_DEBOUNCE_S", "0")
     from acebridge.config import Config
     return Config()
@@ -156,7 +156,7 @@ class FakeCamera:
 
 @pytest.fixture
 def vision(cfg, monkeypatch):
-    """KI mit Nachbau von Kamera und Dienst: v.p_next bestimmt die Sicherheit des naechsten Fundes."""
+    """AI with stand-ins for camera and service: v.p_next sets the confidence of the next detection."""
     from acebridge.vision import Vision
     cfg.vision_url = "http://vision.invalid:7917"
     cfg.vision_interval_s = 10

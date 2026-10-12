@@ -218,7 +218,10 @@ private fun MoreRow(icon: ImageVector, title: String, sub: String, onClick: () -
 }
 
 // ====================================================================== prints
-private val JOB_STATE get() = mapOf("complete" to tr("finished"), "cancelled" to tr("cancelled"), "error" to tr("Error"), "printing" to tr("running"))
+// end states of a print in the bridge's history (Klipper states plus the bridge's own codes)
+private val JOB_STATE get() = mapOf("complete" to tr("finished"), "cancelled" to tr("cancelled"), "error" to tr("Error"),
+    "printing" to tr("running"), "ended" to tr("ended"), "interrupted" to tr("interrupted"),
+    "cancelled_unnoticed" to tr("cancelled (unnoticed)"))
 
 @Composable
 fun JobsScreen(padding: PaddingValues, load: suspend () -> List<PrintJob>?, onBack: () -> Unit) {
@@ -238,7 +241,7 @@ fun JobsScreen(padding: PaddingValues, load: suspend () -> List<PrintJob>?, onBa
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     val st = JOB_STATE[j.state] ?: j.state      // older entries: Klipper states
                     Text(st, style = MaterialTheme.typography.labelMedium,
-                        color = when (j.state) { "complete" -> K.Ok; "printing" -> K.Accent; "cancelled", "error" -> K.DangerText; else -> K.Muted })
+                        color = when (j.state) { "complete" -> K.Ok; "printing" -> K.Accent; "cancelled", "error", "interrupted", "cancelled_unnoticed" -> K.DangerText; else -> K.Muted })
                 }
                 val total = j.slots.sumOf { it.g }
                 Text("${(j.ended ?: j.started)?.replace('T', ' ')?.take(16) ?: ""} · ${Format.grams(total)} · " + tr("{n} changes", "n" to j.changes),

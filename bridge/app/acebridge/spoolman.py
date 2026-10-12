@@ -103,7 +103,7 @@ class Spoolman:
         async with self.session.patch(f"{self.base}/filament/{filament_id}", json=data,
                                       timeout=aiohttp.ClientTimeout(total=15)) as r:
             if r.status == 404:
-                raise LookupError(f"Filament {filament_id} nicht gefunden")
+                raise LookupError(tr("Filament {id} not found", id=filament_id))
             if r.status >= 400:
                 raise RuntimeError(f"Spoolman PATCH filament {filament_id}: HTTP {r.status} {await r.text()}")
             data = await r.json()
@@ -113,7 +113,7 @@ class Spoolman:
                 break
         return data
 
-    # ------------------------------------------------------------ Anlegen (Android-App)
+    # ------------------------------------------------------------ creating (Android app)
     async def _write(self, method: str, path: str, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.cfg.dry_run:
             log.info("[dry-run] %s %s %s", method, path, data)
@@ -121,7 +121,7 @@ class Spoolman:
         async with self.session.request(method, self.base + path, json=data,
                                         timeout=aiohttp.ClientTimeout(total=15)) as r:
             if r.status == 404:
-                raise LookupError(f"{path} nicht gefunden")
+                raise LookupError(tr("{path} not found", path=path))
             if r.status >= 400:
                 raise RuntimeError(f"Spoolman {method} {path}: HTTP {r.status} {await r.text()}")
             return await r.json()

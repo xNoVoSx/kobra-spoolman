@@ -85,7 +85,7 @@ class UsageTracker:
         self.history_path = os.path.join(self.dir, "jobs.json")
         self.journal_path = os.path.join(self.dir, "journal.jsonl")
         self.purge_path = os.path.join(self.dir, "purge.jsonl")   # every colour change with its purge length (to learn purge values)
-        self._purge_set: Optional[float] = None                     # zuletzt von Orca gesetzte Spuelmenge (mm)
+        self._purge_set: Optional[float] = None                     # purge amount set last by Orca (mm)
         self._lock = asyncio.Lock()
         self._dirty = False
         self._last_save = 0.0
@@ -121,7 +121,7 @@ class UsageTracker:
             log.info("Open print from the last run found: %s (counter %.1f mm)",
                      self.job.get("file"), self.job.get("last_used") or 0)
 
-    # ================================================================== Spuelprotokoll (Spuelwerte lernen, Teil 1)
+    # ================================================================== purge log (learning purge values, part 1)
     def on_console(self, entry: Dict[str, Any]) -> None:
         """Console listener: remembers the purge length Orca sets before the next change."""
         m = PURGE_RX.search(entry.get("text") or "")
@@ -183,7 +183,7 @@ class UsageTracker:
         except OSError as e:
             log.error("Journal schreiben fehlgeschlagen: %s", e)
 
-    # ================================================================== Hilfen
+    # ================================================================== helpers
     def _spool_for_gate(self, gate: int) -> Optional[int]:
         assigned, _ = self.slots.assignments()
         spool = assigned.get(gate + 1)
@@ -339,7 +339,7 @@ class UsageTracker:
             job["pre_mm"] += d
         self._dirty = True
 
-    # ================================================================== Eingang
+    # ================================================================== input
     async def on_status(self, delta: Dict[str, Any], full: bool, status: Dict[str, Dict[str, Any]]) -> None:
         async with self._lock:
             ps = status.get("print_stats", {}) or {}
@@ -360,7 +360,7 @@ class UsageTracker:
             if "filename" in ps_d and ps_d["filename"] and ps_d["filename"] != self.job["file"] \
                     and state in PRINTING_STATES:
                 log.warning("New print without an end of the old one - closing %s", self.job["file"])
-                await self._finish("abgebrochen (unbemerkt)")
+                await self._finish("cancelled_unnoticed")
                 self._new_job(status)
                 return
 
@@ -372,7 +372,7 @@ class UsageTracker:
             self._settle(now)
 
             if state not in PRINTING_STATES:
-                await self._finish(state or "beendet")
+                await self._finish(state or "ended")
             else:
                 await self._book(now, reason="tick")
             self.save()
@@ -398,11 +398,11 @@ class UsageTracker:
             self._consume(used)
             self._observe_gate(acemodel.consuming_slot(status), time.monotonic())
             if not printing:
-                await self._finish(state or "beendet")
+                await self._finish(state or "ended")
         else:
             log.warning("Saved print %s does not match the printer (%s, %s) - closing with the last state",
                         self.job["file"], ps.get("filename"), state)
-            await self._finish("unterbrochen")
+            await self._finish("interrupted")
             if printing:
                 self._new_job(status)
         self.save(force=True)
@@ -417,7 +417,7 @@ class UsageTracker:
             await self._retry_open()
             self.save()
 
-    # ================================================================== Buchen
+    # ================================================================== booking
     async def _use(self, spool_id: int, mm: float) -> str:
         """Books mm onto a spool. Returns: 'ok', 'missing' (spool gone) or 'error'."""
         if time.monotonic() < self._backoff_until:
@@ -516,7 +516,7 @@ class UsageTracker:
             job["buckets"].setdefault("x:-", {"gate": -1, "spool_id": None, "mm": 0.0, "booked_mm": 0.0,
                                               "last_book": 0.0, "ace": None})["mm"] += job["pre_mm"]
             job["pre_mm"] = 0.0
-        await self._book(now, reason="ende", final=True)
+        await self._book(now, reason="end", final=True)
         await self.sm.refresh()  # update remaining weights for the page
 
         # what is not booked by now becomes an open item
@@ -545,7 +545,7 @@ class UsageTracker:
         self._dirty = True
         self.save(force=True)
 
-    # ================================================================== Auswertung
+    # ================================================================== evaluation
     def _summary(self, job: Dict[str, Any], end_state: str) -> Dict[str, Any]:
         per_slot: Dict[int, Dict[str, Any]] = {}
         for b in job["buckets"].values():

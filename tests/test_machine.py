@@ -1,4 +1,4 @@
-"""Steuerung am Drucker (machine.py): nur feste Befehle mit Grenzen, im Druck gesperrt, lange Aktionen im Hintergrund."""
+"""Control at the printer (machine.py): only fixed commands with limits, locked during a print, long actions in the background."""
 
 from __future__ import annotations
 
@@ -77,11 +77,11 @@ def test_rejects(env, action, body, status):
 
 def test_guards(env):
     m, moon = env
-    with pytest.raises(MachineError) as e:                 # Makro nur mit Rueckfrage
+    with pytest.raises(MachineError) as e:                 # macro only with confirmation
         run(m.run("macro", {"key": "bed_mesh_all"}, "Display"))
     assert e.value.status == 409 and e.value.confirm
     moon.position["homed_axes"] = "xy"
-    with pytest.raises(MachineError) as e:                 # Z nicht gehomt
+    with pytest.raises(MachineError) as e:                 # Z not homed
         run(m.run("jog", {"axis": "z", "dist": 1}, "Display"))
     assert "home first" in str(e.value)
     moon.merge({"extruder": {"temperature": 25.0}})
@@ -94,7 +94,7 @@ def test_guards(env):
             run(m.run(action, body, "Display"))
         assert e.value.status == 409
     moon.merge({"print_stats": {"state": "paused"}})
-    run(m.run("extrude", {"mm": 5}, "Display"))            # in der Pause freispuelen erlaubt
+    run(m.run("extrude", {"mm": 5}, "Display"))            # purging free allowed during a pause
     assert moon.sent == ["M83\nG1 E5 F300"]
     moon.klippy_ready = False
     with pytest.raises(MachineError) as e:
@@ -132,9 +132,9 @@ def test_zadjust_exclude_and_save(env):
         run(m.run("zadjust", {"delta": 0.5}, "Display"))
     res = run(m.save_z())
     assert res["new"] == 0.035 and saved == [(8, {"extra": {"z_offset": "0.035"}})] and m.z_session == 0
-    with pytest.raises(MachineError):                        # nichts mehr nachgestellt
+    with pytest.raises(MachineError):                        # nothing adjusted any more
         run(m.save_z())
-    with pytest.raises(MachineError) as e:                   # Objekt nur mit Rueckfrage
+    with pytest.raises(MachineError) as e:                   # object only with confirmation
         run(m.run("exclude", {"name": "Teil_2"}, "Display"))
     assert e.value.confirm
     run(m.run("exclude", {"name": "Teil_2", "confirm": True}, "Display"))

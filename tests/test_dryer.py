@@ -1,4 +1,4 @@
-"""ACE-Trockner: Temperatur nach dem empfindlichsten Filament, Automatik nach Feuchte, Sicherheit."""
+"""ACE dryer: temperature by the most sensitive filament, automatic by humidity, safety."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class Clock:
 
 
 def hub(humidity=24, drying=False, target=0, remain=0, model="ACE2 (USB Single Serial)"):
-    """ACE-Trockner wie ACEPRO ihn meldet (ace_instance_0; remain_time/duration in Sekunden)."""
+    """ACE dryer as ACEPRO reports it (ace_instance_0; remain_time/duration in seconds)."""
     return {"ace_instance_0": {"humidity": humidity, "temp": 30, "model": model, "connection_state": "connected",
                                "dryer_status": {"status": "drying" if drying else "stop", "target_temp": target,
                                                 "duration": 21600 if drying else 0, "remain_time": remain}}}
@@ -81,9 +81,9 @@ def test_required_temp_is_the_most_sensitive_filament(make):
     r = d.required_temp()
     assert r["temp"] == 55 and r["limited_by"] == [2]             # PLA bestimmt
     d, _, _ = make([spool(1, 1, "PETG"), spool(3, 3, "ABS", dry_temp=70)], hub())
-    assert d.required_temp()["temp"] == 60                        # PETG; ABS 70 > 65 ist ohnehin gedeckelt
+    assert d.required_temp()["temp"] == 60                        # PETG; ABS 70 > 65 is capped anyway
     d, _, _ = make([spool(3, 3, "ABS", dry_temp=70)], hub(model="ACE (USB Single Serial)"))
-    assert d.required_temp()["temp"] == 55                        # alte ACE Pro kann nur 55
+    assert d.required_temp()["temp"] == 55                        # the old ACE Pro can only do 55
 
 
 def test_manual_start_is_capped(make):
@@ -95,12 +95,12 @@ def test_manual_start_is_capped(make):
 def test_automation_starts_above_and_stops_below(make, cfg):
     d, moon, clock = make([spool(1, 1, "PETG")], hub(humidity=25))
     run(d.evaluate())
-    assert moon.sent == []                                        # Automatik aus
+    assert moon.sent == []                                        # automatic off
     d.set_config({"enabled": True, "start_above": 20, "stop_below": 10, "max_hours": 6, "start_delay_minutes": 0})
     run(d.evaluate())
     assert moon.sent == ["ACE_START_DRYING TEMP=60 DURATION=360"] and d.auto_run
     run(d.evaluate())
-    assert len(moon.sent) == 1                                    # ACE hat noch nicht gemeldet
+    assert len(moon.sent) == 1                                    # the ACE has not reported yet
     clock.t += COMMAND_SETTLE_S + 1
     moon.merge(hub(humidity=12, drying=True, target=60, remain=18000))
     run(d.evaluate())
@@ -111,7 +111,7 @@ def test_automation_starts_above_and_stops_below(make, cfg):
     clock.t += COMMAND_SETTLE_S + 1
     moon.merge(hub(humidity=25))
     run(d.evaluate())
-    assert moon.sent[-1] == "ACE_STOP_DRYING"               # Pause nach dem Durchgang
+    assert moon.sent[-1] == "ACE_STOP_DRYING"               # pause after the pass
     clock.t += 3600
     run(d.evaluate())
     assert moon.sent[-1].startswith("ACE_START_DRYING")
@@ -145,15 +145,15 @@ def test_planned_drying_starts_once_and_survives_restart(make, cfg):
     with pytest.raises(ValueError):
         d.set_schedule(clock.t - 10)                               # Vergangenheit
     with pytest.raises(ValueError):
-        d.set_schedule(clock.t + 8 * 86400)                        # mehr als eine Woche
+        d.set_schedule(clock.t + 8 * 86400)                        # more than a week
     d.set_schedule(clock.t + 3600, temp=70, hours=4)
     assert d.state()["schedule"]["temp"] == 70
-    assert Dryer(cfg, moon, d.slots).schedule["at"] == clock.t + 3600   # bleibt nach Neustart
+    assert Dryer(cfg, moon, d.slots).schedule["at"] == clock.t + 3600   # survives a restart
     run(d.evaluate())
-    assert moon.sent == []                                         # noch nicht faellig
+    assert moon.sent == []                                         # not due yet
     clock.t += 3601
     run(d.evaluate())
-    assert moon.sent == ["ACE_START_DRYING TEMP=55 DURATION=240"]   # auf PLA gedeckelt
+    assert moon.sent == ["ACE_START_DRYING TEMP=55 DURATION=240"]   # capped to PLA
     assert d.schedule is None and d.state()["schedule"] is None
     d.set_schedule(clock.t + 60)
     d.clear_schedule()
@@ -168,9 +168,9 @@ def test_planned_drying_when_already_drying_is_dropped(make):
     assert moon.sent == [] and d.schedule is None and "already running" in d.last_event["text"]
 
 
-# ---------------------------------------------------------------- Wuensche Novos 09.10.2026
+# ---------------------------------------------------------------- wishes of 09.10.2026
 def test_manual_drying_runs_to_its_time_even_when_dry(make):
-    """Von Hand gestartet: die Bridge stoppt nicht an der Feuchte (nur die Automatik tut das)."""
+    """Started by hand: the bridge does not stop on humidity (only the automatic does)."""
     d, moon, clock = make([spool(1, 1, "PETG")], hub(humidity=8))
     d.set_config({"enabled": True})
     run(d.start(60, 4))
@@ -185,13 +185,13 @@ def test_ace_ending_early_restarts_with_the_rest(make, cfg):
     d, moon, clock = make([spool(1, 1, "PETG")], hub(humidity=8))
     run(d.start(60, 4))
     until = d.run["until"]
-    assert Dryer(cfg, moon, d.slots).run["until"] == until            # bleibt nach Neustart der Bridge
-    clock.t += 3600                                                   # nach 1 h hoert die ACE von selbst auf
+    assert Dryer(cfg, moon, d.slots).run["until"] == until            # survives a bridge restart
+    clock.t += 3600                                                   # after 1 h the ACE stops by itself
     moon.merge(hub(humidity=6, drying=False))
     run(d.evaluate())
     assert moon.sent[-1] == "ACE_START_DRYING TEMP=60 DURATION=180"  # Rest 3 h
     assert d.run["until"] == until and d.run["restarts"] == 1 and "stopped early" in d.last_event["text"]
-    for _ in range(MAX_RESTARTS):                                     # hoert sie immer wieder auf: aufgeben
+    for _ in range(MAX_RESTARTS):                                     # if it keeps stopping: give up
         clock.t += 60
         run(d.evaluate())
     assert d.run is None and "several times" in d.last_event["text"]
@@ -212,13 +212,13 @@ def test_finished_run_is_not_restarted_and_hand_stop_ends_it(make):
 
 
 def test_automation_waits_until_humidity_stays_high(make):
-    """Deckel auf: kurzer Ausschlag startet nichts - erst 15 min am Stueck ueber der Schwelle."""
+    """Lid open: a short spike starts nothing - only 15 min in one go above the threshold."""
     d, moon, clock = make([spool(1, 1, "PETG")], hub(humidity=12))
     d.set_config({"enabled": True, "start_above": 20})
-    moon.merge(hub(humidity=45))                                      # Deckel auf
+    moon.merge(hub(humidity=45))                                      # lid open
     run(d.evaluate())
     clock.t += 120
-    moon.merge(hub(humidity=13))                                      # zu, faellt wieder
+    moon.merge(hub(humidity=13))                                      # closed, falls again
     run(d.evaluate())
     clock.t += 15 * 60
     run(d.evaluate())

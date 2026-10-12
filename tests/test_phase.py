@@ -1,4 +1,4 @@
-"""Druckphase (acebridge/phase.py): Text aus kobra_phase, Auto-PA, ACE-Wechsel mit Teilschritt, Schicht."""
+"""Print phase (acebridge/phase.py): text from kobra_phase, auto PA, ACE change with sub step, layer."""
 
 from acebridge import phase
 from acebridge.appapi import printer_state
@@ -60,7 +60,7 @@ def test_change_with_console_step():
     assert text(s, steps) == "Change to slot 2 · purging"
     steps.on_console({"text": "// irgendwas anderes"})
     assert text(s, steps) == "Change to slot 2 · purging"
-    # naechster Wechsel: alter Teilschritt (vor Beginn) gilt nicht
+    # next change: the old sub step (before it starts) does not count
     now[0] = 1300.0
     s2 = st(kobra_phase={"phase": "change", "slot": 3, "since": 1290.0})
     assert text(s2, steps) == "Change to slot 3"
@@ -87,7 +87,7 @@ def test_printer_state_fields():
 
 
 def test_all_klipper_phases_have_text():
-    # gleiche Liste wie kobra-klipper/klipper-extras/kobra_phase.py PHASES
+    # same list as kobra-klipper/klipper-extras/kobra_phase.py PHASES
     for key in ("heat_bed", "soak", "wipe", "cool", "home_z", "mesh", "heat_nozzle", "change", "purge", "pa", "prime",
                 "resume", "end"):
         assert key in phase.TEXT
@@ -100,4 +100,4 @@ def test_texts_render_in_german():
     steps = phase.ChangeSteps(clock=lambda: 1000.0)
     steps.on_console({"text": "ACE[M]: Purging 30mm"})
     t = phase.describe(st(kobra_phase={"phase": "change", "slot": 2, "since": 999.0}), steps)["text"]
-    assert t.render("de") == "Wechsel auf Slot 2 · spült"
+    assert t.render("de") == "Wechsel auf Slot 2 · spült"   # i18n: keep

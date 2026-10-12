@@ -1,4 +1,4 @@
-"""App-Update ueber die Bridge (appupdate.py, /api/app/update)."""
+"""App update via the bridge (appupdate.py, /api/app/update)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from acebridge.web import build_app
 
 
 def test_load(tmp_path):
-    assert appupdate.load(str(tmp_path)) is None                              # ohne app.json: kein Update
+    assert appupdate.load(str(tmp_path)) is None                              # without app.json: no update
     (tmp_path / "app.json").write_text(json.dumps({"version": "1.2.3", "code": 10203, "file": "x.apk",
                                                    "changes": ["neu"]}))
     assert appupdate.load(str(tmp_path)) is None                              # APK fehlt

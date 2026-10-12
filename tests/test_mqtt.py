@@ -1,4 +1,4 @@
-"""Home Assistant ueber MQTT: Inhalte, Discovery, nur Aenderungen senden, Raumsensor, Wiederverbinden."""
+"""Home Assistant via MQTT: contents, discovery, send only changes, room sensor, reconnecting."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class Clock:
 
 
 class FakeClient:
-    """Wie aiomqtt.Client: async with, publish, subscribe, messages."""
+    """Like aiomqtt.Client: async with, publish, subscribe, messages."""
 
     def __init__(self, log, incoming=(), fail=None):
         self.log, self.incoming, self.fail = log, list(incoming), fail
@@ -117,7 +117,7 @@ def test_discovery(monkeypatch):
     d = dict(m.discovery())
     assert "homeassistant/sensor/kobra_spoolman_progress/config" in d
     assert "homeassistant/binary_sensor/kobra_spoolman_ace_drying/config" in d
-    assert sum("slot" in t and t.endswith("_remaining/config") for t in d) == 4        # ein Satz pro Slot
+    assert sum("slot" in t and t.endswith("_remaining/config") for t in d) == 4        # one set per slot
     c = d["homeassistant/sensor/kobra_spoolman_ace_humidity/config"]
     assert c["state_topic"] == "kobra-spoolman/ace" and c["device_class"] == "humidity"
     assert c["availability_topic"] == "kobra-spoolman/status" and c["device"]["identifiers"] == ["kobra-spoolman"]
@@ -131,7 +131,7 @@ def test_only_changes_are_sent(monkeypatch):
     log = []
     c = FakeClient(log)
     assert asyncio.run(m.publish_changes(c)) == 5                         # printer, ace, 2 Slots, notices
-    assert all(x[3] for x in log)                                         # alles retained
+    assert all(x[3] for x in log)                                         # everything retained
     assert asyncio.run(m.publish_changes(c)) == 0
     b.moon.merge({"extruder": {"temperature": 221.0}})
     log.clear()
@@ -161,13 +161,13 @@ def test_moisture_uses_measured_room(tmp_path):
     assert mm._env({"location": "Regal"}, None, {})[1] == 50.0
     mm.room_rh_measured = lambda: 38.0
     assert mm._env({"location": "Regal"}, None, {})[1] == 38.0
-    assert mm._env({"location": "Trockenbox"}, None, {})[1] == 15.0        # eigener Lagerort bleibt
+    assert mm._env({"location": "Trockenbox"}, None, {})[1] == 15.0        # an own location stays
 
 
 def test_disabled_without_host(monkeypatch):
     m = MqttBridge(bridge(monkeypatch, mqtt_host=""), clock=Clock())
     assert not m.enabled and m.status_lines() == []
-    asyncio.run(m.run())                                                   # kehrt sofort zurueck
+    asyncio.run(m.run())                                                   # comes back at once
 
 
 def test_run_connects_publishes_and_listens(monkeypatch):

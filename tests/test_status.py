@@ -1,4 +1,4 @@
-"""Meldungen und Status der Uebersicht (status.py) und Restverbrauch aus der Druckdatei (render.py)."""
+"""Messages and status of the overview (status.py) and remaining usage from the print file (render.py)."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from acebridge.status import file_usage, notices, spool_reach
 
 
 def two_tool_gcode() -> bytes:
-    """T0 druckt 100 mm (mit Rueckzug), Wechsel auf T1 (50 mm), zurueck auf T0 (30 mm). Vor jedem T die Spuelmenge
-    des Orca-Spuelskripts (ACE_SET_PURGE_AMOUNT) - vor dem ersten T keine."""
+    """T0 prints 100 mm (with a retract), change to T1 (50 mm), back to T0 (30 mm). Before every T the purge amount
+    of Orca's purge script (ACE_SET_PURGE_AMOUNT) - none before the first T."""
     lines = ["M83", "T0", "G1 X0 Y0", "G1 X10 Y0 E60", "G1 E-2", "G1 E2", "G1 X20 Y0 E40",
              "ACE_SET_PURGE_AMOUNT PURGELENGTH=120.50", "T1", "G1 X30 Y0 E50",
              "ACE_SET_PURGE_AMOUNT PURGELENGTH=60", "T0", "G1 X40 Y0 E30"]
@@ -24,7 +24,7 @@ def two_tool_gcode() -> bytes:
 def test_model_counts_per_tool_and_remaining():
     data = two_tool_gcode()
     m = parse_bytes(data)
-    assert m.e_total == pytest.approx({0: 130.0, 1: 50.0})           # Rueckzug und Wiederansetzen heben sich auf
+    assert m.e_total == pytest.approx({0: 130.0, 1: 50.0})           # retract and unretract cancel out
     assert [(s, d, p) for _, s, d, p in m.changes] == [(None, 0, None), (0, 1, 120.5), (1, 0, 60.0)]
     rest, later = m.remaining(0)
     assert rest == pytest.approx({0: 130.0, 1: 50.0})
@@ -48,34 +48,34 @@ def bridge(cfg):
 def test_spool_reach_and_warning(bridge):
     reach = {r["slot"]: r for r in spool_reach(bridge)}
     assert reach[1]["enough"] is True and reach[1]["have_g"] == 978
-    # T1 -> Slot 2 hat keine Spule: Hinweis statt Rechnung
+    # T1 -> slot 2 has no spool: hint instead of a calculation
     assert reach[2]["need_g"] is None and reach[2]["enough"] is None
     msgs = notices(bridge)["messages"]
     assert any(m["key"] == "reach2" and "no spool" in m["text"] for m in msgs)
 
-    bridge.sm.spools[0]["remaining_weight"] = 0.2                     # Spule 1 fast leer
+    bridge.sm.spools[0]["remaining_weight"] = 0.2                     # spool 1 almost empty
     msgs = notices(bridge)["messages"]
     keys = [m["key"] for m in msgs]
     assert "reach1" in keys and "low1" in keys
     levels = [m["level"] for m in msgs]
-    assert levels == sorted(levels, key=["error", "warn", "info"].index)    # nach Wichtigkeit sortiert
+    assert levels == sorted(levels, key=["error", "warn", "info"].index)    # sorted by importance
 
 
 def test_reach_includes_load_and_purge_of_coming_changes(bridge):
-    """Je kommendem Wechsel: 85 mm Laden bis zur Duese + Spuelmenge aus der Datei (sonst 50 mm)."""
+    """Per coming change: 85 mm loading to the nozzle + purge amount from the file (else 50 mm)."""
     from acebridge.status import _slot_need
     need = _slot_need(bridge, 0)
-    assert need[0] == pytest.approx(130 + (85 + 50) + (85 + 60))      # Start (ohne Angabe) + Wechsel zurueck
+    assert need[0] == pytest.approx(130 + (85 + 50) + (85 + 60))      # start (without an amount) + change back
     assert need[1] == pytest.approx(50 + 85 + 120.5)
 
 
 def test_file_usage_lists_used_slots(bridge):
     uses = {u["slot"]: u for u in file_usage(bridge)}
-    assert set(uses) == {1, 2}                                         # Slot 3/4 benutzt die Datei nicht
+    assert set(uses) == {1, 2}                                         # the file does not use slot 3/4
     assert uses[1]["total_mm"] >= 130 and uses[1]["total_g"] > 0 and uses[1]["color"]
-    assert uses[1]["rest_mm"] == uses[1]["total_mm"]                   # Position 0: noch alles offen
+    assert uses[1]["rest_mm"] == uses[1]["total_mm"]                   # position 0: everything still open
     bridge.moon.merge({"virtual_sdcard": {"file_position": 10 ** 6}})
-    assert file_usage(bridge)[0]["rest_mm"] < uses[1]["total_mm"]     # weiter hinten weniger offen (Stuetzstellen)
+    assert file_usage(bridge)[0]["rest_mm"] < uses[1]["total_mm"]     # further on less open (support points)
     bridge.moon.merge({"print_stats": {"state": "complete"}})
     assert file_usage(bridge) == []
 
@@ -123,13 +123,13 @@ def test_printer_cpu_is_a_status_line_never_a_message(bridge):
 
     from acebridge.moonraker import Moonraker
     now = time.monotonic()
-    m = Moonraker.__new__(Moonraker)                      # nur die CPU-Hilfen, ohne Verbindung
+    m = Moonraker.__new__(Moonraker)                      # only the CPU hints, without a connection
     m.cpu_samples = collections.deque([(now - 70 + i, 98.0) for i in range(70)])
     bridge.moon.cpu, bridge.moon.cpu_samples = m.cpu, m.cpu_samples
     n = notices(bridge)
     st = {s["key"]: s for s in n["status"]}
     assert st["cpu"]["state"] == "bad" and st["cpu"]["detail"] == "98 %"
-    assert not any(x["key"] == "cpu" for x in n["messages"])   # im Druck laesst sich daran nichts aendern
+    assert not any(x["key"] == "cpu" for x in n["messages"])   # nothing can be changed about it during a print
     m.cpu_samples.clear()
-    m.cpu_samples.extend([(now - 3, 85.0), (now - 1, 87.0)])     # normal im Druck
+    m.cpu_samples.extend([(now - 3, 85.0), (now - 1, 87.0)])     # normal during a print
     assert {s["key"]: s for s in notices(bridge)["status"]}["cpu"]["state"] == "ok"

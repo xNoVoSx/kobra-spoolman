@@ -1,10 +1,10 @@
-"""Verbrauchsmessung unter Klipper + ACEPRO (Bridge 3.0).
+"""Usage measurement under Klipper + ACEPRO (bridge 3.0).
 
-Zweifarbiger Druck wie am 08.10.2026 im Konsolenprotokoll: Start mit Slot 2, dann Wechsel auf Slot 1.
-Bewegungen beim Wechsel (ACEPRO, mit Patch 0003 sofort in print_stats.filament_used):
-- Entladen, alter Slot noch geladen (current = alt, target = neu): -2 mm vor dem Schneiden, -40 mm zurueck
-- nach dem Entladen (current = -1, target = neu): +85 mm vom Kopf-Sensor bis zur Duese
-- neuer Slot geladen (current = neu): +50 mm Spuelen, dann Druck
+Two-colour print as on 08.10.2026 in the console log: start with slot 2, then a change to slot 1.
+Moves at the change (ACEPRO, with patch 0003 at once in print_stats.filament_used):
+- unloading, old slot still loaded (current = old, target = new): -2 mm before cutting, -40 mm back
+- after unloading (current = -1, target = new): +85 mm from the head sensor to the nozzle
+- new slot loaded (current = new): +50 mm purge, then printing
 """
 
 from __future__ import annotations
@@ -15,8 +15,8 @@ import pytest
 from conftest import FakeMoonraker, FakeSlots, FakeSpoolman, ace_status, grams, spool
 
 LAV, MAG = {"material": "PETG", "color": "685BC7"}, {"material": "PETG", "color": "C52E79"}
-# Slot 2 (Index 1): Laden 85 + Spuelen 50 + Nachfoerdern 20 + Druck 2500 - Entladen 42
-# Slot 1 (Index 0): Laden 85 + Spuelen 50 + Druck 4000
+# slot 2 (index 1): loading 85 + purge 50 + extra feed 20 + print 2500 - unloading 42
+# slot 1 (index 0): loading 85 + purge 50 + print 4000
 EXPECTED = {2: 85 + 50 + 20 + 2500 - 42, 1: 85 + 50 + 4000}
 
 
@@ -28,7 +28,7 @@ def make(cfg, spools):
 
 
 def print_rows():
-    """Zeilen wie die Telemetrie-Aufzeichnung: start (ganzer Status), dann Deltas."""
+    """Lines like the telemetry recording: start (whole state), then deltas."""
     used = [0.0]
     rows = []
 
@@ -44,13 +44,13 @@ def print_rows():
     status["print_stats"] = {"state": "printing", "filename": "zwei.gcode", "filament_used": 0.0}
     status["virtual_sdcard"] = {}
     rows.append({"type": "start", "status": status})
-    ace(-1, 1)            # Druckstart laedt Slot 2
+    ace(-1, 1)            # print start loads slot 2
     use(85)
     ace(1, -1)
-    use(50)               # Spuelen nach dem Laden
-    use(20)               # Nachfoerdern im Druckstart
+    use(50)               # purge after loading
+    use(20)               # extra feed at print start
     use(2500, steps=25)   # Druck
-    ace(1, 0)             # Wechsel auf Slot 1 beginnt
+    ace(1, 0)             # change to slot 1 begins
     use(-2)
     use(-40)
     ace(-1, 0)            # Slot 2 entladen
@@ -106,7 +106,7 @@ def test_restart_in_the_middle_does_not_double_book(cfg):
     feed(moon, tracker, rows[:cut])
     booked_before = list(sm.bookings)
 
-    # "Absturz": neuer Tracker mit demselben Datenordner, Moonraker liefert den aktuellen Stand
+    # "crash": new tracker with the same data folder, Moonraker delivers the current state
     from acebridge.usage import UsageTracker
     tracker2 = UsageTracker(cfg, moon, sm, FakeSlots(moon, sm))
     assert tracker2.job is not None
@@ -119,7 +119,7 @@ def test_restart_in_the_middle_does_not_double_book(cfg):
 
 
 def test_slot_without_spool_becomes_open_item(cfg):
-    moon, sm, tracker = make(cfg, [spool(4, 2)])          # Slot 1 ohne Spule
+    moon, sm, tracker = make(cfg, [spool(4, 2)])          # slot 1 without a spool
     feed(moon, tracker, print_rows())
 
     assert sm.booked(4) == pytest.approx(EXPECTED[2], abs=0.1)
@@ -152,7 +152,7 @@ def test_spoolman_down_at_the_end_is_retried(cfg):
 
 
 def test_endless_spool_books_on_the_new_slot(cfg):
-    """Endlosspule: die ACE springt mitten im Druck von Slot 1 auf Slot 3 (gleiche Farbe)."""
+    """Endless spool: in the middle of the print the ACE jumps from slot 1 to slot 3 (same colour)."""
     moon, sm, tracker = make(cfg, [spool(3, 1), spool(5, 3)])
     rows = [r for r in print_rows() if not (r["type"] == "delta" and "ace" in r["d"])][:30]
     status = rows[0]["status"]
@@ -170,15 +170,15 @@ def test_endless_spool_books_on_the_new_slot(cfg):
 
 
 def test_targets_from_the_gcode_check_the_measurement(cfg):
-    """Sollwerte kommen aus der gelesenen Druckdatei (render.py e_total je Werkzeug, T<n> = Slot n)."""
+    """Targets come from the parsed print file (render.py e_total per tool, T<n> = slot n)."""
     moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
     rows = print_rows()
-    feed(moon, tracker, rows[:3])                                     # Druck laeuft
+    feed(moon, tracker, rows[:3])                                     # the print runs
     tracker.set_targets("andere.gcode", {0: 1.0, 1: 9.0})            # Datei eines anderen Drucks: ignorieren
     assert tracker.job["targets"] is None
-    # G-code will 5000 mm von Slot 1 (gemessen nur 4135) und 2500 mm von Slot 2; T3 fast nichts
+    # the G-code wants 5000 mm from slot 1 (measured only 4135) and 2500 mm from slot 2; T3 almost nothing
     tracker.set_targets("zwei.gcode", {0: 5000.0, 1: 2500.0, 3: 0.4})
-    tracker.set_targets("zwei.gcode", {0: 1.0})                       # zweites Mal: bleibt beim ersten
+    tracker.set_targets("zwei.gcode", {0: 1.0})                       # second time: stays with the first
     feed(moon, tracker, rows[3:])
     job = tracker.history[0]
     by = {s["slot"]: s for s in job["slots"]}
@@ -189,14 +189,14 @@ def test_targets_from_the_gcode_check_the_measurement(cfg):
 
 
 def test_purge_log_per_colour_pair(cfg):
-    """Spuelwerte lernen, Teil 1: jede Spuelmenge, die Orca vor einem Wechsel setzt, landet mit Farbe/Material
-    vorher/nachher im Spuelprotokoll (ueber Drucke hinweg); der erste Ladevorgang im Druckstart zaehlt nicht."""
+    """Learning purge values, part 1: every purge amount Orca sets before a change lands in the purge log with colour/
+    material before/after (across prints); the first load at print start does not count."""
     moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
     rows = print_rows()
     change_at = next(i for i, r in enumerate(rows)
                      if r["type"] == "delta" and r["d"].get("ace") == {"current_index": 1, "target_index": 0})
-    tracker.on_console({"text": "// ACE: Purge settings updated - Length: 120.5mm, Speed: 300mm/min"})   # vor dem Start:
-    feed(moon, tracker, rows[:change_at])          # ... gilt NICHT fuer den ersten Ladevorgang (Druckstart)
+    tracker.on_console({"text": "// ACE: Purge settings updated - Length: 120.5mm, Speed: 300mm/min"})   # before the start:
+    feed(moon, tracker, rows[:change_at])          # ... does NOT apply to the first load (print start)
     tracker.on_console({"text": "// ACE: Purge settings updated - Length: 64.2mm, Speed: 300mm/min"})
     feed(moon, tracker, rows[change_at:])
     job = tracker.history[0]
@@ -206,7 +206,7 @@ def test_purge_log_per_colour_pair(cfg):
     p = pairs[0]
     assert (p["from_color"], p["from_material"], p["to_color"], p["to_material"]) == ("C52E79", "PETG", "685BC7", "PETG")
     assert p["count"] == 1 and p["purge_mm"] == [64.2] and p["last_file"] == "zwei.gcode"
-    # zweiter Druck mit demselben Wechsel: zaehlt weiter, ohne gesetzte Menge (z. B. Purge in prime tower) -> keine Zahl
+    # second print with the same change: counts on, without an amount set (e.g. purge in the prime tower) -> no number
     moon2, sm2, tracker2 = make(cfg, [spool(3, 1), spool(4, 2)])
     feed(moon2, tracker2, print_rows())
     p = tracker2.purge_pairs()[0]

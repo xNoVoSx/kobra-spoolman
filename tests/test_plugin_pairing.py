@@ -1,4 +1,4 @@
-"""Kopplung im Orca-Plugin: Schluessel speichern, mitschicken, Ablehnung erkennen - gegen eine kleine Fake-Bridge."""
+"""Pairing in the Orca plugin: store the key, send it, recognise refusal - against a small fake bridge."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def test_key_only_for_the_bridge_it_was_paired_with(ks, tmp_path):
     assert key.headers("http://a:7913") == {}
     key.save("http://a:7913/", "t1", {"id": "x"})
     assert ks.DeviceKey(tmp_path / "k.json").headers("http://a:7913") == {"Authorization": "Bearer t1"}
-    assert key.headers("http://b:7913") == {}          # andere Bridge -> neu koppeln
+    assert key.headers("http://b:7913") == {}          # another bridge -> pair again
     key.forget()
     assert not (tmp_path / "k.json").exists() and key.token("http://a:7913") is None
 

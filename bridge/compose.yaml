@@ -1,4 +1,4 @@
-# Beispiel: Spoolman + ace-lane-bridge (z.B. als Portainer-Stack oder mit `docker compose up -d`)
+# Example: Spoolman + ace-lane-bridge (e.g. as a Portainer stack or with `docker compose up -d`)
 services:
   spoolman:
     image: ghcr.io/donkie/spoolman:0.26.1
@@ -15,31 +15,32 @@ services:
     image: ghcr.io/xnovosx/ace-lane-bridge:latest
     container_name: ace-lane-bridge
     restart: unless-stopped
-    # user: "0:0"                                 # falls ./bridge-data root gehoert (Image laeuft als 1000)
+    # user: "0:0"                                 # if ./bridge-data belongs to root (the image runs as 1000)
     ports:
       - "7913:7913"
     volumes:
       - ./bridge-data:/data
     environment:
-      MOONRAKER_URL: "http://192.168.1.50:7125"   # <- IP des Klipper-Pi (Moonraker)
-      SPOOLMAN_URL: "http://spoolman:8000"       # im selben Stack ueber den Servicenamen
+      MOONRAKER_URL: "http://192.168.1.50:7125"   # <- IP of your printer's Moonraker (Klipper Pi or Rinkhals)
+      SPOOLMAN_URL: "http://spoolman:8000"       # in the same stack via the service name
       TZ: Europe/Berlin
-      # KI-Fehldruck-Erkennung (optional, Dienst unten):
+      # UI_LANGUAGE: "de"                        # default language of web UI and display (en | de), per device changeable
+      # AI failure detection (optional, service below):
       # VISION_URL: "http://kobra-vision:7917"
-      # Home Assistant ueber MQTT (optional; Geraet erscheint per Discovery von selbst):
+      # Home Assistant via MQTT (optional; the device appears by itself via discovery):
       # MQTT_HOST: "192.168.1.10"
       # MQTT_USER: "kobra"
       # MQTT_PASSWORD: "..."
-      # ROOM_SENSOR_TOPIC: "zigbee2mqtt/Filamentlager"   # Feuchte im Lagerraum fuer die Spulen-Schaetzung
+      # ROOM_SENSOR_TOPIC: "zigbee2mqtt/filament_storage"   # humidity in the storage room for the spool estimate
     depends_on:
       - spoolman
 
-  # Optional: KI-Fehldruck-Erkennung (Obicos Modell, laeuft auf der CPU, ~50 ms pro Bild).
-  # Die Bridge schickt ihr im Druck alle 10 s ein Kamerabild; der Drucker merkt davon nichts.
+  # Optional: AI failure detection (Obico's model, runs on the CPU, ~50 ms per image).
+  # During a print the bridge sends it a camera image every 10 s; the printer notices nothing of it.
   # kobra-vision:
   #   image: ghcr.io/xnovosx/kobra-vision:latest
   #   container_name: kobra-vision
   #   restart: unless-stopped
   #   environment:
-  #     THREADS: "2"            # CPU-Kerne fuer die Erkennung
-  #     UNLOAD_AFTER_S: "600"   # Modell nach 10 min ohne Druck entladen (Speicher frei)
+  #     THREADS: "2"            # CPU cores for the detection
+  #     UNLOAD_AFTER_S: "600"   # unload the model after 10 min without a print (frees memory)

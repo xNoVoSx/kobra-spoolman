@@ -1,4 +1,4 @@
-"""Doku-Pflicht: jede Version hat ihre Eintraege (Einstellungen der Weboberflaeche, CHANGELOG.md, App)."""
+"""Documentation duty: every version has its entries (settings page of the web UI, CHANGELOG.md, app)."""
 
 from __future__ import annotations
 

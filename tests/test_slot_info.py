@@ -1,4 +1,4 @@
-"""Slots ohne Material an der ACE: Hinweis und ACE_SET_SLOT (ACEPRO)."""
+"""Slots without material at the ACE: hint and ACE_SET_SLOT (ACEPRO)."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def petg_spool(spool_id=8, slot=None):
 
 
 def ace(materials, colors=None, present=None, state="standby", tags=None):
-    """ACEPRO-Status: je Slot Material/Farbe ("RRGGBB"), present=False = leer, tags = SKU (Spule mit Tag)."""
+    """ACEPRO state: per slot material/colour ("RRGGBB"), present=False = empty, tags = SKU (spool with a tag)."""
     slots = []
     for i, m in enumerate(materials):
         if present is not None and not present[i]:
@@ -109,7 +109,7 @@ def run(coro):
 
 
 def test_only_the_assignment_writes_to_the_ace(make):
-    # Spule liegt schon in Slot 1, ACE kennt kein Material: Auswerten allein schreibt nichts
+    # the spool is already in slot 1, the ACE knows no material: evaluating alone writes nothing
     mgr, moon = make(ace([""]), [petg_spool(8, 1)])
     run(mgr.evaluate())
     assert moon.sent == []
@@ -167,34 +167,34 @@ def test_failed_write_is_retried_three_times(make):
     run(mgr.evaluate())
     moon.fail = False
     run(mgr.evaluate())
-    assert moon.sent == []                    # nach drei Fehlversuchen aufgegeben
+    assert moon.sent == []                    # given up after three failed attempts
 
 
 def test_slots_with_rfid_tag_are_never_written(make):
     mgr, moon = make(ace(["PLA"], ["212721"], tags=["AHPEBK-4711"]), [petg_spool(8)])
-    run(mgr.assign(1, 8))                     # Spoolman sagt PETG Lavendel, der Tag PLA Schwarz
+    run(mgr.assign(1, 8))                     # Spoolman says PETG lavender, the tag PLA black
     assert moon.sent == [] and not mgr._gate_info_pending
     assert any("ACE reports PLA" in h for h in mgr.slots_view()[0]["hints"])
 
 
 def test_foreign_lane_data_is_removed_after_each_reconnect(make):
-    """ACEPROs eigener Sync schrieb lane1..lane4 (ohne filament_id) - Orca saehe jeden Slot doppelt."""
+    """ACEPRO's own sync wrote lane1..lane4 (without filament_id) - Orca would see every slot twice."""
     sm, moon = make(ace(["PETG", "", "", ""], ["685BC7", "", "", ""], present=[True, False, False, False]),
                     [petg_spool(8, 1)])
     sm.cfg.write_lane_data = True
     moon.db.update({"lane1": {"lane": "0", "material": "PETG"}, "lane4": {"lane": "3"}})
     run(sm.evaluate())
     assert set(moon.db) == {"0"} and moon.db["0"]["filament_id"]
-    moon.db["lane2"] = {"lane": "1"}            # kommt erst nach dem Abgleich wieder: bleibt bis zum naechsten
+    moon.db["lane2"] = {"lane": "1"}            # comes back only after the sync: stays until the next one
     run(sm.evaluate())
     assert "lane2" in moon.db
-    sm.reset_lane_cache()                        # Klipper/Moonraker neu verbunden
+    sm.reset_lane_cache()                        # Klipper/Moonraker reconnected
     run(sm.evaluate())
     assert set(moon.db) == {"0"}
 
 
 def test_lane_data_untouched_while_spoolman_is_not_loaded(make):
-    """Bridge-Start/Spoolman weg: lane_data nicht mit Slots ohne Profil ueberschreiben."""
+    """Bridge start/Spoolman gone: don't overwrite lane_data with slots without a profile."""
     sm, moon = make(ace(["PETG", "", "", ""], ["685BC7", "", "", ""], present=[True, False, False, False]),
                     [petg_spool(8, 1)])
     sm.cfg.write_lane_data = True

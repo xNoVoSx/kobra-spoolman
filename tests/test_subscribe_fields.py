@@ -1,5 +1,5 @@
-"""Abo: Objekte, deren Felder erst spaeter auftauchen koennen (ACE nach dem Verbinden), nie mit None abonnieren -
-Klipper friert bei None die Feldliste beim ersten Abfragen ein."""
+"""Subscription: never subscribe objects whose fields may only appear later (ACE after connecting) with None -
+with None Klipper freezes the field list at the first query."""
 
 from acebridge import acemodel
 from acebridge.moonraker import OPTIONAL_OBJECTS

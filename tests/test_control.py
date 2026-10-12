@@ -1,4 +1,4 @@
-"""Drucksteuerung (control.py): Nachjustieren und Pause/Weiter/Abbrechen/Not-Aus mit Rueckfragen."""
+"""Print control (control.py): tune and pause/resume/cancel/emergency stop with confirmations."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def test_tune_commands_match_what_the_s1_accepts():
     assert cmds == ["M220 S150", "M221 S95", "M106 S76", "SET_FAN_SPEED FAN=box_fan SPEED=0.3",
                     "SET_FAN_SPEED FAN=air_filter_fan SPEED=0", "M104 S220", "M140 S60"]
     assert confirm is None
-    assert tune_commands({"nozzle": 280})[1]                       # heiss: Rueckfrage
+    assert tune_commands({"nozzle": 280})[1]                       # hot: confirmation
 
 
 @pytest.mark.parametrize("body", [{"speed": 5}, {"flow": 200}, {"fans": {"part": 120}}, {"fans": {"turbo": 10}},
@@ -31,7 +31,7 @@ def test_tune_rejects_out_of_range(body):
 def test_actions_check_state_and_confirmation():
     assert check_action("pause", "printing", False)[0] == "printer.print.pause"
     with pytest.raises(ControlError):
-        check_action("resume", "printing", False)                 # nicht pausiert
+        check_action("resume", "printing", False)                 # not paused
     with pytest.raises(ControlError) as e:
         check_action("cancel", "printing", False)
     assert e.value.confirm
@@ -43,7 +43,7 @@ def test_actions_check_state_and_confirmation():
 
 
 def test_firmware_restart_only_without_print():
-    """Klipper neu laden (nach Not-Aus oder Abschaltung) - nie waehrend eines Drucks, immer mit Rueckfrage."""
+    """Reload Klipper (after an emergency stop or shutdown) - never during a print, always with confirmation."""
     for state in ("printing", "paused"):
         with pytest.raises(ControlError) as e:
             check_action("firmware_restart", state, True)
@@ -84,7 +84,7 @@ def test_routes(api):
     assert call("/api/print/tune", {"speed": 120}, token=None)[0] == 401
     bridge.moon.merge({"print_stats": {"state": "printing"}})
     assert call("/api/print/pause")[0] == 200
-    assert bridge.last_control["action"] == "pause"          # die App meldet eigene Pausen nicht als Alarm
+    assert bridge.last_control["action"] == "pause"          # the app does not report its own pauses as an alarm
     status, res = call("/api/print/cancel")
     assert status == 409 and res["confirm"] is True
     assert call("/api/print/cancel", {"confirm": True})[0] == 200
@@ -97,10 +97,10 @@ def test_routes(api):
 
 
 def test_firmware_restart_after_shutdown_mid_print(api):
-    """Not-Aus mitten im Druck: print_stats sagt noch "printing", Klipper ist aber aus - Neuladen muss gehen."""
+    """Emergency stop in the middle of a print: print_stats still says "printing" but Klipper is off - reloading must work."""
     bridge, call, sent = api
     bridge.moon.merge({"print_stats": {"state": "printing"}})
-    assert call("/api/print/firmware_restart", {"confirm": True})[0] == 409    # Druck laeuft wirklich
+    assert call("/api/print/firmware_restart", {"confirm": True})[0] == 409    # the print really runs
     bridge.moon.klippy_ready = False
     status, res = call("/api/print/firmware_restart")
     assert status == 409 and res["confirm"] is True

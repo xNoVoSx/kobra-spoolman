@@ -1,4 +1,4 @@
-"""Profilbau im Orca-Plugin: Vererbung aufloesen, Spoolman-Werte einsetzen, Aenderungen erkennen."""
+"""Building profiles in the Orca plugin: resolve inheritance, insert Spoolman values, detect changes."""
 
 from __future__ import annotations
 
@@ -28,14 +28,14 @@ def write(path: Path, data: dict):
 
 @pytest.fixture
 def system(tmp_path):
-    """Kleine, erfundene Profilwelt im Orca-Format (zwei Hersteller mit gleich benannten Basen)."""
+    """Small, made-up profile world in Orca's format (two vendors with bases of the same name)."""
     v = tmp_path / "system" / "TestVendor" / "filament"
     write(v / "fdm_filament_common.json", {"name": "fdm_filament_common", "filament_start_gcode": ["; start\n"],
                                            "fan_max_speed": ["100"], "filament_notes": [""]})
     write(v / "fdm_filament_pla.json", {"name": "fdm_filament_pla", "inherits": "fdm_filament_common",
                                         "nozzle_temperature": ["210"], "filament_type": ["PLA"]})
     write(v / "fdm_filament_pet.json", {"name": "fdm_filament_pet", "inherits": "fdm_filament_common",
-                                        "nozzle_temperature": ["999"]})   # darf NICHT fuer Generic PETG gelten
+                                        "nozzle_temperature": ["999"]})   # must NOT apply to Generic PETG
     write(v / "Test PLA @Printer.json", {"name": "Test PLA @Printer", "inherits": "fdm_filament_pla",
                                          "setting_id": "X1", "filament_id": "ORIG", "additional_cooling_fan_speed": ["60"],
                                          "compatible_printers": ["Printer"], "version": "2.5.0.0"})
@@ -52,7 +52,7 @@ def test_resolve_prefers_parents_of_the_same_vendor(ks, system, monkeypatch):
     sp = ks.SystemProfiles(system / "system")
     pla = sp.resolve("Test PLA @Printer")
     assert pla["nozzle_temperature"] == ["210"] and pla["fan_max_speed"] == ["100"]
-    petg = sp.resolve("Generic PETG @System")          # nur im AppImage-Ordner vorhanden
+    petg = sp.resolve("Generic PETG @System")          # only in the AppImage folder
     assert petg["nozzle_temperature"] == ["255"] and petg["fan_max_speed"] == ["90"]
     assert sp.resolve("Does not exist") is None
 
@@ -62,14 +62,14 @@ def test_build_profile_json(ks, system):
     prof = {"orca_id": "SM000010", "filament_id": 10, "values": {
         "nozzle_temperature": 230, "activate_air_filtration": True, "filament_flow_ratio": 0.96,
         "default_filament_colour": "#52D2BC", "filament_id": "SM000010", "slow_down_layer_time": "8"}}
-    name = ks.safe_name("Anycubic PLA Silk Grün", "SM000010", "PLA")
+    name = ks.safe_name("Anycubic PLA Silk Green", "SM000010", "PLA")
     out = ks.build_profile_json(base, prof, name)
-    assert name == "Anycubic PLA Silk Grün (SM000010)"
+    assert name == "Anycubic PLA Silk Green (SM000010)"
     assert out["name"] == name and out["inherits"] == "" and out["from"] == "User"
     assert out["filament_id"] == "SM000010" and out["filament_settings_id"] == [name]
     assert out["nozzle_temperature"] == ["230"] and out["activate_air_filtration"] == ["1"]
     assert out["filament_flow_ratio"] == ["0.96"] and out["slow_down_layer_time"] == ["8"]
-    assert out["additional_cooling_fan_speed"] == ["60"]          # aus dem Basisprofil
+    assert out["additional_cooling_fan_speed"] == ["60"]          # from the base profile
     assert out["compatible_printers"] == [] and "setting_id" not in out
     assert ks.MARKER in out["filament_notes"][0]
     assert out["default_filament_colour"] == ["#52D2BC"] and "filament_colour" not in out
@@ -81,7 +81,7 @@ def test_colour_from_older_bridge_becomes_default_filament_colour(ks, system):
     prof = {"orca_id": "SM000010", "filament_id": 10, "values": {"filament_colour": "#52D2BC"}}
     out = ks.build_profile_json(base, prof, "X (SM000010)")
     assert out["default_filament_colour"] == ["#52D2BC"] and "filament_colour" not in out
-    # neue Bridge gewinnt, falls beide Schluessel kommen
+    # the new bridge wins if both keys come
     prof["values"]["default_filament_colour"] = "#112233"
     assert ks.build_profile_json(base, prof, "X (SM000010)")["default_filament_colour"] == ["#112233"]
 
@@ -95,8 +95,8 @@ def test_diff_ignores_meta_and_formatting(ks):
 
 
 def test_diff_ignores_orca_defaults_and_variant_expansion(ks):
-    """Orca 2.5 fuegt beim Speichern eigene Standardwerte hinzu und fuellt Werte je Extruder-Variante (6x) auf -
-    beides ist keine Aenderung des Nutzers (Fehler 05.10.: ~97 Werte landeten als Text in orca_overrides)."""
+    """Orca 2.5 adds its own defaults when saving and fills values per extruder variant (6x) -
+    neither is a change by the user (bug 05.10.: ~97 values ended up as text in orca_overrides)."""
     written = {"name": "A", "nozzle_temperature": ["260"], "activate_air_filtration": ["1"],
                "filament_extruder_variant": ["Direct Drive Standard"]}
     saved = {"name": "A", "nozzle_temperature": ["260", "260", "260", "260", "260", "260"],
@@ -105,23 +105,23 @@ def test_diff_ignores_orca_defaults_and_variant_expansion(ks):
              "activate_chamber_temp_control": ["0"], "filament_cooling_moves": ["4"],
              "adaptive_pressure_advance": ["0"] * 6}
     assert ks.diff_profiles(written, saved) == {}
-    saved["nozzle_temperature"] = ["265"] * 6                       # echte Aenderung, je Variante gleich
+    saved["nozzle_temperature"] = ["265"] * 6                       # a real change, the same per variant
     assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "265"}
-    # Orca aendert in der Oberflaeche nur die aktive Variante -> deren Wert zaehlt (Fehler 06.10.: Liste als Text
-    # kam bei der Bridge als "kein Wert" an und loeschte die Duesentemperatur in Spoolman)
+    # Orca changes only the active variant in its UI -> that value counts (bug 06.10.: a list as text
+    # arrived at the bridge as "no value" and cleared the nozzle temperature in Spoolman)
     saved["filament_extruder_variant"] = ["Direct Drive Standard", "Direct Drive High Flow", "Bowden Standard"]
     saved["nozzle_temperature"] = ["255", "260", "260"]
     assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "255"}
     saved["filament_extruder_variant"] = ["Bowden Standard", "Direct Drive Standard", "Direct Drive High Flow"]
     saved["nozzle_temperature"] = ["260", "250", "260"]
     assert ks.diff_profiles(written, saved) == {"nozzle_temperature": "250"}
-    saved["nozzle_temperature"] = ["250", "260", "260"]        # nur eine andere Variante geaendert -> nichts
+    saved["nozzle_temperature"] = ["250", "260", "260"]        # only another variant changed -> nothing
     assert ks.diff_profiles(written, saved) == {}
 
 
 def test_build_profile_json_turns_list_text_back_into_list(ks, system):
-    """Alter, kaputter Stand in Spoolman: Listen als Text -> im Profil muss eine echte Liste stehen,
-    sonst verwirft Orca das ganze Profil (\"Invalid value provided for parameter ...\")."""
+    """Old, broken state in Spoolman: lists as text -> the profile must hold a real list,
+    else Orca drops the whole profile (\"Invalid value provided for parameter ...\")."""
     base = ks.SystemProfiles(system / "system").resolve("Test PLA @Printer")
     prof = {"orca_id": "SM000014", "filament_id": 14, "values": {
         "activate_air_filtration_during_print": '["1", "1", "1", "1", "1", "1"]',
@@ -131,7 +131,7 @@ def test_build_profile_json_turns_list_text_back_into_list(ks, system):
     assert out["activate_air_filtration_during_print"] == ["1"] * 6
     assert out["adaptive_pressure_advance_model"] == ["0,0,0\n0,0,0", "0,0,0\n0,0,0"]
     assert out["nozzle_temperature"] == ["260"]
-    json.dumps(out)                                                  # als Datei schreibbar
+    json.dumps(out)                                                  # writable as a file
 
 
 def test_safe_name_avoids_sandbox_keywords(ks):
@@ -147,15 +147,15 @@ def test_base_profile_names_skip_abstract_parents(ks, system, monkeypatch):
 
 
 def test_diff_self_compare_with_differing_variant_lists(ks):
-    """Issue #2 (MineTech13): Listen mit verschiedenen Werten je Variante - beide Seiten auf die aktive Variante
-    reduzieren, sonst meldet sogar der Vergleich einer Datei mit sich selbst Aenderungen (Sync schreibt jedes Mal)."""
+    """Issue #2 (MineTech13): lists with different values per variant - reduce both sides to the active variant,
+    else even comparing a file with itself reports changes (the sync writes every time)."""
     prof = {"name": "Bambu PLA Basic", "filament_extruder_variant": ["Direct Drive Standard", "Direct Drive High Flow",
                                                                     "Bowden Standard"],
             "filament_max_volumetric_speed": ["12", "21", "40"], "filament_flow_ratio": ["0.98", "0.985", "0.985"]}
     assert ks.diff_profiles(prof, prof) == {}
-    edited = dict(prof, filament_flow_ratio=["0.95", "0.985", "0.985"])       # aktive Variante geaendert
+    edited = dict(prof, filament_flow_ratio=["0.95", "0.985", "0.985"])       # active variant changed
     assert ks.diff_profiles(prof, edited) == {"filament_flow_ratio": "0.95"}
-    other = dict(prof, filament_flow_ratio=["0.98", "0.9", "0.985"])          # andere Variante: zaehlt nicht
+    other = dict(prof, filament_flow_ratio=["0.98", "0.9", "0.985"])          # another variant: does not count
     assert ks.diff_profiles(prof, other) == {}
 
 
@@ -197,8 +197,8 @@ def profile(oid, base, material, ftype=None):
 
 
 def test_sync_falls_back_to_generic_and_explains_missing_base(ks, core, monkeypatch):
-    """Issue #1: ohne Basisprofil in Spoolman (alte Bridge 2.x liefert base leer) -> Generic <Typ> @System; ohne
-    Material eine klare Meldung statt „–“ nicht gefunden."""
+    """Issue #1: without a base profile in Spoolman (old bridge 2.x delivers base empty) -> Generic <type> @System;
+    without a material a clear message instead of “–” not found."""
     profs = [profile("SM000001", None, "PETG", "PETG"), profile("SM000002", None, ""),
              profile("SM000003", "Does not exist", "PLA")]
     monkeypatch.setattr(core, "http", lambda *a, **k: {"profiles": profs, "hash": "h"})
@@ -206,7 +206,7 @@ def test_sync_falls_back_to_generic_and_explains_missing_base(ks, core, monkeypa
     assert len(res["written"]) == 1
     errs = " | ".join(res["errors"])
     assert "no Orca base profile in Spoolman" in errs and "“Does not exist” not found in Orca" in errs
-    assert "„–“" not in errs
+    assert "“–”" not in errs and "„–“" not in errs   # i18n: keep
     assert core.missing_bases == {"Does not exist"}
-    # zweiter Sync: nichts neu geschrieben (Issue #2: kein Neuschreiben bei jedem Start)
+    # second sync: nothing written again (issue #2: no rewriting at every start)
     assert core.sync_profiles()["written"] == []

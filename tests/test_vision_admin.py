@@ -22,7 +22,7 @@ def test_settings_are_validated_and_saved(vision):
     v, moon, clock = vision
     s = v.update_settings({"sensitivity": 1.5, "action": "pause", "notify": "fail",
                            "zones": [{"x": 0.9, "y": 0.0, "w": 0.5, "h": 0.2}]})
-    assert s.sensitivity == 1.5 and s.zones == [{"x": 0.9, "y": 0.0, "w": 0.1, "h": 0.2}]   # auf das Bild begrenzt
+    assert s.sensitivity == 1.5 and s.zones == [{"x": 0.9, "y": 0.0, "w": 0.1, "h": 0.2}]   # limited to the image
     for bad in ({"sensitivity": 9}, {"action": "explode"}, {"interval_s": 1}, {"quiet": {"start": "25:00"}},
                 {"unbekannt": 1}, {"zones": "x"}):
         with pytest.raises(ValueError):
@@ -37,10 +37,10 @@ def test_suspect_pictures_are_rate_limited(vision):
     moon.merge({"print_stats": {"state": "printing"}})
     v.mute(False)
     run_print(v, moon, clock, 0.0, 1)
-    v.mute(True)                                    # stumm: kein Alarm, nur Sammeln
-    run_print(v, moon, clock, 0.2, 30)              # 300 s leicht verdaechtig
+    v.mute(True)                                    # muted: no alarm, only collecting
+    run_print(v, moon, clock, 0.2, 30)              # 300 s slightly suspicious
     suspects = [f for f in v.data.frames(v.job) if f["kind"] == "suspect"]
-    assert 9 <= len(suspects) <= 11                 # alle 30 s statt alle 10 s
+    assert 9 <= len(suspects) <= 11                 # every 30 s instead of every 10 s
 
 
 def test_old_event_frame_paths_still_work(vision):
@@ -69,7 +69,7 @@ def test_quiet_hours_over_midnight():
 
 def test_zone_hides_findings_from_the_score(vision):
     v, moon, clock = vision
-    v.update_settings({"zones": [{"x": 0.4, "y": 0.4, "w": 0.2, "h": 0.2}]})     # die Testbox sitzt bei 0.5/0.5
+    v.update_settings({"zones": [{"x": 0.4, "y": 0.4, "w": 0.2, "h": 0.2}]})     # the test box sits at 0.5/0.5
     asyncio.run(v.tick())
     moon.merge({"print_stats": {"state": "printing"}})
     run_print(v, moon, clock, 0.0, 40)
@@ -89,7 +89,7 @@ def test_warning_is_yellow_when_phone_only_wants_failures(vision):
         asyncio.run(v.tick())
         if v.level == "warn":
             break
-    assert v.level == "warn" and v.messages()[0]["level"] == "warn"                  # kein Handy-Alarm
+    assert v.level == "warn" and v.messages()[0]["level"] == "warn"                  # no phone alarm
     v.update_settings({"notify": "warn"})
     assert v.messages()[0]["level"] == "error"
 
@@ -108,7 +108,7 @@ def test_manual_mute_and_pause_with_heater_off(vision):
     asyncio.run(v.tick())
     moon.merge({"print_stats": {"state": "printing"}})
     run_print(v, moon, clock, 0.0, 1)
-    v.mute(True)                                                                   # nach dem Druckstart
+    v.mute(True)                                                                   # after the print start
     run_print(v, moon, clock, 0.0, 40)
     run_print(v, moon, clock, 3.0, 4)
     assert sent == [] and "by hand" in v.status_line()["detail"]
@@ -173,7 +173,7 @@ def test_dataset_api_label_delete_export(cfg, vision):
             z = zipfile.ZipFile(io.BytesIO(await r.read()))
             assert r.status == 200 and f"{v.job}/{fr}" in z.namelist() and "README.txt" in z.namelist()
             assert json.loads(z.read(f"{v.job}/labels.jsonl").splitlines()[-1])["label"] == "plate_empty"
-            assert (await c.delete(f"/api/vision/jobs/{v.job}", headers=h)).status == 409   # laeuft noch
+            assert (await c.delete(f"/api/vision/jobs/{v.job}", headers=h)).status == 409   # still running
             assert (await c.delete(f"/api/vision/jobs/{v.job}/{fr}", headers=h)).status == 200
             r = await c.post("/api/vision/settings", json={"sensitivity": 2}, headers=h)
             assert r.status == 200 and (await r.json())["settings"]["sensitivity"] == 2
@@ -187,7 +187,7 @@ def test_dataset_api_label_delete_export(cfg, vision):
 
 
 def test_summary_stays_compatible_with_app_1_5(vision):
-    """App 1.5.0 liest vision.muted als Boolean - ein Text dort laesst sie abstuerzen."""
+    """App 1.5.0 reads vision.muted as a boolean - a text there makes it crash."""
     v, moon, clock = vision
     asyncio.run(v.tick())
     moon.merge({"print_stats": {"state": "printing"}})

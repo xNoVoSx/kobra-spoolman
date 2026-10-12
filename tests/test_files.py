@@ -1,4 +1,4 @@
-"""Druckdateien fuers Display (files.py): Liste, Werkzeuge der Datei neben den Slots, Druckstart nur mit Rueckfrage."""
+"""Print files for the display (files.py): list, tools of the file next to the slots, print start only with confirmation."""
 
 from __future__ import annotations
 

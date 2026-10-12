@@ -1,12 +1,12 @@
-"""Fehldruck-Erkennung mit Obicos "failure"-Modell (ONNX, YOLO mit einer Klasse).
+"""Failure detection with Obico's "failure" model (ONNX, YOLO with one class).
 
-Das Modell kommt aus obico-server (AGPL-3.0) und wird nicht im Repo mitgeliefert, sondern beim Bauen des
-Images geladen (Dockerfile, Pruefsumme). Ausgabe wie Obicos ml_api: Liste (Klasse, Sicherheit, Box) ab
-DETECT_THRESH - die Bewertung ueber die Zeit macht die Bridge.
+The model comes from obico-server (AGPL-3.0) and is not shipped in the repo but downloaded when the image is built
+(Dockerfile, checksum). Output like Obico's ml_api: list (class, confidence, box) from DETECT_THRESH - the bridge
+does the scoring over time.
 
-Laeuft auf der CPU (Obicos Modell braucht mit 2 Threads ~50 ms pro Bild) oder per CUDA, wenn
-onnxruntime-gpu installiert ist. Geladen wird erst beim ersten Bild; nach UNLOAD_AFTER_S ohne Bild wird
-das Modell wieder entladen (Speicher/Grafikkarte frei, solange nicht gedruckt wird).
+Runs on the CPU (Obico's model needs ~50 ms per image with 2 threads) or via CUDA when onnxruntime-gpu is installed.
+The model loads at the first image; after UNLOAD_AFTER_S without an image it is unloaded again (memory/graphics card
+free while nothing prints).
 """
 
 from __future__ import annotations
@@ -23,15 +23,15 @@ from PIL import Image
 
 log = logging.getLogger("detector")
 
-DETECT_THRESH = 0.08     # wie Obicos ml_api: ab hier zaehlt eine Box
+DETECT_THRESH = 0.08     # like Obico's ml_api: from here a box counts
 NMS_THRESH = 0.45
 
-# (Klasse, Sicherheit, (x-Mitte, y-Mitte, Breite, Hoehe) relativ zum Bild 0..1)
+# (class, confidence, (x centre, y centre, width, height) relative to the image 0..1)
 Detection = Tuple[str, float, Tuple[float, float, float, float]]
 
 
 def nms(boxes: np.ndarray, scores: np.ndarray, thresh: float) -> List[int]:
-    """Non-Maximum-Suppression: ueberlappende Boxen (IoU > thresh) auf die sicherste reduzieren."""
+    """Non-maximum suppression: reduce overlapping boxes (IoU > thresh) to the most confident one."""
     x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
     areas = np.maximum(0.0, x2 - x1) * np.maximum(0.0, y2 - y1)
     order = scores.argsort()[::-1]
@@ -79,7 +79,7 @@ class Result:
 
 
 class Detector:
-    """Laedt das Modell bei Bedarf, entlaedt es nach Leerlauf. Thread-sicher (ein Bild nach dem anderen)."""
+    """Loads the model when needed, unloads it after idling. Thread-safe (one image after the other)."""
 
     def __init__(self, model_path: str, names: List[str], threads: int = 2, use_gpu: bool = False,
                  unload_after_s: float = 600, clock: Callable[[], float] = time.monotonic):

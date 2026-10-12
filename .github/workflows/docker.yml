@@ -1,8 +1,8 @@
-# Baut die Docker-Images der Bridge (ghcr.io/<owner>/ace-lane-bridge) und des KI-Dienstes
-# (ghcr.io/<owner>/kobra-vision, CPU; Modell wird beim Bauen geladen und geprueft).
-#   - Push auf main     -> Tag "edge"
-#   - Tag vX.Y.Z        -> Tags "X.Y.Z", "X.Y", "latest" - mit der signierten App-APK im Image
-#                          (die Bridge bietet sie der App als Update an, /api/app/update)
+# Builds the Docker images of the bridge (ghcr.io/<owner>/ace-lane-bridge) and of the AI service
+# (ghcr.io/<owner>/kobra-vision, CPU; the model is downloaded and checked while building).
+#   - push to main      -> tag "edge"
+#   - Tag vX.Y.Z        -> tags "X.Y.Z", "X.Y", "latest" - with the signed app APK in the image
+#                          (the bridge offers it to the app as an update, /api/app/update)
 name: Docker image
 
 on:
@@ -27,7 +27,7 @@ jobs:
 
   image:
     needs: app
-    # auch ohne APK-Job (Push auf main): dann Image ohne App-Update
+    # also without the APK job (push to main): then an image without an app update
     if: ${{ !cancelled() && (needs.app.result == 'success' || needs.app.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:

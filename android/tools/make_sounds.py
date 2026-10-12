@@ -1,6 +1,6 @@
-"""Benachrichtigungstoene der App - reine Synthese, keine fremden Samples (gleiche Lizenz wie das Repo).
+"""Notification sounds of the app - pure synthesis, no foreign samples (same licence as the repo).
 
-Erzeugt app/src/main/res/raw/snd_*.ogg (braucht ffmpeg mit libvorbis):
+Creates app/src/main/res/raw/snd_*.ogg (needs ffmpeg with libvorbis):
     python3 tools/make_sounds.py
 """
 import math
@@ -26,7 +26,7 @@ def add(buf, start, sig, gain=1.0):
         buf[i0 + i] += v * gain
 
 def bell(f, dur, bright=1.0, decay=3.0):
-    """Glocke/Marimba: Teiltoene mit eigener Abklingzeit, weicher Anschlag."""
+    """Bell/marimba: partials with their own decay, soft attack."""
     parts = [(1, 1.0, 1.0), (2.0, 0.45 * bright, 1.8), (3.01, 0.22 * bright, 2.6), (4.2, 0.12 * bright, 3.5),
              (5.43, 0.06 * bright, 5)]
     n = int(SR * dur)
@@ -66,7 +66,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src
 
 
 def save(name, buf, peak=0.85):
-    """Hall dazu, normieren, als Ogg Vorbis nach res/raw."""
+    """Add reverb, normalise, write as Ogg Vorbis to res/raw."""
     buf = reverb(buf)
     m = max(abs(v) for v in buf) or 1
     with tempfile.TemporaryDirectory() as tmp:
@@ -81,13 +81,13 @@ def save(name, buf, peak=0.85):
                         os.path.join(OUT, name + ".ogg")], check=True)
 
 
-# Druck gestartet: zwei Toene aufwaerts (Quinte), Marimba
+# print started: two notes upwards (fifth), marimba
 b = blank(0.1)
 add(b, 0.0, bell(note("C5"), 0.6, 0.8, 4))
 add(b, 0.14, bell(note("G5"), 0.9, 0.8, 3))
 save("snd_start", b)
 
-# Erste Schicht fertig: kurzes helles Doppel-Pling
+# first layer done: short bright double ping
 b = blank(0.1)
 add(b, 0.0, bell(note("E6"), 0.35, 1.2, 7), 0.8)
 add(b, 0.11, bell(note("B6"), 0.6, 1.2, 5), 0.8)
@@ -106,7 +106,7 @@ for k in range(4):
     add(b, k * 0.42, tone(note("E5"), 0.32, "square", glide=0.5), 0.6)
 save("snd_alarm", b, 0.9)
 
-# Hinweis: leises "Blopp" abwaerts
+# hint: quiet "blop" downwards
 b = blank(0.1)
 add(b, 0.0, tone(note("A5"), 0.22, "sine", decay=9, glide=-0.35))
 add(b, 0.12, tone(note("E5"), 0.3, "sine", decay=8, glide=-0.3), 0.7)

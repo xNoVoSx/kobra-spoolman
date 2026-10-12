@@ -1,4 +1,4 @@
-"""Kamera (camera.py): eine Verbindung zum Drucker, weiterverteilt an beliebig viele Zuschauer."""
+"""Camera (camera.py): one connection to the printer, passed on to any number of viewers."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def frame(i: int) -> bytes:
 
 @pytest.fixture
 def printer():
-    """Kamera wie Rinkhals' mjpg-streamer: Stream mit Content-Length und Einzelbilder; zaehlt Verbindungen."""
+    """Camera like Rinkhals' mjpg-streamer: stream with Content-Length and single frames; counts connections."""
     hits = {"stream": 0, "snapshot": 0, "open": 0}
 
     async def webcam(request):
@@ -62,7 +62,7 @@ def make_cfg(srv, stream=True, interval=60, fps_max=10.0):
 
 
 def test_read_mjpeg_without_content_length():
-    class Content:                      # liefert den Strom in kleinen Stuecken wie das Netz
+    class Content:                      # delivers the stream in small pieces like the network
         def __init__(self, data):
             self.data = data
 
@@ -109,14 +109,14 @@ def test_many_viewers_one_printer_connection(printer):
 
             res = await asyncio.gather(viewer(8), viewer(8), viewer(8), viewer(3, fps=10))
             assert all(len(r) == n for r, n in zip(res, (8, 8, 8, 3)))
-            assert all(f.startswith(b"\xff\xd8 frame ") for r in res for f in r)    # nie ein leeres Bild
+            assert all(f.startswith(b"\xff\xd8 frame ") for r in res for f in r)    # never an empty image
             assert res[0][-1].startswith(b"\xff\xd8 frame ")
-            img, _ = await cam.snapshot()                     # Einzelbild kommt aus dem laufenden Stream
+            img, _ = await cam.snapshot()                     # the single frame comes from the running stream
             assert img.startswith(b"\xff\xd8 frame ") and hits["snapshot"] == 0
-            assert hits["stream"] == 1                          # vier Zuschauer + Einzelbild: eine Verbindung
+            assert hits["stream"] == 1                          # four viewers + a single frame: one connection
             assert cam.fps() is not None and cam.fps() > 10
             assert cam.state()["mode"] == "stream"
-            cam._wanted_until = 0                               # niemand schaut mehr: Stream schliesst
+            cam._wanted_until = 0                               # nobody watches any more: the stream closes
             await asyncio.wait_for(cam._reader, 2)
             assert not cam.streaming
     asyncio.run(go())
@@ -133,7 +133,7 @@ def test_falls_back_to_snapshots_when_printer_has_no_stream(printer):
             assert img == JPEG
             await asyncio.sleep(0.05)
             await cam.snapshot()
-            assert hits["stream"] == 1          # kein Dauerversuch: Einzelbilder fuer eine Weile
+            assert hits["stream"] == 1          # no endless retrying: single frames for a while
     asyncio.run(go())
 
 
@@ -161,16 +161,16 @@ def test_camera_routes_need_device_or_camera_key(printer, tmp_path):
                         break
                 assert len(frames) == 3 and frames[0].startswith(b"\xff\xd8 frame ")
                 r.close()
-                # neuer Schluessel: alter Link tot
+                # new key: the old link is dead
                 r = await client.post("/api/camera/link", headers={"Authorization": "Bearer geheim"})
                 assert (await r.json())["key"] != key
                 assert (await client.get(f"/api/camera/snapshot.jpg?key={key}")).status == 401
-            assert CameraKey(str(tmp_path)).key == bridge.camera_key.key     # bleibt nach Neustart
+            assert CameraKey(str(tmp_path)).key == bridge.camera_key.key     # survives a restart
     asyncio.run(go())
 
 
 def test_resolve_skips_the_bridges_own_camera_link():
-    """Steht der Kamera-Link der Bridge in Moonrakers Webcam-Liste (Mainsail), darf die Bridge ihn nicht als Quelle nehmen."""
+    """If the bridge's camera link is in Moonraker's webcam list (Mainsail), the bridge must not use it as its source."""
     class Moon:
         async def get_json(self, path):
             return {"webcams": [
@@ -189,7 +189,7 @@ def test_resolve_skips_the_bridges_own_camera_link():
 
 
 def test_default_polls_snapshots_and_never_opens_the_printer_stream(printer):
-    """Standard (Kobra S1): Einzelbilder nacheinander, verteilt an alle - der teure Drucker-Stream bleibt zu."""
+    """Default (Kobra S1): single frames one after another, passed to everyone - the expensive printer stream stays closed."""
     app, hits = printer
 
     async def go():
@@ -207,18 +207,18 @@ def test_default_polls_snapshots_and_never_opens_the_printer_stream(printer):
             res = await asyncio.gather(viewer(3), viewer(3))
             assert all(f == JPEG for r in res for f in r)
             assert hits["stream"] == 0 and hits["snapshot"] >= 3
-            assert cam.state()["mode"] == "snapshots" and cam.state()["target_fps"] == 10.0   # gleich die Hoechstrate
+            assert cam.state()["mode"] == "snapshots" and cam.state()["target_fps"] == 10.0   # the maximum rate right away
             cam._wanted_until = 0
             await asyncio.wait_for(cam._reader, 3)
             stopped = hits["snapshot"]
             await asyncio.sleep(0.2)
-            assert hits["snapshot"] == stopped and not cam.streaming       # ohne Zuschauer keine Abfragen mehr
+            assert hits["snapshot"] == stopped and not cam.streaming       # no more queries without viewers
     asyncio.run(go())
 
 
 def test_viewer_disconnect_is_not_an_error():
-    """aiohttp meldet einen weggegangenen Zuschauer als ConnectionError("Connection lost") - normal, kein Fehler
-    (am echten Geraet stand das alle 10 s als Traceback im Log)."""
+    """aiohttp reports a viewer who left as ConnectionError("Connection lost") - normal, not an error
+    (on the real device this was in the log as a traceback every 10 s)."""
     class Gone:
         writes = 0
 
@@ -235,4 +235,4 @@ def test_viewer_disconnect_is_not_an_error():
         resp, gen = Gone(), frames()
         await send_mjpeg(resp, JPEG, gen, "10.0.0.x")
         return resp.writes
-    assert asyncio.run(go()) == 2                       # endet still nach dem Trennen
+    assert asyncio.run(go()) == 2                       # ends quietly after disconnecting

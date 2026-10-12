@@ -45,7 +45,7 @@ def test_message_only_while_suspect(env):
     moon.merge({"kobra_clog": {"suspect": True, "alarm": dict(ALARM), "alarms": 1}})
     assert "the encoder saw only 0 mm" in cl.message() and "check" in cl.message()
     assert any(m["key"] == "clog" and m["level"] == "error" for m in messages(_bridge(moon, cl), [], 0.0))
-    moon.merge({"kobra_clog": {"suspect": False}})          # wieder normal gefoerdert
+    moon.merge({"kobra_clog": {"suspect": False}})          # fed normally again
     assert cl.message() is None and cl.view()["alarms"] == 1
 
 

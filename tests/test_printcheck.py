@@ -1,4 +1,4 @@
-"""Pruefung beim Druckstart: Slots gegen die Druckdatei (Material, Farbe, Spule, Feuchte)."""
+"""Check at print start: slots against the print file (material, colour, spool, moisture)."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def spool(sid, material, colour, name="X"):
 
 def bridge(gates, assigned, wet=(), action="warn"):
     moon = FakeMoonraker()
-    # gates: (belegt, Material, Farbe RRGGBB[AA]) je Slot -> ACEPRO-Status
+    # gates: (occupied, material, colour RRGGBB[AA]) per slot -> ACEPRO state
     slots = [{"material": g[1], "color": g[2][:6]} if g[0] else None for g in gates]
     moon.merge({"print_stats": {"state": "printing", "filename": "teil.gcode"}, **ace_status(slots)})
     sent = []
@@ -57,7 +57,7 @@ def bridge(gates, assigned, wet=(), action="warn"):
 def test_everything_fits_gives_no_issue():
     b, _ = bridge([(1, "PLA", "FFFFFFFF"), (1, "PETG", "685BC7FF"), (1, "PLA", "000000FF"), (0, "", "000000FF")],
                   {1: spool(1, "PLA", "FFFFFF"), 2: spool(2, "PETG", "685BC7")})
-    assert check(b) == []                                    # Werkzeug 2 wird nicht benutzt -> egal
+    assert check(b) == []                                    # tool 2 is not used -> does not matter
 
 
 def test_wrong_material_colour_empty_and_missing_spool():
@@ -77,12 +77,12 @@ def test_wet_spool_warns_and_pauses_only_when_set():
     assert [(i["slot"], i["kind"], i["level"]) for i in issues] == [(2, "wet", "error")] and "~6 h" in issues[0]["text"]
     g = PrintGuard(b)
     asyncio.run(g.tick())
-    assert sent == []                                         # Standard: nur warnen
+    assert sent == []                                         # default: warn only
     b, sent = bridge(gates, assigned, wet={2}, action="pause")
     g = PrintGuard(b)
     asyncio.run(g.tick())
     asyncio.run(g.tick())
-    assert sent == [("printer.print.pause", "Print start check")]   # einmal je Druck
+    assert sent == [("printer.print.pause", "Print start check")]   # once per print
 
 
 def test_not_printing_or_file_not_read_yet():

@@ -1,4 +1,4 @@
-"""Fortsetzen nach Stromausfall (resume.py): Angebot, Meldung, Fortsetzen nur mit Bestaetigung, Verwerfen, Schalter."""
+"""Resume after power loss (resume.py): offer, message, resume only with confirmation, discard, switch."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def test_offer_and_alarm_message(env):
                              sm=SimpleNamespace(connected=True), camera=SimpleNamespace(state=lambda: {}),
                              dryer=SimpleNamespace(state=lambda: {}))
     msgs = messages(bridge, [], 0.0)
-    assert any(m["key"] == "resume" and m["level"] == "error" for m in msgs)       # Alarm in der App
+    assert any(m["key"] == "resume" and m["level"] == "error" for m in msgs)       # alarm in the app
 
 
 def test_start_only_when_sensible(env):
@@ -68,14 +68,14 @@ def test_start_only_when_sensible(env):
 
 def test_failure_is_reported(env):
     rs, moon = env
-    moon.fail = "Fortsetzen abgebrochen: Hoehe weicht 9.28 mm ab"
+    moon.fail = "Resume cancelled: height differs by 9.28 mm"
 
     async def go():
         rs.start()
         for _ in range(3):
             await asyncio.sleep(0)
     asyncio.run(go())
-    assert "weicht" in rs.view()["error"] and not rs.running
+    assert "differs" in rs.view()["error"] and not rs.running
 
 
 def test_discard_switch_and_missing_module(env):

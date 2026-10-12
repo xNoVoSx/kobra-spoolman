@@ -125,7 +125,7 @@ class Vision:
         self.camera = camera
         self.session = session
         self.clock = clock
-        self.configured = bool(cfg.vision_url)          # Dienst eingetragen?
+        self.configured = bool(cfg.vision_url)          # service configured?
         self.dir = os.path.join(cfg.data_dir, "vision")
         self.data = Dataset(os.path.join(self.dir, "jobs"))
         self.settings = vs.load(self._path("settings.json"), vs.VisionSettings.defaults(cfg))
@@ -156,7 +156,7 @@ class Vision:
     def enabled(self) -> bool:
         return self.configured and self.settings.enabled
 
-    # ------------------------------------------------------------ Speichern
+    # ------------------------------------------------------------ storing
     def _path(self, *parts: str) -> str:
         return os.path.join(self.dir, *parts)
 
@@ -238,7 +238,7 @@ class Vision:
         self._save()
         log.info("AI: baseline reset")
 
-    # ------------------------------------------------------------ Dienst
+    # ------------------------------------------------------------ service
     def _headers(self) -> Dict[str, str]:
         return {"Authorization": f"Bearer {self.cfg.vision_token}"} if self.cfg.vision_token else {}
 
@@ -340,7 +340,7 @@ class Vision:
             img, _ = await self.camera.still()
             res = await self.analyze(img)
         except CameraError as e:
-            self.error = f"Kein Kamerabild: {e}"
+            self.error = tr("No camera image: {error}", error=str(e))
             return
         except Exception as e:  # noqa: BLE001
             self.error = (tr("AI service not reachable: {error}", error=str(e)) if not isinstance(e, RuntimeError)

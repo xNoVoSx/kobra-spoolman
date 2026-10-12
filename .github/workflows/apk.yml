@@ -1,5 +1,5 @@
-# Baut die signierte Release-APK der App (wird von release.yml und docker.yml aufgerufen).
-# Ergebnis als Artefakt "app": kobra-spoolman-app-<version>.apk und app.json (Version, versionCode, Aenderungen).
+# Builds the signed release APK of the app (called by release.yml and docker.yml).
+# Result as artifact "app": kobra-spoolman-app-<version>.apk and app.json (version, versionCode, changes).
 name: App-APK
 
 on:
@@ -33,7 +33,7 @@ jobs:
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew testDebugUnitTest assembleRelease
-      - name: Signatur pruefen und Paket zusammenstellen
+      - name: Check the signature and assemble the package
         run: |
           ver=$(sed -n 's/^versionName=//p' android/app/version.properties)
           IFS=. read -r a b c <<< "$ver"; code=$((a * 10000 + b * 100 + c))
@@ -43,7 +43,7 @@ jobs:
           case "$dn" in *"Android Debug"*) echo "APK ist debug-signiert - Abbruch"; exit 1;; esac
           mkdir -p appdist
           cp android/app/build/outputs/apk/release/app-release.apk "appdist/kobra-spoolman-app-$ver.apk"
-          # Aenderungen der App aus CHANGELOG.md ("## app x.y.z – Datum")
+          # changes of the app from CHANGELOG.md ("## app x.y.z – date")
           awk -v v="$ver" '$0 ~ "^## app "v"( |$)" {f=1; next} f && /^## / {exit} f && /^- / {sub(/^- /, ""); print}' CHANGELOG.md > changes.txt
           python3 - "$ver" "$code" <<'PY'
           import json, os, sys

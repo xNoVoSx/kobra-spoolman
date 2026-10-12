@@ -1,5 +1,5 @@
-"""Verbrauchsvorschau im Orca-Plugin: Orcas Slice-Statistik (inkl. Spuelen der ACE als "Gereinigt") gegen das
-Restgewicht in Spoolman."""
+"""Usage forecast in the Orca plugin: Orca's slice statistics (incl. the ACE purge as "flushed") against the
+remaining weight in Spoolman."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent / "fake_orca"))
 
-AREA = 3.141592653589793 * 0.875**2   # mm2 bei 1,75 mm
+AREA = 3.141592653589793 * 0.875**2   # mm2 at 1.75 mm
 
 
 @pytest.fixture(scope="module")
@@ -24,7 +24,7 @@ def ks():
 
 
 def fil(index, model_mm, flush_mm=0.0, tower_mm=0.0, density=1.24, loads=None, total_mm=None):
-    """Ein Eintrag wie von orca.host.slice_statistics(), Laengen in mm Filament."""
+    """An entry as from orca.host.slice_statistics(), lengths in mm of filament."""
     total = model_mm + flush_mm + tower_mm if total_mm is None else total_mm
     f = {"index": index, "model_mm3": model_mm * AREA, "support_mm3": 0.0, "tower_mm3": tower_mm * AREA,
          "flush_mm3": flush_mm * AREA, "total_mm3": total * AREA, "diameter": 1.75, "density": density}
@@ -43,8 +43,8 @@ def grams(mm, density=1.24):
 
 
 def test_purge_of_the_ace_comes_from_orca(ks):
-    # Klingen-Druck: Griff gruen (Slot 1), Klingen weiss (Slot 2), ein Wechsel. Das Spuelen der ACE
-    # (85 mm Laden + Matrix) meldet der Wechsel-G-Code Orca per EXTERNAL_PURGE -> steht unter flush_mm3
+    # blade print: handle green (slot 1), blades white (slot 2), one change. The ACE purge
+    # (85 mm loading + matrix) is reported to Orca by the change G-code via EXTERNAL_PURGE -> it is in flush_mm3
     stats = {"plate_index": 0, "filaments": [fil(0, 4830), fil(1, 2660, flush_mm=85 + 210)],
              "transitions": [{"from": None, "to": 0, "count": 1}, {"from": 0, "to": 1, "count": 1}]}
     fc = ks.build_forecast(stats, slots(500, 800))
@@ -59,7 +59,7 @@ def test_purge_of_the_ace_comes_from_orca(ks):
 
 
 def test_purge_missing_when_the_profile_does_not_report_it(ks):
-    # altes Drucker-Profil ohne EXTERNAL_PURGE: Wechsel ja, "Gereinigt" leer -> Hinweis statt zu kleiner Zahl
+    # old printer profile without EXTERNAL_PURGE: changes yes, "flushed" empty -> hint instead of a too small number
     stats = {"filaments": [fil(0, 1000), fil(1, 1000)],
              "transitions": [{"from": None, "to": 0, "count": 1}, {"from": 0, "to": 1, "count": 4},
                              {"from": 1, "to": 0, "count": 4}]}
@@ -70,7 +70,7 @@ def test_purge_missing_when_the_profile_does_not_report_it(ks):
     assert "missing" in ks.forecast_html(fc)
     single = ks.build_forecast({"filaments": [fil(0, 1000)], "transitions": [{"from": None, "to": 0, "count": 1}]},
                                slots(900))
-    assert not single["purge_missing"]           # einfarbig: kein Wechsel, nichts zu spuelen
+    assert not single["purge_missing"]           # single colour: no change, nothing to purge
 
 
 def test_short_and_tight(ks):
@@ -97,7 +97,7 @@ def test_unused_slots_missing_spool_and_extra_filament(ks):
     stats = {"total_filament_changes": 2, "filaments": [fil(0, 0), fil(1, 100, flush_mm=90), fil(4, 100)]}
     fc = ks.build_forecast(stats, slots(100, False, 100, 100))
     by = {r["slot"]: r for r in fc["rows"]}
-    assert 1 not in by                           # Filament 1 nicht benutzt
+    assert 1 not in by                           # filament 1 not used
     assert by[2]["status"] == "nospool"
     assert by[5]["status"] == "noslot"
     assert len(ks.forecast_warnings(fc)) == 2
@@ -110,8 +110,8 @@ def test_density_from_orca_profile(ks):
 
 
 def test_orca_values_match_the_legend(ks):
-    # Echter Fall (Eidechse, 24.09.): Orcas total_volumes_per_extruder verteilt den Turm anders als
-    # die Legende. Angezeigt wird wie in der Legende: Gesamt = Modell + Stuetzen + Gereinigt + Turm.
+    # Real case (lizard, 24.09.): Orca's total_volumes_per_extruder distributes the tower differently from
+    # the legend. Shown like in the legend: total = model + support + flushed + tower.
     stats = {"total_filament_changes": 35, "filaments": [
         fil(0, 1400, total_mm=1480), fil(1, 130, tower_mm=520, total_mm=330), fil(3, 8660, tower_mm=310, total_mm=9180)]}
     fc = ks.build_forecast(stats, slots(580, 890, 600, 796))

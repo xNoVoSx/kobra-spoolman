@@ -35,7 +35,7 @@ class Dataset:
     def __init__(self, root: str):
         self.root = root                       # .../vision/jobs
 
-    # ------------------------------------------------------------ Pfade
+    # ------------------------------------------------------------ paths
     def _job_dir(self, job: str) -> str:
         if not _NAME.match(job or ""):
             raise KeyError(job)
@@ -51,7 +51,7 @@ class Dataset:
             return None
         return p if os.path.isfile(p) else None
 
-    # ------------------------------------------------------------ Schreiben
+    # ------------------------------------------------------------ writing
     def add(self, job: str, name: str, img: bytes, meta: Dict[str, Any]) -> str:
         d = self._job_dir(job)
         os.makedirs(d, exist_ok=True)
@@ -83,7 +83,7 @@ class Dataset:
         os.remove(p)
         # lines stay; frames() shows only existing images
 
-    # ------------------------------------------------------------ Lesen
+    # ------------------------------------------------------------ reading
     def _labels(self, d: str) -> Dict[str, Optional[str]]:
         out: Dict[str, Optional[str]] = {}
         try:

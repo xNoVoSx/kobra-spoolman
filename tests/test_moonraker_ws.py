@@ -1,7 +1,7 @@
-"""Moonraker-WebSocket (moonraker.py): on_status darf selbst Moonraker aufrufen, ohne den Leser zu blockieren.
+"""Moonraker WebSocket (moonraker.py): on_status may call Moonraker itself without blocking the reader.
 
-Bis 3.11.0 lief on_status im Leser: ein G-Code daraus (Auto-PA, Trockner, Slots) wartete 15 s auf eine Antwort,
-die niemand las - die Bridge war so lange taub (Weboberflaeche stand, Verwerfen kam nicht an)."""
+Up to 3.11.0 on_status ran in the reader: a G-code from it (auto PA, dryer, slots) waited 15 s for an answer nobody
+read - the bridge was deaf that long (the web UI froze, discard did not arrive)."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from acebridge.moonraker import Moonraker
 
 
 async def fake_moonraker(scripts):
-    """Kleiner Moonraker: identify/info/subscribe/gcode, schickt nach dem Abo zwei Status-Aenderungen."""
+    """Small Moonraker: identify/info/subscribe/gcode, sends two status changes after the subscription."""
     async def ws_handler(request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
@@ -60,9 +60,9 @@ def test_gcode_from_on_status_does_not_deadlock(cfg):
             async def on_status(delta, full):
                 state = moon.status["print_stats"]["state"]
                 seen.append((state, full))
-                assert delta["print_stats"]["state"] == state      # Cache passt zum Delta
+                assert delta["print_stats"]["state"] == state      # the cache matches the delta
                 if not full:
-                    await moon.gcode(f"M117 {state}", timeout=3)    # wartet auf die Antwort - die liest der Leser
+                    await moon.gcode(f"M117 {state}", timeout=3)    # waits for the answer - the reader reads it
 
             moon = Moonraker(cfg, session, on_status)
             task = asyncio.create_task(moon.run())

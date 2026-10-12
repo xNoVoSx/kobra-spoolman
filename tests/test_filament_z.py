@@ -36,7 +36,7 @@ TPL = [{"id": 900, "name": "Vorlage PETG", "material": "PETG", "extra": {"z_offs
 def make(cfg):
     spools = [spool(1, 1), spool(2, 2), spool(3, 4)]
     spools[0]["filament"].update(material="PETG", extra={"z_offset": "0.035"})      # eigener Wert
-    spools[1]["filament"].update(material="PETG", extra={})                         # von der Vorlage
+    spools[1]["filament"].update(material="PETG", extra={})                         # from the template
     spools[2]["filament"].update(material="PLA", extra={})                          # nichts -> 0
     moon = Moon()
     sm = SM(spools, TPL)
@@ -56,11 +56,11 @@ def test_pushes_slot_values_once_and_after_restart(cfg):
     asyncio.run(zs.tick())
     assert moon.sent == ['SET_GCODE_VARIABLE MACRO=KOBRA_START VARIABLE=slot_z VALUE="[0.035, 0.02, 0.0, 0.0]"']
     asyncio.run(zs.tick())
-    assert len(moon.sent) == 1                                     # unveraendert
+    assert len(moon.sent) == 1                                     # unchanged
     sm.spools[0]["location"] = "Regal"                            # Spule raus
     asyncio.run(zs.tick())
     assert moon.sent[-1].endswith('VALUE="[0.0, 0.02, 0.0, 0.0]"')
-    asyncio.run(zs.tick(full=True))                               # Klipper neu gestartet
+    asyncio.run(zs.tick(full=True))                               # Klipper restarted
     assert len(moon.sent) == 3
 
 
@@ -70,16 +70,16 @@ def test_switch_off_and_missing_macro(cfg):
     asyncio.run(zs.tick())
     assert moon.sent == []
     cfg.filament_z_sync = True
-    moon.fail = True                                              # Drucker ohne KOBRA_START
+    moon.fail = True                                              # printer without KOBRA_START
     asyncio.run(zs.tick())
     moon.fail = False
     asyncio.run(zs.tick())
-    assert moon.sent == []                                        # nicht alle 2 s erneut versuchen
+    assert moon.sent == []                                        # don't retry every 2 s
     moon.klippy_ready = False
     asyncio.run(zs.tick())
     moon.klippy_ready = True
     asyncio.run(zs.tick())
-    assert len(moon.sent) == 1                                    # nach Klipper-Neustart wieder
+    assert len(moon.sent) == 1                                    # again after a Klipper restart
 
 
 def test_nothing_is_pushed_before_spoolman_is_loaded(cfg):

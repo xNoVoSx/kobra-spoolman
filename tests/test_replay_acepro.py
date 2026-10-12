@@ -1,10 +1,10 @@
-"""Replay eines echten Drucks unter Klipper + ACEPRO (Bridge 3.x).
+"""Replay of a real print under Klipper + ACEPRO (bridge 3.x).
 
-Aufzeichnung der Bridge vom 10.10.2026 (tests/data/asa_acepro_2026-10-10.jsonl.gz, unverändert): ASA-Teil, Druckstart mit
-PETG (Slot 1) in der Düse, ein Wechsel auf ASA (Slot 4), 38 min. Die Bridge hat damals gebucht (Spoolman, /api/jobs):
-Slot 1 #1 PETG 103,0 mm, Slot 4 #8 ASA 4339,3 mm, 1 Wechsel, 2 Ladevorgänge, keine Warnungen, keine offenen Posten.
-Der Test spielt die Aufzeichnung durch den heutigen Code und muss dasselbe ergeben - Änderungen am Verbrauch, an der
-Druckphase oder am Druckprotokoll, die echte Drucke anders behandeln würden, fallen so vor dem Drucker auf.
+Recording of the bridge of 10.10.2026 (tests/data/asa_acepro_2026-10-10.jsonl.gz, unchanged): ASA part, print start with
+PETG (slot 1) in the nozzle, one change to ASA (slot 4), 38 min. The bridge booked then (Spoolman, /api/jobs):
+slot 1 #1 PETG 103.0 mm, slot 4 #8 ASA 4339.3 mm, 1 change, 2 loads, no warnings, no open items.
+The test plays the recording through today's code and must give the same - changes to usage, print phase or the print
+log that would treat real prints differently show up before they reach the printer.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import pytest
 from conftest import DATA, FakeMoonraker, FakeSlots, FakeSpoolman, load_recording, spool
 
 REC = "asa_acepro_2026-10-10.jsonl.gz"
-BOOKED = {1: 103.0, 4: 4339.3}            # wie am 10.10. in Spoolman gebucht
+BOOKED = {1: 103.0, 4: 4339.3}            # as booked in Spoolman on 10.10.
 
 
 def replay(cfg, on_row=None):
@@ -44,7 +44,7 @@ def test_recording_is_the_real_print():
     rows = load_recording(REC)
     assert rows[0]["type"] == "start" and rows[-1]["type"] == "summary"
     assert rows[-1]["end_state"] == "complete" and rows[-1]["gate_changes"][0]["to"] == 3
-    assert (DATA / REC).stat().st_size < 150_000          # bleibt klein im Repo
+    assert (DATA / REC).stat().st_size < 150_000          # stays small in the repo
 
 
 def test_books_like_the_real_print(cfg):
@@ -61,7 +61,7 @@ def test_books_like_the_real_print(cfg):
 
 
 def test_phase_follows_the_print(cfg):
-    """Druckphase aus derselben Aufzeichnung (vor kobra_phase: nur Wechsel/Druckt) - nie ein Absturz, Wechsel erkannt."""
+    """Print phase from the same recording (before kobra_phase: only change/printing) - never a crash, change recognised."""
     from acebridge import phase
     seen = []
 
@@ -73,11 +73,11 @@ def test_phase_follows_the_print(cfg):
     replay(cfg, watch)
     assert "Change to slot 4" in seen
     assert "Printing" in seen
-    assert seen[-1] is None                                  # nach dem Druck: nur der Status ("Fertig")
+    assert seen[-1] is None                                  # after the print: only the state ("Finished")
 
 
 def test_clog_never_raised_an_alarm():
-    """Verstopfung: Verhaeltnisse des echten Drucks (vor dem Encoder-Fix ~2,0) - nie ein Verdacht."""
+    """Clog: ratios of the real print (before the encoder fix ~2.0) - never a suspicion."""
     rows = load_recording(REC)
     suspects = [r for r in rows if r["type"] == "delta" and (r["d"].get("kobra_clog") or {}).get("suspect")]
     assert suspects == []

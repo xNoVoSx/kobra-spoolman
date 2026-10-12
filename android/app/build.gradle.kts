@@ -6,14 +6,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// App-Version aus version.properties; versionCode daraus abgeleitet (1.2.3 -> 10203)
+// app version from version.properties; versionCode derived from it (1.2.3 -> 10203)
 val appVersion: String = Properties().apply {
     file("version.properties").inputStream().use { load(it) }
 }.getProperty("versionName")
 val appVersionCode: Int = appVersion.split(".").map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c }
 
-// Release-Signatur aus Umgebungsvariablen (GitHub-Secrets im Release-Workflow). Ohne sie wird lokal mit dem
-// Debug-Schluessel signiert - nur zum Pruefen im Emulator, nie verteilen (Update auf dem Handy waere gesperrt).
+// Release signature from environment variables (GitHub secrets in the release workflow). Without them it is signed
+// locally with the debug key - only for checking in the emulator, never distribute it (updates on the phone would be blocked).
 val releaseKeystore: String? = System.getenv("ANDROID_KEYSTORE_PATH")
 
 android {
@@ -34,7 +34,7 @@ android {
                 storeFile = file(releaseKeystore)
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "kobra-spoolman"
-                keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")   // PKCS12: ein Passwort fuer beides
+                keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")   // PKCS12: one password for both
             }
         }
     }

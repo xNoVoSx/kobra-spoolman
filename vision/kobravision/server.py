@@ -1,10 +1,10 @@
-"""HTTP-Schnittstelle von kobra-vision. Die Bridge schickt ein JPEG, bekommt die Funde zurueck.
+"""HTTP interface of kobra-vision. The bridge sends a JPEG and gets the detections back.
 
-    POST /v1/detect   Body: JPEG (Content-Type image/jpeg) -> {"detections": [[klasse, sicherheit, [xc, yc, b, h]]],
-                      "ms", "width", "height", "provider"}  (Box relativ zum Bild, 0..1)
-    GET  /v1/health   Zustand: Modell geladen?, CPU/CUDA, Version
+    POST /v1/detect   body: JPEG (Content-Type image/jpeg) -> {"detections": [[class, confidence, [xc, yc, w, h]]],
+                      "ms", "width", "height", "provider"}  (box relative to the image, 0..1)
+    GET  /v1/health   state: model loaded?, CPU/CUDA, version
 
-Mit VISION_TOKEN gesetzt braucht jede Anfrage "Authorization: Bearer <token>" (ausser /v1/health).
+With VISION_TOKEN set every request needs "Authorization: Bearer <token>" (except /v1/health).
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def build_app(cfg: Config, detector: Detector) -> web.Application:
         if cfg.token and request.path != "/v1/health":
             got = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
             if not hmac.compare_digest(got, cfg.token):
-                return web.json_response({"error": "Schlüssel fehlt oder falsch"}, status=401)
+                return web.json_response({"error": "Key missing or wrong"}, status=401)
         return await handler(request)
 
     app.middlewares.append(auth)
@@ -73,10 +73,10 @@ def build_app(cfg: Config, detector: Detector) -> web.Application:
     async def detect(request: web.Request) -> web.Response:
         body = await request.read()
         if not body:
-            return web.json_response({"error": "Kein Bild (JPEG als Body erwartet)"}, status=400)
+            return web.json_response({"error": "No image (JPEG expected as the body)"}, status=400)
         try:
             res = await asyncio.get_running_loop().run_in_executor(None, detector.detect, body)
-        except OSError as e:          # Pillow: kein lesbares Bild
+        except OSError as e:          # Pillow: not a readable image
             return web.json_response({"error": f"Bild nicht lesbar: {e}"}, status=422)
         return web.json_response({"detections": [[n, c, list(b)] for n, c, b in res.detections], "ms": res.ms,
                                   "width": res.width, "height": res.height, "provider": detector.provider})
@@ -103,7 +103,7 @@ def main() -> None:
     cfg = Config.from_env()
     if not os.path.exists(cfg.model_path):
         log.error("Modell fehlt: %s", cfg.model_path)
-    log.info("kobra-vision %s auf %s:%s (Modell %s, %s Threads, GPU %s, entladen nach %.0f min)", __version__,
+    log.info("kobra-vision %s on %s:%s (model %s, %s threads, GPU %s, unloaded after %.0f min)", __version__,
              cfg.host, cfg.port, os.path.basename(cfg.model_path), cfg.threads, "an" if cfg.use_gpu else "aus",
              cfg.unload_after_s / 60)
     det = Detector(cfg.model_path, cfg.names, cfg.threads, cfg.use_gpu, cfg.unload_after_s)

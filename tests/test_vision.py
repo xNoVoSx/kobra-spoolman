@@ -1,4 +1,4 @@
-"""KI-Fehldruck-Erkennung der Bridge: Bewertung ueber die Zeit, Meldungen, Rueckmeldung, Bildersammlung."""
+"""AI failure detection of the bridge: scoring over time, messages, feedback, image collection."""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ from acebridge.web import build_app
 
 def test_prediction_waits_then_escalates():
     p = Prediction()
-    for _ in range(100):                                        # fruehere saubere Drucke: Grundlinie ~0
+    for _ in range(100):                                        # earlier clean prints: baseline ~0
         p.update(0.0)
     p.new_print()
     for _ in range(INIT_SAFE_FRAMES - 1):
         p.update(3.0)
-    assert p.level() == "ok"                                   # die ersten Bilder eines Drucks zaehlen nicht
+    assert p.level() == "ok"                                   # the first images of a print do not count
     p.update(3.0)
     assert p.level() == "fail" and p.score() > 2 / 3
 
@@ -42,7 +42,7 @@ def test_baseline_does_not_learn_a_running_failure(vision):
     asyncio.run(v.tick())
     moon.merge({"print_stats": {"state": "printing"}})
     run_print(v, moon, clock, 0.0, INIT_SAFE_FRAMES + 10)
-    run_print(v, moon, clock, 2.5, 300)                                           # laeuft lange unbemerkt weiter
+    run_print(v, moon, clock, 2.5, 300)                                           # keeps running unnoticed for long
     assert v.level == "fail" and v.pred.long < 0.2 and v.pred.lifetime < 50 and v.messages()
 
 
@@ -51,11 +51,11 @@ def test_sudden_moderate_rise_is_a_warning_constant_noise_is_not():
     for _ in range(50):
         p.update(0.0)
     for _ in range(10):
-        p.update(0.6)                                          # ploetzlich: Warnung
+        p.update(0.6)                                          # suddenly: warning
     assert p.level() == "warn"
     q = Prediction()
     for _ in range(300):
-        q.update(0.5)                                          # immer gleich (z. B. Muster auf der Platte)
+        q.update(0.5)                                          # always the same (e.g. a pattern on the plate)
     assert q.level() == "ok"
 
 
@@ -73,7 +73,7 @@ def test_print_raises_alarm_message_and_false_alarm_mutes(vision):
     msgs = v.messages()
     assert msgs and msgs[0]["key"] == "ai-fail" and msgs[0]["level"] == "error"
     assert v.summary()["event"]["id"] == v.event["id"] and v.summary()["detections"]
-    assert v.frame_path(v.event["id"])                                            # Bild zum Ereignis
+    assert v.frame_path(v.event["id"])                                            # image of the event
 
     ev_id = v.event["id"]
     v.feedback(ev_id, "false_alarm")
@@ -89,7 +89,7 @@ def test_print_raises_alarm_message_and_false_alarm_mutes(vision):
     lines = [json.loads(x) for x in open(os.path.join(v.dir, "jobs", v.job, "frames.jsonl"))]
     assert lines[0]["kind"] == "start" and lines[-1]["kind"] == "end" and lines[-1]["result"] == "complete"
     assert any(x["kind"] == "event" for x in lines)
-    # naechster Druck: wieder scharf, Grundlinie bleibt (gespeichert)
+    # next print: armed again, the baseline stays (stored)
     moon.merge({"print_stats": {"state": "printing"}})
     run_print(v, moon, clock, 0.0, 1)
     assert not v.muted and v.pred.frames == 1
@@ -107,7 +107,7 @@ def test_pause_only_with_vision_action_pause(vision):
     moon.merge({"print_stats": {"state": "printing"}})
     run_print(v, moon, clock, 0.0, INIT_SAFE_FRAMES + 10)
     run_print(v, moon, clock, 3.0, 3)
-    assert v.level == "fail" and sent == []                                       # Standard: nur melden
+    assert v.level == "fail" and sent == []                                       # default: notify only
     v.settings.action = "pause"
     v.event = None
     run_print(v, moon, clock, 3.0, 1)

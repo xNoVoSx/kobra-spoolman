@@ -1,4 +1,4 @@
-"""Schalter der Klipper-Module (switches.py): Stand aus dem Abo, nur Befehle aus der festen Liste."""
+"""Switches of the Klipper modules (switches.py): state from the subscription, only commands from the fixed list."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def test_view_lists_everything_with_state(env):
     assert items["endless_mode"]["current"] == "material" and items["endless_mode"]["kind"] == "choice"
     assert items["clog_action"]["current"] == "warn"
     assert not items["sound_clog"]["on"] and items["light"]["group"] == "io"
-    assert "cmd" not in str(v)                                  # Befehle bleiben in der Bridge
+    assert "cmd" not in str(v)                                  # commands stay in the bridge
 
 
 def test_set_sends_only_listed_commands(env):

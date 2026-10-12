@@ -1,4 +1,4 @@
-"""Auto-PA (pa.py): Spoolman-Werte an das Klipper-Modul kobra_pa geben, Messergebnisse zurueckschreiben, Schalter."""
+"""Auto PA (pa.py): give Spoolman values to the Klipper module kobra_pa, write measurements back, switches."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def env(cfg):
     moon = Moon()
     spools = [spool(1, 1), spool(2, 2), spool(3, None)]
     spools[0]["filament"]["extra"] = {"pa_table": table()}                    # gemessen
-    spools[1]["filament"]["extra"] = {}                                       # noch kein PA
+    spools[1]["filament"]["extra"] = {}                                       # no PA yet
     spools[1]["filament"]["settings_extruder_temp"] = 250
     sm = SM(spools)
     moon.merge({"kobra_pa": {"enabled": True, "auto": True, "patched": True, "measuring": False, "active_t": None,
@@ -91,11 +91,11 @@ def test_pushes_spoolman_state_once_and_again_after_restart(env):
                          "KOBRA_PA_SET T=1 NONE=1 FILAMENT=102 TEMP=250\n"
                          "KOBRA_PA_SET T=2 CLEAR=1\nKOBRA_PA_SET T=3 CLEAR=1"]
     run(pa.tick())
-    assert len(moon.sent) == 1                                    # unveraendert: nichts schicken
-    sm.spools[2]["location"] = "ACE Slot 3"                      # Spule eingelegt (Filament ohne PA)
+    assert len(moon.sent) == 1                                    # unchanged: send nothing
+    sm.spools[2]["location"] = "ACE Slot 3"                      # spool inserted (filament without PA)
     run(pa.tick())
     assert moon.sent[-1] == "KOBRA_PA_SET T=2 NONE=1 FILAMENT=103"
-    run(pa.tick(full=True))                                       # Klipper/Moonraker neu verbunden
+    run(pa.tick(full=True))                                       # Klipper/Moonraker reconnected
     assert moon.sent[-1].count("KOBRA_PA_SET") == 4
 
 
@@ -105,7 +105,7 @@ def test_off_switch_and_missing_module_send_nothing(env, cfg):
     run(pa.tick())
     assert moon.sent == []
     cfg.pa_sync = True
-    moon.status.pop("kobra_pa")                                   # Klipper ohne Modul
+    moon.status.pop("kobra_pa")                                   # Klipper without the module
     run(pa.tick())
     assert moon.sent == [] and pa.view()["present"] is False
     with pytest.raises(PaError):
@@ -133,7 +133,7 @@ def test_result_is_written_to_the_filament(env):
     assert extra_value(fil, "pressure_advance") == 0.045 and ("filament", "pa_table") in sm.fields
     assert moon.sent[-1] == "KOBRA_PA_SET T=1 SPEEDS=100,200,300 K=0.05,0.045,0.04 FILAMENT=102"
     assert any(": 0.045 (at 200 mm/s" in e["text"] for e in pa.events)
-    # gleiches Ergebnis nach Bridge-Neustart: nicht nochmal schreiben
+    # same result after a bridge restart: don't write again
     del fil["extra"]["pa_table"]
     pa2 = PaSync(pa.cfg, moon, sm, pa.slots)
     run(pa2.tick())
@@ -153,7 +153,7 @@ def test_failed_result_and_spoolman_down(env):
     run(pa.tick())
     assert any("saved later" in e["text"] for e in pa.events)
     sm.down = False
-    run(pa.tick())                                               # beim naechsten Takt gespeichert
+    run(pa.tick())                                               # stored at the next tick
     assert extra_value(sm.filament(102), "pressure_advance") == 0.04
 
 
@@ -169,7 +169,7 @@ def test_switch_calibrate_forget(env):
     assert moon.sent[-1] == "KOBRA_PA_CALIBRATE T=1" and pa.view()["calibrating"] == 2
     with pytest.raises(PaError) as e:
         pa.calibrate(1)
-    assert e.value.status == 409                                  # laeuft schon
+    assert e.value.status == 409                                  # already running
     pa.calibrating = None
     pa.slots.printing = True
     with pytest.raises(PaError):
@@ -194,15 +194,15 @@ def test_view_lists_slots(env):
 
 
 def test_view_failed_measurement_has_lists(env):
-    """Gescheiterte Messung hat kein k - die Ansicht liefert trotzdem Listen (App 1.14.0 scheiterte an null)."""
+    """A failed measurement has no k - the view still delivers lists (app 1.14.0 failed on null)."""
     pa, moon, _ = env
-    moon.merge({"kobra_pa": {"result": {"t": 3, "kind": "error", "message": "außer Bereich", "time": 1.0}}})
+    moon.merge({"kobra_pa": {"result": {"t": 3, "kind": "error", "message": "out of range", "time": 1.0}}})
     last = pa.view()["last"]
     assert last["k"] == [] and last["speeds"] == [] and last["kind"] == "error"
 
 
 def test_nothing_is_pushed_before_spoolman_is_loaded(env):
-    """Bridge-Start: bis Spoolman geladen ist, nicht alle Slots als leer an Klipper melden."""
+    """Bridge start: until Spoolman is loaded, don't report all slots as empty to Klipper."""
     pa, moon, sm = env
     sm.connected = False
     run(pa.tick())
@@ -213,7 +213,7 @@ def test_nothing_is_pushed_before_spoolman_is_loaded(env):
 
 
 def test_push_waits_for_busy_klipper_instead_of_resending(env):
-    """Startablauf haelt Klipper fest: eine Anfrage bleibt offen, kein Nachschiessen; danach gilt der Stand."""
+    """The start sequence holds Klipper: one request stays open, no firing again; afterwards the state applies."""
     pa, moon, _ = env
     gate = asyncio.Event()
 
@@ -227,12 +227,12 @@ def test_push_waits_for_busy_klipper_instead_of_resending(env):
         await pa.tick()
         await pa.tick()
         await pa.tick()
-        assert len(moon.sent) == 1 and pa.pushed == {}       # eine Anfrage offen, nichts als geschickt gemerkt
+        assert len(moon.sent) == 1 and pa.pushed == {}       # one request open, nothing remembered as sent
         gate.set()
         await asyncio.sleep(0.01)
         assert pa.pushed and not pa.push.busy
         await pa.tick()
-        assert len(moon.sent) == 1                           # Stand ist drin: nichts mehr zu schicken
+        assert len(moon.sent) == 1                           # the state is in: nothing more to send
     run(main())
 
 

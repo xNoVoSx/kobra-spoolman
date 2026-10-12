@@ -1,4 +1,4 @@
-"""Sicht auf die ACE unter Klipper + ACEPRO (acemodel) - an einem echten Status vom 09.10.2026."""
+"""View of the ACE under Klipper + ACEPRO (acemodel) - on a real state of 09.10.2026."""
 
 import copy
 import json
@@ -33,7 +33,7 @@ def test_aktiver_slot():
     assert acemodel.slot(st, 3)["active"]
 
 
-def test_nicht_bereit_oder_getrennt_heisst_leer():
+def test_not_ready_or_disconnected_means_empty():
     assert not acemodel.slot(STATUS, 0, ready=False)["present"]
     st = copy.deepcopy(STATUS)
     st["ace_instance_0"]["connection_state"] = "disconnected"
@@ -64,7 +64,7 @@ def test_endlosspule():
 
 
 def test_no_encoder_subscription():
-    # Encoder-Pulse aendern sich im Druck laufend - die Bridge braucht sie nicht (kobra_clog meldet fertige Werte)
+    # encoder pulses change all the time while printing - the bridge does not need them (kobra_clog reports finished values)
     subscribed = {f for fields in acemodel.SUBSCRIBE.values() for f in fields}
     assert not {"encoder_pulse", "filament_distance"} & subscribed
 

@@ -1,4 +1,4 @@
-"""Druck-Aufzeichnung mit Konsole (telemetry.py) und lesbares Druckprotokoll (printlog.py)."""
+"""Print recording with the console (telemetry.py) and a readable print log (printlog.py)."""
 
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ def test_console_lines_recorded_and_rendered(tmp_path):
     rec = Recorder(cfg)
     con = Console()
     con.listeners.append(rec.on_console)
-    con.add("response", "vor dem Druck - nicht aufzeichnen")
+    con.add("response", "before the print - do not record")
     st = status("printing")
     rec.on_status({}, True, st)                                   # Aufzeichnung beginnt
     con.add("response", "echo: Hot wipe before Z homing (187C, geladenes Filament)...")
-    con.add("response", "B:112.0 /110.0 T0:237.9 /255.0")      # Temperatur-Spam: nicht
+    con.add("response", "B:112.0 /110.0 T0:237.9 /255.0")      # temperature spam: no
     con.add("response", "ok B:112.0 /110.0 T0:240 /255.0")
     st["ace"]["target_index"] = 3
     rec.on_status({"ace": {"target_index": 3}}, False, st)
@@ -49,11 +49,11 @@ def test_console_lines_recorded_and_rendered(tmp_path):
     order = [i for i, line in enumerate(lines) for key in ("Hot wipe", "change to T: 3", "> KOBRA_PA_AUTO T=3",
                                                            "!! Auto-PA", "Auto PA measuring: True", "Layer 3/42",
                                                            "Print state: complete") if key in line]
-    assert len(order) == 7 and order == sorted(order)             # alles da, in zeitlicher Reihenfolge
+    assert len(order) == 7 and order == sorted(order)             # everything there, in time order
     assert "End: complete" in text
 
 
 def test_render_tolerates_garbage_and_old_files():
     text = printlog.render(["kaputt", '{"t": 0, "type": "start", "status": {}}',
                             '{"t": 5, "type": "console", "kind": "response", "text": "hallo"}'])
-    assert "+     5.0s    hallo" in text                            # ohne Startzeit: relative Zeit
+    assert "+     5.0s    hallo" in text                            # without a start time: relative time

@@ -1,4 +1,4 @@
-# Beim Tag vX.Y.Z: Release mit Plugin, Setup-Skript, Bridge-Paket und signierter App-APK anlegen.
+# On tag vX.Y.Z: create a release with plugin, setup script, bridge package and signed app APK.
 name: Release
 
 on:

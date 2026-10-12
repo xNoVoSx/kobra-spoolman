@@ -1,4 +1,4 @@
-"""Feuchte je Spule, Feuchte-Verlauf und Trocknungen, automatisch trocknen beim Einlegen."""
+"""Moisture per spool, humidity history and drying runs, drying automatically on insertion."""
 
 from __future__ import annotations
 
@@ -19,14 +19,14 @@ from acebridge.slots import SlotManager
 def test_absorb_reaches_the_warning_after_open_days_at_50_percent():
     u = absorb(0.0, 50, OPEN_DAYS["PETG"] * 24, OPEN_DAYS["PETG"])
     assert u == pytest.approx(U_WARN, abs=1e-6)
-    assert absorb(0.0, 15, 10_000, 5) < U_WARN                       # Trockenbox: nie
+    assert absorb(0.0, 15, 10_000, 5) < U_WARN                       # dry box: never
     assert absorb(0.0, 70, OPEN_DAYS["PETG"] * 24 * 0.7, OPEN_DAYS["PETG"]) > U_WARN   # feuchter Raum: schneller
 
 
 def test_drying_time_and_cooler_ace_takes_longer():
     assert dry(0.5, 6, 6, 60, 60) == pytest.approx(0.05)
-    assert dry(0.5, 6, 6, 50, 60) > dry(0.5, 6, 6, 60, 60)           # 10 degC kuehler -> langsamer
-    assert hours_needed(None, 6, 50, 60) == pytest.approx(12)        # unbekannt: volle Dauer x2
+    assert dry(0.5, 6, 6, 50, 60) > dry(0.5, 6, 6, 60, 60)           # 10 degC cooler -> slower
+    assert hours_needed(None, 6, 50, 60) == pytest.approx(12)        # unknown: full duration x2
     assert hours_needed(0.02, 6, 60, 60) == 0
 
 
@@ -46,7 +46,7 @@ def test_material_params_from_filament_template_or_default():
 
 
 class SM:
-    """Spoolman mit Spulen im Speicher, Feldern und PATCH-Mitschnitt."""
+    """Spoolman with spools in memory, fields and a PATCH record."""
     def __init__(self, spools):
         self.spools = spools
         self.patched = []
@@ -101,7 +101,7 @@ def test_shelf_spool_gets_wet_trockenbox_does_not(world, cfg):
     run(m.tick())
     for sid in ("1", "2"):
         m.state[sid]["u"] = 0.0                                       # frisch getrocknet
-    advance(m, clock, 6 * 24)                                         # 6 Tage, PETG: 5 Tage bis zur Schwelle
+    advance(m, clock, 6 * 24)                                         # 6 days, PETG: 5 days to the threshold
     assert m.view(sm.spool(1))["needs_drying"] and m.view(sm.spool(1))["score"] >= 100
     assert not m.view(sm.spool(2))["needs_drying"]
     assert any(d["extra"].get("moisture") for _, d in sm.patched)    # Feld in Spoolman geschrieben
@@ -127,7 +127,7 @@ def test_insert_calls_back_and_drying_in_the_ace_dries(world):
     run(m.tick())
     assert seen and seen[0][0] == 1 and seen[0][1]["needs_drying"] and seen[0][1]["slot"] == 2
     moon.merge(hub(humidity=20, drying=True, target=60, remain=6 * 3600))
-    moon.status["ace_instance_0"]["temp"] = 60                        # gemessene Lufttemperatur zaehlt
+    moon.status["ace_instance_0"]["temp"] = 60                        # the measured air temperature counts
     advance(m, clock, 6)
     assert m.view(sm.spool(1))["score"] < 30
     moon.merge(hub(humidity=10, drying=False))
@@ -158,7 +158,7 @@ def test_humidity_log_points_sessions_and_cleanup(cfg):
     moon.merge(hub(humidity=24, drying=True, target=50, remain=5 * 3600))
     clock.t += 60
     log.tick()
-    assert log.open["temps"][-1][1] == 50                             # Soll gesenkt -> mitgeschrieben
+    assert log.open["temps"][-1][1] == 50                             # target lowered -> recorded
     log.note_stop("auto", "Ziel erreicht: Feuchte 9 % ≤ 10 %")
     moon.merge(hub(humidity=9, drying=False))
     clock.t += 60
@@ -167,7 +167,7 @@ def test_humidity_log_points_sessions_and_cleanup(cfg):
     assert s["end_reason"].startswith("Ziel erreicht") and s["humidity_start"] == 25 and s["humidity_end"] == 9
     assert 7 <= len(log.points(1)) <= 8
     assert len(log.points(1, max_points=3)) == 3
-    old = os.path.join(log.dir, "1969-01-01.jsonl")                    # Testuhr steht auf Januar 1970
+    old = os.path.join(log.dir, "1969-01-01.jsonl")                    # the test clock is at January 1970
     open(old, "w").write("[1,1,1,0,0]\n")
     assert log.cleanup() == 1 and not os.path.exists(old)
     again = HumidityLog(cfg, moon, clock=clock)                        # gespeichert
@@ -179,7 +179,7 @@ def test_display_started_drying_is_recorded_too(cfg):
     moon.merge(hub(humidity=30))
     clock = Clock()
     log = HumidityLog(cfg, moon, clock=clock)
-    log.tick()                                                          # Bridge laeuft, ACE trocknet noch nicht
+    log.tick()                                                          # the bridge runs, the ACE is not drying yet
     moon.merge(hub(humidity=30, drying=True, target=45, remain=60 * 60))
     clock.t += 60
     log.tick()
