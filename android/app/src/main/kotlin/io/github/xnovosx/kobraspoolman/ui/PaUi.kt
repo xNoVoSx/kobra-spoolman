@@ -38,7 +38,7 @@ fun PaSection(
     var ask by remember { mutableStateOf<Pair<String, PaSlot>?>(null) }
     SectionLabel(tr("Pressure advance"), Modifier.padding(top = 12.dp))
     if (!pa.present) {
-        Hint(if (rinkhals) tr("Auto PA needs Klipper with kobra-klipper (load cell module kobra_pa) – not available with the Anycubic firmware. Orca's PA from the filament profile applies.")
+        Hint(if (rinkhals) tr("Auto PA needs Klipper with the load cell module kobra_pa – not available with the Anycubic firmware. Orca's PA from the filament profile applies.")
              else tr("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready."))
         return
     }

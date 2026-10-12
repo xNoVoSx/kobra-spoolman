@@ -243,7 +243,7 @@ function AddDevice() {
         <div class="lbl">${t("Pairing code")}</div>
         <div class="code-big">${pretty}</div>
         <div class="small muted">${left > 0 ? t("valid for {time} min, usable once", { time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` }) : t("expired – get a new code")}</div>
-        <div class="small muted">${t("App:")} <b>${t("Settings → Pair")}</b> ${t("and scan the QR code.")}<br />${t("Browser or Orca plugin: enter the code there.")}</div>
+        <div class="small muted">${t("App:")} <b>${t("Settings → Scan QR code")}</b><br />${t("Browser or Orca plugin: enter the code there.")}</div>
       </div>
     </div></${Dialog}>`;
 }

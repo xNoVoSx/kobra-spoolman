@@ -50,7 +50,7 @@ export function PaCard() {
     <div class="row"><span style="color:var(--accent)"><${Icon} name="sliders" /></span><h2 class="h2 grow">${t("Pressure advance")}</h2>
       ${(pa.measuring || pa.calibrating != null) && html`<span class="chip warn">${t("measuring …")}</span>`}</div>
     ${!pa.present ? html`<div class="small muted">${S.st?.ace?.variant === "rinkhals"
-      ? t("Auto PA needs Klipper with kobra-klipper (load cell module kobra_pa) – not available with the Anycubic firmware. Orca's PA from the filament profile applies.")
+      ? t("Auto PA needs Klipper with the load cell module kobra_pa – not available with the Anycubic firmware. Orca's PA from the filament profile applies.")
       : t("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready.")}</div>` : html`
       <${Toggle} label=${t("Auto PA")} hint=${t("Apply PA per speed from Spoolman; off = Klipper takes the PA from Orca")}
                  value=${pa.enabled} disabled=${busy} onChange=${(v) => call("/api/pa/switch", { enabled: v })} />

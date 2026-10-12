@@ -54,6 +54,9 @@ class UsbTunnel:
     async def tick(self, force: bool = False) -> None:
         if not self.moon.connected:
             return
+        if getattr(self.moon, "platform", "klipper") == "rinkhals":
+            self.state = None            # no USB tunnel on the stock firmware: nothing to show
+            return
         now = self.mono()
         if not force and self.read_at is not None and now - self.read_at < POLL_S:
             return

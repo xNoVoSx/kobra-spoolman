@@ -53,7 +53,6 @@
  "almost empty": "fast leer",
  "Already at “suspicious”": "Schon bei „verdächtig“",
  "already running": "schon vorher",
- "and scan the QR code.": "und den QR-Code scannen.",
  "App:": "App:",
  "Applied": "Übernommen",
  "Applies from the next time the model view opens": "Gilt ab dem nächsten Öffnen der Modell-Ansicht",
@@ -83,7 +82,7 @@
  "at most {t} °C": "höchstens {t} °C",
  "Auto PA": "Auto-PA",
  "Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready.": "Auto-PA ist in Klipper nicht eingerichtet (Modul kobra_pa) oder Klipper ist nicht bereit.",
- "Auto PA needs Klipper with kobra-klipper (load cell module kobra_pa) – not available with the Anycubic firmware. Orca's PA from the filament profile applies.": "Auto-PA braucht Klipper mit kobra-klipper (Wiegezellen-Modul kobra_pa) – mit der Anycubic-Firmware nicht verfügbar. Es gilt Orcas PA aus dem Filamentprofil.",
+ "Auto PA needs Klipper with the load cell module kobra_pa – not available with the Anycubic firmware. Orca's PA from the filament profile applies.": "Auto-PA braucht Klipper mit dem Wiegezellen-Modul kobra_pa – mit der Anycubic-Firmware nicht verfügbar. Es gilt Orcas PA aus dem Filamentprofil.",
  "Automatic": "Automatik",
  "Automatic (here: {mode})": "Automatisch (hier: {mode})",
  "automatic by material": "automatisch nach Material",
@@ -685,7 +684,6 @@
  "Sensitivity, fine": "Empfindlichkeit fein",
  "Service": "Dienst",
  "Settings": "Einstellungen",
- "Settings → Pair": "Einstellungen → Koppeln",
  "Shelf": "Regal",
  "Shut down": "Herunterfahren",
  "Shut down the Pi": "Pi herunterfahren",
@@ -786,6 +784,7 @@
  "The printer is not ready – switch it off and on.": "Der Drucker ist nicht bereit – aus- und wieder einschalten.",
  "The printer keeps saving the position while printing; after switching on it asks whether to continue": "Der Drucker sichert im Druck laufend die Stelle; nach dem Einschalten fragt er, ob er weitermachen soll",
  "The printer pauses when the filament runs out": "Der Drucker pausiert, wenn das Filament ausgeht",
+ "The printer's CPU is busy – the bridge fetches fewer images": "Die Drucker-CPU ist ausgelastet – die Bridge holt weniger Bilder",
  "The saved key is no longer valid (device removed?). Please pair again.": "Der gespeicherte Schlüssel gilt nicht mehr (Gerät entfernt?). Bitte neu koppeln.",
  "The spool no longer exists": "Spule gibt es nicht mehr",
  "The stop humidity must be below the start humidity.": "Stopp-Feuchte muss unter der Start-Feuchte liegen.",
@@ -801,6 +800,7 @@
  "This print is not watched": "Dieser Druck wird nicht überwacht",
  "this print {g}": "dieser Druck {g}",
  "Thresholds": "Schwellen",
+ "throttled": "gedrosselt",
  "Times": "Zeiten",
  "to": "bis",
  "To": "Nach",
@@ -898,5 +898,6 @@
  "{when} · {g} · {n} loads": "{when} · {g} · {n} Ladevorgänge",
  "~{total}, {rest} left": "~{total}, noch {rest}",
  "… and {n} more (web/app)": "… und {n} weitere (Web/App)",
- "↑ ↓ select · right click for a slot": "↑ ↓ wählen · Rechtsklick für Slot"
+ "↑ ↓ select · right click for a slot": "↑ ↓ wählen · Rechtsklick für Slot",
+ "Settings → Scan QR code": "Einstellungen → QR-Code scannen"
 }

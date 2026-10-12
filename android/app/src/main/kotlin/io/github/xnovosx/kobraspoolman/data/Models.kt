@@ -535,7 +535,7 @@ data class Catalog(
     val filaments: List<FilamentInfo> = emptyList(),
     val fields: List<ExtraField> = emptyList(),
     @SerialName("orca_bases") val orcaBases: List<String> = emptyList(),
-    @SerialName("shelf_location") val shelfLocation: String = "Regal",   // Spoolman location name of the bridge (setting SHELF)
+    @SerialName("shelf_location") val shelfLocation: String = "Shelf",   // Spoolman location name of the bridge (setting SHELF)
 )
 
 @Serializable

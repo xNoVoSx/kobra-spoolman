@@ -24,7 +24,7 @@ from acebridge.web import build_app
     ("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=300", False, True),
     ("SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=100", False, False),
     ("M117 hallo\nFIRMWARE_RESTART", False, True),       # every line is checked
-    ("; nur Kommentar", False, False),
+    ("; only a comment", False, False),
     ("SET_FAN_SPEED FAN=box_fan SPEED=0.5", True, False),
 ])
 def test_check_command(script, printing, needs):

@@ -60,7 +60,7 @@ export function useCamera(active) {
     if (!on) return;
     let stop = false, timer = null;
     const tick = async () => {
-      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps == null ? null : { fps: c.fps }); if (c.error && !c.fps) setErr(c.error); } } catch { /* ignore */ }
+      try { const c = await get("/api/camera"); if (!stop) { setFps(c.fps == null ? null : { fps: c.fps, throttled: !!c.throttled }); if (c.error && !c.fps) setErr(c.error); } } catch { /* ignore */ }
       if (!stop) timer = setTimeout(tick, 2000);
     };
     timer = setTimeout(tick, 1500);
@@ -75,7 +75,8 @@ export function useCamera(active) {
 export function Fps({ fps }) {
   if (fps == null) return null;
   const v = fps.fps;
-  return html`<span class="media-fps m">${v < 10 ? v.toFixed(1) : Math.round(v)} fps</span>`;
+  // Rinkhals: the bridge holds the rate back while the printer's CPU is busy printing
+  return html`<span class="media-fps m" title=${fps.throttled ? t("The printer's CPU is busy – the bridge fetches fewer images") : ""}>${v < 10 ? v.toFixed(1) : Math.round(v)} fps${fps.throttled ? " · " + t("throttled") : ""}</span>`;
 }
 
 /** AI detections as boxes over the camera image. The SVG has the aspect ratio of the analysed image and "meet"

@@ -145,3 +145,11 @@ def test_app_state_carries_usb(cfg):
     b.usb.state = watcher_state(state="default", tries=2)
     usb = asyncio.run(get())
     assert usb["state"] == "warn" and usb["switches"]["watch"] is True and usb["events"]
+
+
+def test_nothing_on_rinkhals():
+    moon = Moon(watcher_state())
+    moon.platform = "rinkhals"                  # stock firmware: no USB tunnel, even if a namespace is left over
+    usb = UsbTunnel(moon, clock=lambda: NOW, mono=lambda: 0.0)
+    asyncio.run(usb.tick())
+    assert not usb.available() and usb.items() == [] and moon.reads == 0

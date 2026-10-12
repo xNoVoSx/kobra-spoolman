@@ -128,7 +128,7 @@ class Moonraker:
         return sum(vals) / len(vals) if vals else None
 
     async def get_json(self, path: str, timeout: float = 10) -> Any:
-        """Lesende HTTP-Abfrage an Moonraker."""
+        """Reading HTTP request to Moonraker."""
         async with self.session.get(f"{self.cfg.moonraker_url}{path}", headers=self._headers(),
                                     timeout=aiohttp.ClientTimeout(total=timeout)) as r:
             r.raise_for_status()
@@ -143,7 +143,7 @@ class Moonraker:
             return await r.read()
 
     async def post_json(self, path: str, body: Dict[str, Any], timeout: float = 10) -> Any:
-        """Schreibende HTTP-Abfrage an Moonraker."""
+        """Writing HTTP request to Moonraker."""
         if self.cfg.dry_run:
             log.info("[dry-run] POST %s %s", path, json.dumps(body))
             return None

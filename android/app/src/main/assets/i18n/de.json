@@ -47,7 +47,6 @@
  "auto": "auto",
  "Auto PA": "Auto-PA",
  "Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready.": "Auto-PA ist in Klipper nicht eingerichtet (Modul kobra_pa) oder Klipper ist nicht bereit.",
- "Auto PA needs Klipper with kobra-klipper (load cell module kobra_pa) – not available with the Anycubic firmware. Orca's PA from the filament profile applies.": "Auto-PA braucht Klipper mit kobra-klipper (Wiegezellen-Modul kobra_pa) – mit der Anycubic-Firmware nicht verfügbar. Es gilt Orcas PA aus dem Filamentprofil.",
  "Automatic": "Automatik",
  "Automatic from {pct} %": "Automatik ab {pct} %",
  "Automatic off": "Automatik aus",
@@ -568,5 +567,6 @@
  "“Listen” plays the sound directly. “Test” sends a real notification – that is how you check the volume, “Do not disturb” and the channel's Android settings.": "„Anhören“ spielt den Ton direkt. „Probe“ schickt eine echte Benachrichtigung – so prüfst du Lautstärke, „Nicht stören“ und die Android-Einstellungen des Kanals.",
  "“{text}” is too long (max. {max} characters)": "„{text}“ ist zu lang (max. {max} Zeichen)",
  "…or a new vendor": "…oder neuer Hersteller",
- "…or another material": "…oder anderes Material"
+ "…or another material": "…oder anderes Material",
+ "Auto PA needs Klipper with the load cell module kobra_pa – not available with the Anycubic firmware. Orca's PA from the filament profile applies.": "Auto-PA braucht Klipper mit dem Wiegezellen-Modul kobra_pa – mit der Anycubic-Firmware nicht verfügbar. Es gilt Orcas PA aus dem Filamentprofil."
 }

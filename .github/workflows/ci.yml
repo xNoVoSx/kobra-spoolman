@@ -52,7 +52,7 @@ jobs:
       # SDK with accepted licences; the Android Gradle plugin downloads missing platforms itself
       - uses: android-actions/setup-android@v4
       - uses: gradle/actions/setup-gradle@v6
-      - name: Tests, Lint und Debug-APK
+      - name: Tests, lint and debug APK
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug
       - name: Debug-APK hochladen
         uses: actions/upload-artifact@v7
