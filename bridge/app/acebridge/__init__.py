@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "3.13.0"
+__version__ = "3.14.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("3.14.0", "2026-10-13", [
+        tr("Report a bug: Logs → Report a bug copies the diagnostics (versions, setup, slots, settings, log – without addresses and keys) and opens the GitHub form"),
+    ]),
     ("3.13.0", "2026-10-12", [
         tr("Home Assistant: the web UI works in the HA sidebar (ingress) without patches – relative paths, the camera as single images, camera links and app pairing point at the bridge's direct address"),
         tr("HA_INGRESS_TRUST (off by default): the HA sidebar counts as a paired device – only requests from HA's ingress proxy"),

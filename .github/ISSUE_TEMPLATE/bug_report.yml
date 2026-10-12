@@ -4,12 +4,26 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: Thanks for reporting! Please fill in what you can - logs help the most.
+      value: |
+        Thanks for reporting! The more of this we get, the faster we can reproduce it.
+        **Easiest way:** in the web UI open *Logs → Report a bug*, copy the diagnostics and paste them below.
+        They contain versions, setup, slots, settings and the last log lines – host names, IP addresses and keys are
+        already removed. Please check before you post anyway.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you report
+      options:
+        - label: I use the latest release (bridge, plugin and app – see the [releases](https://github.com/xNoVoSx/kobra-spoolman/releases)) or say below why not
+          required: true
+        - label: I searched the [existing issues](https://github.com/xNoVoSx/kobra-spoolman/issues?q=is%3Aissue) and the [troubleshooting guide](https://github.com/xNoVoSx/kobra-spoolman/blob/main/docs/troubleshooting.md)
+          required: true
   - type: dropdown
     id: component
     attributes:
       label: Component
-      options: [ace-lane-bridge, Orca plugin (Kobra Spoolman), Android app, spoolman_setup.py, Documentation, Other]
+      multiple: true
+      options: [ace-lane-bridge (web UI, display, API), Orca plugin (Kobra Spoolman), Android app, spoolman_setup.py, Home Assistant / MQTT, Documentation, Other]
     validations:
       required: true
   - type: dropdown
@@ -19,24 +33,76 @@ body:
       options: [Stock firmware + Rinkhals, Klipper on a Raspberry Pi + ACEPRO, Other / not printer related]
     validations:
       required: true
-  - type: textarea
-    id: what
+  - type: input
+    id: printer
     attributes:
-      label: What happened / what did you expect?
+      label: Printer and ACE
+      description: Printer model, ACE model and how many units (e.g. Kobra S1 + one ACE 2 Pro)
+      placeholder: Kobra S1 + ACE 2 Pro
     validations:
       required: true
+  - type: input
+    id: bridge_version
+    attributes:
+      label: Bridge version
+      description: Web UI → Settings, or the first line of the diagnostics
+      placeholder: "3.14.0"
+    validations:
+      required: true
+  - type: input
+    id: other_versions
+    attributes:
+      label: Other versions (if involved)
+      description: Plugin version (panel footer), app version (app settings), OrcaSlicer build (Help → About), Spoolman, Rinkhals or Klipper/ACEPRO
+      placeholder: plugin 0.7.0, app 1.15.0, OrcaSlicer 2.4.0-dev (orca-kobra nightly 2026-10-12)
+  - type: input
+    id: regression
+    attributes:
+      label: Did it work before?
+      description: The last version where it worked, if you know it
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-  - type: input
-    id: versions
+      description: What did you do, step by step? Include the print or the spools involved if it matters.
+      placeholder: |
+        1. Assign spool 12 to slot 2 in the web UI
+        2. Start a two-colour print from Orca
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
     attributes:
-      label: Versions
-      description: Bridge version (Settings), plugin version (panel footer), app version, OrcaSlicer build, Spoolman version, printer model, Rinkhals or Klipper/ACEPRO version
+      label: What happened
+      description: Error messages as text, screenshots welcome
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Web UI → Logs → Report a bug → Copy diagnostics, then paste here. Only if the bridge is not involved or not reachable, write why.
+    validations:
+      required: true
   - type: textarea
     id: logs
     attributes:
-      label: Logs
-      description: "`docker logs ace-lane-bridge`, `<orca data dir>/log/python_*.log`, output of `/api/health`"
+      label: More logs (if involved)
+      description: |
+        - Orca plugin: `<orca data dir>/log/python_*.log` (Linux `~/.config/OrcaSlicer/log`, Windows `%APPDATA%\OrcaSlicer\log`)
+        - Printer: `klippy.log` / `moonraker.log` (web UI → Logs → Printer, or Mainsail)
+        - Bridge without web UI: `docker logs ace-lane-bridge`
+        Please remove addresses and keys from these yourself. Long logs: attach the file instead.
       render: text
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+      description: Drag in what helps to reproduce it – the 3MF project or G-code, screenshots, a print recording (web UI → Logs → Print recordings)

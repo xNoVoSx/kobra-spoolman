@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import aiohttp
 from aiohttp import web
 
+from . import diagnostics
 from .auth import AuthError
 from .console import LOG_BUFFER, check_command
 from .control import ControlError, check_action, tune_commands
@@ -131,6 +132,16 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     async def logs_text(_):
         return web.Response(text=LOG_BUFFER.text(), content_type="text/plain", headers={
             "Content-Disposition": f'attachment; filename="ace-lane-bridge-{time.strftime("%Y%m%d-%H%M")}.log"'})
+
+    @r.get("/api/diagnostics")
+    async def diagnostics_report(request: web.Request):
+        """Diagnostics for a bug report (Markdown, without hosts and secrets) - paired devices only."""
+        try:
+            bridge.devices.require_request(request)
+        except AuthError as e:
+            return _err(e.status, str(e))
+        from .web import STARTED  # web imports this module
+        return web.Response(text=await diagnostics.report(bridge, STARTED), content_type="text/markdown")
 
     @r.get("/api/logs/printer")
     async def printer_logs(_):

@@ -102,7 +102,7 @@ App, Orca-Plugin und Home Assistant reden alle mit der Bridge. Welche Firmware l
 | **[Android-App](android/)** | Drucker mit Kamera, 3D-Ansicht und Steuerung, Benachrichtigungen im Hintergrund, Widget, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner mit Feuchte-Verlauf und -Einstellungen, Feuchte der Spulen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), Koppeln per QR-Code, Updates über die Bridge. |
 | **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | KI-Fehldruck-Erkennung: Obicos Fehldruck-Modell mit ONNX Runtime (CPU, ~50 ms pro Bild), die Bridge bewertet die Ergebnisse über die Zeit. |
 | **[spoolman_setup.py](spoolman/)** | Legt einmalig die Spoolman-Zusatzfelder (alle Orca-Filamentwerte) und Materialvorlagen an. |
-| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit drei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), eine Korrektur der Plugin-Sandbox unter Linux und Slice-Statistik für Plugins. Aktualisiert sich selbst. |
+| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit vier kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), Slice-Statistik für Plugins, eine Mindestgröße für angedockte Plugin-Panels und die richtigen Temperaturen der ersten Schicht im G-Code-Kopf. Aktualisiert sich selbst. |
 
 ## Voraussetzungen
 

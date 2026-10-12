@@ -380,6 +380,7 @@ nozzle 0–300 °C, bed 0–110 °C. Every action shows in the console with the 
 | POST | `/api/console` | *(paired)* `{"script": "M115", "confirm": false}` — sends G-code; risky commands and moves while printing return **409** `{"error": reason, "confirm": true}` until sent again with `confirm: true` |
 | GET | `/api/logs?after=<id>&level=INFO` | last 2000 lines of the bridge log |
 | GET | `/api/logs.txt` | the same as a download |
+| GET | `/api/diagnostics` | *(paired)* diagnostics for a bug report as Markdown: versions, setup, connections, slots, settings, warnings, last log lines – without host names, IP addresses, e-mail addresses and keys (secrets only as `set`/`not set`) |
 | GET | `/api/logs/printer` | log files Moonraker offers (`moonraker.log`, …) |
 | GET | `/api/logs/printer/{name}?kb=200` | the **end** of such a file (HTTP range request, 4–1024 KB) — they are many MB |
 

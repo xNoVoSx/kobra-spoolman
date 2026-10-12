@@ -58,6 +58,26 @@ export async function api(method, path, body) {
   return data;
 }
 
+/** GET as text (e.g. the Markdown diagnostics), same key and errors as api(). */
+export async function getText(path) {
+  const headers = { "X-Lang": lang };
+  if (auth.key) headers.Authorization = "Bearer " + auth.key;
+  let resp;
+  try {
+    resp = await fetch(rel(path), { headers, cache: "no-store" });
+  } catch {
+    throw new ApiError(0, t("Bridge not reachable"));
+  }
+  if (!resp.ok) {
+    let msg = "";
+    try { msg = (await resp.json()).error; } catch { /* not JSON */ }
+    const err = new ApiError(resp.status, msg || t("Error {status}", { status: resp.status }));
+    if (resp.status === 401 || resp.status === 403) onUnauthorized(err);
+    throw err;
+  }
+  return resp.text();
+}
+
 export const get = (p) => api("GET", p);
 export const post = (p, b = {}) => api("POST", p, b);
 export const patch = (p, b) => api("PATCH", p, b);

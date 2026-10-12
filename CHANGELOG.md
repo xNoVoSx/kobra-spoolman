@@ -6,6 +6,23 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.14.0] – 2026-10-13
+
+Bug reports that can be reproduced: the bridge collects what a report needs, the GitHub forms ask for it.
+
+### Added
+- `diagnostics.py`, `GET /api/diagnostics` (paired devices): versions (bridge, Python, Klipper, Moonraker, Spoolman,
+  update manager), setup (Rinkhals or Klipper + ACEPRO, ACE objects), connections, slots, settings, warnings and the
+  last log lines as Markdown. Host names, IP addresses, e-mail addresses and keys are removed, secrets only show as
+  `set`/`not set`.
+- Web UI *Logs → Report a bug*: shows and copies the diagnostics and opens the GitHub form with the bridge version
+  filled in.
+
+### Changed
+- Bug report forms (this repo and orca-kobra) ask for what is needed to reproduce, like OrcaSlicer's: latest version
+  checked, setup, printer, versions, steps / what happened / what was expected, diagnostics, logs, project file.
+  orca-kobra asks whether the problem also happens in the official OrcaSlicer nightly.
+
 ## [3.13.0] – 2026-10-12
 
 The web UI runs behind **Home Assistant ingress** as it is — the community add-on

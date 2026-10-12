@@ -607,5 +607,6 @@
  "“{part}”: expected place=humidity, e.g. Drybox=15": "„{part}“: Ort=Feuchte erwartet, z. B. Trockenbox=15",
  "“{part}”: humidity 0–100 %": "„{part}“: Feuchte 0–100 %",
  "“{part}”: humidity must be a number": "„{part}“: Feuchte muss eine Zahl sein",
- "… when the slot is empty this long": "… wenn der Slot so lange leer ist"
+ "… when the slot is empty this long": "… wenn der Slot so lange leer ist",
+ "Report a bug: Logs → Report a bug copies the diagnostics (versions, setup, slots, settings, log – without addresses and keys) and opens the GitHub form": "Fehler melden: Logs → Fehler melden kopiert die Diagnose (Versionen, Aufbau, Slots, Einstellungen, Log – ohne Adressen und Schlüssel) und öffnet das GitHub-Formular"
 }

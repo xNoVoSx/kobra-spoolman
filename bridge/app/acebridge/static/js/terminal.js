@@ -123,6 +123,7 @@ function BridgeLog() {
       <span class="grow"></span>
       <label class="search sm"><${Icon} name="search" small /><input placeholder=${t("filter")} aria-label=${t("filter")} value=${q} onInput=${(e) => setQ(e.target.value)} /></label>
       <a class="btn sm" href="api/logs.txt" download><${Icon} name="download" small />${t("Download")}</a>
+      <button class="btn sm" onClick=${() => openDialog("bugReport")}><${Icon} name="warn" small />${t("Report a bug")}</button>
     </div>
     <div class="term-out m" ref=${ref} onScroll=${onScroll}>
       ${!shown.length && html`<div class="muted">${err || t("No lines.")}</div>`}

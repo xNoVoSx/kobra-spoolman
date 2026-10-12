@@ -82,3 +82,12 @@ curl -s "http://<pi-ip>:7125/printer/objects/query?ace&ace_instance_0"   # what 
 curl -s "http://<printer-ip>:7125/printer/objects/query?mmu&filament_hub"  # what Rinkhals reports
 grep kobra-spoolman ~/.config/OrcaSlicer/log/python_*.log | tail
 ```
+
+## Reporting a bug
+
+Web UI → *Logs* → **Report a bug**: copies the diagnostics (versions, setup, connections, slots, settings and the
+last log lines) and opens the [bug report form](https://github.com/xNoVoSx/kobra-spoolman/issues/new?template=bug_report.yml)
+on GitHub – paste them into *Diagnostics*. Host names, IP addresses, e-mail addresses and keys are removed, secrets
+only show as *set*; have a look before you post anyway. Without the web UI: `curl -s -H "Authorization: Bearer <key>"
+http://<docker-host>:7913/api/diagnostics`. Problems with the patched OrcaSlicer build belong to
+[orca-kobra](https://github.com/xNoVoSx/orca-kobra/issues).

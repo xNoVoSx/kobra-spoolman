@@ -1,7 +1,7 @@
 // Dialogs. Which one is open is in S.dialog ({kind, ...}).
 
 import { html, useEffect, useMemo, useState } from "../vendor/preact-htm.module.js";
-import { directBase, get, post } from "./api.js";
+import { directBase, get, getText, post } from "./api.js";
 import { Dialog, Field, Swatch } from "./components.js";
 import { lang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
@@ -248,7 +248,35 @@ function AddDevice() {
     </div></${Dialog}>`;
 }
 
-const KINDS = { confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
+// ------------------------------------------------------------ report a bug
+const REPO = "https://github.com/xNoVoSx/kobra-spoolman";
+
+/** Diagnostics for a bug report (bridge diagnostics.py: versions, setup, slots, settings, log – without hosts and
+ *  secrets), copied for the GitHub form, which asks for exactly this. */
+function BugReport() {
+  const [text, setText] = useState(null);
+  const [err, setErr] = useState(null);
+  useEffect(() => { getText("/api/diagnostics").then(setText).catch((e) => setErr(e.message)); }, []);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); toast(t("Copied"), "ok"); return; } catch { /* http: no clipboard API */ }
+    const area = document.getElementById("diag-text");
+    area.select();
+    try { if (document.execCommand("copy")) { toast(t("Copied"), "ok"); return; } } catch { /* see below */ }
+    toast(t("Copying not possible – select the text"), "bad");
+  };
+  const version = S.health?.version || "";
+  const form = `${REPO}/issues/new?template=bug_report.yml&bridge_version=${encodeURIComponent(version)}`;
+  return html`<${Dialog} title=${t("Report a bug")} footer=${html`<button class="btn" onClick=${closeDialog}>${t("Close")}</button>
+      <button class="btn" disabled=${!text} onClick=${copy}><${Icon} name="copy" small />${t("Copy diagnostics")}</button>
+      <a class="btn acc" href=${form} target="_blank" rel="noopener">${t("Open the form on GitHub")}</a>`}>
+    <div class="col">
+      <div class="small muted">${t("1. Copy the diagnostics. 2. Open the form on GitHub and paste them into “Diagnostics”. 3. Describe what you did, what happened and what you expected. Host names, IP addresses and keys are already removed – have a look before you post.")}</div>
+      ${err ? html`<div class="bad small">${err}</div>`
+            : html`<textarea id="diag-text" class="m small" rows="14" readonly value=${text || t("Loading …")}></textarea>`}
+    </div></${Dialog}>`;
+}
+
+const KINDS = { bugReport: BugReport, confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
   bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice, camera: CameraDialog, tune: TuneDialog };
 
 export function Dialogs() {

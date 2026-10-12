@@ -899,5 +899,9 @@
  "~{total}, {rest} left": "~{total}, noch {rest}",
  "… and {n} more (web/app)": "… und {n} weitere (Web/App)",
  "↑ ↓ select · right click for a slot": "↑ ↓ wählen · Rechtsklick für Slot",
- "Settings → Scan QR code": "Einstellungen → QR-Code scannen"
+ "Settings → Scan QR code": "Einstellungen → QR-Code scannen",
+ "Report a bug": "Fehler melden",
+ "Copy diagnostics": "Diagnose kopieren",
+ "Open the form on GitHub": "Formular auf GitHub öffnen",
+ "1. Copy the diagnostics. 2. Open the form on GitHub and paste them into “Diagnostics”. 3. Describe what you did, what happened and what you expected. Host names, IP addresses and keys are already removed – have a look before you post.": "1. Diagnose kopieren. 2. Formular auf GitHub öffnen und unter „Diagnostics“ einfügen. 3. Beschreiben, was du gemacht hast, was passiert ist und was du erwartet hast. Hostnamen, IP-Adressen und Schlüssel sind schon entfernt – vor dem Absenden trotzdem kurz drüberschauen."
 }

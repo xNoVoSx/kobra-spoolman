@@ -224,8 +224,10 @@ wrong for such files (test B: −345 mm) and pulls the average used by the plugi
   already knows ("Preset already present, not loading"), so changed profiles are only picked up by
   removing and reloading *all* user presets (`remove_user_presets()` + `load_user_presets()` + UI
   refresh). That path can reset the selected user printer — too invasive for a carried patch.
-- The plugin sandbox denies any path component containing `conf`, which includes Linux's
-  `~/.config` data folder — fixed by patch 0002 in [orca-kobra](https://github.com/xNoVoSx/orca-kobra).
+- The plugin sandbox denied any path component containing `conf`, which included Linux's
+  `~/.config` data folder — patch 0002 in [orca-kobra](https://github.com/xNoVoSx/orca-kobra) until Orca matched
+  whole path components ([#16243](https://github.com/OrcaSlicer/OrcaSlicer/pull/16243), 2026-10-09). Names that are
+  exactly a keyword (`conf`, `config`, `secret(s)`, `cert(s)`, …) or end in `.conf`/`.ini` are still denied.
 - No API for per-filament usage after slicing (only the G-code / 3MF contain it) → patch 0003 adds
   `orca.host.slice_statistics()` (read-only, from `GCodeProcessorResult::print_statistics`).
 - `SlicingJobComplete` is dispatched synchronously on the UI thread **before** the plate's
