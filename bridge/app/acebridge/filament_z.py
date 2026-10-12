@@ -56,6 +56,8 @@ class FilamentZSync:
             self.pushed = None       # Klipper restarted: the macro variable is back at 0
         if not getattr(self.cfg, "filament_z_sync", True) or not self.moon.klippy_ready:
             return
+        if getattr(self.moon, "platform", "klipper") == "rinkhals":
+            return                       # GoKlipper has no KOBRA_START (the Z offset needs kobra-klipper)
         if not getattr(self.sm, "connected", True):
             return                       # send nothing without Spoolman data
         want = self.desired()

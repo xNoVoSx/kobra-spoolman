@@ -71,7 +71,7 @@ button.chip { cursor: pointer; min-height: 30px; }
 .bar > i { display: block; height: 100%; background: var(--muted); }
 .ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .ic.s { width: 18px; height: 18px; }
-.swatch { border-radius: 50%; flex: none; border: 2px solid rgba(255,255,255,.16); }
+.swatch { display: inline-block; vertical-align: middle; border-radius: 50%; flex: none; border: 2px solid rgba(255,255,255,.16); }
 .spool { border-radius: 50%; flex: none; border: 3px solid rgba(255,255,255,.18); position: relative; }
 .spool::after { content: ""; position: absolute; inset: 28%; border-radius: 50%; background: rgba(0,0,0,.28); }
 .spool.empty { background: var(--surface2); border-style: dashed; border-color: var(--line-strong); }
@@ -264,6 +264,11 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .listcard { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .listbar { padding: 14px 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); }
 .table { overflow-y: auto; flex: 1; min-height: 0; }
+table.tbl { width: 100%; border-collapse: collapse; }
+table.tbl th { text-align: left; font-weight: 600; color: var(--muted); }
+table.tbl th, table.tbl td { padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.tbl .r { text-align: right; }
+table.tbl td.n { max-width: min(30vw, 15em); overflow: hidden; text-overflow: ellipsis; }
 .tr { display: grid; grid-template-columns: 26px 52px minmax(0, 1fr) 70px 150px 110px 64px; gap: 12px; align-items: center;
   padding: 0 16px; min-height: 50px; border-bottom: 1px solid var(--surface2); cursor: pointer; }
 .tr:hover { background: var(--sunken); }

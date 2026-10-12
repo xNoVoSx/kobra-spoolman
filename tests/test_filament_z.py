@@ -47,7 +47,7 @@ def test_value_from_filament_then_template():
     assert filament_z({"material": "PETG", "extra": {"z_offset": "-0.01"}}, TPL) == -0.01
     assert filament_z({"material": "PETG", "extra": {}}, TPL) == 0.02
     assert filament_z({"material": "PLA", "extra": {}}, TPL) == 0.0
-    assert filament_z({"material": "PETG", "extra": {"z_offset": "2.5"}}, TPL) == 0.0    # Tippfehler -> 0
+    assert filament_z({"material": "PETG", "extra": {"z_offset": "2.5"}}, TPL) == 0.0    # typo -> 0
     assert filament_z({"material": "PETG", "extra": {"z_offset": "\"abc\""}}, TPL) == 0.02
 
 
@@ -90,3 +90,10 @@ def test_nothing_is_pushed_before_spoolman_is_loaded(cfg):
     sm.connected = True
     asyncio.run(zs.tick())
     assert len(moon.sent) == 1
+
+
+def test_nothing_is_pushed_on_rinkhals(cfg):
+    zs, moon, _ = make(cfg)
+    moon.platform = "rinkhals"                 # GoKlipper has no KOBRA_START
+    asyncio.run(zs.tick())
+    assert moon.sent == []
