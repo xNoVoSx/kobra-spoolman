@@ -6,6 +6,27 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.11.2] – 2026-10-12
+
+### Fixed
+- Orca profiles: when neither the filament nor its template names an *Orca base profile*, `base` is now
+  `Generic <material> @System` (material as Orca types it, e.g. PLA+ → PLA) instead of empty;
+  `base_source` (`filament` / `template` / `fallback`) says where it came from
+  ([#1](https://github.com/xNoVoSx/kobra-spoolman/issues/1)).
+
+## plugin 0.6.1 – 2026-10-12
+
+### Fixed
+- No base profile in Spoolman: the plugin falls back to `Generic <material> @System` itself (also with
+  older bridges) and, if even that is impossible, says *no Orca base profile in Spoolman* instead of
+  „–“ nicht gefunden ([#1](https://github.com/xNoVoSx/kobra-spoolman/issues/1)).
+- Base profile names match ignoring case and an optional `@System` (`eSun PLA+` → `eSUN PLA+ @System`) (#1).
+- Profiles whose base has different values per extruder variant (e.g. `filament_max_volumetric_speed`
+  in *Bambu PLA Basic*) were rewritten on every sync — so Orca asked for a restart after every start —
+  and back-sync offered them as changes: both sides are now reduced to the active variant before
+  comparing. Found and patched by @MineTech13 ([#2](https://github.com/xNoVoSx/kobra-spoolman/issues/2)).
+- The same fixes for the 2.x line (bridge 2.21.1, Rinkhals): plugin **0.5.3** on branch `maint/2.x`.
+
 ## [3.11.1] – 2026-10-12
 
 ### Fixed

@@ -54,6 +54,9 @@ Spoolman directly.
   reported. Use it when Orca already ships a tuned profile — the template is then ignored completely.
 
 Order of precedence (later wins): *Orca base profile* ← *template* ← *filament fields* ← *Orca overrides*.
+If neither the filament nor its template names a base profile, `Generic <material> @System` is used
+(e.g. `Generic PLA @System` for PLA+). The name is matched ignoring case and an optional `@System`
+(`eSun PLA+` finds `eSUN PLA+ @System`).
 Field reference: [spoolman-fields.md](spoolman-fields.md).
 
 **Same product, another colour:** open the filament and press **Neue Farbe** — all values are copied,

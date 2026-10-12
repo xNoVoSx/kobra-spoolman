@@ -36,7 +36,9 @@ Pi over USB ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-s
   `moonraker.conf`), otherwise consumption is booked twice.
 - Give the Pi a fixed IP address (DHCP reservation) — everything else points at it.
 - Still on the stock firmware with [Rinkhals](https://github.com/rinkhals-community/Rinkhals)? Use bridge **2.21.1**
-  and plugin 0.5.2 (tag `v2.21.1`).
+  and plugin **0.5.3** from the maintenance branch `maint/2.x`
+  (`https://raw.githubusercontent.com/xNoVoSx/kobra-spoolman/maint/2.x/orca-plugin/kobra_spoolman.py`).
+  Rinkhals support for the current line is planned.
 
 ## 2. Spoolman and its extra fields
 

@@ -97,7 +97,9 @@ A history entry:
 
 `sources` tells where each value comes from: `filament`, `vorlage` (template),
 `override-filament` / `override-vorlage` (free Orca overrides). The base profile itself is resolved
-by the plugin inside Orca, so the values always match the installed Orca version.
+by the plugin inside Orca, so the values always match the installed Orca version. `base_source` says
+where `base` comes from: `filament`, `template`, `fallback` (neither names one: `Generic <material>
+@System`, since 3.11.2) or `null` (no material either).
 
 `POST /api/orca/backsync`:
 

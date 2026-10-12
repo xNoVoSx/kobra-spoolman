@@ -56,6 +56,9 @@ oder direkt in Spoolman.
   wird dann komplett ignoriert.
 
 Reihenfolge (später gewinnt): *Orca-Basisprofil* ← *Vorlage* ← *Filament-Felder* ← *Orca-Overrides*.
+Nennen weder Filament noch Vorlage ein Basisprofil, gilt `Generic <Material> @System` (z.B.
+`Generic PLA @System` für PLA+). Der Name wird ohne Groß/klein und mit optionalem `@System` gesucht
+(`eSun PLA+` findet `eSUN PLA+ @System`).
 Feldübersicht: [spoolman-fields.md](../spoolman-fields.md) (englisch).
 
 **Gleiches Produkt, andere Farbe:** Filament öffnen und **Neue Farbe** drücken – alle Werte werden

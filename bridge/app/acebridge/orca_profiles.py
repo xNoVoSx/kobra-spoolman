@@ -167,6 +167,12 @@ def build_profile(fil: Dict[str, Any], templates: List[Dict[str, Any]], base_typ
             values[k] = v
             sources[k] = f"override-{origin}"
 
+    # Orca-Basisprofil: am Filament, sonst von der Vorlage, sonst Ersatz "Generic <Typ> @System" (Issue #1 - vorher
+    # meldete das Plugin dann „–“ nicht gefunden)
+    base, base_source = info["orca_basis"], ("filament" if own_basis else "template")
+    if not base:
+        btype = base_type(material) or material
+        base, base_source = (f"Generic {btype} @System", "fallback") if btype else (None, None)
     active = [s for s in spools if (s.get("filament") or {}).get("id") == fil["id"] and not s.get("archived")]
     body = {
         "filament_id": fil["id"],
@@ -176,7 +182,8 @@ def build_profile(fil: Dict[str, Any], templates: List[Dict[str, Any]], base_typ
         "display_name": info["display_name"],
         "material": material,
         "color": color_hex(fil),
-        "base": info["orca_basis"],
+        "base": base,
+        "base_source": base_source,               # filament | template | fallback | None
         "template": (tpl or {}).get("name"),
         "values": values,
         "sources": sources,

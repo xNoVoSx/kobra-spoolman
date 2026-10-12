@@ -1,11 +1,17 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
-__version__ = "3.11.1"
+__version__ = "3.11.2"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
 CHANGELOG = [
+    ("3.11.2", "2026-10-12", [
+        "Orca-Profile: Nennen weder Filament noch Vorlage ein Orca-Basisprofil, gilt „Generic <Material> @System“ "
+        "(vorher meldete das Plugin „–“ nicht gefunden)",
+        "Plugin 0.6.1: Basisprofil-Namen ohne Groß/klein und mit optionalem „@System“, klare Meldung ohne "
+        "Basisprofil, Profile werden nicht mehr bei jedem Orca-Start neu geschrieben (Werte je Düsenvariante)",
+    ]),
     ("3.11.1", "2026-10-12", [
         "Behoben: Die Bridge hing zeitweise (Weboberfläche stand, Knöpfe ohne Wirkung, „Verwerfen“ ging nicht) – "
         "sie wartete auf ihre eigenen Antworten an Klipper und verarbeitete solange nichts",

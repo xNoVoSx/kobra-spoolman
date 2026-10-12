@@ -36,7 +36,9 @@ Pi getunnelt ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-
   `moonraker.conf`), sonst wird doppelt gebucht.
 - Dem Pi eine feste IP geben (DHCP-Reservierung) – alles andere zeigt darauf.
 - Noch auf der Original-Firmware mit [Rinkhals](https://github.com/rinkhals-community/Rinkhals)? Dann Bridge
-  **2.21.1** und Plugin 0.5.2 (Tag `v2.21.1`).
+  **2.21.1** und Plugin **0.5.3** aus dem Wartungszweig `maint/2.x`
+  (`https://raw.githubusercontent.com/xNoVoSx/kobra-spoolman/maint/2.x/orca-plugin/kobra_spoolman.py`).
+  Rinkhals-Unterstützung für die aktuelle Linie ist geplant.
 
 ## 2. Spoolman und seine Zusatzfelder
 

@@ -47,7 +47,8 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Cause / solution |
 |---|---|
-| *Orca-Basisprofil „…“ nicht gefunden* | Name must match an Orca system profile exactly (case, spaces, `@…`). Pick it from the list in the filament editor. |
+| *Orca-Basisprofil „…“ nicht in Orca gefunden* | No Orca system profile has that name (case and an optional `@System` are ignored since plugin 0.6.1). Pick it from the list in the filament editor. With *(Ersatz …)*: Spoolman names no base profile, the `Generic <material> @System` fallback is missing in Orca — set *Orca base profile* on the filament or template. |
+| *kein Orca-Basisprofil in Spoolman und kein Material* | Neither the filament nor a template names a base profile and the filament has no material. Set the material, *Orca base profile*, or run `spoolman_setup.py` once (creates the templates). |
 | `SM…` profiles missing in Orca | Restart Orca (profiles are read at start-up). Check the Orca user folder setting (`default` without login). |
 | Sync button selects *Generic PLA* instead of `SM…` | You are not running the orca-kobra build, or the printer agent is not *Moonraker*. |
 | Panel: *Filament N ist „…“ – erwartet „…“* | Press Orca's sync button, or select the profile manually. |

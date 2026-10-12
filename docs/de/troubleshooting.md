@@ -47,7 +47,8 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Ursache / Lösung |
 |---|---|
-| *Orca-Basisprofil „…“ nicht gefunden* | Der Name muss exakt einem Orca-Systemprofil entsprechen (Groß/klein, Leerzeichen, `@…`). Aus der Liste im Filament-Editor wählen. |
+| *Orca-Basisprofil „…“ nicht in Orca gefunden* | Kein Orca-Systemprofil heißt so (Groß/klein und ein optionales `@System` zählen seit Plugin 0.6.1 nicht). Aus der Liste im Filament-Editor wählen. Mit *(Ersatz …)*: Spoolman nennt kein Basisprofil, und der Ersatz `Generic <Material> @System` fehlt in Orca – *Orca-Basisprofil* am Filament oder an der Vorlage setzen. |
+| *kein Orca-Basisprofil in Spoolman und kein Material* | Weder Filament noch Vorlage nennen ein Basisprofil, und das Filament hat kein Material. Material oder *Orca-Basisprofil* setzen, oder einmal `spoolman_setup.py` laufen lassen (legt die Vorlagen an). |
 | `SM…`-Profile fehlen in Orca | Orca neu starten (Profile werden beim Start gelesen). Orca-Benutzerordner prüfen (`default` ohne Anmeldung). |
 | Sync-Knopf wählt *Generic PLA* statt `SM…` | Nicht der orca-kobra-Build, oder Printer Agent ist nicht *Moonraker*. |
 | Panel: *Filament N ist „…“ – erwartet „…“* | Orcas Sync-Knopf drücken oder das Profil von Hand wählen. |

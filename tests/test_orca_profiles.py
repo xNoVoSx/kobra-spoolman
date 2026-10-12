@@ -48,6 +48,18 @@ def test_own_base_profile_replaces_template():
     assert "fan_min_speed" not in p["values"]
 
 
+def test_base_profile_source_and_generic_fallback():
+    """Issue #1: weder Filament noch Vorlage nennen ein Basisprofil -> Generic <Typ> @System (Typ wie Orca, PLA+ = PLA)."""
+    assert build_profile(FILAMENT, [TEMPLATE], base_type, SPOOLS, slot_of)["base_source"] == "template"
+    own = dict(FILAMENT, extra=ext(orca_basis="Sunlu PETG @System"))
+    assert build_profile(own, [TEMPLATE], base_type, SPOOLS, slot_of)["base_source"] == "filament"
+    bare = dict(FILAMENT, material="PLA+", extra=ext())
+    p = build_profile(bare, [], base_type, SPOOLS, slot_of)
+    assert p["base"] == "Generic PLA @System" and p["base_source"] == "fallback"
+    p = build_profile(dict(bare, material=""), [], base_type, SPOOLS, slot_of)
+    assert p["base"] is None and p["base_source"] is None
+
+
 def test_backsync_maps_known_fields_and_keeps_the_rest_as_overrides():
     patch, applied, ignored = backsync_patch(FILAMENT, {
         "nozzle_temperature": "245", "fan_max_speed": "90", "activate_air_filtration": "1",
