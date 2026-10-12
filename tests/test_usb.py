@@ -61,12 +61,12 @@ def test_reads_every_30_s_only():
 
 
 @pytest.mark.parametrize("kw,state,text", [
-    ({}, "ok", "verbunden"),
+    ({}, "ok", "connected"),
     ({"max_speed": "full-speed"}, "ok", "12 Mbit/s"),
-    ({"state": "not attached", "present": False}, "off", "Drucker aus"),
-    ({"state": "default", "tries": 3}, "warn", "Versuch 3/10"),
-    ({"state": "default", "tries": 10, "gave_up": True}, "bad", "Kabel prüfen"),
-    ({"at": NOW - 600}, "warn", "Wächter meldet sich nicht"),
+    ({"state": "not attached", "present": False}, "off", "Printer off"),
+    ({"state": "default", "tries": 3}, "warn", "attempt 3/10"),
+    ({"state": "default", "tries": 10, "gave_up": True}, "bad", "check the cable"),
+    ({"at": NOW - 600}, "warn", "Watchdog not reporting"),
 ])
 def test_summary(kw, state, text):
     _moon, usb, _ = make(watcher_state(**kw))
@@ -76,7 +76,7 @@ def test_summary(kw, state, text):
 
 def test_message_only_when_given_up():
     _m, usb, _ = make(watcher_state(state="default", tries=10, gave_up=True))
-    assert "Kabel prüfen" in usb.message()
+    assert "check the cable" in usb.message()
     _m, usb, _ = make(watcher_state(state="default", tries=2))
     assert usb.message() is None
 
@@ -119,8 +119,8 @@ def test_status_line_and_notice(cfg):
     b.usb.state = st
     n = notices(b, NOW)
     line = {x["key"]: x for x in n["status"]}["usb"]
-    assert line["state"] == "bad" and line["label"] == "USB-Tunnel"
-    assert any(m["key"] == "usb" and "Kabel" in m["text"] for m in n["messages"])
+    assert line["state"] == "bad" and line["label"] == "USB tunnel"
+    assert any(m["key"] == "usb" and "cable" in m["text"] for m in n["messages"])
     b.usb.state = watcher_state()
     n = notices(b, NOW)
     assert {x["key"]: x for x in n["status"]}["usb"]["state"] == "ok"

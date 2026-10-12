@@ -1,7 +1,7 @@
-"""Slot-Verwaltung: ACE-Zustand + Spoolman-Zuordnung -> Slot-Sicht, Auto-Freigabe, lane_data.
+"""Slot management: ACE state + Spoolman assignment -> slot view, auto release, lane_data.
 
-Die Zuordnung Slot <-> Spule lebt ausschliesslich in Spoolman (Feld "Ort" der Spule,
-z.B. "ACE Slot 1"). Die Bridge haelt nur einen Cache davon.
+The assignment slot <-> spool lives only in Spoolman (the spool's "location" field, e.g. "ACE Slot 1"). The bridge
+keeps only a cache of it.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import acemodel
 from .config import Config
+from .i18n import tr
 from .moonraker import Moonraker
 from .profiles import basic_info
 from .spoolman import TAG_NR_FIELD, Spoolman, extra_value
@@ -22,7 +23,7 @@ log = logging.getLogger("slots")
 
 PRINTING_STATES = ("printing", "paused")
 
-# Orca-Basistypen, laengste zuerst (fuer ACE-Materialnamen ohne Spoolman-Zuordnung)
+# Orca base types, longest first (for ACE material names without a Spoolman assignment)
 KNOWN_TYPES = sorted(["PETG-CF", "PET-CF", "PLA-CF", "PA6-CF", "PA-CF", "ASA-CF", "ABS-GF", "PETG", "PET",
                       "PLA", "ABS", "ASA", "TPU", "PEBA", "PCTG", "PC", "PA", "PVA", "BVOH", "HIPS", "PPS"],
                      key=len, reverse=True)
@@ -49,17 +50,33 @@ def _color_distance(a: str, b: str) -> Optional[float]:
     return ((ra - rb) ** 2 + (ga - gb) ** 2 + (ba - bb) ** 2) ** 0.5
 
 
-# Ab diesem RGB-Abstand gilt eine Farbe als "anders". Grosszuegig, weil Tag-Farben
-# (ACE-RFID-App, Anycubic-Tags) selten exakt dem Shop-Hex entsprechen.
+# from this RGB distance a colour counts as "different". Generous, because tag colours (ACE RFID app, Anycubic tags)
+# rarely match the shop hex exactly.
 COLOR_TOLERANCE = 150
+
+# templates of tr() texts the bridge recognises again (tests/test_slot_hints.py checks they match the tr() calls)
+UNKNOWN_TAG = "Slot {slot}: unknown tag {nr} – assign a spool, the number will be remembered"
+HINT_ERROR = ("The ACE knows no material for this slot – assign the spool here again",
+              "The ACE knows no material for this slot – assign a spool")
+HINT_WARN = ("ACE reports {ace}, assigned is {spool}", "Colour differs (ACE #{ace}, Spoolman #{spool})",
+             "ACE reports the slot as empty")
+
+
+def hint_level(hint: Any) -> str:
+    """error | warn | info of a slot hint (by its English template, so it works in every language)."""
+    msg = getattr(hint, "msg", str(hint))
+    return "error" if msg in HINT_ERROR else "warn" if msg in HINT_WARN else "info"
+
+
+def is_unknown_tag_event(text: Any) -> bool:
+    return getattr(text, "msg", None) == UNKNOWN_TAG
 
 
 def ace_match(ace: Dict[str, Any], info: Dict[str, Any]) -> Dict[str, Any]:
-    """Eine Regel fuer Karten-Hinweise und Spulenauswahl.
+    """One rule for card hints and spool selection.
 
-    material/color: True = passt, False = passt nicht, None = nicht pruefbar
-    (Slot leer, kein Tag, keine Farbe hinterlegt). full = alles Pruefbare passt
-    und mindestens das Material war pruefbar.
+    material/color: True = matches, False = does not match, None = cannot be checked (slot empty, no tag, no colour
+    stored). full = everything checkable matches and at least the material was checkable.
     """
     material = color = None
     if ace.get("present") and ace.get("material") and info.get("material"):
@@ -73,18 +90,18 @@ def ace_match(ace: Dict[str, Any], info: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def gate_has_tag(ace: Dict[str, Any]) -> bool:
-    """Spule mit RFID-Tag: die ACE fuellt Material/Farbe selbst aus dem Tag (ACEPRO: Slot-Feld rfid)."""
+    """Spool with an RFID tag: the ACE fills in material/colour itself from the tag (ACEPRO: slot field rfid)."""
     return bool(ace.get("rfid"))
 
 
 def gate_needs_info(ace: Dict[str, Any]) -> bool:
-    """Slot hat Filament, aber die ACE kennt kein Material (kein Tag, nichts eingetragen) - ACEPRO kennt dann
-    keine Lade-/Spueltemperatur fuer Wechsel von Hand und Orca keinen Typ fuer den Slot."""
+    """The slot has filament but the ACE knows no material (no tag, nothing entered) - ACEPRO then knows no load/purge
+    temperature for manual changes and Orca no type for the slot."""
     return bool(ace.get("present")) and not ace.get("material")
 
 
 def set_slot_command(gate: int, info: Dict[str, Any]) -> Optional[str]:
-    """ACE_SET_SLOT fuer einen Slot ohne Tag aus den Spoolman-Daten (ACEPRO: COLOR=R,G,B MATERIAL= TEMP= 1-300)."""
+    """ACE_SET_SLOT for a slot without a tag from the Spoolman data (ACEPRO: COLOR=R,G,B MATERIAL= TEMP= 1-300)."""
     material = base_type(info.get("material") or "").upper()
     color = _hex6(info.get("color")) or "FFFFFF"
     try:
@@ -103,14 +120,14 @@ class SlotManager:
         self.moon = moon
         self.sm = sm
         self._lock = asyncio.Lock()
-        self._prev_present: Dict[int, bool] = {}      # letzter gesehener Zustand je Gate
-        self._empty_since: Dict[int, float] = {}      # Gate beobachtet leer geworden seit
-        self._pending_unassign: Dict[int, int] = {}   # Gate -> Spulen-ID, wartet auf Druckende
+        self._prev_present: Dict[int, bool] = {}      # last seen state per gate
+        self._empty_since: Dict[int, float] = {}      # gate seen becoming empty since
+        self._pending_unassign: Dict[int, int] = {}   # gate -> spool ID, waiting for the print to end
         self._lanes_written: Dict[str, Any] = {}
-        self._gate_info_pending: Dict[int, Dict[str, int]] = {}   # Gate -> {spool_id, tries}, aus assign()
+        self._gate_info_pending: Dict[int, Dict[str, int]] = {}   # gate -> {spool_id, tries}, from assign()
         self.warnings: List[str] = []
-        # RFID automatisch: zuletzt behandelte Tag-Nummer je Gate, wartende (Nummer, seit), unbekannte Nummern,
-        # Gates, deren Zuordnung vom Tag kam, und Ereignisse fuer die Meldungen
+        # automatic RFID: last handled tag number per gate, waiting (number, since), unknown numbers,
+        # gates whose assignment came from the tag, and events for the messages
         self._tag_seen: Dict[int, int] = {}
         self._tag_pending: Dict[int, Tuple[int, float]] = {}
         self._auto_lock = asyncio.Lock()
@@ -118,7 +135,7 @@ class SlotManager:
         self.by_tag: Dict[int, int] = {}
         self.tag_events: List[Dict[str, Any]] = []
 
-    # ------------------------------------------------------------ Zustand lesen
+    # ------------------------------------------------------------ reading state
     @property
     def print_state(self) -> str:
         return (self.moon.status.get("print_stats", {}) or {}).get("state", "") or ""
@@ -139,7 +156,7 @@ class SlotManager:
         return bool(self.moon.klippy_ready and acemodel.connected(self.moon.status))
 
     def assignments(self) -> Tuple[Dict[int, Dict[str, Any]], List[str]]:
-        """Slot (1-basiert) -> Spule, plus Warnungen bei Doppelbelegung."""
+        """Slot (1-based) -> spool, plus warnings for double assignments."""
         by_slot: Dict[int, List[Dict[str, Any]]] = {}
         for s in self.sm.spools:
             slot = self.cfg.slot_from_location(s.get("location"))
@@ -150,11 +167,11 @@ class SlotManager:
             spools.sort(key=lambda s: s.get("id", 0))
             result[slot] = spools[0]
             if len(spools) > 1:
-                warnings.append(f"Slot {slot} ist mehreren Spulen zugeordnet: "
-                                + ", ".join(f"#{s['id']}" for s in spools) + f" - verwendet #{spools[0]['id']}")
+                warnings.append(tr("Slot {slot} is assigned to several spools: {ids} - using #{used}", slot=slot,
+                                   ids=", ".join(f"#{s['id']}" for s in spools), used=spools[0]["id"]))
         return result, warnings
 
-    # ------------------------------------------------------------ Sicht fuer API/Handy
+    # ------------------------------------------------------------ view for API/phone
     def spool_info(self, spool: Dict[str, Any]) -> Dict[str, Any]:
         fil = spool.get("filament") or {}
         info = basic_info(fil, self.sm.templates()) if fil.get("id") else {}
@@ -182,28 +199,28 @@ class SlotManager:
             if info:
                 m = ace_match(ace, info)
                 if m["material"] is False:
-                    hints.append(f"ACE meldet {ace['material']}, zugeordnet ist {info['material']}")
+                    hints.append(tr("ACE reports {ace}, assigned is {spool}", ace=ace["material"], spool=info["material"]))
                 if m["color"] is False:
-                    hints.append(f"Farbe weicht ab (ACE #{ace['color']}, Spoolman #{info['color']})")
+                    hints.append(tr("Colour differs (ACE #{ace}, Spoolman #{spool})", ace=ace["color"], spool=info["color"]))
             pending = gate in self._gate_info_pending
             if pending:
-                hints.append("Material/Farbe gehen an die ACE, sobald die Spule eingelegt ist"
-                             if not ace["present"] else "Material/Farbe gehen nach dem Druck an die ACE"
-                             if self.printing else "Material/Farbe werden an die ACE gegeben")
+                hints.append(tr("Material/colour go to the ACE as soon as the spool is inserted")
+                             if not ace["present"] else tr("Material/colour go to the ACE after the print")
+                             if self.printing else tr("Material/colour are being given to the ACE"))
             elif self.moon.klippy_ready and gate_needs_info(ace):
-                hints.append("Die ACE kennt kein Material für diesen Slot – "
-                             + ("Spule hier neu zuordnen" if info and self.cfg.set_ace_slot_info
-                                else "Spule zuordnen"))
+                hints.append(tr("The ACE knows no material for this slot – assign the spool here again")
+                             if info and self.cfg.set_ace_slot_info
+                             else tr("The ACE knows no material for this slot – assign a spool"))
             if info and self.moon.klippy_ready and not ace["present"]:
-                hints.append("ACE meldet den Slot als leer")
+                hints.append(tr("ACE reports the slot as empty"))
             if gate in self._pending_unassign:
-                hints.append("wird nach Druckende ins Regal gebucht")
+                hints.append(tr("will be moved to the shelf after the print"))
             out.append({"slot": slot, "gate": gate, "ace": ace, "spool": info, "hints": hints,
                         "by_tag": self.by_tag.get(gate) is not None and info is not None})
         return out
 
     def assignable_spools(self, slot: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Zuordenbare Spulen; mit slot zusaetzlich 'match' gegen das, was die ACE dort meldet."""
+        """Assignable spools; with slot also 'match' against what the ACE reports there."""
         ace = self.ace_gate(slot - 1) if slot and 1 <= slot <= self.num_gates() else None
         out = []
         for s in self.sm.spools:
@@ -215,9 +232,9 @@ class SlotManager:
             out.append(info)
         return out
 
-    # ------------------------------------------------------------ RFID automatisch
+    # ------------------------------------------------------------ automatic RFID
     def tag_of_gate(self, gate: int) -> Optional[int]:
-        """Unsere Tag-Nummer im Gate (>= TAG_NR_MIN), sonst None - kleinere sind Original-Anycubic-Sorten."""
+        """Our tag number in the gate (>= TAG_NR_MIN), else None - smaller ones are original Anycubic kinds."""
         try:
             n = int(self.ace_gate(gate)["tag_id"] or 0)
         except (TypeError, ValueError):
@@ -238,11 +255,11 @@ class SlotManager:
         log.info(text)
 
     async def auto_by_tag(self, now: Optional[float] = None) -> None:
-        """Spule mit unserem Tag im Slot -> automatisch zuordnen. Reagiert, wenn sich die Nummer im Gate aendert
-        (auch beim Start: dann ist jede Nummer neu) - eine bewusste Handzuordnung wird nicht staendig ueberschrieben."""
+        """Spool with our tag in the slot -> assign automatically. Reacts when the number in the gate changes (also at
+        start: then every number is new) - a deliberate manual assignment is not overwritten all the time."""
         if not self.cfg.auto_assign_by_tag or not self.ace_connected:
             return
-        # erst mit der Spulenliste aus Spoolman - sonst waere beim Start jede Nummer "unbekannt"
+        # only with the spool list from Spoolman - otherwise every number would be "unknown" at start
         if not getattr(self.sm, "connected", True) or not self.sm.spools:
             return
         if self._auto_lock.locked():
@@ -257,18 +274,18 @@ class SlotManager:
                     self._tag_pending.pop(gate, None)
                     self.unknown_tags.pop(gate, None)
                     if not ace["present"]:
-                        self._tag_seen.pop(gate, None)     # wieder eingelegt = neu
+                        self._tag_seen.pop(gate, None)     # inserted again = new
                         self.by_tag.pop(gate, None)
                     continue
                 if self._tag_seen.get(gate) == nr:
-                    # unbekannte Nummer: jedes Mal neu nachsehen (Spule kann inzwischen die Nummer haben)
+                    # unknown number: look again every time (a spool may have the number by now)
                     if gate not in self.unknown_tags or self.spool_by_tag(nr) is None:
                         continue
                     self._tag_seen.pop(gate, None)
-                    self._tag_pending[gate] = (nr, now - self.cfg.gate_debounce_s)   # schon entprellt
+                    self._tag_pending[gate] = (nr, now - self.cfg.gate_debounce_s)   # already debounced
                 pending = self._tag_pending.get(gate)
                 if pending is None or pending[0] != nr:
-                    self._tag_pending[gate] = (nr, now)          # Laden flackert: erst nach der Entprellung
+                    self._tag_pending[gate] = (nr, now)          # loading flickers: only after debouncing
                     continue
                 if now - pending[1] < self.cfg.gate_debounce_s:
                     continue
@@ -277,7 +294,8 @@ class SlotManager:
                 spool = self.spool_by_tag(nr)
                 if spool is None:
                     self.unknown_tags[gate] = nr
-                    self._event(f"Slot {slot}: unbekannter Tag {nr} – Spule zuordnen, die Nummer wird gemerkt", now)
+                    self._event(tr("Slot {slot}: unknown tag {nr} – assign a spool, the number will be remembered",
+                                   slot=slot, nr=nr), now)
                     continue
                 self.unknown_tags.pop(gate, None)
                 assigned, _ = self.assignments()
@@ -288,13 +306,13 @@ class SlotManager:
                 name = ((spool.get("filament") or {}).get("name") or f"#{spool['id']}")
                 try:
                     await self.assign(slot, spool["id"], learn=False)
-                    self._event(f"Slot {slot}: {name} per RFID erkannt (Tag {nr})", now)
+                    self._event(tr("Slot {slot}: {name} recognised by RFID (tag {nr})", slot=slot, name=name, nr=nr), now)
                 except Exception as e:  # noqa: BLE001
-                    self._tag_seen.pop(gate, None)           # naechster Durchlauf versucht es wieder
-                    log.warning("Slot %d: RFID-Zuordnung fehlgeschlagen: %s", slot, e)
+                    self._tag_seen.pop(gate, None)           # the next run tries again
+                    log.warning("Slot %d: RFID assignment failed: %s", slot, e)
 
     async def _learn_tag(self, slot: int, spool_id: int) -> None:
-        """Handzuordnung in einen Slot mit unbekanntem Tag: Nummer an der Spule merken (wenn sie noch keine hat)."""
+        """Manual assignment into a slot with an unknown tag: remember the number on the spool (if it has none yet)."""
         gate = slot - 1
         nr = self.tag_of_gate(gate)
         if nr is None or self.spool_by_tag(nr) is not None:
@@ -307,46 +325,46 @@ class SlotManager:
         self.unknown_tags.pop(gate, None)
         self._tag_seen[gate] = nr
         self.by_tag[gate] = nr
-        self._event(f"Slot {slot}: Tag {nr} an Spule #{spool_id} gemerkt", time.time())
+        self._event(tr("Slot {slot}: tag {nr} remembered on spool #{id}", slot=slot, nr=nr, id=spool_id), time.time())
 
-    # ------------------------------------------------------------ Zuordnen
+    # ------------------------------------------------------------ assigning
     async def assign(self, slot: int, spool_id: Optional[int], learn: bool = True) -> None:
         if not 1 <= slot <= self.num_gates():
-            raise ValueError(f"Slot {slot} gibt es nicht")
+            raise ValueError(tr("There is no slot {slot}", slot=slot))
         async with self._lock:
             if not await self.sm.refresh():
-                raise RuntimeError("Spoolman nicht erreichbar")
+                raise RuntimeError(tr("Spoolman not reachable"))
             target_loc = self.cfg.slot_location(slot)
             if spool_id is not None:
                 spool = self.sm.spool(spool_id)
                 if not spool:
-                    raise ValueError(f"Spule #{spool_id} nicht gefunden (archiviert?)")
+                    raise ValueError(tr("Spool #{id} not found (archived?)", id=spool_id))
                 if self.sm.is_template(spool.get("filament") or {}):
-                    raise ValueError("Auf Vorlagen duerfen keine Spulen liegen")
+                    raise ValueError(tr("Templates must not hold spools"))
             for s in self.sm.spools:
                 if s.get("location") == target_loc and s.get("id") != spool_id:
                     await self.sm.patch_spool(s["id"], {"location": self.cfg.shelf_location})
-                    log.info("Slot %d: Spule #%s -> %s", slot, s["id"], self.cfg.shelf_location)
+                    log.info("Slot %d: spool #%s -> %s", slot, s["id"], self.cfg.shelf_location)
             if spool_id is not None:
                 await self.sm.patch_spool(spool_id, {"location": target_loc})
-                log.info("Slot %d: Spule #%s zugeordnet", slot, spool_id)
+                log.info("Slot %d: spool #%s assigned", slot, spool_id)
             self._pending_unassign.pop(slot - 1, None)
-            # Nur das Zuordnen hier schreibt Material/Farbe an die ACE - nie ein Neustart, eine
-            # Eingabe am Display oder eine Aenderung in Spoolman.
+            # only assigning here writes material/colour to the ACE - never a restart, an input on the display or a
+            # change in Spoolman.
             self._gate_info_pending.pop(slot - 1, None)
             if spool_id is not None and self.cfg.set_ace_slot_info:
                 self._gate_info_pending[slot - 1] = {"spool_id": spool_id, "tries": 0}
             if spool_id is None or (learn and self.by_tag.get(slot - 1) is not None):
-                self.by_tag.pop(slot - 1, None)          # Handzuordnung: Kennzeichen "per RFID" weg
+                self.by_tag.pop(slot - 1, None)          # manual assignment: drop the "by RFID" mark
             if learn and spool_id is not None and self.cfg.auto_assign_by_tag:
                 try:
                     await self._learn_tag(slot, spool_id)
                 except Exception as e:  # noqa: BLE001
-                    log.warning("Tag-Nummer merken fehlgeschlagen: %s", e)
+                    log.warning("Remembering the tag number failed: %s", e)
             await self.sm.refresh()
         await self.evaluate()
 
-    # ------------------------------------------------------------ Kernlogik
+    # ------------------------------------------------------------ core logic
     async def evaluate(self) -> None:
         await self.auto_by_tag()
         async with self._lock:
@@ -357,8 +375,8 @@ class SlotManager:
                 ace = self.ace_gate(gate)
                 if self.ace_connected:
                     await self._track_empty(gate, slot, ace["present"], assigned.get(slot), now)
-            # ohne Spoolman-Stand (Bridge-Start, Spoolman weg) nichts ueberschreiben - sonst stuenden die Slots
-            # kurz ohne Profil (filament_id) da und Orcas Sync-Knopf waehlte falsch
+            # without Spoolman data (bridge start, Spoolman gone) overwrite nothing - otherwise the slots would briefly
+            # stand without a profile (filament_id) and Orca's sync button would pick wrong
             if self.cfg.write_lane_data and self.moon.connected and getattr(self.sm, "connected", True):
                 await self._write_lanes(assigned)
             if self._gate_info_pending and self.moon.klippy_ready and not self.printing:
@@ -371,10 +389,10 @@ class SlotManager:
         if present:
             self._empty_since.pop(gate, None)
             if gate in self._pending_unassign:
-                log.info("Slot %d wieder belegt - Rueckbuchung ins Regal verworfen", slot)
+                log.info("Slot %d loaded again - move to the shelf dropped", slot)
                 self._pending_unassign.pop(gate, None)
             return
-        if prev is True:  # gerade beobachtet leer geworden
+        if prev is True:  # just seen becoming empty
             self._empty_since[gate] = now
         if not self.cfg.auto_unassign_on_empty or spool is None:
             return
@@ -383,18 +401,18 @@ class SlotManager:
             return
         if self.printing:
             if gate not in self._pending_unassign:
-                log.info("Slot %d leer waehrend Druck - Spule #%s wird nach Druckende ins Regal gebucht",
+                log.info("Slot %d empty during a print - spool #%s goes to the shelf after the print",
                          slot, spool["id"])
             self._pending_unassign[gate] = spool["id"]
             return
         try:
             await self.sm.patch_spool(spool["id"], {"location": self.cfg.shelf_location})
-            log.info("Slot %d leer - Spule #%s -> %s", slot, spool["id"], self.cfg.shelf_location)
+            log.info("Slot %d empty - spool #%s -> %s", slot, spool["id"], self.cfg.shelf_location)
             self._empty_since.pop(gate, None)
             self._pending_unassign.pop(gate, None)
             await self.sm.refresh()
         except Exception as e:  # noqa: BLE001
-            log.warning("Rueckbuchung Slot %d fehlgeschlagen: %s", slot, e)
+            log.warning("Moving slot %d to the shelf failed: %s", slot, e)
 
     def _lane_for(self, gate: int, spool: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         ace = self.ace_gate(gate)
@@ -448,32 +466,31 @@ class SlotManager:
                     if self.cfg.empty_gate_mode != "delete":
                         continue
                     await self.moon.db_delete(ns, key)
-                    log.info("lane_data %s entfernt (leer)", key)
+                    log.info("lane_data %s removed (empty)", key)
                 else:
                     await self.moon.db_post(ns, key, lane)
                     log.info("lane_data %s -> %s #%s %s%s", key, lane["material"], lane["color"] or "?",
                              lane.get("filament_id", ""), f" ({lane['name']})" if lane.get("name") else "")
                 self._lanes_written[key] = lane
             except Exception as e:  # noqa: BLE001
-                log.warning("lane_data %s schreiben fehlgeschlagen: %s", key, e)
+                log.warning("Writing lane_data %s failed: %s", key, e)
 
     async def _push_gate_info(self, assigned: Dict[int, Dict[str, Any]]) -> None:
-        """Material/Farbe/Temperatur einer in der Weboberflaeche oder App zugeordneten Spule an die ACE geben
-        (ACE_SET_SLOT).
-        Wartet, bis die Spule eingelegt ist und kein Druck laeuft; einmal pro Zuordnung. Slots mit
-        RFID-Tag und Slots, fuer die die ACE schon genau diese Werte meldet, bleiben unberuehrt."""
+        """Give material/colour/temperature of a spool assigned in the web UI or app to the ACE (ACE_SET_SLOT).
+        Waits until the spool is inserted and no print is running; once per assignment. Slots with an RFID tag and
+        slots for which the ACE already reports exactly these values stay untouched."""
         for gate, job in list(self._gate_info_pending.items()):
             spool = assigned.get(gate + 1)
             if not spool or spool.get("id") != job["spool_id"] or not (spool.get("filament") or {}).get("id"):
-                self._gate_info_pending.pop(gate, None)      # inzwischen anders zugeordnet
+                self._gate_info_pending.pop(gate, None)      # assigned differently by now
                 continue
             ace = self.ace_gate(gate)
             if not ace["present"]:
-                continue                                     # Spule noch nicht eingelegt
+                continue                                     # spool not inserted yet
             if gate_has_tag(ace):
-                # Der Tag bestimmt den Slot - nie ueberschreiben
+                # the tag defines the slot - never overwrite
                 self._gate_info_pending.pop(gate, None)
-                log.info("Slot %d: Spule mit RFID-Tag (%s) - Material/Farbe kommen vom Tag", gate + 1, ace["sku"])
+                log.info("Slot %d: spool with RFID tag (%s) - material/colour come from the tag", gate + 1, ace["sku"])
                 continue
             info = basic_info(spool["filament"], self.sm.templates())
             cmd = set_slot_command(gate, info)
@@ -483,34 +500,34 @@ class SlotManager:
                 self._gate_info_pending.pop(gate, None)
                 continue
             try:
-                await self.moon.gcode(cmd, source="Slot-Zuordnung")
+                await self.moon.gcode(cmd, source=tr("Slot assignment"))
                 self._gate_info_pending.pop(gate, None)
-                log.info("Slot %d: Material/Farbe an die ACE gegeben (%s)", gate + 1, cmd)
+                log.info("Slot %d: material/colour given to the ACE (%s)", gate + 1, cmd)
             except Exception as e:  # noqa: BLE001
                 job["tries"] += 1
                 if job["tries"] >= 3:
                     self._gate_info_pending.pop(gate, None)
-                    log.warning("Slot %d: ACE_SET_SLOT aufgegeben: %s", gate + 1, e)
+                    log.warning("Slot %d: ACE_SET_SLOT given up: %s", gate + 1, e)
                 else:
-                    log.warning("Slot %d: ACE_SET_SLOT fehlgeschlagen (%s), neuer Versuch", gate + 1, e)
+                    log.warning("Slot %d: ACE_SET_SLOT failed (%s), retrying", gate + 1, e)
 
     async def _drop_foreign_lanes(self, ns: str) -> None:
-        """Nach jedem Neuabgleich: Eintraege, die nicht von der Bridge stammen (z. B. ACEPROs lane1..lane4 aus der
-        Zeit vor moonraker_lane_sync_enabled: False), entfernen - sonst sieht Orca jeden Slot doppelt, teils ohne
-        filament_id, und der Sync-Knopf waehlt das falsche Profil."""
+        """After every full sync: remove entries that do not come from the bridge (e.g. ACEPRO's lane1..lane4 from before
+        moonraker_lane_sync_enabled: False) - otherwise Orca sees every slot twice, partly without filament_id, and
+        the sync button picks the wrong profile."""
         own = {str(g) for g in range(self.num_gates())}
         try:
             for key in await self.moon.db_keys(ns):
                 if key not in own:
                     await self.moon.db_delete(ns, key)
-                    log.info("lane_data %s entfernt (nicht von der Bridge)", key)
+                    log.info("lane_data %s removed (not from the bridge)", key)
         except Exception as e:  # noqa: BLE001
-            log.warning("lane_data aufraeumen fehlgeschlagen: %s", e)
+            log.warning("Cleaning up lane_data failed: %s", e)
 
     def reset_lane_cache(self) -> None:
         self._lanes_written.clear()
 
     async def on_print_state_change(self, old: str, new: str) -> None:
         if old in PRINTING_STATES and new not in PRINTING_STATES and self._pending_unassign:
-            log.info("Druck beendet (%s) - fuehre aufgeschobene Rueckbuchungen aus", new)
+            log.info("Print ended (%s) - doing the postponed moves to the shelf", new)
             await self.evaluate()

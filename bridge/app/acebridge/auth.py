@@ -1,13 +1,12 @@
-"""Geraete koppeln: die Bridge vergibt die Zugaenge selbst.
+"""Pairing devices: the bridge issues the access keys itself.
 
-- Jedes Geraet (App, Browser, spaeter das Orca-Plugin) bekommt einen eigenen, langen Schluessel.
-  Gespeichert wird nur dessen SHA-256 (devices.json im Datenordner), nie der Schluessel selbst.
-- Koppeln mit einem 6-stelligen Code, 5 Minuten gueltig, einmal verwendbar. Den Code erzeugt ein
-  schon gekoppeltes Geraet ("Geraet hinzufuegen").
-- Erstes Geraet: Solange nichts gekoppelt ist, schreibt die Bridge beim Start einen
-  Einrichtungscode ins Log (Portainer -> Logs). Ein gesetztes APP_TOKEN gilt weiter als Schluessel
-  (Uebergang) und kann ebenfalls zum Koppeln verwendet werden.
-- Falsche Codes werden gebremst (nach 5 Fehlversuchen 60 s Sperre).
+- Every device (app, browser, Orca plugin, display) gets its own long key. Only its SHA-256 is stored (devices.json in
+  the data folder), never the key itself.
+- Pairing with a 6-digit code, valid for 5 minutes, usable once. The code is created by a device that is already
+  paired ("add device").
+- First device: as long as nothing is paired, the bridge writes a setup code to its log at start (e.g. Portainer ->
+  Logs). A set APP_TOKEN still counts as a key (legacy) and can also be used for pairing.
+- Wrong codes are throttled (60 s lock after 5 failed attempts).
 """
 
 from __future__ import annotations
@@ -21,6 +20,8 @@ import secrets
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional
+
+from .i18n import tr
 from .storage import save_json
 
 log = logging.getLogger("auth")
@@ -51,14 +52,14 @@ class Devices:
         self.legacy = legacy_token
         self.clock = clock
         self.devices: List[Dict[str, Any]] = []
-        self.codes: Dict[str, float] = {}          # Kopplungscode -> gueltig bis
+        self.codes: Dict[str, float] = {}          # pairing code -> valid until
         self.setup_code: Optional[str] = None
         self._fails: List[float] = []
         self._load()
         if not self.devices:
             self.setup_code = _code()
 
-    # ------------------------------------------------------------ Speicher
+    # ------------------------------------------------------------ storage
     def _load(self) -> None:
         try:
             with open(self.path, encoding="utf-8") as fh:
@@ -66,52 +67,52 @@ class Devices:
         except FileNotFoundError:
             self.devices = []
         except Exception as e:  # noqa: BLE001
-            log.error("devices.json unlesbar (%s) - keine Geraete gekoppelt", e)
+            log.error("devices.json unreadable (%s) - no devices paired", e)
             self.devices = []
 
     def _save(self) -> None:
         save_json(self.path, {"devices": self.devices}, indent=1)
 
     def announce(self) -> None:
-        """Beim Start: Einrichtungscode ins Log, wenn noch nichts gekoppelt ist."""
+        """At start: setup code to the log while nothing is paired yet."""
         if self.setup_code:
-            log.warning("Noch kein Gerät gekoppelt. Einrichtungscode: %s  (in der Weboberfläche oder App eingeben)",
+            log.warning("No device paired yet. Setup code: %s  (enter it in the web UI or the app)",
                         self.setup_code)
 
-    # ------------------------------------------------------------ Pruefen
+    # ------------------------------------------------------------ checking
     def identify(self, authorization: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Geraet zum Header "Authorization: Bearer <schluessel>" oder None."""
+        """Device for the header "Authorization: Bearer <key>", or None."""
         if not authorization or not authorization.startswith("Bearer "):
             return None
         token = authorization[7:].strip()
         if not token:
             return None
         if self.legacy and hmac.compare_digest(token, self.legacy):
-            return {"id": "app_token", "name": "APP_TOKEN (Übergang)", "kind": "other"}
+            return {"id": "app_token", "name": "APP_TOKEN (legacy)", "kind": "other"}
         h = _hash(token)
         for d in self.devices:
             if hmac.compare_digest(h, d["token_sha256"]):
                 now = self.clock()
-                if now - (d.get("last_seen") or 0) > 60:     # nicht bei jeder Anfrage schreiben
+                if now - (d.get("last_seen") or 0) > 60:     # do not write on every request
                     d["last_seen"] = now
                     self._save()
                 return d
         return None
 
     def require(self, authorization: Optional[str]) -> Dict[str, Any]:
-        """Wie identify, aber ohne gekoppeltes Geraet AuthError (fuer alles, was schreibt)."""
+        """Like identify, but AuthError without a paired device (for everything that writes)."""
         dev = self.identify(authorization)
         if dev is not None:
             return dev
         if self.setup_required:
-            raise AuthError(403, "Noch kein Gerät gekoppelt – Einrichtungscode aus dem Bridge-Log eingeben")
-        raise AuthError(401, "Dieses Gerät ist nicht (mehr) gekoppelt")
+            raise AuthError(403, tr("No device paired yet – enter the setup code from the bridge log"))
+        raise AuthError(401, tr("This device is not paired (any more)"))
 
     @property
     def setup_required(self) -> bool:
         return not self.devices and not self.legacy
 
-    # ------------------------------------------------------------ Koppeln
+    # ------------------------------------------------------------ pairing
     def new_code(self) -> Dict[str, Any]:
         now = self.clock()
         self.codes = {c: t for c, t in self.codes.items() if t > now}
@@ -125,7 +126,7 @@ class Devices:
         now = self.clock()
         self._fails = [t for t in self._fails if now - t < LOCK_S]
         if len(self._fails) >= MAX_FAILS:
-            raise AuthError(429, "Zu viele falsche Codes – eine Minute warten")
+            raise AuthError(429, tr("Too many wrong codes – wait a minute"))
 
     def pair(self, code: str, name: str, kind: str) -> Dict[str, Any]:
         self._check_rate()
@@ -141,8 +142,8 @@ class Devices:
             ok = True
         if not ok:
             self._fails.append(now)
-            raise AuthError(401, "Code falsch oder abgelaufen")
-        name = (name or "").strip()[:60] or "Gerät"
+            raise AuthError(401, tr("Code wrong or expired"))
+        name = (name or "").strip()[:60] or "Device"
         kind = kind if kind in KINDS else "other"
         token = secrets.token_urlsafe(32)
         dev = {"id": uuid.uuid4().hex[:12], "name": name, "kind": kind, "token_sha256": _hash(token),
@@ -150,16 +151,16 @@ class Devices:
         self.devices.append(dev)
         self.setup_code = None
         self._save()
-        log.info("Gerät gekoppelt: %s (%s)", name, kind)
+        log.info("Device paired: %s (%s)", name, kind)
         return {"token": token, "device": self.public(dev)}
 
     def remove(self, device_id: str) -> None:
         before = len(self.devices)
         self.devices = [d for d in self.devices if d["id"] != device_id]
         if len(self.devices) == before:
-            raise AuthError(404, "Gerät nicht gefunden")
+            raise AuthError(404, tr("Device not found"))
         self._save()
-        log.info("Gerät entfernt: %s", device_id)
+        log.info("Device removed: %s", device_id)
         if not self.devices:
             self.setup_code = _code()
             self.announce()
@@ -170,12 +171,11 @@ class Devices:
 
 
 class CameraKey:
-    """Eigener Schluessel nur fuer die Kamera, als ?key=... in der Adresse.
+    """Separate key for the camera only, as ?key=... in the URL.
 
-    Mainsail und ein <img> im Browser koennen keinen Authorization-Header mitschicken. Dieser Schluessel
-    zeigt nur Kamerabilder, schreibt nichts und kann von jedem gekoppelten Geraet neu erzeugt werden
-    (der alte Link ist dann tot). Er wird im Klartext gespeichert, damit gekoppelte Geraete den Link
-    jederzeit wieder anzeigen koennen (camera.json im Datenordner).
+    Mainsail and an <img> in the browser cannot send an Authorization header. This key only shows camera images,
+    writes nothing and can be renewed by any paired device (the old link is dead then). It is stored in plain text so
+    paired devices can show the link again at any time (camera.json in the data folder).
     """
 
     def __init__(self, data_dir: str):
@@ -187,14 +187,14 @@ class CameraKey:
         except FileNotFoundError:
             pass
         except Exception as e:  # noqa: BLE001
-            log.error("camera.json unlesbar (%s) - erzeuge neuen Kamera-Schluessel", e)
+            log.error("camera.json unreadable (%s) - creating a new camera key", e)
         if not self.key:
             self.rotate()
 
     def rotate(self) -> str:
         self.key = secrets.token_urlsafe(24)
         save_json(self.path, {"key": self.key})
-        log.info("Neuer Kamera-Schlüssel erzeugt (alte Kamera-Links gelten nicht mehr)")
+        log.info("New camera key created (old camera links stop working)")
         return self.key
 
     def check(self, key: Optional[str]) -> bool:

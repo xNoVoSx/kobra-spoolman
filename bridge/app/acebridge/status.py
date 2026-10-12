@@ -1,8 +1,7 @@
-"""Meldungen und Status fuer die Uebersicht (Weboberflaeche und App).
+"""Messages and status for the overview (web UI and app).
 
-Alles hier wird aus dem gerechnet, was die Bridge ohnehin weiss (Moonraker-Abo, Spoolman, Druckdatei,
-Geraete) - kein zusaetzlicher Abruf am Drucker. Meldungen sind nach Wichtigkeit sortiert:
-error (rot) > warn (gelb) > info.
+Everything here is computed from what the bridge knows anyway (Moonraker subscription, Spoolman, print file, devices)
+- no extra request to the printer. Messages are sorted by importance: error (red) > warn (yellow) > info.
 """
 
 from __future__ import annotations
@@ -11,19 +10,21 @@ import math
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from .i18n import tr
+from .slots import hint_level, is_unknown_tag_event
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
 
-LOW_SPOOL_G = 100           # darunter: "Spule fast leer" (Standard; einstellbar: cfg.low_spool_g)
-REACH_RESERVE_PCT = 5.0     # Reserve bei "reicht die Spule?" (cfg.reach_reserve_pct)
-RECENT_S = 30 * 60          # so lange bleiben "Druck fertig" / Trockner-Ereignisse als Info stehen
-ONLINE_S = 5 * 60           # Geraet gilt als verbunden, wenn es sich so kurz vorher gemeldet hat
+LOW_SPOOL_G = 100           # below: "spool almost empty" (default; adjustable: cfg.low_spool_g)
+REACH_RESERVE_PCT = 5.0     # reserve for "is the spool enough?" (cfg.reach_reserve_pct)
+RECENT_S = 30 * 60          # "print finished" / dryer events stay as info this long
+ONLINE_S = 5 * 60           # a device counts as connected when it reported this recently
 LEVELS = {"error": 0, "warn": 1, "info": 2}
-# CPU des Klipper-Rechners (Pi), wie Moonraker sie meldet. Keine Meldung, nur die Statuszeile: haengt Klipper
-# wirklich, meldet sich "Drucker nicht erreichbar" bzw. "Klipper nicht bereit".
-CPU_WARN = 90               # Status gelb ab
-CPU_BAD = 97                # Status rot ab (wie CAMERA_CPU_HIGH)
+# CPU of the Klipper computer, as Moonraker reports it. No message, only the status line: if Klipper really hangs,
+# "printer not reachable" or "Klipper not ready" appears.
+CPU_WARN = 90               # status yellow from
+CPU_BAD = 97                # status red from
 
 
 def _msg(level: str, text: str, key: str) -> Dict[str, str]:
@@ -43,16 +44,16 @@ def _iso_age(iso: Optional[str], now: float) -> Optional[float]:
         return None
 
 
-# ====================================================================== Reicht die Spule?
-# ACEPRO beim Laden eines Slots (ace_KS1.cfg): vom Kopf-Sensor bis zur Duese, danach Spuelen. Die Spuelmenge je
-# Wechsel steht in der Datei (ACE_SET_PURGE_AMOUNT aus Orcas Filamentwechsel-G-Code), sonst die Voreinstellung des Treibers.
+# ====================================================================== is the spool enough?
+# ACEPRO when loading a slot (ace_KS1.cfg): from the head sensor to the nozzle, then purging. The purge length per
+# change is in the file (ACE_SET_PURGE_AMOUNT from Orca's change-filament G-code), else the driver's default.
 LOAD_TO_NOZZLE_MM = 85.0
 DEFAULT_PURGE_MM = 50.0
 
 
 def _slot_need(bridge: "Bridge", offset: Optional[int]) -> Dict[int, float]:
-    """mm pro Slot ab der Byte-Position (0 = ganze Datei): Druckdatei + Laden und Spuelen der noch kommenden
-    Farbwechsel. Werkzeug T<n> = Slot n (ACEPRO)."""
+    """mm per slot from the byte position on (0 = whole file): print file + loading and purging of the colour changes
+    still to come. Tool T<n> = slot n+1 (ACEPRO)."""
     rest_mm, later = bridge.preview.model.remaining(offset)
     need: Dict[int, float] = {}
     for tool, mm in rest_mm.items():
@@ -79,8 +80,8 @@ def _model_ready(bridge: "Bridge") -> bool:
 
 
 def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
-    """Pro Slot im laufenden Druck: noch benoetigt (Druckdatei ab aktueller Position + Spuelen der noch
-    kommenden Farbwechsel) gegen den Rest auf der zugeordneten Spule."""
+    """Per slot in the running print: still needed (print file from the current position + purging of the colour
+    changes still to come) against the remainder on the assigned spool."""
     if not _model_ready(bridge):
         return []
     pos = (bridge.moon.status.get("virtual_sdcard") or {}).get("file_position")
@@ -102,8 +103,8 @@ def spool_reach(bridge: "Bridge") -> List[Dict[str, Any]]:
 
 
 def file_usage(bridge: "Bridge") -> List[Dict[str, Any]]:
-    """Welche Slots die laufende Druckdatei benutzt: gesamt und noch offen (mm/g, inkl. Spuelen) mit Spule und Farbe.
-    Fuer die Zeile "benutzt" in Web und App."""
+    """Which slots the running print file uses: total and still open (mm/g, incl. purging) with spool and colour.
+    For the "used" line in web and app."""
     if not _model_ready(bridge):
         return []
     pos = (bridge.moon.status.get("virtual_sdcard") or {}).get("file_position")
@@ -123,26 +124,28 @@ def file_usage(bridge: "Bridge") -> List[Dict[str, Any]]:
     return out
 
 
-# ====================================================================== Meldungen
+# ====================================================================== messages
 def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[Dict[str, str]]:
     out: List[Dict[str, str]] = []
     moon = bridge.moon
     ps = moon.status.get("print_stats") or {}
     state = ps.get("state")
     if not moon.connected:
-        out.append(_msg("error", "Drucker nicht erreichbar (Moonraker)", "printer"))
+        out.append(_msg("error", tr("Printer not reachable (Moonraker)"), "printer"))
     elif not moon.klippy_ready:
-        out.append(_msg("error", "Klipper ist nicht bereit", "klippy"))
+        out.append(_msg("error", tr("Klipper is not ready"), "klippy"))
     elif state == "paused":
-        out.append(_msg("error", "Druck pausiert" + (f": {ps['message']}" if ps.get("message") else ""), "paused"))
+        out.append(_msg("error", tr("Print paused: {why}", why=ps["message"]) if ps.get("message")
+                        else tr("Print paused"), "paused"))
     elif state == "error":
-        out.append(_msg("error", "Druckerfehler" + (f": {ps['message']}" if ps.get("message") else ""), "error"))
+        out.append(_msg("error", tr("Printer error: {why}", why=ps["message"]) if ps.get("message")
+                        else tr("Printer error"), "error"))
 
     rs = getattr(bridge, "resume", None)
     if rs is not None and rs.message():
         out.append(_msg("error", rs.message(), "resume"))
     elif rs is not None and rs.error:
-        out.append(_msg("error", f"Fortsetzen abgebrochen: {rs.error}", "resume"))
+        out.append(_msg("error", tr("Resume cancelled: {error}", error=rs.error), "resume"))
     usb = getattr(bridge, "usb", None)
     if usb is not None and usb.message():
         out.append(_msg("error", usb.message(), "usb"))
@@ -157,20 +160,20 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
 
     for s in bridge.slots.slots_view():
         for h in s["hints"]:
-            level = "error" if "kein Material" in h else "warn" if ("meldet" in h or "weicht" in h) else "info"
-            out.append(_msg(level, f"Slot {s['slot']}: {h}", f"hint{s['slot']}"))
+            out.append(_msg(hint_level(h), tr("Slot {slot}: {hint}", slot=s["slot"], hint=h), f"hint{s['slot']}"))
         sp = s["spool"]
         rem = sp.get("remaining_weight") if sp else None
         if rem is not None and rem < getattr(bridge.cfg, "low_spool_g", LOW_SPOOL_G):
-            out.append(_msg("warn", f"Slot {s['slot']}: {sp.get('display_name') or 'Spule'} fast leer "
-                                    f"(noch {round(rem)} g)", f"low{s['slot']}"))
+            out.append(_msg("warn", tr("Slot {slot}: {name} almost empty ({g} g left)", slot=s["slot"],
+                                       name=sp.get("display_name") or tr("spool"), g=round(rem)), f"low{s['slot']}"))
 
     for r in reach:
         if r["enough"] is False:
-            out.append(_msg("warn", f"Slot {r['slot']} reicht wohl nicht für diesen Druck: braucht noch "
-                                    f"~{round(r['need_g'])} g, auf der Spule {round(r['have_g'])} g", f"reach{r['slot']}"))
+            out.append(_msg("warn", tr("Slot {slot} is probably not enough for this print: needs ~{need} g more, "
+                                       "{have} g on the spool", slot=r["slot"], need=round(r["need_g"]),
+                                       have=round(r["have_g"])), f"reach{r['slot']}"))
         elif r["enough"] is None and r.get("need_g") is None:
-            out.append(_msg("warn", f"Slot {r['slot']} wird noch gebraucht, hat aber keine Spule zugeordnet",
+            out.append(_msg("warn", tr("Slot {slot} is still needed but has no spool assigned", slot=r["slot"]),
                             f"reach{r['slot']}"))
 
     for ev in getattr(getattr(bridge, "pa", None), "events", []):
@@ -179,35 +182,39 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
 
     slots = bridge.slots
     for gate, nr in sorted(getattr(slots, "unknown_tags", {}).items()):
-        out.append(_msg("warn", f"Slot {gate + 1}: unbekannter Tag {nr} – Spule zuordnen, die Nummer wird gemerkt",
-                        f"tag{gate + 1}"))
+        out.append(_msg("warn", tr("Slot {slot}: unknown tag {nr} – assign a spool, the number will be remembered",
+                                   slot=gate + 1, nr=nr), f"tag{gate + 1}"))
     for ev in getattr(slots, "tag_events", []):
-        if now - ev["at"] < RECENT_S and "unbekannter Tag" not in ev["text"]:
+        if now - ev["at"] < RECENT_S and not is_unknown_tag_event(ev["text"]):
             out.append(_msg("info", ev["text"], "rfid"))
 
     n_open = len(bridge.usage.open or [])
     if n_open:
-        out.append(_msg("warn", f"{n_open} Buchung{'en' if n_open > 1 else ''} noch nicht in Spoolman", "open"))
+        out.append(_msg("warn", tr("{n} booking not in Spoolman yet", n=n_open) if n_open == 1
+                        else tr("{n} bookings not in Spoolman yet", n=n_open), "open"))
     if not bridge.sm.connected:
-        out.append(_msg("warn", "Spoolman nicht erreichbar – Verbrauch wird gemerkt und nachgebucht", "spoolman"))
+        out.append(_msg("warn", tr("Spoolman not reachable – consumption is kept and booked later"), "spoolman"))
 
     dry = bridge.dryer.state()
     hum, cfg = dry.get("humidity"), dry.get("config") or {}
-    # nur ohne Automatik: mit Automatik trocknet die Bridge selbst
+    # only without automation: with automation the bridge dries by itself
     if (hum is not None and not cfg.get("enabled") and cfg.get("start_above") is not None
             and hum >= cfg["start_above"] and not dry.get("drying")):
-        out.append(_msg("info", f"Feuchte im ACE {hum} % – Trocknen empfohlen", "humidity"))
+        out.append(_msg("info", tr("Humidity in the ACE {rh} % – drying recommended", rh=hum), "humidity"))
     ev = dry.get("last_event") or {}
     age = _iso_age(ev.get("at"), now)
     if age is not None and age < RECENT_S:
-        out.append(_msg("info", f"Trockner: {ev.get('text')}", "dryer"))
+        out.append(_msg("info", tr("Dryer: {text}", text=ev.get("text")), "dryer"))
 
     last = bridge.usage.history[0] if bridge.usage.history else None
     age = _iso_age((last or {}).get("ended"), now)
     if last and age is not None and age < RECENT_S and state not in ("printing", "paused"):
-        word = {"complete": "fertig", "cancelled": "abgebrochen", "error": "mit Fehler beendet"}.get(
-            last.get("state"), "beendet")
-        out.append(_msg("info", f"Druck {word}: {last.get('file')} (vor {round(age / 60)} min)", "done"))
+        text = {"complete": tr("Print finished: {file} ({min} min ago)", file=last.get("file"), min=round(age / 60)),
+                "cancelled": tr("Print cancelled: {file} ({min} min ago)", file=last.get("file"), min=round(age / 60)),
+                "error": tr("Print ended with an error: {file} ({min} min ago)", file=last.get("file"),
+                            min=round(age / 60))}.get(last.get("state"))
+        out.append(_msg("info", text or tr("Print ended: {file} ({min} min ago)", file=last.get("file"),
+                                           min=round(age / 60)), "done"))
 
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
@@ -223,16 +230,17 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     if callable(wet):
         drying = bridge.dryer.state().get("drying")
         for slot, s, v, h in wet():
-            if slot in checked:          # schon als Druckstart-Pruefung gemeldet (rot)
+            if slot in checked:          # already reported by the print start check (red)
                 continue
             f = s.get("filament") or {}
-            name = f.get("name") or f"Spule #{s.get('id')}"
+            name = f.get("name") or tr("Spool #{id}", id=s.get("id"))
             if drying:
-                out.append(_msg("info", f"Slot {slot}: {name} wird getrocknet", f"wet{slot}"))
+                out.append(_msg("info", tr("Slot {slot}: {name} is being dried", slot=slot, name=name), f"wet{slot}"))
             else:
-                why = "neu, Verlauf unbekannt" if v["score"] is None else f"Feuchte-Schätzung {v['score']} %"
-                out.append(_msg("warn", f"Slot {slot}: {name} wahrscheinlich feucht ({why}) – vor dem Druck ~{h:g} h trocknen",
-                                f"wet{slot}"))
+                why = (tr("new, history unknown") if v["score"] is None
+                       else tr("moisture estimate {score} %", score=v["score"]))
+                out.append(_msg("warn", tr("Slot {slot}: {name} probably damp ({why}) – dry ~{h:g} h before printing",
+                                           slot=slot, name=name, why=why, h=float(h)), f"wet{slot}"))
     vision = getattr(bridge, "vision", None)
     if vision is not None:
         out.extend(vision.messages())
@@ -240,15 +248,15 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     return out
 
 
-# ====================================================================== CPU des Klipper-Rechners
+# ====================================================================== CPU of the Klipper computer
 def printer_cpu(bridge: "Bridge") -> Optional[float]:
-    """CPU des Klipper-Rechners (Pi; Mittel der letzten 5 s) aus Moonrakers notify_proc_stat_update."""
+    """CPU of the Klipper computer (mean of the last 5 s) from Moonraker's notify_proc_stat_update."""
     cpu = getattr(bridge.moon, "cpu", None)
     return cpu(5.0) if callable(cpu) else None
 
 
-# ====================================================================== Status
-def _device_status(bridge: "Bridge", kind: str, label: str, now: float) -> Optional[Dict[str, Any]]:
+# ====================================================================== status
+def _device_status(bridge: "Bridge", kind: str, label: Any, now: float) -> Optional[Dict[str, Any]]:
     devs = [d for d in bridge.devices.devices if d.get("kind") == kind]
     if not devs:
         return None
@@ -261,39 +269,41 @@ def _device_status(bridge: "Bridge", kind: str, label: str, now: float) -> Optio
 def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
     moon = bridge.moon
     lines: List[Dict[str, Any]] = []
+    printer = tr("Printer")
     if not moon.connected:
-        lines.append({"key": "printer", "label": "Drucker", "state": "bad", "detail": "nicht erreichbar"})
+        lines.append({"key": "printer", "label": printer, "state": "bad", "detail": tr("not reachable")})
     elif not moon.klippy_ready:
-        lines.append({"key": "printer", "label": "Drucker", "state": "warn", "detail": "Klipper nicht bereit"})
+        lines.append({"key": "printer", "label": printer, "state": "warn", "detail": tr("Klipper not ready")})
     else:
-        lines.append({"key": "printer", "label": "Drucker", "state": "ok", "detail": "Moonraker verbunden"})
+        lines.append({"key": "printer", "label": printer, "state": "ok", "detail": tr("Moonraker connected")})
     usb = getattr(bridge, "usb", None)
     if usb is not None and usb.available():
-        lines.append({"key": "usb", "label": "USB-Tunnel", **usb.summary()})
+        lines.append({"key": "usb", "label": tr("USB tunnel"), **usb.summary()})
     cpu = printer_cpu(bridge)
     if cpu is not None:
-        lines.append({"key": "cpu", "label": "Klipper-CPU (Pi)", "detail": f"{cpu:.0f} %",
+        lines.append({"key": "cpu", "label": tr("Klipper CPU"), "detail": f"{cpu:.0f} %",
                       "state": "ok" if cpu < CPU_WARN else "warn" if cpu < CPU_BAD else "bad"})
     lines.append({"key": "spoolman", "label": "Spoolman", "state": "ok" if bridge.sm.connected else "bad",
-                  "detail": "verbunden" if bridge.sm.connected else "nicht erreichbar"})
+                  "detail": tr("connected") if bridge.sm.connected else tr("not reachable")})
     cam = bridge.camera.state()
+    camera = tr("Camera")
     if not cam.get("enabled"):
-        lines.append({"key": "camera", "label": "Kamera", "state": "off", "detail": "abgeschaltet"})
+        lines.append({"key": "camera", "label": camera, "state": "off", "detail": tr("switched off")})
     elif cam.get("error") and cam.get("mode") == "idle":
-        lines.append({"key": "camera", "label": "Kamera", "state": "warn", "detail": cam["error"]})
+        lines.append({"key": "camera", "label": camera, "state": "warn", "detail": cam["error"]})
     elif cam.get("mode") in ("stream", "snapshots"):
-        detail = f"{cam['fps']:.0f} fps" if cam.get("fps") else "läuft"
-        detail += f" · {cam['viewers']} Zuschauer" if cam.get("viewers") else ""
-        lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": detail})
+        fps = f"{cam['fps']:.0f} fps" if cam.get("fps") else tr("running")
+        detail = tr("{fps} · {n} viewers", fps=fps, n=cam["viewers"]) if cam.get("viewers") else fps
+        lines.append({"key": "camera", "label": camera, "state": "ok", "detail": detail})
     else:
-        lines.append({"key": "camera", "label": "Kamera", "state": "ok", "detail": "bereit (nur wenn jemand schaut)"})
+        lines.append({"key": "camera", "label": camera, "state": "ok", "detail": tr("ready (only while someone watches)")})
     vision = getattr(bridge, "vision", None)
     if vision is not None:
         lines.append(vision.status_line())
     mqtt = getattr(bridge, "mqtt", None)
     if mqtt is not None:
         lines.extend(mqtt.status_lines())
-    for kind, label in (("app", "Handy-App"), ("plugin", "Orca-Plugin")):
+    for kind, label in (("app", tr("Phone app")), ("plugin", tr("Orca plugin"))):
         d = _device_status(bridge, kind, label, now)
         if d:
             lines.append(d)

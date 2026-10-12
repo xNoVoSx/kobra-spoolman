@@ -187,7 +187,7 @@ def test_display_started_drying_is_recorded_too(cfg):
     moon.merge(hub(humidity=20, drying=False))
     clock.t += 360 * 60                                                 # geplante 360 min (Display)
     log.tick()
-    assert log.recent_sessions()[0]["end_reason"] == "Laufzeit um"
+    assert log.recent_sessions()[0]["end_reason"] == "time is up"
 
 
 def test_drying_already_running_at_bridge_start_has_unknown_origin(cfg):
@@ -195,7 +195,7 @@ def test_drying_already_running_at_bridge_start_has_unknown_origin(cfg):
     moon.merge(hub(humidity=30, drying=True, target=50, remain=3600))
     log = HumidityLog(cfg, moon, clock=Clock())
     log.tick()
-    assert log.open["source"] == "unbekannt" and "Start der Bridge" in log.open["reason"]
+    assert log.open["source"] == "unbekannt" and "when the bridge started" in log.open["reason"]
 
 
 def test_ensure_only_restarts_when_too_short(cfg):

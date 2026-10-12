@@ -77,7 +77,7 @@ def test_print_raises_alarm_message_and_false_alarm_mutes(vision):
 
     ev_id = v.event["id"]
     v.feedback(ev_id, "false_alarm")
-    assert v.muted and v.messages() == [] and "stumm" in v.status_line()["detail"]
+    assert v.muted and v.messages() == [] and "muted" in v.status_line()["detail"]
     labels = os.path.join(v.dir, "jobs", v.job, "labels.jsonl")
     first = json.loads(open(labels).read().splitlines()[0])
     assert first["verdict"] == "false_alarm" and first["label"] == "ok"
@@ -111,7 +111,7 @@ def test_pause_only_with_vision_action_pause(vision):
     v.settings.action = "pause"
     v.event = None
     run_print(v, moon, clock, 3.0, 1)
-    assert sent == [("printer.print.pause", "KI")] and "pausiert" in v.messages()[0]["text"]
+    assert sent == [("printer.print.pause", "AI")] and "paused" in v.messages()[0]["text"]
 
 
 def test_unreachable_service_is_a_quiet_message_during_print(vision, monkeypatch):

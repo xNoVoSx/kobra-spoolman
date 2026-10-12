@@ -1,13 +1,13 @@
-"""Druckphase: was macht der Drucker gerade? Statt nur "Druckt" z. B. "Heizt Bett 63/100 °C", "Vorheizen 5/15 min",
-"Wechsel auf Slot 2 · lädt", "Misst Pressure Advance", "Druckt · Schicht 34/120".
+"""Print phase: what is the printer doing right now? Instead of just "Printing" e.g. "Heating bed 63/100 °C",
+"Heat soak 5/15 min", "Change to slot 2 · loading", "Measuring pressure advance", "Printing · layer 34/120".
 
-Quellen (alles aus dem bestehenden Abo, keine Abfrage am Drucker):
-- Klipper-Modul kobra_phase (kobra-klipper): Schritt des Druckstarts (G9111), Vorheizen, Werkzeugwechsel, Fortsetzen
-- kobra_pa.measuring: Auto-PA misst
-- ace.target_index: Wechsel laeuft (auch ohne kobra_phase)
-- Konsole (ACEPRO-Meldungen): Teilschritt beim Wechsel - heizt, entlaedt, laedt, spuelt
-- print_stats.info: Schicht x/y
-Ist kobra_phase am Drucker abgeschaltet oder fehlt, bleibt es bei Wechsel/PA/Schicht.
+Sources (all from the existing subscription, no query to the printer):
+- Klipper module kobra_phase (kobra-klipper): step of the print start (G9111), heat soak, tool change, resume
+- kobra_pa.measuring: auto PA is measuring
+- ace.target_index: a change is running (also without kobra_phase)
+- console (ACEPRO messages): sub-step of the change - heating, unloading, loading, purging
+- print_stats.info: layer x/y
+If kobra_phase is switched off on the printer or missing, only change/PA/layer remain.
 """
 
 from __future__ import annotations
@@ -16,38 +16,40 @@ import re
 import time
 from typing import Any, Callable, Dict, Optional, Tuple
 
+from .i18n import tr
+
 OBJ = "kobra_phase"
 SUBSCRIBE = {OBJ: ["phase", "slot", "done", "total", "since", "seq", "enabled"]}
 
-# Schluessel wie PHASES in kobra-klipper/klipper-extras/kobra_phase.py (dort gleich halten, Test prueft es)
+# keys like PHASES in kobra-klipper/klipper-extras/kobra_phase.py (keep them equal there, a test checks it)
 TEXT = {
-    "heat_bed": "Heizt Bett",
-    "soak": "Vorheizen",
-    "wipe": "Wischt Düse",
-    "cool": "Kühlt Düse zum Tasten",
-    "home_z": "Tastet Z",
-    "mesh": "Misst Bettnetz",
-    "heat_nozzle": "Heizt Düse",
-    "change": "Wechsel",
-    "purge": "Spült",
-    "pa": "Misst Pressure Advance",
-    "prime": "Reinigungslinie",
-    "resume": "Setzt Druck fort",
-    "end": "Druckende",
+    "heat_bed": tr("Heating bed"),
+    "soak": tr("Heat soak"),
+    "wipe": tr("Wiping nozzle"),
+    "cool": tr("Cooling nozzle for probing"),
+    "home_z": tr("Probing Z"),
+    "mesh": tr("Measuring bed mesh"),
+    "heat_nozzle": tr("Heating nozzle"),
+    "change": tr("Change"),
+    "purge": tr("Purging"),
+    "pa": tr("Measuring pressure advance"),
+    "prime": tr("Prime line"),
+    "resume": tr("Resuming print"),
+    "end": tr("Print end"),
 }
 
-# ACEPRO-Meldungen beim Werkzeugwechsel -> Teilschritt (ace_macros_generic.cfg, manager.py)
+# ACEPRO messages during a tool change -> sub-step (ace_macros_generic.cfg, manager.py)
 STEPS = (
-    (re.compile(r"ACE\[M\]: Pre toolchange|ACE\[M\]: PRE - heating"), "heizt"),
-    (re.compile(r"Smart unload tool|performing unload|triggered unload"), "entlädt"),
-    (re.compile(r"Loading tool \d|Feeding slot \d"), "lädt"),
-    (re.compile(r"ACE\[M\]: Post toolchange|ACE\[M\]: Purging|purging additional"), "spült"),
+    (re.compile(r"ACE\[M\]: Pre toolchange|ACE\[M\]: PRE - heating"), tr("heating")),
+    (re.compile(r"Smart unload tool|performing unload|triggered unload"), tr("unloading")),
+    (re.compile(r"Loading tool \d|Feeding slot \d"), tr("loading")),
+    (re.compile(r"ACE\[M\]: Post toolchange|ACE\[M\]: Purging|purging additional"), tr("purging")),
 )
-STEP_MAX_AGE = 600.0       # ein Teilschritt aelter als 10 min gehoert nicht mehr zum laufenden Wechsel
+STEP_MAX_AGE = 600.0       # a sub-step older than 10 min no longer belongs to the running change
 
 
 class ChangeSteps:
-    """Merkt sich den letzten Teilschritt des Werkzeugwechsels aus der Konsole."""
+    """Remembers the last sub-step of the tool change from the console."""
 
     def __init__(self, clock: Callable[[], float] = time.time):
         self.clock = clock
@@ -61,7 +63,7 @@ class ChangeSteps:
                 return
 
     def current(self, since: Optional[float] = None) -> Optional[str]:
-        """Teilschritt, wenn er nach `since` (Beginn des Wechsels) kam und nicht zu alt ist."""
+        """Sub-step, if it came after `since` (start of the change) and is not too old."""
         if not self.step:
             return None
         name, at = self.step
@@ -70,15 +72,15 @@ class ChangeSteps:
         return name
 
 
-def _heater(status: Dict[str, Any], obj: str) -> str:
+def _heater(status: Dict[str, Any], obj: str, label: Any) -> Any:
     h = status.get(obj) or {}
     if h.get("temperature") is None or not h.get("target"):
-        return ""
-    return f" {round(float(h['temperature']))}/{round(float(h['target']))} °C"
+        return label
+    return tr("{label} {t}/{target} °C", label=label, t=round(float(h["temperature"])), target=round(float(h["target"])))
 
 
 def describe(status: Dict[str, Any], steps: Optional[ChangeSteps] = None) -> Optional[Dict[str, str]]:
-    """{"key", "text"} oder None (dann zeigt die Oberflaeche den Druckerstatus wie bisher)."""
+    """{"key", "text"} or None (then the UI shows the printer state as before)."""
     ps = status.get("print_stats") or {}
     state = ps.get("state") or "standby"
     kp = status.get("kobra_pa") or {}
@@ -93,26 +95,27 @@ def describe(status: Dict[str, Any], steps: Optional[ChangeSteps] = None) -> Opt
     if key == "change" or changing:
         slot = ph.get("slot") if key == "change" and ph.get("slot") else (target + 1 if changing else None)
         step = steps.current(ph.get("since") if key == "change" else None) if steps else None
-        text = f"Wechsel auf Slot {slot}" if slot else "Wechselt Filament"
-        return {"key": "change", "text": text + (f" · {step}" if step else "")}
+        text = tr("Change to slot {slot}", slot=slot) if slot else tr("Changing filament")
+        return {"key": "change", "text": tr("{text} · {step}", text=text, step=step) if step else text}
     if key == "resume":
         return {"key": key, "text": TEXT[key]}
     if state != "printing":
-        return None                            # Pause, Fertig, Fehler ...: der Status sagt es schon
+        return None                            # paused, complete, error ...: the state says it already
     if key in TEXT:
         text = TEXT[key]
         if key == "soak" and ph.get("total"):
-            text += f" {int(ph.get('done') or 0)}/{int(ph['total'])} min"
+            text = tr("{label} {done}/{total} min", label=text, done=int(ph.get("done") or 0), total=int(ph["total"]))
         elif key == "heat_bed":
-            text += _heater(status, "heater_bed")
+            text = _heater(status, "heater_bed", text)
         elif key in ("heat_nozzle", "wipe"):
-            text += _heater(status, "extruder")
+            text = _heater(status, "extruder", text)
         elif key == "cool":
             ext = status.get("extruder") or {}
             if ext.get("temperature") is not None:
-                text += f" ({round(float(ext['temperature']))} °C)"
+                text = tr("{label} ({t} °C)", label=text, t=round(float(ext["temperature"])))
         return {"key": key, "text": text}
     info = ps.get("info") or {}
     if info.get("total_layer"):
-        return {"key": "printing", "text": f"Druckt · Schicht {info.get('current_layer') or 0}/{info['total_layer']}"}
-    return {"key": "printing", "text": "Druckt"}
+        return {"key": "printing", "text": tr("Printing · layer {layer}/{total}", layer=info.get("current_layer") or 0,
+                                              total=info["total_layer"])}
+    return {"key": "printing", "text": tr("Printing")}

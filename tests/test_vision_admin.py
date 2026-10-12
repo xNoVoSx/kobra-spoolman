@@ -111,7 +111,7 @@ def test_manual_mute_and_pause_with_heater_off(vision):
     v.mute(True)                                                                   # nach dem Druckstart
     run_print(v, moon, clock, 0.0, 40)
     run_print(v, moon, clock, 3.0, 4)
-    assert sent == [] and "von Hand" in v.status_line()["detail"]
+    assert sent == [] and "by hand" in v.status_line()["detail"]
     v.mute(False)
     run_print(v, moon, clock, 3.0, 1)
     assert sent == ["printer.print.pause", "M104 S0"]
@@ -180,7 +180,7 @@ def test_dataset_api_label_delete_export(cfg, vision):
             assert (await c.post("/api/vision/settings", json={"sensitivity": 20}, headers=h)).status == 400
             r = await c.post("/api/vision/test", data=b"\xff\xd8bild", headers={**h, "Content-Type": "image/jpeg"})
             t = await r.json()
-            assert r.status == 200 and t["source"] == "upload" and t["verdict"] == "auffällig"
+            assert r.status == 200 and t["source"] == "upload" and t["verdict"] == "conspicuous"
             assert (await c.post("/api/vision/baseline/reset", headers=h)).status == 200
             assert v.pred.lifetime == 0
     asyncio.run(go())

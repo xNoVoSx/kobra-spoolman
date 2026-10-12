@@ -1,9 +1,9 @@
-"""Druckdateien am Drucker fuers Display: Liste mit Vorschaubild, Druck starten (mit Blick auf die Slots), erneut drucken.
+"""Print files on the printer for the display: list with thumbnails, start a print (checked against the slots), reprint.
 
-Quelle ist Moonraker (Dateiliste + Metadaten, die Moonraker beim Hochladen aus dem G-Code liest: Druckzeit, Gewicht,
-Vorschaubilder, Filamenttyp/-farbe je Werkzeug). Metadaten werden je Datei und Aenderungszeit zwischengespeichert.
-Vor dem Start vergleicht die Bridge die Werkzeuge der Datei mit den Slots (ACEPRO: Werkzeug T<n> = Slot n+1):
-Material gleich? Farbe ungefaehr gleich? Hinweise, kein Verbot - gestartet wird erst nach Bestaetigung.
+The source is Moonraker (file list + the metadata Moonraker reads from the G-code on upload: print time, weight,
+thumbnails, filament type/colour per tool). Metadata is cached per file and modification time.
+Before starting, the bridge compares the file's tools with the slots (ACEPRO: tool T<n> = slot n+1): same material?
+roughly the same colour? Hints, not a block - the print starts only after confirmation.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import posixpath
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
+from .i18n import tr
 from .slots import base_type
 
 if TYPE_CHECKING:
@@ -21,8 +22,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("files")
 
-LIST_MAX = 60                # so viele neueste Dateien zeigt das Display
-COLOUR_LIMIT = 140           # RGB-Abstand, ab dem eine Farbe "deutlich anders" ist (wie printcheck)
+LIST_MAX = 60                # the display shows this many newest files
+COLOUR_LIMIT = 140           # RGB distance from which a colour is "clearly different" (like printcheck)
 IDLE = ("standby", "complete", "cancelled", "error", "", None)
 
 
@@ -55,7 +56,7 @@ def colour_far(a: Optional[str], b: Optional[str]) -> bool:
 
 
 def tools_of(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Werkzeuge der Datei mit Typ und Farbe. referenced_tools (Moonraker) = wirklich benutzt; ohne: alle mit Typ."""
+    """Tools of the file with type and colour. referenced_tools (Moonraker) = really used; without: all with a type."""
     types = _split(meta.get("filament_type"))
     colours = _split(meta.get("filament_colors") or meta.get("extruder_colors"))
     names = _split(meta.get("filament_name"))
@@ -81,8 +82,8 @@ class Files:
             return hit[1]
         try:
             meta = await self.moon.get_json("/server/files/metadata?filename=" + quote(path)) or {}
-        except Exception as e:  # noqa: BLE001 - Datei ohne Metadaten bleibt trotzdem in der Liste
-            log.debug("Metadaten %s: %s", path, e)
+        except Exception as e:  # noqa: BLE001 - a file without metadata stays in the list anyway
+            log.debug("Metadata %s: %s", path, e)
             meta = {}
         self._meta[path] = (modified, meta)
         return meta
@@ -108,7 +109,7 @@ class Files:
         thumbs = [t for t in meta.get("thumbnails") or [] if t.get("relative_path")]
         if not thumbs:
             return None
-        # groesstes Bild bis 300 px (das Display zeigt hoechstens ~250 px), sonst das kleinste
+        # largest image up to 300 px (the display shows at most ~250 px), else the smallest
         fit = [t for t in thumbs if (t.get("width") or 0) <= 300]
         pick = max(fit, key=lambda t: t.get("width") or 0) if fit else min(thumbs, key=lambda t: t.get("width") or 0)
         rel = posixpath.normpath(posixpath.join(posixpath.dirname(path), pick["relative_path"]))
@@ -117,10 +118,10 @@ class Files:
         return await self.moon.get_bytes("/server/files/gcodes/" + quote(rel))
 
     async def check(self, path: str) -> Dict[str, Any]:
-        """Werkzeuge der Datei neben den Slots, mit Hinweisen (Material, Farbe, leerer Slot)."""
+        """Tools of the file next to the slots, with hints (material, colour, empty slot)."""
         meta = await self._metadata(path, (self._meta.get(path) or (0, {}))[0])
         if not meta:
-            raise FileError(404, "Datei unbekannt")
+            raise FileError(404, tr("Unknown file"))
         assigned, _ = self.slots.assignments()
         rows = []
         for t in tools_of(meta):
@@ -130,12 +131,12 @@ class Files:
             have_col = (fil.get("color_hex") or "")[:6] or None
             hints = []
             if not spool:
-                hints.append("keine Spule im Slot")
+                hints.append(tr("no spool in the slot"))
             else:
                 if t["type"] and have_type and base_type(t["type"]).upper() != have_type.upper():
-                    hints.append(f"Datei {t['type']}, Slot {have_type}")
+                    hints.append(tr("file {file}, slot {slot}", file=t["type"], slot=have_type))
                 if colour_far(t["color"], have_col):
-                    hints.append("Farbe weicht ab")
+                    hints.append(tr("colour differs"))
             rows.append({**t, "have_type": have_type or None, "have_color": have_col,
                          "have_name": fil.get("name") or None, "hints": hints})
         return {"path": path, "est_s": meta.get("estimated_time"), "weight_g": meta.get("filament_weight_total"),
@@ -144,13 +145,13 @@ class Files:
     async def start(self, path: str, confirm: bool, source: str) -> Dict[str, Any]:
         state = (self.moon.status.get("print_stats") or {}).get("state")
         if not self.moon.klippy_ready:
-            raise FileError(503, "Klipper ist nicht bereit")
+            raise FileError(503, tr("Klipper is not ready"))
         if state not in IDLE:
-            raise FileError(409, "Es läuft schon ein Druck")
+            raise FileError(409, tr("A print is already running"))
         info = await self.check(path)
         if not confirm:
-            raise FileError(409, "Druck starten?", confirm="start")
+            raise FileError(409, tr("Start the print?"), confirm="start")
         if self.moon.console is not None:
-            self.moon.console.add("command", f"Druck starten: {path}", source)
+            self.moon.console.add("command", tr("Start print: {file}", file=path), source)
         await self.moon.post_json("/printer/print/start", {"filename": path})
         return {"ok": True, "path": path, "warnings": [h for r in info["tools"] for h in r["hints"]]}

@@ -113,7 +113,7 @@ def test_only_the_assignment_writes_to_the_ace(make):
     mgr, moon = make(ace([""]), [petg_spool(8, 1)])
     run(mgr.evaluate())
     assert moon.sent == []
-    assert any("neu zuordnen" in h for h in mgr.slots_view()[0]["hints"])
+    assert any("assign the spool here again" in h for h in mgr.slots_view()[0]["hints"])
     run(mgr.assign(1, 8))                     # erneut zuordnen -> einmal schreiben
     assert moon.sent == ["ACE_SET_SLOT T=0 MATERIAL=PETG COLOR=104,91,199 TEMP=245"]
     run(mgr.evaluate())
@@ -124,7 +124,7 @@ def test_assignment_before_loading_waits_for_the_spool(make):
     mgr, moon = make(ace([""], present=[False]), [petg_spool(8)])
     run(mgr.assign(1, 8))
     assert moon.sent == []
-    assert any("sobald die Spule eingelegt" in h for h in mgr.slots_view()[0]["hints"])
+    assert any("as soon as the spool is inserted" in h for h in mgr.slots_view()[0]["hints"])
     moon.merge(ace([""]))
     run(mgr.evaluate())
     assert len(moon.sent) == 1
@@ -146,7 +146,7 @@ def test_nothing_sent_when_ace_already_has_these_values_or_disabled(make):
     mgr, moon = make(ace([""]), [petg_spool(8)], enabled=False)
     run(mgr.assign(1, 8))
     assert moon.sent == []
-    assert any("kennt kein Material" in h for h in mgr.slots_view()[0]["hints"])
+    assert any("knows no material" in h for h in mgr.slots_view()[0]["hints"])
 
 
 def test_reassigning_the_slot_cancels_a_waiting_write(make):
@@ -174,7 +174,7 @@ def test_slots_with_rfid_tag_are_never_written(make):
     mgr, moon = make(ace(["PLA"], ["212721"], tags=["AHPEBK-4711"]), [petg_spool(8)])
     run(mgr.assign(1, 8))                     # Spoolman sagt PETG Lavendel, der Tag PLA Schwarz
     assert moon.sent == [] and not mgr._gate_info_pending
-    assert any("ACE meldet PLA" in h for h in mgr.slots_view()[0]["hints"])
+    assert any("ACE reports PLA" in h for h in mgr.slots_view()[0]["hints"])
 
 
 def test_foreign_lane_data_is_removed_after_each_reconnect(make):

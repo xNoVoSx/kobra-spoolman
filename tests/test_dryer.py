@@ -121,7 +121,7 @@ def test_sensitive_spool_lowers_a_running_manual_drying(make):
     d, moon, clock = make([spool(1, 1, "PETG"), spool(2, 2, "PLA")], hub(drying=True, target=60, remain=7200))
     run(d.evaluate())
     assert moon.sent == ["ACE_START_DRYING TEMP=55 DURATION=120"]
-    assert "gesenkt" in d.last_event["text"]
+    assert "lowered" in d.last_event["text"]
 
 
 def test_config_is_validated_and_kept(make, cfg):
@@ -165,7 +165,7 @@ def test_planned_drying_when_already_drying_is_dropped(make):
     d.set_schedule(clock.t + 10)
     clock.t += 11
     run(d.evaluate())
-    assert moon.sent == [] and d.schedule is None and "lief bereits" in d.last_event["text"]
+    assert moon.sent == [] and d.schedule is None and "already running" in d.last_event["text"]
 
 
 # ---------------------------------------------------------------- Wuensche Novos 09.10.2026
@@ -190,11 +190,11 @@ def test_ace_ending_early_restarts_with_the_rest(make, cfg):
     moon.merge(hub(humidity=6, drying=False))
     run(d.evaluate())
     assert moon.sent[-1] == "ACE_START_DRYING TEMP=60 DURATION=180"  # Rest 3 h
-    assert d.run["until"] == until and d.run["restarts"] == 1 and "vorzeitig" in d.last_event["text"]
+    assert d.run["until"] == until and d.run["restarts"] == 1 and "stopped early" in d.last_event["text"]
     for _ in range(MAX_RESTARTS):                                     # hoert sie immer wieder auf: aufgeben
         clock.t += 60
         run(d.evaluate())
-    assert d.run is None and "mehrfach" in d.last_event["text"]
+    assert d.run is None and "several times" in d.last_event["text"]
     assert len(moon.sent) == 1 + MAX_RESTARTS
 
 

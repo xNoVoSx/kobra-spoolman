@@ -1,11 +1,11 @@
-"""Pruefung beim Druckstart: passen die Slots zur Druckdatei?
+"""Check at print start: do the slots match the print file?
 
-Sobald die Bridge die Druckdatei gelesen hat (render.py), vergleicht sie fuer jedes Werkzeug, das die Datei
-wirklich benutzt, den Slot (ACEPRO: Werkzeug T<n> = Slot n): Spule zugeordnet? Material wie im Slicer? Farbe ungefaehr gleich?
-Spule nicht zu feucht (moisture.py)? Dass die Restmenge reicht, prueft status.spool_reach ohnehin.
+As soon as the bridge has read the print file (render.py), it compares, for every tool the file really uses, the slot
+(ACEPRO: tool T<n> = slot n+1): spool assigned? material as in the slicer? colour roughly the same? spool not too
+damp (moisture.py)? Whether the remaining amount is enough, status.spool_reach checks anyway.
 
-Ergebnis sind Meldungen (rot = Alarm am Handy). Mit wet_print_action = pause pausiert die Bridge einen Druck,
-der mit einer feuchten Spule startet - einmal je Druck, nur in den ersten Minuten.
+The result is messages (red = alarm on the phone). With wet_print_action = pause the bridge pauses a print that starts
+with a damp spool - once per print, only in the first minutes.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from .i18n import tr
 from .slots import base_type
 
 if TYPE_CHECKING:
@@ -21,8 +22,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("printcheck")
 
-COLOUR_LIMIT = 140          # RGB-Abstand, ab dem die Farbe "deutlich anders" ist
-PAUSE_WINDOW_S = 10 * 60    # Pause wegen feuchter Spule nur so kurz nach dem Start
+COLOUR_LIMIT = 140          # RGB distance from which the colour is "clearly different"
+PAUSE_WINDOW_S = 10 * 60    # pause for a damp spool only this soon after the start
 
 
 def _rgb(h: Optional[str]):
@@ -41,7 +42,7 @@ def colour_distance(a: Optional[str], b: Optional[str]) -> Optional[float]:
 
 
 def check(bridge: "Bridge") -> List[Dict[str, Any]]:
-    """Probleme des laufenden Drucks: [{slot, tool, kind, level, text}]. Leer, solange die Datei nicht gelesen ist."""
+    """Problems of the running print: [{slot, tool, kind, level, text}]. Empty while the file is not read."""
     ps = bridge.moon.status.get("print_stats") or {}
     if ps.get("state") not in ("printing", "paused"):
         return []
@@ -52,42 +53,47 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
     assigned, _ = bridge.slots.assignments()
     out: List[Dict[str, Any]] = []
     for tool in sorted(t for t, mm in m.e_total.items() if mm > 1):
-        gate = tool                       # ACEPRO: Werkzeug T<n> = Slot n (keine Umleitung wie GoKlippers ttg_map)
+        gate = tool                       # ACEPRO: tool T<n> = slot n+1 (no remapping like GoKlipper's ttg_map)
         slot = gate + 1
         ace = bridge.slots.ace_gate(gate)
         spool = assigned.get(slot)
         want_type = base_type(m.types[tool]).upper() if tool < len(m.types) and m.types[tool] else ""
         want_col = m.colours[tool] if tool < len(m.colours) else None
-        tag = f"T{tool} → Slot {slot}"
+        tag = tr("T{tool} → slot {slot}", tool=tool, slot=slot)
         if not ace["present"] and not spool:
             out.append({"slot": slot, "tool": tool, "kind": "empty", "level": "error",
-                        "text": f"Druckstart-Prüfung: {tag} wird gebraucht, der Slot ist leer"})
+                        "text": tr("Print start check: {tag} is needed, the slot is empty", tag=tag)})
             continue
         fil = (spool or {}).get("filament") or {}
         have_type = base_type(fil.get("material") or ace["material"] or "").upper()
         if want_type and have_type and want_type != have_type:
             out.append({"slot": slot, "tool": tool, "kind": "material", "level": "error",
-                        "text": f"Druckstart-Prüfung: {tag} – die Datei will {want_type}, eingelegt ist {have_type}"})
+                        "text": tr("Print start check: {tag} – the file wants {want}, loaded is {have}", tag=tag,
+                                   want=want_type, have=have_type)})
         dist = colour_distance(want_col, ace["color"] or fil.get("color_hex"))
         if dist is not None and dist > COLOUR_LIMIT:
             out.append({"slot": slot, "tool": tool, "kind": "colour", "level": "warn",
-                        "text": f"Druckstart-Prüfung: {tag} – Farbe weicht vom Slicer ab (#{want_col} statt "
-                                f"#{(ace['color'] or fil.get('color_hex') or '')[:6]})"})
+                        "text": tr("Print start check: {tag} – colour differs from the slicer (#{want} instead of "
+                                   "#{have})", tag=tag, want=want_col,
+                                   have=(ace["color"] or fil.get("color_hex") or "")[:6])})
         if not spool:
             out.append({"slot": slot, "tool": tool, "kind": "nospool", "level": "warn",
-                        "text": f"Druckstart-Prüfung: {tag} hat keine Spule zugeordnet – der Verbrauch landet bei den offenen Buchungen"})
+                        "text": tr("Print start check: {tag} has no spool assigned – the consumption goes to the "
+                                   "open bookings", tag=tag)})
             continue
         mv = bridge.moisture.view(spool)
         if mv["needs_drying"]:
-            why = "neu, Verlauf unbekannt" if mv["score"] is None else f"Feuchte-Schätzung {mv['score']} %"
+            why = (tr("new, history unknown") if mv["score"] is None
+                   else tr("moisture estimate {score} %", score=mv["score"]))
             out.append({"slot": slot, "tool": tool, "kind": "wet", "level": "error",
-                        "text": f"Druckstart-Prüfung: {tag} – {fil.get('name') or 'Spule'} wahrscheinlich feucht ({why}), "
-                                f"vorher ~{mv['hours_needed']:g} h trocknen"})
+                        "text": tr("Print start check: {tag} – {name} probably damp ({why}), dry ~{h:g} h first",
+                                   tag=tag, name=fil.get("name") or tr("spool"), why=why,
+                                   h=float(mv["hours_needed"]))})
     return out
 
 
 class PrintGuard:
-    """Pausiert einmal je Druck, wenn eine feuchte Spule gebraucht wird und wet_print_action = pause."""
+    """Pauses once per print when a damp spool is needed and wet_print_action = pause."""
 
     def __init__(self, bridge: "Bridge", clock=time.time):
         self.bridge = bridge
@@ -114,7 +120,7 @@ class PrintGuard:
             return
         self.acted_job = job
         try:
-            await b.moon.action("printer.print.pause", "PAUSE (feuchte Spule)", source="Druckstart-Prüfung")
-            log.warning("Druck pausiert: %s", "; ".join(i["text"] for i in wet))
+            await b.moon.action("printer.print.pause", tr("PAUSE (damp spool)"), source=tr("Print start check"))
+            log.warning("Print paused: %s", "; ".join(i["text"] for i in wet))
         except Exception as e:  # noqa: BLE001
-            log.error("Pause wegen feuchter Spule fehlgeschlagen: %s", e)
+            log.error("Pause for a damp spool failed: %s", e)

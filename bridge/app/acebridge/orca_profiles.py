@@ -1,12 +1,13 @@
-"""Spoolman -> Orca-Filamentwerte (Etappe 3) und Ruecksync Orca -> Spoolman.
+"""Spoolman -> Orca filament values and back-sync Orca -> Spoolman.
 
-Die Bridge liefert pro Filament nur die Werte, die aus Spoolman kommen (Filament oder
-Vorlage). Das Orca-Basisprofil selbst loest das Plugin in Orca auf: so gelten genau die
-Werte der installierten Orca-Version, ohne Kopien von Orca-Profilen in der Bridge.
+Per filament the bridge delivers only the values that come from Spoolman (filament or template). The plugin resolves
+the Orca base profile itself inside Orca: so exactly the values of the installed Orca version apply, without copies of
+Orca profiles in the bridge.
 
-Reihenfolge (spaeter gewinnt):
-  Orca-Basisprofil  <-  Vorlage  <-  Filament  <-  Orca-Overrides (Vorlage, dann Filament)
-Hat das Filament ein eigenes Orca-Basisprofil, faellt die Vorlage komplett weg.
+Order (later wins):
+  Orca base profile  <-  template  <-  filament  <-  Orca overrides (template, then filament)
+If the filament has its own Orca base profile, the template is dropped completely.
+Source codes in "sources" (stable API): filament, vorlage (template), override-filament, override-vorlage.
 """
 
 from __future__ import annotations
@@ -19,9 +20,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from .profiles import basic_info, color_hex, find_template
 from .spoolman import extra_value
 
-# (Quelle in Spoolman, Orca-Schluessel, Typ)
-#   "native:<feld>"  = Spoolman-Standardfeld des Filaments
-#   "extra:<schluessel>" = Zusatzfeld aus spoolman_setup.py
+# (source in Spoolman, Orca key, type)
+#   "native:<field>"  = Spoolman standard field of the filament
+#   "extra:<key>" = extra field from spoolman_setup.py
 FIELD_MAP: List[Tuple[str, str, Callable[[Any], Any]]] = [
     ("native:settings_extruder_temp", "nozzle_temperature", int),
     ("extra:nozzle_temp_first_layer", "nozzle_temperature_initial_layer", int),
@@ -47,12 +48,12 @@ FIELD_MAP: List[Tuple[str, str, Callable[[Any], Any]]] = [
 ]
 ORCA_TO_SOURCE = {orca: (src, typ) for src, orca, typ in FIELD_MAP}
 
-# Farbe: Orca verwirft filament_colour in Filament-Presets ("incorrect keys ... removed") und nimmt
-# beim Auswaehlen default_filament_colour (PresetComboBoxes.cpp).
-# Ruecksync nimmt beide Farbschluessel an (filament_colour aus aelteren Plugin-Staenden)
+# colour: Orca drops filament_colour in filament presets ("incorrect keys ... removed") and uses
+# default_filament_colour when selecting (PresetComboBoxes.cpp).
+# Back-sync accepts both colour keys (filament_colour from older plugin versions)
 COLOUR_KEYS = ("default_filament_colour", "filament_colour")
 
-# Werte, die das Plugin nie zurueck nach Spoolman schreiben soll
+# values the plugin must never write back to Spoolman
 BACKSYNC_IGNORE = {"filament_id", "filament_settings_id", "inherits", "name", "from", "instantiation",
                    "filament_type", "filament_vendor", "compatible_printers", "compatible_printers_condition",
                    "version", "setting_id", "filament_extruder_variant"}
@@ -85,8 +86,8 @@ def _convert(value: Any, typ: Callable[[Any], Any]) -> Any:
 
 
 def _first_of_list(value: Any) -> Any:
-    """Orca 2.5 speichert viele Filamentwerte je Extruder-Variante; ein aelteres Plugin schickte sie als
-    JSON-Liste im Text. Spoolman hat einen Wert pro Feld -> der erste Eintrag (Direct Drive Standard)."""
+    """Orca 2.5 stores many filament values per extruder variant; an older plugin sent them as a JSON list in text.
+    Spoolman has one value per field -> the first entry (Direct Drive Standard)."""
     if isinstance(value, list):
         return value[0] if value else None
     if isinstance(value, str) and value.strip().startswith("["):
@@ -100,7 +101,7 @@ def _first_of_list(value: Any) -> Any:
 
 
 def parse_overrides(text: Any) -> Dict[str, str]:
-    """'schluessel = wert' je Zeile; Kommentare mit # am Zeilenanfang."""
+    """'key = value' per line; comments with # at the start of a line."""
     out: Dict[str, str] = {}
     for line in str(text or "").splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
@@ -145,7 +146,7 @@ def build_profile(fil: Dict[str, Any], templates: List[Dict[str, Any]], base_typ
         values["enable_pressure_advance"] = True
         sources["enable_pressure_advance"] = sources["pressure_advance"]
 
-    # Kennwerte des Filaments
+    # characteristics of the filament
     material = fil.get("material") or (tpl or {}).get("material") or ""
     ident = {
         "filament_type": base_type(material) or material,
@@ -161,14 +162,14 @@ def build_profile(fil: Dict[str, Any], templates: List[Dict[str, Any]], base_typ
             values[k] = v
             sources[k] = "filament"
 
-    # Freie Overrides: erst die der Vorlage, dann die des Filaments
+    # free overrides: first the template's, then the filament's
     for origin, obj in (("vorlage", tpl), ("filament", fil)):
         for k, v in parse_overrides(extra_value(obj, "orca_overrides") if obj else None).items():
             values[k] = v
             sources[k] = f"override-{origin}"
 
-    # Orca-Basisprofil: am Filament, sonst von der Vorlage, sonst Ersatz "Generic <Typ> @System" (Issue #1 - vorher
-    # meldete das Plugin dann „–“ nicht gefunden)
+    # Orca base profile: on the filament, else from the template, else the fallback "Generic <type> @System"
+    # (issue #1 - before, the plugin then reported "–" not found)
     base, base_source = info["orca_basis"], ("filament" if own_basis else "template")
     if not base:
         btype = base_type(material) or material
@@ -195,12 +196,12 @@ def build_profile(fil: Dict[str, Any], templates: List[Dict[str, Any]], base_typ
     return body
 
 
-# ------------------------------------------------------------------ Ruecksync
+# ------------------------------------------------------------------ back-sync
 def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], List[str]]:
-    """Uebersetzt geaenderte Orca-Werte in ein Spoolman-PATCH fuer das Filament.
+    """Translates changed Orca values into a Spoolman PATCH for the filament.
 
-    Rueckgabe: (patch, uebernommen {orca_key: wert}, ignoriert [orca_key]).
-    Werte ohne eigenes Spoolman-Feld landen in 'orca_overrides' des Filaments.
+    Returns: (patch, applied {orca_key: value}, ignored [orca_key]).
+    Values without their own Spoolman field go into the filament's 'orca_overrides'.
     """
     patch: Dict[str, Any] = {}
     extra: Dict[str, Optional[str]] = {}
@@ -218,7 +219,7 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
             raw = _first_of_list(raw)
             val = _convert(raw, typ)
             if val is None and raw not in (None, ""):
-                ignored.append(key)  # nicht lesbar: nie ein Feld loeschen, nur weil der Wert unbekannt aussieht
+                ignored.append(key)  # unreadable: never clear a field just because the value looks unknown
                 continue
             kind, name = src.split(":", 1)
             if kind == "native":
@@ -226,7 +227,7 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
             else:
                 extra[name] = None if val is None else json.dumps(val)
             applied[key] = val
-            if key in overrides:  # eigenes Feld hat Vorrang vor einem alten Override
+            if key in overrides:  # its own field takes precedence over an old override
                 overrides.pop(key)
                 overrides_changed = True
             continue
@@ -235,7 +236,7 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
                 extra["pressure_advance"] = None
                 applied[key] = False
             else:
-                ignored.append(key)  # "an" ergibt sich aus einem gesetzten PA-Wert
+                ignored.append(key)  # "on" follows from a set PA value
             continue
         if key in COLOUR_KEYS:
             hexv = str(raw or "").strip().lstrip("#").upper()[:6]
@@ -262,7 +263,7 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
             else:
                 ignored.append(key)
             continue
-        # alles andere: freier Override
+        # everything else: free override
         overrides[key] = str(raw)
         applied[key] = str(raw)
         overrides_changed = True
@@ -276,14 +277,14 @@ def backsync_patch(fil: Dict[str, Any], changes: Dict[str, Any]) -> Tuple[Dict[s
 
 
 def _drop_pa_table(fil: Dict[str, Any], extra: Dict[str, Any]) -> None:
-    """PA in Orca von Hand geaendert oder zurueckgesetzt: die gemessene Auto-PA-Tabelle gilt dann nicht mehr
-    (sonst ueberstimmte sie den neuen Wert). Ohne PA misst Klipper beim naechsten Druck neu (wenn eingeschaltet)."""
+    """PA changed or reset by hand in Orca: the measured auto PA table no longer applies (it would overrule the new
+    value). Without PA Klipper measures again at the next print (when switched on)."""
     if "pressure_advance" in extra and extra_value(fil, "pa_table") is not None:
         extra["pa_table"] = None
 
 
 def reset_patch(fil: Dict[str, Any], keys: List[str]) -> Tuple[Dict[str, Any], List[str]]:
-    """Felder am Filament leeren, damit wieder Vorlage/Basisprofil gilt."""
+    """Clear fields on the filament so the template/base profile applies again."""
     patch: Dict[str, Any] = {}
     extra: Dict[str, Optional[str]] = {}
     done: List[str] = []

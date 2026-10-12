@@ -1,9 +1,8 @@
-"""Telemetrie: Rohdaten jedes Drucks als JSONL.
+"""Telemetry: raw data of every print as JSONL.
 
-Zeichnet waehrend eines Drucks alle abonnierten Aenderungen auf (ACE-Treiber, print_stats, virtual_sdcard ...).
-Moonraker reicht nur noch echte Aenderungen weiter, die Dateien bleiben dadurch klein.
-Die Verbrauchsrechnung macht allein usage.py - hier stehen nur Rohdaten fuer Fehlersuche
-und Nachrechnen. Es bleiben die letzten TELEMETRY_KEEP Drucke erhalten.
+Records all subscribed changes during a print (ACE driver, print_stats, virtual_sdcard ...). Moonraker passes on only
+real changes, so the files stay small. The consumption calculation is done by usage.py alone - here are only raw data
+for debugging and recalculating. The last TELEMETRY_KEEP prints are kept.
 """
 
 from __future__ import annotations
@@ -42,9 +41,9 @@ class Recorder:
         self._gate_changes: List[Dict[str, Any]] = []
         self._last_gate: Optional[int] = None
 
-    # ------------------------------------------------------------------ Datei
+    # ------------------------------------------------------------------ file
     def _open(self, status: Dict[str, Dict[str, Any]]) -> None:
-        fname = (status.get("print_stats", {}) or {}).get("filename") or "unbekannt"
+        fname = (status.get("print_stats", {}) or {}).get("filename") or "unknown"
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.basename(fname))[:80]
         self._path = os.path.join(self.dir, time.strftime("%Y-%m-%d_%H-%M-%S_") + safe + ".jsonl")
         self._fh = open(self._path, "w", encoding="utf-8")
@@ -93,7 +92,7 @@ class Recorder:
             "filament_used_end": ps.get("filament_used"),
             "filament_used_updates": self._used_updates,
             "gate_changes": self._gate_changes,
-            "note": "Verbrauch pro Slot: siehe /api/jobs",
+            "note": "consumption per slot: see /api/jobs",
         })
         if self._fh:
             self._fh.close()
@@ -126,7 +125,7 @@ class Recorder:
         for obj, fields in delta.items():
             if isinstance(fields, dict):
                 self._buffer.setdefault(obj, {}).update(fields)
-        # Werkzeugwechsel (Objekt ace) und Statuswechsel sofort, alles andere gedrosselt
+        # tool changes (object ace) and state changes at once, everything else throttled
         self._flush(force=ace_delta is not None or "state" in ps_delta or full)
 
         if state in PRINTING_STATES:
@@ -137,16 +136,16 @@ class Recorder:
             self._close(status)
 
     def on_console(self, entry: Dict[str, Any]) -> None:
-        """Konsolenzeile (G-Code-Antwort, gesendeter Befehl, Fehler) in die laufende Aufzeichnung - ohne die
-        sekuendlichen Temperaturmeldungen."""
+        """Console line (G-code answer, sent command, error) into the running recording - without the temperature
+        reports every second."""
         if self._fh is None or TEMP_REPORT.match(entry.get("text") or ""):
             return
-        self._flush(force=True)                     # Reihenfolge: erst die Zustaende davor
+        self._flush(force=True)                     # order: first the states before
         self._write({"t": round(float(entry.get("time") or time.time()) - self._start, 2), "type": "console",
                      "kind": entry.get("kind"), "text": entry.get("text"), "source": entry.get("source")})
 
     def tick(self, status: Dict[str, Dict[str, Any]]) -> None:
-        """Regelmaessig aufrufen, damit die Nachlaufzeit auch ohne neue Updates endet."""
+        """Call regularly so the trailing time also ends without new updates."""
         if self._fh is not None:
             self._flush()
             if self._end_at is not None and time.time() >= self._end_at:

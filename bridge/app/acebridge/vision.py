@@ -1,17 +1,16 @@
-"""KI-Fehldruck-Erkennung: Bilder an kobra-vision schicken, Funde ueber die Zeit bewerten, melden, sammeln.
+"""AI print failure detection: send images to kobra-vision, judge detections over time, report, collect.
 
-Ablauf im Druck (nur Status "printing"): alle interval_s ein Bild von der Kamera (camera.still() - das
-aktuelle Bild, wenn jemand zuschaut, sonst ein Einzelabruf; die Bildpumpe startet dafuer nicht) an den Dienst.
-Der liefert Boxen mit Sicherheit. Boxen, deren Mitte in einem ignorierten Bereich liegt (Spuelrutsche,
-Buerste, Spiegelung), zaehlen nicht. Die Summe p eines Bildes allein ist zu unruhig; bewertet wird wie bei
-Obico (obico-server, backend/lib/prediction.py - hier eigenstaendig umgesetzt): gleitender Mittelwert (EWM)
-gegen eine Grundlinie ueber viele Drucke, mit unterer und oberer Schwelle; die ersten safe_s eines Drucks
-zaehlen nicht. Stufen: ok -> warn (verdaechtig) -> fail (wahrscheinlich Fehldruck; mit action=pause wird
-pausiert, optional danach die Duese aus).
+Flow while printing (state "printing" only): every interval_s an image from the camera (camera.still() - the current
+image when someone watches, else a single request; the image pump does not start for it) to the service. It returns
+boxes with confidence. Boxes whose centre lies in an ignored area (purge chute, brush, reflection) do not count. The sum
+p of one image alone is too noisy; judging works like Obico (obico-server, backend/lib/prediction.py - implemented
+independently here): moving average (EWM) against a baseline over many prints, with a lower and an upper threshold;
+the first safe_s of a print do not count. Levels: ok -> warn (suspicious) -> fail (probably a failed print; with
+action=pause the print is paused, optionally the nozzle switched off afterwards).
 
-Gemeldet wird als Meldung ai-warn / ai-fail (rot = Alarm am Handy; ai-warn nur gelb, wenn notify=fail oder
-Ruhezeit mit "nur Fehldruck"). Rueckmeldung "Fehlalarm" schaltet die KI fuer den Rest des Drucks still und
-kennzeichnet das Bild. Einstellungen: vision_settings.py, Bildersammlung: vision_data.py.
+Reported as message ai-warn / ai-fail (red = alarm on the phone; ai-warn only yellow with notify=fail or quiet hours
+with "failure only"). Feedback "false alarm" mutes the AI for the rest of the print and labels the image.
+Settings: vision_settings.py, image collection: vision_data.py.
 """
 
 from __future__ import annotations
@@ -31,6 +30,7 @@ import aiohttp
 
 from . import vision_settings as vs
 from .camera import CameraError
+from .i18n import tr
 from .vision_data import Dataset
 from .storage import save_json
 
@@ -41,26 +41,26 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("vision")
 
-# Werte wie Obico (obico-server, backend/config/settings.py), abgestimmt auf ~1 Bild alle 10 s
+# values like Obico (obico-server, backend/config/settings.py), tuned to ~1 image every 10 s
 EWM_SPAN = 12
 ROLLING_WIN_SHORT = 310
 ROLLING_WIN_LONG = 7200
 THRESHOLD_LOW = 0.38
 THRESHOLD_HIGH = 0.78
-INIT_SAFE_FRAMES = 30            # Obicos Standard; bei uns aus safe_s / interval_s berechnet
+INIT_SAFE_FRAMES = 30            # Obico's default; here computed from safe_s / interval_s
 SHORT_MULTIPLE = 3.8
 ESCALATING_FACTOR = 1.75         # warn -> fail
-SUSPECT_P = THRESHOLD_LOW * 0.2  # ab hier wird das Bild gesammelt ...
-SUSPECT_EVERY_S = 30             # ... aber hoechstens so oft (ein Fehldruck ueber Stunden fuellt sonst die Platte)
-HISTORY = 720                    # Verlauf fuer die Kurve (~2 h bei 10 s)
+SUSPECT_P = THRESHOLD_LOW * 0.2  # from here the image is collected ...
+SUSPECT_EVERY_S = 30             # ... but at most this often (a failed print over hours would fill the disk)
+HISTORY = 720                    # history for the curve (~2 h at 10 s)
 EVENTS_KEPT = 100
 HEALTH_EVERY_S = 300
-DOWN_AFTER_S = 60                # so lange keine Antwort im Druck -> Meldung
+DOWN_AFTER_S = 60                # no answer for this long while printing -> message
 
 
 @dataclass
 class Prediction:
-    """Bewertung ueber die Zeit. long/lifetime bleiben ueber Drucke hinweg (Grundlinie dieses Druckers)."""
+    """Judging over time. long/lifetime stay across prints (baseline of this printer)."""
     p: float = 0.0
     ewm: float = 0.0
     short: float = 0.0
@@ -72,8 +72,8 @@ class Prediction:
         self.p, self.ewm, self.short, self.frames = 0.0, 0.0, 0.0, 0
 
     def update(self, p: float, learn: bool = True) -> None:
-        """learn=False: Grundlinie nicht nachziehen (offener Alarm) - sonst gewoehnt sich die KI an einen
-        Fehldruck, der lange unbemerkt weiterlaeuft (anders als Obico, im Demo-Test beobachtet)."""
+        """learn=False: do not move the baseline (open alarm) - otherwise the AI gets used to a failed print that keeps
+        running unnoticed for a long time (unlike Obico, seen in the demo test)."""
         alpha = 2 / (EWM_SPAN + 1)
         self.p = p
         self.frames += 1
@@ -99,7 +99,7 @@ class Prediction:
         return "warn" if self._failing(sensitivity, 1.0, safe_frames) else "ok"
 
     def score(self, sensitivity: float = 1.0) -> float:
-        """0..1 fuer die Anzeige: bis 1/3 unauffaellig, bis 2/3 Warnung, darueber Fehldruck."""
+        """0..1 for display: up to 1/3 unremarkable, up to 2/3 warning, above failed print."""
         warn = min(THRESHOLD_HIGH, max(THRESHOLD_LOW, (self.short - self.long) * SHORT_MULTIPLE))
         fail = warn * ESCALATING_FACTOR
         p = (self.ewm - self.long) * sensitivity
@@ -114,7 +114,7 @@ class Prediction:
 
 
 def _safe(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "_", name)[:60].strip("_") or "druck"
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", name)[:60].strip("_") or "print"
 
 
 class Vision:
@@ -131,13 +131,13 @@ class Vision:
         self.settings = vs.load(self._path("settings.json"), vs.VisionSettings.defaults(cfg))
         self.pred = Prediction()
         self.level = "ok"
-        self.detections: List[List[Any]] = []          # gezaehlte Funde des letzten Bildes
-        self.ignored: List[List[Any]] = []             # Funde in ignorierten Bereichen
+        self.detections: List[List[Any]] = []          # counted detections of the last image
+        self.ignored: List[List[Any]] = []             # detections in ignored areas
         self.size: Optional[List[int]] = None
         self.history: Deque[List[float]] = deque(maxlen=HISTORY)
         self.events: List[Dict[str, Any]] = []
-        self.event: Optional[Dict[str, Any]] = None      # offenes Ereignis des laufenden Drucks
-        self.muted: Optional[str] = None                  # None | "false_alarm" | "manual" (nur dieser Druck)
+        self.event: Optional[Dict[str, Any]] = None      # open event of the running print
+        self.muted: Optional[str] = None                  # None | "false_alarm" | "manual" (this print only)
         self.paused_by_ai = False
         self.health: Dict[str, Any] = {}
         self.last_ok: Optional[float] = None
@@ -170,7 +170,7 @@ class Vision:
         except FileNotFoundError:
             pass
         except (OSError, ValueError) as e:
-            log.warning("vision/state.json unlesbar, fange neu an: %s", e)
+            log.warning("vision/state.json unreadable, starting over: %s", e)
 
     def _save(self) -> None:
         os.makedirs(self.dir, exist_ok=True)
@@ -178,7 +178,7 @@ class Vision:
                   {"long": self.pred.long, "lifetime": self.pred.lifetime, "events": self.events[-EVENTS_KEPT:]})
 
     def _save_frame(self, img: bytes, kind: str, extra: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Bild in den Ordner des Drucks. Rueckgabe: "<druck>/<bild>" oder None."""
+        """Image into the print's folder. Returns: "<print>/<image>" or None."""
         if not self.job or self.settings.dataset_gb <= 0:
             return None
         try:
@@ -192,20 +192,20 @@ class Vision:
             self.data.add(self.job, name, img, meta)
             return f"{self.job}/{name}"
         except OSError as e:
-            log.warning("Bild nicht gespeichert: %s", e)
+            log.warning("Image not saved: %s", e)
             return None
 
     def prune(self) -> int:
         return self.data.prune(self.settings.dataset_gb, keep=self.job)
 
-    # ------------------------------------------------------------ Einstellungen
+    # ------------------------------------------------------------ settings
     def update_settings(self, changes: Dict[str, Any]) -> vs.VisionSettings:
         new = vs.apply(self.settings, changes)
         vs.save(self._path("settings.json"), new)
         old, self.settings = self.settings, new
         if new.dataset_gb < old.dataset_gb:
             self.prune()
-        log.info("KI-Einstellungen geändert: %s", ", ".join(sorted(changes)))
+        log.info("AI settings changed: %s", ", ".join(sorted(changes)))
         return new
 
     def safe_frames(self) -> int:
@@ -221,22 +221,22 @@ class Vision:
         return self.settings.action
 
     def phone_from(self) -> str:
-        """Ab welcher Stufe ist die Meldung rot (= Alarm am Handy)?"""
+        """From which level is the message red (= alarm on the phone)?"""
         if self.quiet_now() and self.settings.quiet.get("mode") == "fail_only":
             return "fail"
         return self.settings.notify
 
     def mute(self, on: bool) -> None:
-        """'Diesen Druck nicht ueberwachen' (gilt bis zum naechsten Druck)."""
+        """'Do not watch this print' (until the next print)."""
         self.muted = "manual" if on else None
         if on:
             self.event = None
 
     def reset_baseline(self) -> None:
-        """Grundlinie vergessen (z. B. nach Kamera-Umbau)."""
+        """Forget the baseline (e.g. after moving the camera)."""
         self.pred.long, self.pred.lifetime = 0.0, 0
         self._save()
-        log.info("KI: Grundlinie zurückgesetzt")
+        log.info("AI: baseline reset")
 
     # ------------------------------------------------------------ Dienst
     def _headers(self) -> Dict[str, str]:
@@ -247,10 +247,10 @@ class Vision:
         try:
             async with self.session.get(f"{self.cfg.vision_url}/v1/health", timeout=aiohttp.ClientTimeout(total=5)) as r:
                 self.health = await r.json()
-            self.error = None if self.health.get("ok") else "Modell fehlt im Dienst"
+            self.error = None if self.health.get("ok") else tr("Model missing in the service")
         except Exception as e:  # noqa: BLE001
             self.health = {}
-            self.error = f"KI-Dienst nicht erreichbar: {e.__class__.__name__}"
+            self.error = tr("AI service not reachable: {error}", error=e.__class__.__name__)
 
     async def analyze(self, img: bytes) -> Dict[str, Any]:
         async with self.session.post(f"{self.cfg.vision_url}/v1/detect", data=img,
@@ -262,7 +262,7 @@ class Vision:
             return body
 
     def _split(self, dets: List[Any]) -> tuple:
-        """Funde in gezaehlte und ignorierte (Mitte in einem ignorierten Bereich) teilen."""
+        """Split detections into counted and ignored ones (centre in an ignored area)."""
         counted, ignored = [], []
         for d in dets:
             if not (isinstance(d, list) and len(d) == 3):
@@ -272,28 +272,29 @@ class Vision:
         return counted, ignored
 
     async def test(self, img: Optional[bytes] = None) -> Dict[str, Any]:
-        """'Jetzt pruefen': ein Bild (aktuelles Kamerabild oder hochgeladen) auswerten, ohne die Bewertung
-        zu veraendern. Wird als Art "test" gesammelt, wenn gerade gedruckt wird."""
+        """'Check now': evaluate one image (current camera image or uploaded) without changing the judging. Collected
+        as kind "test" while printing."""
         if not self.configured:
-            raise RuntimeError("KI ist nicht eingerichtet (VISION_URL fehlt)")
+            raise RuntimeError(tr("AI is not set up (VISION_URL missing)"))
         own = img is None
         if own:
             img, _ = await self.camera.still()
         res = await self.analyze(img)
         counted, ignored = self._split(res.get("detections", []))
         p = round(sum(float(d[1]) for d in counted), 3)
-        verdict = "auffällig" if p >= THRESHOLD_HIGH else "leicht auffällig" if p >= THRESHOLD_LOW else "unauffällig"
+        verdict = (tr("conspicuous") if p >= THRESHOLD_HIGH else tr("slightly conspicuous") if p >= THRESHOLD_LOW
+                   else tr("unremarkable"))
         return {"detections": counted, "ignored": ignored, "p": p, "verdict": verdict, "ms": res.get("ms"),
                 "size": [res.get("width"), res.get("height")], "source": "camera" if own else "upload"}
 
-    # ------------------------------------------------------------ Ablauf
+    # ------------------------------------------------------------ flow
     def _print_state(self) -> str:
         return (self.moon.status.get("print_stats") or {}).get("state") or ""
 
     async def on_state(self, old: str, new: str) -> None:
-        """Druckbeginn: neue Bewertung, Startbild. Druckende: Endbild, Ereignis schliessen."""
+        """Print start: new judging, start image. Print end: end image, close the event."""
         if new == "printing" and old not in ("printing", "paused"):
-            fname = (self.moon.status.get("print_stats") or {}).get("filename") or "druck"
+            fname = (self.moon.status.get("print_stats") or {}).get("filename") or "print"
             self.job = time.strftime("%Y%m%d-%H%M%S", time.localtime(self.clock())) + "_" + \
                 _safe(os.path.splitext(os.path.basename(fname))[0])
             self.pred.new_print()
@@ -310,7 +311,7 @@ class Vision:
             self.prune()
 
     async def _grab(self, kind: str, extra: Optional[Dict[str, Any]] = None) -> None:
-        """Bild nur sammeln (Start/Ende), ohne Bewertung."""
+        """Only collect the image (start/end), without judging."""
         try:
             img, _ = await self.camera.still()
         except CameraError:
@@ -318,7 +319,7 @@ class Vision:
         self._save_frame(img, kind, extra)
 
     async def tick(self) -> None:
-        """Wird jede Sekunde aufgerufen."""
+        """Called every second."""
         if not self.configured:
             return
         st = self._print_state()
@@ -342,18 +343,19 @@ class Vision:
             self.error = f"Kein Kamerabild: {e}"
             return
         except Exception as e:  # noqa: BLE001
-            self.error = f"KI-Dienst nicht erreichbar: {e}" if not isinstance(e, RuntimeError) else f"KI-Dienst: {e}"
+            self.error = (tr("AI service not reachable: {error}", error=str(e)) if not isinstance(e, RuntimeError)
+                          else tr("AI service: {error}", error=str(e)))
             return
         self.error, self.last_ok = None, self.clock()
         self.detections, self.ignored = self._split(res.get("detections", []))
         self.size = [res.get("width"), res.get("height")]
         self.ms = res.get("ms")
         model = self.health.setdefault("model", {})
-        model["loaded"] = True                       # hat gerade ein Bild ausgewertet
+        model["loaded"] = True                       # has just evaluated an image
         if res.get("provider"):
             model["provider"] = res["provider"]
         sens = self.settings.sensitivity
-        # offener Alarm (nicht als Fehlalarm bestaetigt): Grundlinie bleibt stehen
+        # open alarm (not confirmed as a false alarm): the baseline stays
         self.pred.update(sum(float(d[1]) for d in self.detections), learn=self.event is None)
         self.history.append([round(self.last_ok), round(self.pred.p, 3), self.pred.score(sens)])
         old, self.level = self.level, self.pred.level(sens, self.safe_frames())
@@ -384,22 +386,22 @@ class Vision:
         self.events.append(ev)
         self.events = self.events[-EVENTS_KEPT:]
         self._save()
-        log.warning("KI: %s (Wert %.2f, %d Funde) – %s", "Fehldruck wahrscheinlich" if self.level == "fail"
-                    else "verdächtig", self.pred.p, len(self.detections), ev["file"])
+        log.warning("AI: %s (score %.2f, %d detections) – %s", "probably a failed print" if self.level == "fail"
+                    else "suspicious", self.pred.p, len(self.detections), ev["file"])
         if self.level == "fail" and self.effective_action() == "pause" and not self.paused_by_ai:
             try:
-                await self.moon.action("printer.print.pause", "PAUSE (KI)", source="KI")
+                await self.moon.action("printer.print.pause", tr("PAUSE (AI)"), source=tr("AI"))
                 self.paused_by_ai = True
                 ev["paused"] = True
                 if self.settings.heater_off:
-                    await self.moon.gcode("M104 S0", source="KI")
+                    await self.moon.gcode("M104 S0", source=tr("AI"))
                     ev["heater_off"] = True
             except Exception as e:  # noqa: BLE001
-                log.error("KI: Pause fehlgeschlagen: %s", e)
+                log.error("AI: pause failed: %s", e)
 
     @staticmethod
     def _frame_ref(ev: Dict[str, Any]) -> Optional[tuple]:
-        """(druck, bild) eines Ereignisses; 2.17.0 speicherte noch "jobs/<druck>/<bild>"."""
+        """(print, image) of an event; 2.17.0 still stored "jobs/<print>/<image>"."""
         ref = (ev.get("frame") or "").removeprefix("jobs/")
         return tuple(ref.split("/", 1)) if "/" in ref else None
 
@@ -410,9 +412,9 @@ class Vision:
         return ev
 
     def feedback(self, event_id: str, verdict: str) -> Dict[str, Any]:
-        """verdict: false_alarm (Fehlalarm: Rest des Drucks still), confirmed (stimmt) oder None (zuruecknehmen)."""
+        """verdict: false_alarm (false alarm: rest of the print muted), confirmed (correct) or None (take back)."""
         if verdict not in ("false_alarm", "confirmed", None):
-            raise ValueError("verdict muss false_alarm oder confirmed sein")
+            raise ValueError(tr("verdict must be false_alarm or confirmed"))
         ev = self._find(event_id)
         ev["verdict"] = verdict
         ev["verdict_at"] = round(self.clock(), 1)
@@ -426,9 +428,9 @@ class Vision:
             try:
                 self.data.label(job, frame, label, {"verdict": verdict, "detections": ev.get("detections")})
             except KeyError:
-                pass                                  # Bild schon geloescht
+                pass                                  # image already deleted
         self._save()
-        log.info("KI: Rückmeldung %s für %s", verdict or "zurückgenommen", event_id)
+        log.info("AI: feedback %s for %s", verdict or "taken back", event_id)
         return ev
 
     def frame_path(self, event_id: str) -> Optional[str]:
@@ -439,7 +441,7 @@ class Vision:
         ref = self._frame_ref(ev)
         return self.data.frame_path(*ref) if ref else None
 
-    # ------------------------------------------------------------ Anzeige
+    # ------------------------------------------------------------ display
     def messages(self) -> List[Dict[str, str]]:
         if not self.enabled:
             return []
@@ -447,10 +449,10 @@ class Vision:
         ev = self.event
         if ev and not self.muted:
             if ev["level"] == "fail":
-                text = "KI: wahrscheinlich Fehldruck (Spaghetti)" + (" – Druck pausiert" if ev.get("paused") else
-                                                                     " – Kamera prüfen")
+                text = (tr("AI: probably a failed print (spaghetti) – print paused") if ev.get("paused")
+                        else tr("AI: probably a failed print (spaghetti) – check the camera"))
             else:
-                text = "KI: Druck sieht verdächtig aus – Kamera prüfen"
+                text = tr("AI: the print looks suspicious – check the camera")
             red = ev["level"] == "fail" or self.phone_from() == "warn"
             out.append({"level": "error" if red else "warn", "text": text, "key": f"ai-{ev['level']}"})
         st = self._print_state()
@@ -460,33 +462,34 @@ class Vision:
         return out
 
     def status_line(self) -> Dict[str, Any]:
-        base = {"key": "ai", "label": "KI"}
+        base = {"key": "ai", "label": tr("AI")}
         if not self.configured:
-            return {**base, "state": "off", "detail": "aus (VISION_URL nicht gesetzt)"}
+            return {**base, "state": "off", "detail": tr("off (VISION_URL not set)")}
         if not self.settings.enabled:
-            return {**base, "state": "off", "detail": "ausgeschaltet (KI-Tab)"}
+            return {**base, "state": "off", "detail": tr("switched off (AI tab)")}
         if self.error:
             return {**base, "state": "warn", "detail": self.error}
         prov = ((self.health.get("model") or {}).get("provider") or "").replace("ExecutionProvider", "")
-        where = {"CPU": "CPU", "CUDA": "Grafikkarte"}.get(prov, prov or "bereit")
+        where = {"CPU": "CPU", "CUDA": tr("graphics card")}.get(prov, prov or tr("ready"))
         if self._print_state() == "printing":
             if self.muted:
-                why = "Fehlalarm" if self.muted == "false_alarm" else "von Hand"
-                return {**base, "state": "ok", "detail": f"für diesen Druck stumm ({why})"}
+                return {**base, "state": "ok", "detail": tr("muted for this print (false alarm)")
+                        if self.muted == "false_alarm" else tr("muted for this print (by hand)")}
             s = self.pred.score(self.settings.sensitivity)
-            word = {"ok": "unauffällig", "warn": "verdächtig", "fail": "Fehldruck?"}[self.level]
+            word = {"ok": tr("unremarkable"), "warn": tr("suspicious"), "fail": tr("failed print?")}[self.level]
             if self.pred.frames < self.safe_frames():
-                word = f"lernt den Druck ({self.pred.frames}/{self.safe_frames()})"
+                word = tr("learning the print ({n}/{total})", n=self.pred.frames, total=self.safe_frames())
             return {**base, "state": {"ok": "ok", "warn": "warn", "fail": "bad"}[self.level],
-                    "detail": f"{word} · Wert {s:.2f} · {where}"}
-        return {**base, "state": "ok", "detail": f"bereit · {where}" + (" · Modell entladen" if not
-                                                                           (self.health.get("model") or {}).get("loaded") else "")}
+                    "detail": tr("{word} · score {s:.2f} · {where}", word=word, s=float(s), where=where)}
+        if (self.health.get("model") or {}).get("loaded"):
+            return {**base, "state": "ok", "detail": tr("ready · {where}", where=where)}
+        return {**base, "state": "ok", "detail": tr("ready · {where} · model unloaded", where=where)}
 
     def summary(self) -> Dict[str, Any]:
-        """Kurzform fuer /api/app/state und die Weboberflaeche."""
+        """Short form for /api/app/state and the web UI."""
         ev = self.event
         printing = self._print_state() == "printing"
-        # muted bleibt ja/nein (App 1.5.0 liest es so), der Grund steht in muted_reason
+        # muted stays yes/no (app 1.5.0 reads it like that), the reason is in muted_reason
         return {"enabled": self.enabled, "configured": self.configured, "level": self.level,
                 "muted": bool(self.muted), "muted_reason": self.muted,
                 "score": self.pred.score(self.settings.sensitivity) if self.enabled else None,
@@ -506,13 +509,13 @@ class Vision:
     async def run(self) -> None:
         if not self.configured:
             return
-        log.info("KI: %s, alle %.0f s im Druck, %s, Sammlung bis %.1f GB", self.cfg.vision_url,
-                 self.settings.interval_s, "pausiert bei Fehldruck" if self.settings.action == "pause"
-                 else "meldet nur", self.settings.dataset_gb)
+        log.info("AI: %s, every %.0f s while printing, %s, collection up to %.1f GB", self.cfg.vision_url,
+                 self.settings.interval_s, "pauses on a failed print" if self.settings.action == "pause"
+                 else "reports only", self.settings.dataset_gb)
         await self.check_health()
         while True:
             await asyncio.sleep(1)
             try:
                 await self.tick()
             except Exception:  # noqa: BLE001
-                log.exception("KI-Fehler")
+                log.exception("AI error")

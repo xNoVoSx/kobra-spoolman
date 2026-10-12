@@ -1,4 +1,4 @@
-"""Spoolman-REST-Client mit Cache (Spulen, Filamente)."""
+"""Spoolman REST client with a cache (spools, filaments)."""
 
 from __future__ import annotations
 
@@ -10,17 +10,18 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 
 from .config import Config
+from .i18n import tr
 
 log = logging.getLogger("spoolman")
 
 
-# Zusatzfelder an der Spule, die die Bridge selbst pflegt
-TAG_NR_FIELD = {"name": "Tag-Nummer", "field_type": "integer", "order": 11}
-NFC_UID_FIELD = {"name": "NFC-Kennung", "field_type": "text", "order": 10}
+# extra fields on the spool the bridge maintains itself (names only used when creating them)
+TAG_NR_FIELD = {"name": "Tag number", "field_type": "integer", "order": 11}
+NFC_UID_FIELD = {"name": "NFC ID", "field_type": "text", "order": 10}
 
 
 def extra_value(obj: Dict[str, Any], key: str) -> Any:
-    """Spoolman speichert Zusatzfelder als JSON-Strings. None = nicht gesetzt."""
+    """Spoolman stores extra fields as JSON strings. None = not set."""
     raw = (obj.get("extra") or {}).get(key)
     if raw is None:
         return None
@@ -38,7 +39,7 @@ class Spoolman:
         self.spools: List[Dict[str, Any]] = []
         self.filaments: List[Dict[str, Any]] = []
         self.vendors: List[Dict[str, Any]] = []
-        self._fields: Dict[str, List[Dict[str, Any]]] = {}   # Zusatzfeld-Definitionen je Entitaet
+        self._fields: Dict[str, List[Dict[str, Any]]] = {}   # extra field definitions per entity
         self.connected = False
         self.version: Optional[str] = None
         self.last_refresh = 0.0
@@ -53,18 +54,18 @@ class Spoolman:
         try:
             if self.version is None:
                 self.version = (await self._get("/info")).get("version")
-                log.info("Spoolman %s unter %s", self.version, self.cfg.spoolman_url)
+                log.info("Spoolman %s at %s", self.version, self.cfg.spoolman_url)
             self.spools = await self._get("/spool", allow_archived="false")
             self.filaments = await self._get("/filament")
             self.vendors = await self._get("/vendor")
             if not self.connected:
-                log.info("Spoolman erreichbar: %d Spulen, %d Filamente", len(self.spools), len(self.filaments))
+                log.info("Spoolman reachable: %d spools, %d filaments", len(self.spools), len(self.filaments))
             self.connected = True
             self.last_refresh = time.time()
             return True
         except Exception as e:  # noqa: BLE001
             if self.connected:
-                log.warning("Spoolman nicht erreichbar: %s", e)
+                log.warning("Spoolman not reachable: %s", e)
             self.connected = False
             self.version = None
             return False
@@ -110,43 +111,42 @@ class Spoolman:
             return await r.json()
 
     async def create(self, entity: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Hersteller, Filament oder Spule anlegen (entity: vendor|filament|spool)."""
+        """Create a vendor, filament or spool (entity: vendor|filament|spool)."""
         return await self._write("POST", f"/{entity}", data)
 
     async def fields(self, entity: str, refresh: bool = False) -> List[Dict[str, Any]]:
-        """Zusatzfeld-Definitionen (key, name, field_type, unit, choices), gecacht."""
+        """Extra field definitions (key, name, field_type, unit, choices), cached."""
         if refresh or entity not in self._fields:
             self._fields[entity] = await self._get(f"/field/{entity}")
         return self._fields[entity]
 
     async def ensure_field(self, entity: str, key: str, body: Dict[str, Any]) -> bool:
-        """Zusatzfeld anlegen, falls es fehlt. True = neu angelegt. Aendert nie ein vorhandenes Feld."""
+        """Create an extra field if it is missing. True = newly created. Never changes an existing field."""
         if any(f.get("key") == key for f in await self.fields(entity, refresh=True)):
             return False
         await self._write("POST", f"/field/{entity}/{key}", body)
         await self.fields(entity, refresh=True)
-        log.info("Spoolman-Zusatzfeld %s.%s angelegt", entity, key)
+        log.info("Spoolman extra field %s.%s created", entity, key)
         return True
 
     async def use_length(self, spool_id: int, mm: float) -> Dict[str, Any]:
-        """Verbrauch buchen. Spoolman rechnet ueber Durchmesser und Dichte des Filaments
-        selbst in Gramm um; negative Werte (Korrektur) sind erlaubt, Spoolman begrenzt bei 0.
-        LookupError, wenn es die Spule nicht (mehr) gibt."""
+        """Book consumption. Spoolman converts to grams itself through the filament's diameter and density; negative
+        values (correction) are allowed, Spoolman stops at 0. LookupError if the spool does not exist (any more)."""
         async with self.session.put(f"{self.base}/spool/{spool_id}/use", json={"use_length": round(mm, 2)},
                                     timeout=aiohttp.ClientTimeout(total=15)) as r:
             if r.status == 404:
-                raise LookupError(f"Spule {spool_id} nicht gefunden")
+                raise LookupError(tr("Spool {id} not found", id=spool_id))
             if r.status >= 400:
                 raise RuntimeError(f"Spoolman use spool {spool_id}: HTTP {r.status} {await r.text()}")
             data = await r.json()
-        # Cache sofort aktualisieren, damit die Seite den neuen Rest zeigt
+        # update the cache at once so the page shows the new remainder
         for i, s in enumerate(self.spools):
             if s.get("id") == spool_id:
                 self.spools[i] = data
                 break
         return data
 
-    # ------------------------------------------------------------ Abfragen auf dem Cache
+    # ------------------------------------------------------------ queries on the cache
     def spool(self, spool_id: int) -> Optional[Dict[str, Any]]:
         return next((s for s in self.spools if s.get("id") == spool_id), None)
 

@@ -1,12 +1,14 @@
-"""USB-Tunnel zwischen Drucker und Klipper-Rechner: Zustand des Waechters und seine Schalter.
+"""USB tunnel between printer and Klipper computer: state of the watchdog and its switches.
 
-Der Klipper-Rechner (Pi) ist per USB-Gadget mit dem Drucker verbunden. Nach Drucker aus/an bricht die Anmeldung dort
-manchmal ab; ein Waechter-Dienst am Pi (kobra-klipper: pi/usb/kobra-usb-watch.py) steckt dann selbst neu an und laedt
-Klipper neu. Er legt seinen Zustand in Moonrakers Datenbank ab (Namensraum `kobra_usb`, Schluessel `state`) und liest
-dort seine Schalter (`switches`: watch, auto_restart, full_speed) - sie gelten vor seiner Konfigurationsdatei.
+The Klipper computer (Pi) is connected to the printer as a USB gadget. After the printer is switched off and on, the
+enumeration there sometimes fails; a watchdog service on the Pi (kobra-klipper: pi/usb/kobra-usb-watch.py) then
+reconnects by itself and reloads Klipper. It keeps its state in Moonraker's database (namespace `kobra_usb`, key
+`state`) and reads its switches there (`switches`: watch, auto_restart, full_speed) - they take precedence over its
+config file.
 
-Die Bridge liest den Zustand alle 30 s (eine kleine Abfrage am Pi, nichts am Drucker), zeigt ihn als Statuszeile und
-Meldung und schaltet ueber dieselbe Schalter-Liste wie die Klipper-Module (switches.py). Fehlt der Waechter, fehlt alles.
+The bridge reads the state every 30 s (one small request to the Pi, nothing on the printer), shows it as a status line
+and a message, and switches it through the same switch list as the Klipper modules (switches.py). Without the watchdog
+nothing of this is shown.
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from .i18n import tr
+
 if TYPE_CHECKING:
     from .moonraker import Moonraker
 
@@ -22,11 +26,14 @@ log = logging.getLogger("usb")
 
 NS = "kobra_usb"
 POLL_S = 30.0
-STALE_S = 180.0          # Lebenszeichen alle 60 s - aelter: Waechter laeuft nicht
+STALE_S = 180.0          # heartbeat every 60 s - older: the watchdog is not running
 SWITCHES = [
-    ("usb_watch", "watch", "USB selbst neu anstecken", "Drucker an, aber nicht verbunden → der Pi steckt sich neu an"),
-    ("usb_auto_restart", "auto_restart", "Klipper danach neu laden", "Wenn Klipper die Platinen verloren hat (nie im Druck)"),
-    ("usb_full_speed", "full_speed", "USB langsam, robust", "12 Mbit/s – nur wenn die Verbindung trotz Wächter oft scheitert"),
+    ("usb_watch", "watch", tr("Reconnect USB automatically"),
+     tr("Printer on but not connected → the Pi reconnects itself")),
+    ("usb_auto_restart", "auto_restart", tr("Reload Klipper afterwards"),
+     tr("When Klipper lost the boards (never during a print)")),
+    ("usb_full_speed", "full_speed", tr("Slow, robust USB"),
+     tr("12 Mbit/s – only if the connection often fails despite the watchdog")),
 ]
 
 
@@ -53,12 +60,12 @@ class UsbTunnel:
         self.read_at = now
         try:
             val = await self.moon.db_get(NS, "state")
-        except Exception as e:  # noqa: BLE001 - Moonraker kurz weg: beim naechsten Mal
-            log.debug("USB-Waechter lesen: %s", e)
+        except Exception as e:  # noqa: BLE001 - Moonraker briefly gone: next time
+            log.debug("Reading the USB watchdog: %s", e)
             return
         self.state = val if isinstance(val, dict) else None
 
-    # ------------------------------------------------------------ Sicht
+    # ------------------------------------------------------------ view
     def available(self) -> bool:
         return self.state is not None
 
@@ -67,20 +74,23 @@ class UsbTunnel:
         return isinstance(at, (int, float)) and self.clock() - at < STALE_S
 
     def summary(self) -> Dict[str, str]:
-        """{"state": ok|warn|bad|off, "detail": Text} fuer Statuszeile und Display."""
+        """{"state": ok|warn|bad|off, "detail": text} for the status line and the display."""
         st = self.state or {}
         if not self.alive():
-            return {"state": "warn", "detail": "Wächter meldet sich nicht (Dienst kobra-usb-watch?)"}
+            return {"state": "warn", "detail": tr("Watchdog not reporting (service kobra-usb-watch?)")}
         if st.get("state") == "configured":
-            speed = " · 12 Mbit/s" if st.get("max_speed") == "full-speed" else ""
-            return {"state": "ok", "detail": "verbunden" + speed}
+            if st.get("max_speed") == "full-speed":
+                return {"state": "ok", "detail": tr("connected · 12 Mbit/s")}
+            return {"state": "ok", "detail": tr("connected")}
         if not st.get("present"):
-            return {"state": "off", "detail": "Drucker aus"}
+            return {"state": "off", "detail": tr("Printer off")}
         if st.get("gave_up"):
-            return {"state": "bad", "detail": f"keine Verbindung nach {st.get('tries')} Versuchen – Kabel prüfen"}
+            return {"state": "bad", "detail": tr("no connection after {tries} attempts – check the cable",
+                                                 tries=st.get("tries"))}
         if st.get("tries"):
-            return {"state": "warn", "detail": f"verbindet … Versuch {st['tries']}/{st.get('max_tries')}"}
-        return {"state": "warn", "detail": "Drucker an, wartet auf Verbindung"}
+            return {"state": "warn", "detail": tr("connecting … attempt {tries}/{max}", tries=st["tries"],
+                                                  max=st.get("max_tries"))}
+        return {"state": "warn", "detail": tr("Printer on, waiting for the connection")}
 
     def view(self) -> Dict[str, Any]:
         st = self.state or {}
@@ -92,32 +102,32 @@ class UsbTunnel:
     def message(self) -> Optional[str]:
         st = self.state or {}
         if self.alive() and st.get("present") and st.get("gave_up"):
-            return (f"USB-Tunnel: der Drucker verbindet sich nicht (nach {st.get('tries')} Versuchen) – Kabel prüfen, "
-                    "notfalls einmal umstecken")
+            return tr("USB tunnel: the printer does not connect (after {tries} attempts) – check the cable, "
+                      "replug it once if needed", tries=st.get("tries"))
         return None
 
     def items(self) -> List[Dict[str, Any]]:
-        """Schalter fuer switches.py (Gruppe System) - nur, wenn der Waechter laeuft."""
+        """Switches for switches.py (group system) - only while the watchdog is running."""
         if not self.alive():
             return []
         cur = (self.state or {}).get("switches") or {}
         return [{"key": key, "group": "system", "kind": "switch", "title": title, "hint": hint,
                  "on": bool(cur.get(field)), "sensitive": True} for key, field, title, hint in SWITCHES]
 
-    # ------------------------------------------------------------ Schalten
+    # ------------------------------------------------------------ switching
     async def set(self, key: str, value: Any) -> Dict[str, Any]:
         field = next((f for k, f, _t, _h in SWITCHES if k == key), None)
         if field is None:
-            raise UsbError(404, f"Schalter {key} gibt es nicht")
+            raise UsbError(404, tr("There is no switch {key}", key=key))
         if not isinstance(value, bool):
-            raise UsbError(400, "Wert: true oder false")
+            raise UsbError(400, tr("Value: true or false"))
         if not self.alive():
-            raise UsbError(503, "Der USB-Wächter am Klipper-Rechner meldet sich nicht")
+            raise UsbError(503, tr("The USB watchdog on the Klipper computer is not reporting"))
         cur = dict((self.state or {}).get("switches") or {})
         cur[field] = value
         await self.moon.db_post(NS, "switches", cur)
-        # sofort so anzeigen; der Waechter uebernimmt es binnen 10 s und meldet es zurueck
+        # show it right away; the watchdog takes it over within 10 s and reports it back
         if self.state is not None:
             self.state = dict(self.state, switches=cur)
-        log.info("USB-Wächter: %s = %s", field, value)
+        log.info("USB watchdog: %s = %s", field, value)
         return {"ok": True, "key": key, "value": value}

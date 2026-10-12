@@ -185,7 +185,7 @@ def test_targets_from_the_gcode_check_the_measurement(cfg):
     assert by[1]["target_mm"] == 5000.0 and by[2]["target_mm"] == 2500.0
     assert by[2]["overhead_mm"] == pytest.approx(EXPECTED[2] - 2500, abs=0.5)
     assert job["target_mm"] == 7500.0
-    assert len(job["warnings"]) == 1 and job["warnings"][0].startswith("Slot 1: gemessen 4135 mm")
+    assert len(job["warnings"]) == 1 and job["warnings"][0].startswith("Slot 1: measured 4135 mm")
 
 
 def test_purge_log_per_colour_pair(cfg):

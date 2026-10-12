@@ -1,7 +1,7 @@
-"""Aufloesung Filament -> Vorlage -> Orca-Basisprofil.
+"""Resolving filament -> template -> Orca base profile.
 
-Etappe 1 nutzt davon nur die Grundwerte (Material, Temperaturen, Orca-ID) fuer
-lane_data und die Slot-API. Etappe 3 baut darauf die vollstaendige Orca-Werteliste auf.
+Basic values (material, temperatures, Orca ID) for lane_data and the slot API; orca_profiles.py builds the complete
+Orca value list on top of it.
 """
 
 from __future__ import annotations
@@ -14,12 +14,12 @@ ORCA_ID_PREFIX = "SM"
 
 
 def orca_filament_id(filament_id: int) -> str:
-    """Stabile, eindeutige Orca-ID aus der Spoolman-Filament-ID (8 Zeichen wie bei Orca)."""
+    """Stable, unique Orca ID from the Spoolman filament ID (8 characters like Orca's)."""
     return f"{ORCA_ID_PREFIX}{filament_id:06d}"
 
 
 def find_template(filament: Dict[str, Any], templates: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Explizit ueber das Feld 'vorlage', sonst ueber das Material ("Vorlage <Material>")."""
+    """Explicitly through the field 'vorlage' (template), else by material ("<template vendor> <material>")."""
     if not templates:
         return None
     wanted = extra_value(filament, "vorlage")
@@ -53,9 +53,8 @@ def color_hex(filament: Dict[str, Any]) -> str:
 
 
 def basic_info(filament: Dict[str, Any], templates: List[Dict[str, Any]]) -> Dict[str, Any]:
-    # Eigenes Orca-Basisprofil am Filament (z.B. "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle")
-    # ersetzt die Vorlage komplett - sonst wuerden die Generic-Werte der Vorlage die
-    # abgestimmten Herstellerwerte ueberschreiben.
+    # an own Orca base profile on the filament (e.g. "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle") replaces the
+    # template completely - otherwise the template's generic values would overwrite the tuned vendor values.
     own_basis = extra_value(filament, "orca_basis")
     tpl = None if own_basis else find_template(filament, templates)
     vendor = (filament.get("vendor") or {}).get("name") or ""

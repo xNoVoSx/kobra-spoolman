@@ -38,7 +38,7 @@ def test_actions_check_state_and_confirmation():
     assert check_action("cancel", "paused", True)[0] == "printer.print.cancel"
     with pytest.raises(ControlError) as e:
         check_action("emergency_stop", "standby", False)
-    assert e.value.confirm and "neu laden" in str(e.value)
+    assert e.value.confirm and "reload Klipper" in str(e.value)
     assert check_action("emergency_stop", "standby", True)[0] == "printer.emergency_stop"
 
 

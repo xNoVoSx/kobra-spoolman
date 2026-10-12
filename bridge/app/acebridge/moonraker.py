@@ -1,5 +1,5 @@
-"""Moonraker-Anbindung (Klipper am Pi): WebSocket-Abo (ACE-Treiber, print_stats, virtual_sdcard, Heizungen,
-Luefter) und HTTP fuer die Datenbank."""
+"""Moonraker connection (Klipper): WebSocket subscription (ACE driver, print_stats, virtual_sdcard, heaters, fans) and
+HTTP for the database."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optiona
 import aiohttp
 
 from . import __version__, acemodel, clog, pa, phase, resume, switches
+from .i18n import tr
 from .prompts import Prompts
 from .config import Config
 
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("moonraker")
 
-# Druckerdaten fuer Karte/App: nur einzelne Felder, nichts was sich bei jeder Bewegung aendert
+# printer data for card/app: single fields only, nothing that changes with every move
 # (Position, aktuelle Geschwindigkeit).
 SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "extruder": ["temperature", "target", "power"],
@@ -30,7 +31,7 @@ SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "fan": ["speed", "rpm"],
                      "gcode_move": ["speed_factor", "extrude_factor"],
                      "bed_mesh": ["profile_name"]}
-# ACE-Treiber (ACEPRO, acemodel.SUBSCRIBE) und die Zusatzluefter des S1; fehlt etwas (Treiber aus), ohne abonnieren
+# ACE driver (ACEPRO, acemodel.SUBSCRIBE) and the S1's extra fans; if something is missing (driver off), subscribe without
 OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, **pa.SUBSCRIBE, **resume.SUBSCRIBE, **clog.SUBSCRIBE, **switches.SUBSCRIBE,
                     **phase.SUBSCRIBE,
                     "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
@@ -39,14 +40,13 @@ StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
 
 
 class Moonraker:
-    """Haelt eine WebSocket-Verbindung, fuehrt einen zusammengefuehrten Status-Cache
-    und ruft bei jeder Aenderung den Callback mit dem Delta auf.
+    """Keeps one WebSocket connection, a merged status cache, and calls the callback with the delta on every change.
 
-    Der Callback laeuft in einer eigenen Aufgabe (_dispatch), nie im Leser der WebSocket: er darf selbst Moonraker
-    aufrufen (G-Code, Abfragen) - die Antwort liest der Leser. Bis 3.11.0 lief er im Leser; jeder Aufruf daraus
-    wartete 15 s auf eine Antwort, die niemand las, und die Bridge verarbeitete solange nichts (Weboberflaeche stand,
-    Verwerfen/Pause kamen nicht an). Zusammenfuehren in den Cache und on_status passieren beide in _dispatch, einzeln
-    und in Reihenfolge - wie vorher sieht on_status den Cache passend zum Delta (Verbrauch braucht jeden Wechsel).
+    The callback runs in its own task (_dispatch), never in the WebSocket reader: it may call Moonraker itself (G-code,
+    queries) - the reader reads the answer. Up to 3.11.0 it ran in the reader; every call from it waited 15 s for an
+    answer nobody read, and the bridge processed nothing meanwhile (web UI frozen, discard/pause not arriving). Merging
+    into the cache and on_status both happen in _dispatch, one by one and in order - as before, on_status sees the cache
+    matching the delta (consumption needs every state change).
     """
 
     def __init__(self, cfg: Config, session: aiohttp.ClientSession, on_status: StatusCallback):
@@ -59,14 +59,14 @@ class Moonraker:
         self._ids = itertools.count(1)
         self._pending: Dict[int, asyncio.Future] = {}
         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
-        self.console: Optional["Console"] = None   # gesetzt von der Bridge
-        self.prompts = Prompts()                    # Rueckfragen von Makros (action:prompt_*) fuer das Display
+        self.console: Optional["Console"] = None   # set by the bridge
+        self.prompts = Prompts()                    # macro prompts (action:prompt_*) for the display
         self.cpu_samples: Deque[Tuple[float, float]] = collections.deque(maxlen=180)   # (monotonic, CPU %)
-        self.components: list = []   # Moonraker-Komponenten (fuer die Warnung bei aktivem [spoolman])
-        # (Status, neues Abo) zum Verarbeiten; (None, False) = Klipper weg
+        self.components: list = []   # Moonraker components (for the warning about an active [spoolman])
+        # (status, new subscription) to process; (None, False) = Klipper gone
         self._todo: Deque[Tuple[Optional[Dict[str, Any]], bool]] = collections.deque()
         self._wake = asyncio.Event()
-        self._sub_ids: set = set()   # offene Abo-Anfragen: deren Stand legt der Leser ab (vor spaeteren Aenderungen)
+        self._sub_ids: set = set()   # open subscribe requests: the reader queues their state (before later changes)
         self._dispatcher: Optional[asyncio.Task] = None
 
     # ------------------------------------------------------------------ HTTP
@@ -86,7 +86,7 @@ class Moonraker:
             r.raise_for_status()
 
     async def db_get(self, namespace: str, key: str) -> Any:
-        """Ein Wert aus Moonrakers Datenbank (None, wenn es ihn nicht gibt)."""
+        """One value from Moonraker's database (None if it does not exist)."""
         async with self.session.get(
             f"{self.cfg.moonraker_url}/server/database/item", params={"namespace": namespace, "key": key},
             headers=self._headers(), timeout=aiohttp.ClientTimeout(total=10),
@@ -97,7 +97,7 @@ class Moonraker:
             return ((await r.json()).get("result") or {}).get("value")
 
     async def db_keys(self, namespace: str) -> list:
-        """Schluessel eines Namensraums der Moonraker-Datenbank ([] wenn es ihn nicht gibt)."""
+        """Keys of a namespace of Moonraker's database ([] if it does not exist)."""
         async with self.session.get(
             f"{self.cfg.moonraker_url}/server/database/item", params={"namespace": namespace},
             headers=self._headers(), timeout=aiohttp.ClientTimeout(total=10),
@@ -122,7 +122,7 @@ class Moonraker:
                 r.raise_for_status()
 
     def cpu(self, window_s: float = 5.0, now: Optional[float] = None) -> Optional[float]:
-        """Mittlere System-CPU des Klipper-Rechners (Pi) der letzten window_s Sekunden (None ohne frische Werte)."""
+        """Mean system CPU of the Klipper computer over the last window_s seconds (None without fresh values)."""
         now = time.monotonic() if now is None else now
         vals = [c for t, c in self.cpu_samples if now - t <= window_s]
         return sum(vals) / len(vals) if vals else None
@@ -136,7 +136,7 @@ class Moonraker:
         return data.get("result", data) if isinstance(data, dict) else data
 
     async def get_bytes(self, path: str, timeout: float = 10) -> bytes:
-        """Datei von Moonraker (z. B. Vorschaubild einer Druckdatei)."""
+        """File from Moonraker (e.g. the thumbnail of a print file)."""
         async with self.session.get(f"{self.cfg.moonraker_url}{path}", headers=self._headers(),
                                     timeout=aiohttp.ClientTimeout(total=timeout)) as r:
             r.raise_for_status()
@@ -154,22 +154,22 @@ class Moonraker:
         return data.get("result", data) if isinstance(data, dict) else data
 
     async def query(self, objects: Dict[str, Any], timeout: float = 5) -> Dict[str, Any]:
-        """Einmalige Abfrage (printer.objects.query) - fuer Werte, die nicht dauernd abonniert werden sollen."""
+        """One-off query (printer.objects.query) - for values that should not be subscribed permanently."""
         if self._ws is None or not self.klippy_ready:
-            raise ConnectionError("Moonraker nicht bereit")
+            raise ConnectionError(tr("Moonraker not ready"))
         res = await self._call("printer.objects.query", {"objects": objects}, timeout=timeout)
         return (res or {}).get("status") or {}
 
     async def gcode(self, script: str, timeout: float = 15, source: str = "Bridge") -> None:
-        """G-Code ueber die bestehende WebSocket-Verbindung.
-        source: wer sendet - steht so in der Konsole."""
+        """G-code over the existing WebSocket connection.
+        source: who sends it - shown like that in the console."""
         if self.console is not None:
             self.console.add("command", script, source + (" (dry-run)" if self.cfg.dry_run else ""))
         if self.cfg.dry_run:
             log.info("[dry-run] gcode %s", script)
             return
         if self._ws is None or not self.klippy_ready:
-            raise ConnectionError("Moonraker nicht bereit")
+            raise ConnectionError(tr("Moonraker not ready"))
         try:
             await self._call("printer.gcode.script", {"script": script}, timeout=timeout)
         except Exception as e:
@@ -178,14 +178,14 @@ class Moonraker:
             raise
 
     async def action(self, method: str, label: str, source: str = "Bridge", timeout: float = 30) -> None:
-        """Moonraker-Aktion wie printer.print.pause; steht als label mit Absender in der Konsole."""
+        """Moonraker action like printer.print.pause; shown as label with its sender in the console."""
         if self.console is not None:
             self.console.add("command", label, source + (" (dry-run)" if self.cfg.dry_run else ""))
         if self.cfg.dry_run:
             log.info("[dry-run] %s", method)
             return
         if self._ws is None:
-            raise ConnectionError("Moonraker nicht verbunden")
+            raise ConnectionError(tr("Moonraker not connected"))
         try:
             await self._call(method, timeout=timeout)
         except Exception as e:
@@ -219,8 +219,8 @@ class Moonraker:
             self._sub_ids.discard(req_id)
 
     def _merge(self, delta: Dict[str, Any]) -> Dict[str, Any]:
-        """Uebernimmt ein Update in den Cache und liefert nur die Felder, die sich wirklich
-        geaendert haben (ACEPRO schickt die Slot-Liste als Ganzes, auch wenn sich nur ein Zaehler aendert)."""
+        """Takes an update into the cache and returns only the fields that really changed (ACEPRO sends the slot list as
+        a whole, even when only a counter changed)."""
         changed: Dict[str, Any] = {}
         for obj, fields in delta.items():
             if not isinstance(fields, dict):
@@ -233,27 +233,27 @@ class Moonraker:
         return changed
 
     async def _subscribe(self) -> None:
-        # den Stand des Abos legt der Leser ab (_reader), sobald die Antwort da ist - Moonraker schickt Aenderungen
-        # direkt hinterher, die duerfen nicht vor dem (aelteren) Stand verarbeitet werden
+        # the reader (_reader) queues the subscription's state as soon as the answer is there - Moonraker sends changes
+        # right after it, they must not be processed before the (older) state
         try:
             res = await self._call("printer.objects.subscribe", {"objects": {**SUBSCRIBE_OBJECTS, **OPTIONAL_OBJECTS}},
                                    subscribe=True)
         except RuntimeError as e:
-            log.info("Abo ohne %s (%s)", ", ".join(OPTIONAL_OBJECTS), e)
+            log.info("Subscribing without %s (%s)", ", ".join(OPTIONAL_OBJECTS), e)
             res = await self._call("printer.objects.subscribe", {"objects": SUBSCRIBE_OBJECTS}, subscribe=True)
         snapshot = res.get("status", {}) if isinstance(res, dict) else {}
         log.info("Abo aktiv (%s)", ", ".join(k for k in snapshot))
         if self.console is not None and not self.console.lines:
-            try:      # Vorlauf fuer die Konsole: die letzten Zeilen, die Moonraker ohnehin speichert
+            try:      # backlog for the console: the last lines Moonraker keeps anyway
                 store = await self._call("server.gcode_store", {"count": 100})
                 self.console.seed((store or {}).get("gcode_store") or [])
             except Exception as e:  # noqa: BLE001
-                log.info("Konsolen-Verlauf nicht lesbar: %s", e)
+                log.info("Console history unreadable: %s", e)
 
-    # ------------------------------------------------------------------ Status an die Bridge
+    # ------------------------------------------------------------------ status to the bridge
     def _queue(self, delta: Optional[Dict[str, Any]], full: bool = False) -> None:
-        """Status von Moonraker zum Verarbeiten vormerken (blockiert nie). full: Stand eines neuen Abos;
-        None: Klipper weg (klippy_ready aus, nachdem ein noch vorgemerkter Abo-Stand es eingeschaltet hat)."""
+        """Queue status from Moonraker for processing (never blocks). full: state of a new subscription;
+        None: Klipper gone (klippy_ready off, after a still queued subscription state switched it on)."""
         self._todo.append((delta, full))
         if len(self._todo) in (500, 5000):
             log.warning("Statusverarbeitung haengt hinterher: %d Aenderungen offen", len(self._todo))
@@ -267,21 +267,21 @@ class Moonraker:
             self._wake.clear()
             while self._todo:
                 delta, full = self._todo.popleft()
-                if delta is None:                # Klipper weg - nach einem noch vorgemerkten Abo-Stand
+                if delta is None:                # Klipper gone - after a still queued subscription state
                     self.klippy_ready = False
                     continue
                 try:
                     if full:
                         self.status = {}
                         self._merge(delta)
-                        self.klippy_ready = True     # Abo steht (spaetere Aenderungen duerfen schon G-Code senden)
+                        self.klippy_ready = True     # subscription in place (later changes may send G-code)
                     else:
                         delta = self._merge(delta)
                         if not delta:
                             continue
                     await self.on_status(delta, full)
-                except Exception:  # noqa: BLE001 - die Verarbeitung darf nie stehen bleiben
-                    log.exception("Fehler beim Verarbeiten des Status")
+                except Exception:  # noqa: BLE001 - processing must never stop
+                    log.exception("Error while processing the status")
 
     async def _reader(self) -> None:
         assert self._ws is not None
@@ -313,7 +313,7 @@ class Moonraker:
                 if params and isinstance(params[0], dict):
                     self._queue(params[0])
             elif method == "notify_proc_stat_update":
-                # schickt Moonraker von selbst (~1/s): Drucker-CPU ohne zusaetzliche Abfrage
+                # Moonraker sends this by itself (~1/s): CPU without an extra query
                 params = data.get("params") or []
                 cpu = ((params[0] if params and isinstance(params[0], dict) else {}).get("system_cpu_usage") or {}).get("cpu")
                 if isinstance(cpu, (int, float)):
@@ -324,7 +324,7 @@ class Moonraker:
                     if self.console is not None:
                         self.console.add("response", str(line))
             elif method == "notify_klippy_ready":
-                log.info("Klippy bereit - abonniere neu")
+                log.info("Klippy ready - subscribing again")
                 asyncio.create_task(self._safe_subscribe())
             elif method in ("notify_klippy_shutdown", "notify_klippy_disconnected"):
                 log.warning("Klippy %s", method.removeprefix("notify_klippy_"))
@@ -348,7 +348,7 @@ class Moonraker:
                     self._ws = ws
                     self.connected = True
                     delay = 2.0
-                    log.info("Verbunden mit %s", self.cfg.moonraker_url)
+                    log.info("Connected to %s", self.cfg.moonraker_url)
                     reader = asyncio.create_task(self._reader())
                     try:
                         await self._call("server.connection.identify", {
@@ -360,25 +360,25 @@ class Moonraker:
                         if isinstance(info, dict) and info.get("klippy_state") == "ready":
                             await self._subscribe()
                         else:
-                            log.info("Klippy noch nicht bereit (%s) - warte", (info or {}).get("klippy_state"))
+                            log.info("Klippy not ready yet (%s) - waiting", (info or {}).get("klippy_state"))
                         await reader
                     finally:
                         reader.cancel()
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001
-                log.warning("Moonraker nicht erreichbar: %s", e)
+                log.warning("Moonraker not reachable: %s", e)
             finally:
                 self._ws = None
                 if self.connected:
-                    log.warning("Verbindung zu Moonraker getrennt")
+                    log.warning("Connection to Moonraker lost")
                 self.connected = False
                 self.klippy_ready = False
                 if self._todo:
                     self._queue(None)
                 for fut in self._pending.values():
                     if not fut.done():
-                        fut.set_exception(ConnectionError("getrennt"))
+                        fut.set_exception(ConnectionError(tr("disconnected")))
                 self._pending.clear()
             await asyncio.sleep(delay)
             delay = min(delay * 2, 60.0)

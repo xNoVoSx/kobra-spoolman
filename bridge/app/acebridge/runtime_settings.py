@@ -1,9 +1,9 @@
-"""Einstellungen, die im laufenden Betrieb in der Weboberflaeche/App geaendert werden koennen.
+"""Settings that can be changed at runtime in the web UI / app.
 
-Die Umgebungsvariablen (config.py) sind die Startwerte. Was hier geaendert wird, steht in DATA_DIR/settings.json
-und ueberschreibt beim Start den Startwert. Die Werte landen direkt im Config-Objekt - der restliche Code liest
-weiter cfg.<name> und merkt die Aenderung beim naechsten Zugriff (keine Neustarts noetig).
-Was einen Neustart braeuchte (Adressen von Drucker, Spoolman, Kamera, KI-Dienst), ist nur zum Ansehen da.
+The environment variables (config.py) are the start values. What is changed here is stored in DATA_DIR/settings.json
+and overrides the start value at the next start. The values go straight into the Config object - the rest of the code
+keeps reading cfg.<name> and sees the change at its next access (no restarts needed).
+What would need a restart (addresses of printer, Spoolman, camera, AI service) is shown read-only.
 """
 
 from __future__ import annotations
@@ -13,6 +13,8 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from .i18n import tr
 from .storage import save_json
 
 if TYPE_CHECKING:
@@ -23,7 +25,7 @@ log = logging.getLogger("settings")
 
 @dataclass(frozen=True)
 class Spec:
-    key: str                 # Name im Config-Objekt
+    key: str                 # name in the Config object
     group: str
     label: str
     kind: str                # bool | float | int | text | choice
@@ -31,71 +33,83 @@ class Spec:
     hi: Optional[float] = None
     unit: str = ""
     help: str = ""
-    options: tuple = ()      # choice: ((wert, Anzeige), ...)
+    options: tuple = ()      # choice: ((value, label), ...)
 
 
 SPECS: List[Spec] = [
-    # Kamera
-    Spec("camera", "Kamera", "Kamera über die Bridge", "bool", help="Web, App und Mainsail-Link holen ihre Bilder über die Bridge"),
-    Spec("camera_stream", "Kamera", "Dauerstream statt Einzelbildern", "bool",
-         help="Volle Bildrate über den MJPEG-Stream des Druckers – unter GoKlipper kostete er die ganze Drucker-CPU, "
-              "im Tunnel-Betrieb ist sie frei. Standard: aus"),
-    Spec("camera_fps_min", "Kamera", "Bildrate mindestens", "float", 0.5, 15, "fps"),
-    Spec("camera_fps_max", "Kamera", "Bildrate höchstens", "float", 1, 15, "fps"),
-    # Druckvorschau
-    Spec("render", "Druckvorschau", "Druckdatei laden (Modell, Restmenge)", "bool",
-         help="Die Bridge lädt die Datei beim Druckstart einmal gedrosselt – für 3D-Modell und „Spule reicht nicht“"),
-    Spec("render_max_mb", "Druckvorschau", "Größte Datei", "float", 10, 1000, "MB", "Größere Dateien: nur das Vorschaubild"),
-    Spec("render_interval_s", "Druckvorschau", "Bild der Bridge neu rechnen höchstens alle", "float", 5, 120, "s",
-         "Nur für Geräte mit „Bild“ statt 3D"),
-    Spec("geometry_max_segments", "Druckvorschau", "Detailgrad 3D-Modell (Bahnen)", "int", 100_000, 3_000_000, "",
-         "Mehr Bahnen werden ausgedünnt. 1,5 Mio. ≈ 20 MB Übertragung, für Handys ggf. weniger"),
-    # Slots und RFID
-    Spec("auto_assign_by_tag", "Slots und RFID", "Spulen mit unserem Tag automatisch zuordnen", "bool"),
-    Spec("auto_unassign_on_empty", "Slots und RFID", "Leeren Slot ins Regal räumen", "bool",
-         help="Meldet die ACE einen Slot leer, kommt die Spule ins Regal (im Druck erst danach)"),
-    Spec("empty_debounce_s", "Slots und RFID", "… wenn der Slot so lange leer ist", "float", 0, 600, "s"),
-    Spec("set_ace_slot_info", "Slots und RFID", "Material und Farbe an die ACE schreiben", "bool",
-         help="Beim Zuordnen von Spulen ohne Tag: Material, Farbe und Temperatur an den ACE-Treiber (ACE_SET_SLOT)"),
-    Spec("write_lane_data", "Slots und RFID", "lane_data für Orca schreiben", "bool",
-         help="Damit Orcas Sync-Knopf die richtigen Profile in die Slots setzt"),
-    # Feuchte
-    Spec("room_rh", "Feuchte der Spulen", "Luftfeuchte im Lagerraum", "float", 10, 95, "%",
-         "Für Spulen im Regal, solange kein Raumsensor (ROOM_SENSOR_TOPIC) frische Werte liefert"),
-    Spec("dry_locations", "Feuchte der Spulen", "Lagerorte mit eigener Feuchte", "text",
-         help="Spoolman-Lagerort=Feuchte, getrennt mit ;  z. B.  Trockenbox=15; Vakuumbeutel=10"),
-    Spec("pa_sync", "Pressure Advance", "Auto-PA mit Spoolman verbinden", "bool",
-         help="PA-Werte der Filamente an Klipper geben (fehlt einer, misst Klipper beim Druck) und Messungen ans "
-              "Filament zurückschreiben. Messen selbst schaltest du auf der ACE-Seite (Karte Pressure Advance) aus"),
-    Spec("filament_z_sync", "Erste Schicht", "Z-Versatz pro Filament", "bool",
-         help="Feld „Z-Versatz“ am Filament (oder seiner Vorlage) an den Drucker geben – der Druckstart rechnet den Wert "
-              "des Startfilaments zur ersten Schicht dazu (+ = weiter weg vom Bett)"),
-    Spec("auto_dry_on_insert", "Feuchte der Spulen", "Feuchte Spulen beim Einlegen automatisch trocknen", "bool",
-         help="Temperatur nach der empfindlichsten eingelegten Spule, Dauer nach der feuchtesten"),
-    Spec("new_spools_dry", "Feuchte der Spulen", "Neue Spulen zuerst trocknen", "bool",
-         help="Spulen ohne Verlauf gelten beim ersten Einlegen als zu trocknen"),
-    Spec("wet_print_action", "Feuchte der Spulen", "Druckstart mit feuchter Spule", "choice",
-         options=(("warn", "nur warnen"), ("pause", "Druck sofort pausieren"))),
-    # Meldungen
-    Spec("low_spool_g", "Meldungen", "„Spule fast leer“ unter", "float", 0, 1000, "g"),
-    Spec("reach_reserve_pct", "Meldungen", "Reserve bei „Spule reicht nicht“", "float", 0, 50, "%"),
-    # Verbrauch
-    Spec("book_usage", "Verbrauch", "Verbrauch in Spoolman buchen", "bool",
-         help="Aus: nur messen und anzeigen, nichts in Spoolman ändern"),
-    Spec("book_interval_s", "Verbrauch", "Zwischenbuchung im Druck alle", "float", 30, 3600, "s"),
-    Spec("book_min_mm", "Verbrauch", "Kleinste Buchung", "float", 1, 1000, "mm"),
-    # Daten
-    Spec("telemetry", "Daten", "Druck-Aufzeichnungen (Rohdaten)", "bool"),
-    Spec("telemetry_keep", "Daten", "Aufzeichnungen behalten", "int", 1, 500, "Drucke"),
-    Spec("job_history", "Daten", "Druckhistorie behalten", "int", 10, 2000, "Drucke"),
-    Spec("humidity_days", "Daten", "Feuchte-Verlauf behalten", "int", 1, 365, "Tage"),
+    # general
+    Spec("language", tr("General"), tr("Language"), "choice",
+         options=(("en", "English"), ("de", "Deutsch")),
+         help=tr("For devices without their own language setting, and for Home Assistant (MQTT). Every browser and "
+                 "the app can switch on their own")),
+    # camera
+    Spec("camera", tr("Camera"), tr("Camera through the bridge"), "bool",
+         help=tr("Web, app and the Mainsail link fetch their images through the bridge")),
+    Spec("camera_stream", tr("Camera"), tr("Continuous stream instead of snapshots"), "bool",
+         help=tr("Full frame rate from the printer's MJPEG stream – on the stock firmware it used the whole printer "
+                 "CPU, with Klipper on a separate computer it is free. Default: off")),
+    Spec("camera_fps_min", tr("Camera"), tr("Frame rate at least"), "float", 0.5, 15, "fps"),
+    Spec("camera_fps_max", tr("Camera"), tr("Frame rate at most"), "float", 1, 15, "fps"),
+    # print preview
+    Spec("render", tr("Print preview"), tr("Load the print file (model, remaining amount)"), "bool",
+         help=tr("The bridge downloads the file once, throttled, at print start – for the 3D model and "
+                 "“spool not enough”")),
+    Spec("render_max_mb", tr("Print preview"), tr("Largest file"), "float", 10, 1000, "MB",
+         tr("Larger files: thumbnail only")),
+    Spec("render_interval_s", tr("Print preview"), tr("Recalculate the bridge image at most every"), "float", 5, 120,
+         "s", tr("Only for devices with “image” instead of 3D")),
+    Spec("geometry_max_segments", tr("Print preview"), tr("Detail of the 3D model (paths)"), "int", 100_000, 3_000_000,
+         "", tr("More paths are thinned out. 1.5 million ≈ 20 MB transfer, maybe less for phones")),
+    # slots and RFID
+    Spec("auto_assign_by_tag", tr("Slots and RFID"), tr("Assign spools with our tag automatically"), "bool"),
+    Spec("auto_unassign_on_empty", tr("Slots and RFID"), tr("Move an empty slot's spool to the shelf"), "bool",
+         help=tr("When the ACE reports a slot empty, the spool goes to the shelf (during a print only afterwards)")),
+    Spec("empty_debounce_s", tr("Slots and RFID"), tr("… when the slot is empty this long"), "float", 0, 600, "s"),
+    Spec("set_ace_slot_info", tr("Slots and RFID"), tr("Write material and colour to the ACE"), "bool",
+         help=tr("When assigning spools without a tag: material, colour and temperature to the ACE driver "
+                 "(ACE_SET_SLOT)")),
+    Spec("write_lane_data", tr("Slots and RFID"), tr("Write lane_data for Orca"), "bool",
+         help=tr("So Orca's sync button puts the right profiles into the slots")),
+    # moisture
+    Spec("room_rh", tr("Spool moisture"), tr("Humidity in the storage room"), "float", 10, 95, "%",
+         tr("For spools on the shelf, as long as no room sensor (ROOM_SENSOR_TOPIC) delivers fresh values")),
+    Spec("dry_locations", tr("Spool moisture"), tr("Storage places with their own humidity"), "text",
+         help=tr("Spoolman location=humidity, separated by ;  e.g.  Drybox=15; Vacuum bag=10")),
+    Spec("pa_sync", tr("Pressure advance"), tr("Connect auto PA with Spoolman"), "bool",
+         help=tr("Give the filaments' PA values to Klipper (if one is missing, Klipper measures during the print) and "
+                 "write measurements back to the filament. Measuring itself is switched off on the ACE page "
+                 "(pressure advance card)")),
+    Spec("filament_z_sync", tr("First layer"), tr("Z offset per filament"), "bool",
+         help=tr("Give the field “Z offset” of the filament (or its template) to the printer – the print start adds "
+                 "the start filament's value to the first layer (+ = further from the bed)")),
+    Spec("auto_dry_on_insert", tr("Spool moisture"), tr("Dry damp spools automatically when inserted"), "bool",
+         help=tr("Temperature by the most sensitive loaded spool, duration by the dampest")),
+    Spec("new_spools_dry", tr("Spool moisture"), tr("Dry new spools first"), "bool",
+         help=tr("Spools without history count as needing drying when first inserted")),
+    Spec("wet_print_action", tr("Spool moisture"), tr("Print start with a damp spool"), "choice",
+         options=(("warn", tr("warn only")), ("pause", tr("pause the print at once")))),
+    # messages
+    Spec("low_spool_g", tr("Messages"), tr("“Spool almost empty” below"), "float", 0, 1000, "g"),
+    Spec("reach_reserve_pct", tr("Messages"), tr("Reserve for “spool not enough”"), "float", 0, 50, "%"),
+    # consumption
+    Spec("book_usage", tr("Consumption"), tr("Book consumption in Spoolman"), "bool",
+         help=tr("Off: only measure and show, change nothing in Spoolman")),
+    Spec("book_interval_s", tr("Consumption"), tr("Interim booking while printing every"), "float", 30, 3600, "s"),
+    Spec("book_min_mm", tr("Consumption"), tr("Smallest booking"), "float", 1, 1000, "mm"),
+    # data
+    Spec("telemetry", tr("Data"), tr("Print recordings (raw data)"), "bool"),
+    Spec("telemetry_keep", tr("Data"), tr("Keep recordings"), "int", 1, 500, tr("prints")),
+    Spec("job_history", tr("Data"), tr("Keep print history"), "int", 10, 2000, tr("prints")),
+    Spec("humidity_days", tr("Data"), tr("Keep humidity history"), "int", 1, 365, tr("days")),
 ]
 BY_KEY = {s.key: s for s in SPECS}
 
-# nur zum Ansehen (brauchen einen Neustart der Bridge)
-READONLY = [("moonraker_url", "Drucker (Moonraker)"), ("spoolman_url", "Spoolman"),
-            ("camera_snapshot_url", "Kamera-Einzelbild"), ("camera_stream_url", "Kamera-Stream"),
-            ("vision_url", "KI-Dienst"), ("mqtt_host", "MQTT-Broker"), ("room_sensor_topic", "Raumsensor (MQTT-Thema)"), ("data_dir", "Datenordner"), ("http_port", "HTTP-Port"), ("dry_run", "Nur Probe (DRY_RUN)")]
+# read-only (need a restart of the bridge)
+READONLY = [("moonraker_url", tr("Printer (Moonraker)")), ("spoolman_url", "Spoolman"),
+            ("camera_snapshot_url", tr("Camera snapshot")), ("camera_stream_url", tr("Camera stream")),
+            ("vision_url", tr("AI service")), ("mqtt_host", tr("MQTT broker")),
+            ("room_sensor_topic", tr("Room sensor (MQTT topic)")), ("data_dir", tr("Data folder")),
+            ("http_port", tr("HTTP port")), ("dry_run", tr("Test only (DRY_RUN)"))]
 
 
 def _path(cfg: "Config") -> str:
@@ -105,37 +119,39 @@ def _path(cfg: "Config") -> str:
 def _coerce(spec: Spec, v: Any) -> Any:
     if spec.kind == "text":
         if not isinstance(v, str) or len(v) > 2000:
-            raise ValueError(f"{spec.label}: Text erwartet")
+            raise ValueError(tr("{label}: text expected", label=spec.label))
         if spec.key == "dry_locations":
             from .moisture import parse_locations
-            parse_locations(v)                 # wirft ValueError mit Erklaerung
+            parse_locations(v)                 # raises ValueError with an explanation
         return v.strip()
     if spec.kind == "choice":
         allowed = [o[0] for o in spec.options]
         if v not in allowed:
-            raise ValueError(f"{spec.label}: " + " oder ".join(o[1] for o in spec.options))
+            raise ValueError(tr("{label}: {options}", label=spec.label,
+                                options=" | ".join(str(o[1]) for o in spec.options)))
         return v
     if spec.kind == "bool":
         if isinstance(v, bool):
             return v
-        raise ValueError(f"{spec.label}: an oder aus erwartet")
+        raise ValueError(tr("{label}: on or off expected", label=spec.label))
     try:
         x = float(v)
     except (TypeError, ValueError):
-        raise ValueError(f"{spec.label}: Zahl erwartet") from None
+        raise ValueError(tr("{label}: number expected", label=spec.label)) from None
     if spec.kind == "int":
         if x != int(x):
-            raise ValueError(f"{spec.label}: ganze Zahl erwartet")
+            raise ValueError(tr("{label}: whole number expected", label=spec.label))
         x = int(x)
     if (spec.lo is not None and x < spec.lo) or (spec.hi is not None and x > spec.hi):
-        raise ValueError(f"{spec.label}: erlaubt {spec.lo:g}–{spec.hi:g} {spec.unit}".strip())
+        raise ValueError(tr("{label}: allowed {lo:g}–{hi:g} {unit}", label=spec.label, lo=float(spec.lo),
+                            hi=float(spec.hi), unit=spec.unit))
     return x
 
 
 class RuntimeSettings:
     def __init__(self, cfg: "Config"):
         self.cfg = cfg
-        self.defaults = {s.key: getattr(cfg, s.key) for s in SPECS}     # Startwerte aus der Umgebung
+        self.defaults = {s.key: getattr(cfg, s.key) for s in SPECS}     # start values from the environment
         self.saved: Dict[str, Any] = {}
         self._load()
 
@@ -146,7 +162,7 @@ class RuntimeSettings:
         except FileNotFoundError:
             return
         except (OSError, ValueError) as e:
-            log.warning("settings.json unlesbar, nehme Startwerte: %s", e)
+            log.warning("settings.json unreadable, using start values: %s", e)
             return
         for k, v in (data.items() if isinstance(data, dict) else []):
             spec = BY_KEY.get(k)
@@ -155,7 +171,7 @@ class RuntimeSettings:
             try:
                 val = _coerce(spec, v)
             except ValueError as e:
-                log.warning("Einstellung %s ungültig, nehme Startwert: %s", k, e)
+                log.warning("Setting %s invalid, using the start value: %s", k, e)
                 continue
             self.saved[k] = val
             setattr(self.cfg, k, val)
@@ -166,16 +182,16 @@ class RuntimeSettings:
         save_json(_path(self.cfg), self.saved, indent=1)
 
     def _check_pairs(self) -> None:
-        """Zusammengehoerige Werte: mindestens <= hoechstens."""
+        """Values that belong together: at least <= at most."""
         c = self.cfg
         if c.camera_fps_min > c.camera_fps_max:
-            raise ValueError("Bildrate: mindestens darf nicht über höchstens liegen")
+            raise ValueError(tr("Frame rate: at least must not be above at most"))
 
     def update(self, changes: Dict[str, Any]) -> None:
-        """Pruefen, uebernehmen, speichern. Bei einem Fehler bleibt alles beim Alten (ValueError)."""
+        """Check, apply, save. On an error everything stays as it was (ValueError)."""
         unknown = [k for k in changes if k not in BY_KEY]
         if unknown:
-            raise ValueError("Nicht änderbar: " + ", ".join(unknown))
+            raise ValueError(tr("Not changeable: {keys}", keys=", ".join(unknown)))
         new = {k: _coerce(BY_KEY[k], v) for k, v in changes.items()}
         old = {k: getattr(self.cfg, k) for k in new}
         for k, v in new.items():
@@ -192,19 +208,21 @@ class RuntimeSettings:
             else:
                 self.saved[k] = v
         self._save()
-        log.info("Einstellungen geändert: %s", ", ".join(f"{k}={v}" for k, v in new.items()))
+        log.info("Settings changed: %s", ", ".join(f"{k}={v}" for k, v in new.items()))
 
     def reset(self, key: str) -> None:
         if key not in BY_KEY:
-            raise ValueError("Nicht änderbar: " + key)
+            raise ValueError(tr("Not changeable: {keys}", keys=key))
         self.update({key: self.defaults[key]})
 
     def view(self) -> Dict[str, Any]:
         groups: Dict[str, List[Dict[str, Any]]] = {}
+        names: Dict[str, Any] = {}
         for s in SPECS:
-            groups.setdefault(s.group, []).append({
+            names.setdefault(str(s.group), s.group)
+            groups.setdefault(str(s.group), []).append({
                 "key": s.key, "label": s.label, "kind": s.kind, "min": s.lo, "max": s.hi, "unit": s.unit, "help": s.help,
                 "options": [list(o) for o in s.options],
                 "value": getattr(self.cfg, s.key), "default": self.defaults[s.key], "changed": s.key in self.saved})
-        return {"groups": [{"name": g, "items": items} for g, items in groups.items()],
+        return {"groups": [{"name": names[g], "items": items} for g, items in groups.items()],
                 "readonly": [{"key": k, "label": label, "value": getattr(self.cfg, k, None)} for k, label in READONLY]}

@@ -1,269 +1,81 @@
 """ace-lane-bridge v3 - Kobra S1 / ACE 2 Pro <-> Spoolman <-> OrcaSlicer."""
 
+from .i18n import tr
+
 __version__ = "3.11.2"
 __app_name__ = "ace-lane-bridge"
-__description__ = "Kobra S1 mit ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
+__description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
-# Neueste Version zuerst. Wird in der Weboberflaeche unter "Einstellungen" angezeigt.
+# Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
+# CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
     ("3.11.2", "2026-10-12", [
-        "Orca-Profile: Nennen weder Filament noch Vorlage ein Orca-Basisprofil, gilt „Generic <Material> @System“ "
-        "(vorher meldete das Plugin „–“ nicht gefunden)",
-        "Plugin 0.6.1: Basisprofil-Namen ohne Groß/klein und mit optionalem „@System“, klare Meldung ohne "
-        "Basisprofil, Profile werden nicht mehr bei jedem Orca-Start neu geschrieben (Werte je Düsenvariante)",
+        tr("Orca profiles: if neither the filament nor its template names an Orca base profile, “Generic <material> "
+           "@System” applies (before, the plugin reported “–” not found)"),
+        tr("Plugin 0.6.1: base profile names ignoring case and with an optional “@System”, a clear message without a "
+           "base profile, profiles are no longer rewritten at every Orca start (values per nozzle variant)"),
     ]),
     ("3.11.1", "2026-10-12", [
-        "Behoben: Die Bridge hing zeitweise (Weboberfläche stand, Knöpfe ohne Wirkung, „Verwerfen“ ging nicht) – "
-        "sie wartete auf ihre eigenen Antworten an Klipper und verarbeitete solange nichts",
-        "Behoben: Im Startablauf schickte die Bridge die PA-Werte alle 15 s neu; in Klipper stauten sich so dutzende "
-        "Befehle (eine Pause wartete dahinter). Jetzt bleibt höchstens eine Anfrage offen",
-        "Behoben: App 1.14.0 zeigte nach einer gescheiterten PA-Messung „Antwort der Bridge nicht lesbar“",
-        "App 1.14.1: übersteht auch künftig fehlende Werte in einer Antwort der Bridge",
+        tr("Fixed: the bridge hung at times (web UI frozen, buttons without effect, “discard” did not work) – it "
+           "waited for its own answers to Klipper and processed nothing meanwhile"),
+        tr("Fixed: during the print start the bridge resent the PA values every 15 s; dozens of commands piled up in "
+           "Klipper (a pause waited behind them). Now at most one request stays open"),
+        tr("Fixed: app 1.14.0 showed “answer of the bridge unreadable” after a failed PA measurement"),
+        tr("App 1.14.1: also survives missing values in an answer of the bridge in the future"),
     ]),
     ("3.11.0", "2026-10-11", [
-        "USB-Tunnel jetzt auch in Web (ACE-Seite) und App (ACE-Fenster): Zustand, letztes Ereignis und die drei Schalter",
-        "ACE-Seite: Trockner, Fortsetzen, Verstopfung und USB-Tunnel links, ACE und Pressure Advance rechts",
-        "Intern aufgeräumt: Schnittstelle in Bereiche aufgeteilt, alle Zustandsdateien werden gleich sicher geschrieben",
-        "App 1.14.0: Abschnitt USB-Tunnel im ACE-Fenster",
+        tr("USB tunnel now also in the web UI (ACE page) and the app (ACE window): state, last event and the three "
+           "switches"),
+        tr("ACE page: dryer, resume, clog and USB tunnel on the left, ACE and pressure advance on the right"),
+        tr("Internal cleanup: the interface split into areas, all state files are written equally safely"),
+        tr("App 1.14.0: section USB tunnel in the ACE window"),
     ]),
     ("3.10.0", "2026-10-11", [
-        "USB-Tunnel zwischen Drucker und Klipper-Rechner: Statuszeile (verbunden, Drucker aus, verbindet … Versuch n), "
-        "Meldung, wenn der Wächter aufgibt, Kachel unter Display → System, Hinweis in der Klipper-Fehlermeldung",
-        "Display: neuer Schalter-Reiter „System“ mit den drei Schaltern des USB-Wächters und dem Diagnose-Protokoll – "
-        "„Überwachung“ passt wieder ohne Scrollen",
-        "Spülprotokoll: jeder Farbwechsel mit der Spülmenge aus Orca, je Farbpaar über alle Drucke (Grundlage, um "
-        "Spülmengen zu lernen)",
-        "Aufgeräumt: Reste des Spül-Multiplikators aus der GoKlipper-Zeit entfernt, unnötiges Abo des Filament-Encoders "
-        "(änderte sich im Druck ständig) gestrichen",
+        tr("USB tunnel between printer and Klipper computer: status line (connected, printer off, connecting … "
+           "attempt n), a message when the watchdog gives up, a tile under display → System, a hint in the Klipper "
+           "error message"),
+        tr("Display: new switch tab “System” with the three switches of the USB watchdog and the diagnostic log – "
+           "“Monitoring” fits without scrolling again"),
+        tr("Purge log: every colour change with the purge length from Orca, per colour pair across all prints (basis "
+           "for learning purge lengths)"),
+        tr("Cleanup: leftovers of the purge multiplier from the GoKlipper days removed, the unneeded subscription of "
+           "the filament encoder (changed constantly while printing) dropped"),
     ]),
     ("3.9.0", "2026-10-11", [
-        "Druckphase statt nur „Druckt“: Web, App, Display und Home Assistant zeigen, was der Drucker gerade macht – "
-        "„Heizt Bett 63/100 °C“, „Vorheizen 5/15 min“, „Wischt Düse“, „Tastet Z“, „Misst Bettnetz“, "
-        "„Wechsel auf Slot 2 · lädt“, „Spült“, „Misst Pressure Advance“, „Druckt · Schicht 34/120“",
-        "Braucht kobra-klipper mit dem Modul kobra_phase (neuer Startablauf); ohne bleibt es bei Wechsel, PA und Schicht",
-        "App 1.13.0: Druckphase auf der Startseite, in der Live-Benachrichtigung und im Widget",
-        "Display: Ecke oben links bleibt frei – die Viewer-App am Drucker verschluckt dort jede Berührung (5 s halten = "
-        "beenden), der Start-Knopf ließ sich deshalb schlecht drücken; Licht-Knopf jetzt oben rechts neben der Uhr",
+        tr("Print phase instead of just “Printing”: web, app, display and Home Assistant show what the printer is "
+           "doing – “Heating bed 63/100 °C”, “Heat soak 5/15 min”, “Wiping nozzle”, “Probing Z”, “Measuring bed "
+           "mesh”, “Change to slot 2 · loading”, “Purging”, “Measuring pressure advance”, “Printing · layer 34/120”"),
+        tr("Needs kobra-klipper with the module kobra_phase (new print start); without it, change, PA and layer remain"),
+        tr("App 1.13.0: print phase on the home page, in the live notification and in the widget"),
+        tr("Display: the top left corner stays free – the viewer app on the printer swallows every touch there (hold "
+           "5 s = exit), so the home button was hard to press; light button now top right next to the clock"),
     ]),
     ("3.8.0", "2026-10-10", [
-        "Druckprotokoll: Logs → Druck-Aufzeichnungen → „Protokoll“ zeigt jeden Druck lesbar – Start-Ablauf, "
-        "Filamentwechsel, Auto-PA, Konsolenmeldungen, Temperaturen, Schicht, Verstopfung, Fortsetzen",
-        "Die Aufzeichnungen enthalten jetzt auch die Konsole des Druckers (ohne Temperatur-Meldungen)",
-        "Schalter „Diagnose-Protokoll“ (Überwachung): ausführliches Klipper-Log unserer Module, in der Entwicklung an",
+        tr("Print log: Logs → print recordings → “Log” shows every print readably – start sequence, filament "
+           "changes, auto PA, console messages, temperatures, layer, clog, resume"),
+        tr("The recordings now also contain the printer console (without temperature reports)"),
+        tr("Switch “Diagnostic log” (monitoring): detailed Klipper log of our modules, on during development"),
     ]),
     ("3.7.0", "2026-10-10", [
-        "Display: Dateien am Drucker mit Vorschaubild, Druck starten mit Blick auf die Slots, „Erneut drucken“ nach dem Druck",
-        "Display: erste Schicht im Druck feinjustieren (Z ±0,01–0,05 mm) und für das Filament in Spoolman übernehmen; "
-        "einzelne Objekte überspringen",
-        "Display: Rückfragen von Makros (z. B. Filament Runout), Klipper-Fehler groß mit „Klipper neu laden“, alle Meldungen, "
-        "IP und Versionen, Pi neu starten/herunterfahren",
-        "Display: kein Mauszeiger, Aus-Knopf je Heizung, Abbrechen erst in der Pause, Not-Aus überall mit Rückfrage",
+        tr("Display: files on the printer with thumbnails, start a print with a look at the slots, “Print again” "
+           "after the print"),
+        tr("Display: fine-tune the first layer while printing (Z ±0.01–0.05 mm) and save it for the filament in "
+           "Spoolman; skip single objects"),
+        tr("Display: macro prompts (e.g. filament runout), Klipper errors large with “Reload Klipper”, all messages, "
+           "IP and versions, reboot/shut down the Pi"),
+        tr("Display: no mouse cursor, off button per heater, cancel only while paused, emergency stop everywhere "
+           "with confirmation"),
     ]),
     ("3.6.1", "2026-10-10", [
-        "ACE-Feuchte und Firmware fehlten nach einem Neustart des Druckers, wenn die ACE später verbunden war als Klipper",
+        tr("ACE humidity and firmware were missing after a printer restart when the ACE connected later than Klipper"),
     ]),
     ("3.6.0", "2026-10-10", [
-        "Display: neuer Bereich Steuerung – Temperaturen (Schnellwahl aus den eingelegten Spulen, Ziffernfeld), "
-        "Bewegen (homen, joggen 0,1–50 mm, Motoren aus), Filament (Slot laden, entladen, extrudieren), Lüfter, "
-        "Bettnetze messen, Klipper neu laden, Not-Aus (gedrückt halten)",
-        "Bewegen, Laden und Makros sind während des Drucks gesperrt; die Bridge schickt nur feste Befehle mit Grenzen",
+        tr("Display: new area Control – temperatures (quick choice from the loaded spools, number pad), moving "
+           "(home, jog 0.1–50 mm, motors off), filament (load, unload a slot, extrude), fans, measure bed meshes, "
+           "reload Klipper, emergency stop (press and hold)"),
+        tr("Moving, loading and macros are blocked while printing; the bridge sends only fixed commands with limits"),
     ]),
     ("3.5.1", "2026-10-10", [
-        "Display: Spulenname wie in Spoolman (\"ASA+ Grau\" statt \"ASA + Grau\")",
-    ]),
-    ("3.5.0", "2026-10-10", [
-        "Ansicht fürs Display des Druckers (/display, 800×480): Start mit Slots und Trockner, Druckansicht mit "
-        "Vorschaubild der Datei (kommt bei Druckstart von selbst), alle Schalter, Frage nach Stromausfall",
-        "Alle Schalter der Klipper-Module an einer Stelle (/api/switches): Auto-PA, Z-Versatz, Endlosspule, "
-        "Stromausfall, Verstopfung, Licht und Töne",
-        "Das Display koppelt sich wie jedes Gerät mit einem Code (Ziffernfeld)",
-    ]),
-    ("3.4.0", "2026-10-10", [
-        "Verstopfung erkennen: Klipper vergleicht im Druck die Förderung des Extruders mit dem Encoder am Filament-Eingang; "
-        "bei Verdacht rote Meldung und Alarm in der App, bis wieder normal gefördert wird",
-        "ACE-Seite: Schalter „Verstopfung erkennen“, bei Verdacht nur warnen (Standard) oder pausieren",
-        "App 1.12.0: derselbe Schalter im ACE-Fenster",
-    ]),
-    ("3.3.0", "2026-10-10", [
-        "Fortsetzen nach Stromausfall: Karte „Druck unterbrochen“ mit Live-Bild und Alarm in der App; Fortsetzen nur mit "
-        "Rückfrage – der Drucker heizt erst auf Drucktemperatur, hebt langsam an, tastet die Höhe auf dem Teil an und "
-        "druckt an der Stelle weiter; Verwerfen löscht die Sicherung",
-        "ACE-Seite: Schalter „Fortsetzen nach Stromausfall“",
-        "App 1.11.0: Karte „Druck unterbrochen“ auf der Startseite, Schalter im ACE-Fenster",
-    ]),
-    ("3.2.2", "2026-10-10", [
-        "Direkt nach dem Start (Spoolman noch nicht geladen) schreibt die Bridge keine Slots ohne Filament mehr an den "
-        "Drucker – Orcas Sync konnte sonst falsche Profile wählen, Auto-PA hielt alle Slots für leer",
-    ]),
-    ("3.2.1", "2026-10-09", [
-        "Docker-Image wieder gebaut (Basis-Image jetzt vom AWS-Spiegel, Docker Hub hatte den Bau gedrosselt); "
-        "sonst wie 3.2.0",
-    ]),
-    ("3.2.0", "2026-10-09", [
-        "Z-Versatz pro Filament: Spoolman-Feld „Z-Versatz“ (erbt von der Vorlage), wird beim Druckstart zur ersten "
-        "Schicht addiert (±0,5 mm); abschaltbar unter Einstellungen → Erste Schicht",
-        "Wechsel-G-Code: mit Orcas „Purge in prime tower“ spült die ACE nichts zusätzlich (nie doppelt)",
-    ]),
-    ("3.1.0", "2026-10-09", [
-        "Auto-PA: der Drucker misst Pressure Advance mit der Wiegezelle je Geschwindigkeit, der Wert landet am Filament "
-        "in Spoolman (auch für Orca) und gilt beim nächsten Druck; fehlt er, misst der Drucker selbst",
-        "ACE-Seite: Karte „Pressure Advance“ – an/aus, automatisch messen an/aus, PA je Slot, jetzt messen, neu messen",
-        "Orca sah jeden Slot doppelt (alte Einträge des ACE-Treibers) – werden jetzt aufgeräumt",
-        "App 1.10.0: Abschnitt „Pressure Advance“ im ACE-Fenster",
-    ]),
-    ("3.0.0", "2026-10-09", [
-        "Drucker läuft jetzt mit Klipper auf dem Raspberry Pi und dem ACE-Treiber ACEPRO statt Original-Firmware",
-        "Verbrauch pro Spule aus Klipper, beim Wechsel bekommt der neue Slot Laden und Spülen",
-        "Spülen pro Farbwechsel aus Orcas Spülmengen; Spül-Multiplikator entfällt",
-        "Trockner: von Hand, geplant oder beim Einlegen gestartet läuft bis zum Ende; Automatik startet erst nach "
-        "15 min über der Schwelle (Deckel öffnen startet nichts)",
-        "ACE-Karte: Endlosspule an/aus und Modus; Steuerung: „Klipper neu laden“ nach Not-Aus oder Fehler",
-        "Kamera ohne CPU-Drosselung; Status zeigt die CPU des Pi",
-        "Orca-Plugin 0.6.0 und App 1.9.0 empfohlen",
-    ]),
-    ("2.21.1", "2026-10-06", [
-        "Rücksync aus Orca löscht nie mehr ein Spoolman-Feld, nur weil ein Wert unlesbar ist (Düsentemperatur war weg)",
-        "Orca-Plugin 0.5.2 empfohlen: Profile aus Orca 2.5 laden wieder, Rücksync nimmt den Wert der aktiven Extruder-Variante",
-    ]),
-    ("2.21.0", "2026-10-04", [
-        "Zeile „Benutzt“: welche Slots der Druck braucht, gesamt und was noch kommt",
-        "3D-Ansicht: „Rest“ durchsichtig, voll oder aus; große Dateien ohne Löcher (zusammengefasst statt weggelassen)",
-        "KI-Tab: gelöschte Bilder sauber angezeigt, „Funde“ statt „p“",
-        "App 1.8.0: Zeile „Benutzt“ auf der Startseite",
-    ]),
-    ("2.20.0", "2026-10-03", [
-        "3D-Ansicht wie in Orca: Druckplatte mit Raster, grauer Hintergrund, runde Stränge in echter Breite, kräftige Farben",
-    ]),
-    ("2.19.0", "2026-10-03", [
-        "3D-Ansicht des laufenden Drucks (Volumen, Linien oder Bild – je nach Gerät einstellbar)",
-        "Einstellungen der Bridge im Betrieb ändern, ohne Neustart",
-        "Feuchte-Verlauf der ACE mit allen Trocknungen, Feuchte-Schätzung pro Spule, Trocknen beim Einlegen",
-        "Prüfung beim Druckstart: Material, Farbe, Spule und Feuchte gegen die Druckdatei",
-        "Home Assistant über MQTT, Raumsensor für die Feuchte im Lager",
-        "App 1.7.0: 3D-Ansicht, Feuchte-Verlauf, Feuchte auf der Spulenkarte, Widget",
-    ]),
-    ("2.18.0", "2026-10-03", [
-        "KI-Tab: Einstellungen, ignorierte Bereiche, Gedächtnis, Bildersammlung mit Kennzeichnen und ZIP",
-        "KI gewöhnt sich nicht mehr an einen lange unbemerkten Fehldruck",
-        "App 1.6.0: keine Fehlalarme mehr beim Aufheizen, KI-Seite, „Stimmt“ am Alarm",
-    ]),
-    ("2.17.0", "2026-10-03", [
-        "KI-Fehldruck-Erkennung (kobra-vision): Alarm mit Kamerabild, Rahmen im Bild, Fehlalarm/Stimmt",
-        "Bildersammlung für die nächsten KI-Stufen (bis 5 GB)",
-        "App 1.5.0: KI-Alarm mit „Pausieren“ und „Fehlalarm“",
-    ]),
-    ("2.16.0", "2026-10-03", [
-        "App 1.4.0: Druck als Live-Update immer oben, eigene Töne, Töne testen in den Einstellungen",
-        "Drucker-CPU ist keine Meldung mehr, nur noch Status (gelb ab 90 %, rot ab 97 %)",
-    ]),
-    ("2.15.3", "2026-10-03", [
-        "Handy: Fertig-Zeit wird umgebrochen statt abgeschnitten",
-    ]),
-    ("2.15.2", "2026-10-03", [
-        "Trockner: Restzeit richtig (die ACE meldet Sekunden), Ist-Temperatur auch beim Trocknen",
-    ]),
-    ("2.15.1", "2026-10-02", [
-        "Trockner: Standardwerte nach Herstellerangaben – PLA/TPU 55 °C statt 45/50, PETG bleibt 60",
-        "Kamerabild auf breiten Bildschirmen mittig",
-    ]),
-    ("2.15.0", "2026-10-02", [
-        "App 1.3.0: Druck-Benachrichtigungen aufs Handy (ersetzt den OctoApp-Companion)",
-        "Kamera wird im Druck nicht mehr unnötig gedrosselt (Schwellen 90/97 %, sanfte Schritte)",
-    ]),
-    ("2.14.1", "2026-10-02", [
-        "RFID automatisch: wartet beim Start auf Spoolman und prüft unbekannte Tags erneut",
-    ]),
-    ("2.14.0", "2026-10-02", [
-        "RFID automatisch: Spule mit eigenem Tag im Slot wird zugeordnet, unbekannte Nummern gemerkt",
-        "App 1.2.0: leerer Sticker wird beim Scannen gleich beschrieben",
-    ]),
-    ("2.13.0", "2026-10-02", [
-        "Zwei NFC-Tags pro Spule (eine pro Seite für die ACE 2 Pro), App 1.1.0 schreibt beide",
-    ]),
-    ("2.12.0", "2026-10-01", [
-        "Android-App 1.0.0 als signierte APK im Release und in der Bridge",
-        "App-Updates kommen über die Bridge: Karte unter Mehr, ein Tipp installiert",
-    ]),
-    ("2.11.0", "2026-10-01", [
-        "Drucksteuerung: Pause/Weiter, Abbrechen, Not-Aus (2 s halten), Nachjustieren (Tempo, Fluss, Lüfter, Temperaturen)",
-        "Feld für den Spül-Multiplikator wieder auf Übersicht und Seite ACE",
-    ]),
-    ("2.10.1", "2026-10-01", [
-        "Kamera schont den Drucker: Einzelbilder statt Stream, 1–10 fps je nach Drucker-CPU",
-        "Status zeigt die Drucker-CPU; Warnung bei Dauerlast",
-    ]),
-    ("2.10.0", "2026-10-01", [
-        "Terminal: Antworten des Druckers, Befehle mit Absender, senden mit Rückfrage bei Riskantem",
-        "Logs: Bridge-Log, Ende der Drucker-Logs, Druck-Aufzeichnungen",
-        "Nach Updates lädt sich die Seite selbst neu – kein Strg+Shift+R mehr",
-    ]),
-    ("2.9.0", "2026-10-01", [
-        "Übersicht als Druckermonitor: Kamera vorn, Modell nur während des Drucks",
-        "Meldungen & Status: u. a. „Spule reicht nicht für diesen Druck“, Verbindungen, App und Plugin",
-        "Neuer Tab Filament: Spulen und Sorten an einem Ort",
-    ]),
-    ("2.8.1", "2026-10-01", [
-        "Übersicht aufgeräumt: Druckerkarte von oben nach unten, Trockner und ACE nebeneinander gestapelt",
-        "Handy: Zeiten in einer Zeile, Drucke in voller Breite",
-    ]),
-    ("2.8.0", "2026-10-01", [
-        "ACE-Karte: Spül-Multiplikator, Nachfüllen und Ausgangserkennung; im Druck erst nach „Freischalten“",
-        "Druckansicht: Bridge zeichnet die Druckdatei selbst in den ACE-Farben, dazu Kamera",
-        "Kamera-Restream: eine Stream-Verbindung zum Drucker für alle, Kamera-Link für Mainsail, FPS-Anzeige",
-        "Druckerdaten unter dem Bild: Düse, Bett, Lüfter, Tempo, Fluss, Schicht",
-        "Druckzeit: läuft seit, noch ca., fertig um (z. B. ~17:35)",
-        "Trocknen planen (z. B. heute 22:00)",
-    ]),
-    ("2.7.0", "2026-10-01", [
-        "Spül-Modell der ACE: Spülen pro Farbwechsel wie die Firmware, Multiplikator vom Drucker gelesen",
-        "Orca-Plugin 0.5.0: Verbrauchsvorschau rechnet das Spülen pro Farbwechsel aus den Slot-Farben",
-    ]),
-    ("2.6.0", "2026-10-01", [
-        "Neue Weboberfläche für Handy, Desktop und Ultrawide: Slots, Regal, Filamente, Drucke, Trockner, Geräte",
-        "Geräte koppeln: ein Schlüssel pro Browser, App und Orca-Plugin; Ändern nur noch gekoppelt",
-        "Orca-Plugin 0.4.0 koppelt im Panel – zusammen mit der Bridge aktualisieren",
-    ]),
-    ("2.5.0", "2026-10-01", [
-        "ACE-Trockner: Feuchte und Temperatur, Trocknen von Hand und Automatik nach Feuchte",
-        "Trockentemperatur nie über dem empfindlichsten eingelegten Filament (Feld „Trocknen max.“)",
-    ]),
-    ("2.4.0", "2026-09-30", [
-        "Schnittstelle für die Android-App: Status, Spulen und Filamente anlegen, NFC-Tags (APP_TOKEN)",
-        "Orca-Plugin 0.3.4 meldet seine Basisprofile für die Auswahl in der App",
-    ]),
-    ("2.3.0", "2026-09-30", [
-        "Spulen ohne Tag: Material und Farbe aus Spoolman gehen beim Zuordnen auf dieser Seite an die ACE",
-        "Hinweis bei Slots ohne Material am Drucker – ein Druck damit würde beim Start abbrechen",
-    ]),
-    ("2.2.2", "2026-09-30", [
-        "Orca-Profile: Farbe als default_filament_colour (filament_colour verwirft Orca in Filament-Presets)",
-        "Rücksync nimmt beide Farbschlüssel an",
-    ]),
-    ("2.2.1", "2026-09-24", [
-        "Eigenes Repo kobra-spoolman mit Docker-Image (ghcr.io), Tests und Doku",
-        "MOONRAKER_URL ist Pflicht (keine feste IP mehr als Standard)",
-    ]),
-    ("2.2.0", "2026-09-24", [
-        "Orca-Schnittstelle für das Plugin „Kobra Spoolman“: Profilwerte pro Filament (/api/orca/profiles)",
-        "Rücksync Orca → Spoolman (/api/orca/backsync) und Zurücksetzen auf Vorlage (/api/orca/reset)",
-        "Panel-Status unter einer festen Adresse (/api/orca/state)",
-    ]),
-    ("2.1.1", "2026-09-24", [
-        "Fußzeile mit Version, Laufzeit und Links; Info-Fenster mit allen Einstellungen und Verbindungen",
-    ]),
-    ("2.1.0", "2026-09-24", [
-        "Verbrauch pro Slot messen und in Spoolman buchen (beim Wechsel, bei Druckende, alle 5 min)",
-        "Neustart-sicher: Zustand und Journal unter data/usage/",
-        "Offene Posten für Slots ohne Spule, Nachbuchen und Verwerfen auf der Slot-Seite",
-        "Abgleich mit den G-code-Sollwerten der Firmware, Druckhistorie",
-        "Telemetrie speichert nur noch echte Änderungen (etwa 1 MB statt 25 MB pro Druck)",
-        "Warnung, falls Moonraker oder Firmware selbst in Spoolman buchen",
-    ]),
-    ("2.0.1", "2026-09-24", [
-        "„passt zur ACE“ prüft Material und Farbe (eine gemeinsame Regel für Hinweise und Auswahl)",
-        "Eigenes Orca-Basisprofil am Filament ersetzt die Vorlage komplett",
-    ]),
-    ("2.0.0", "2026-09-24", [
-        "Neuaufbau: Moonraker-WebSocket, Spoolman-Anbindung, Slot-Zuordnung per Handy-Seite, lane_data, Telemetrie",
+        tr("Display: spool name as in Spoolman (\"ASA+ Grau\" instead of \"ASA + Grau\")"),
     ]),
 ]

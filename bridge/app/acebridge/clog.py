@@ -1,15 +1,17 @@
-"""Verstopfung erkennen: Sicht der Bridge auf das Klipper-Modul kobra_clog (kobra-klipper).
+"""Clog detection: the bridge's view of the Klipper module kobra_clog (kobra-klipper).
 
-Klipper vergleicht im Druck je Fenster (20 mm) die Extruder-Foerderung mit dem Encoder am Filament-Eingang. Faellt
-das Verhaeltnis zweimal hintereinander unter die Grenze, meldet es einen Verdacht (`suspect`) - die Bridge zeigt
-dann eine rote Meldung (Alarm in der App), bis wieder normal gefoerdert wird oder der Druck pausiert/endet.
-Reaktion in Klipper: nur warnen (Standard) oder zusaetzlich pausieren.
-Abschaltbar in Klipper: KOBRA_CLOG ENABLE=0 (POST /api/clog/switch), dort auch ACTION=warn|pause.
+During a print Klipper compares, per window (20 mm), what the extruder pushed with the encoder at the filament inlet.
+If the ratio drops below the limit twice in a row it reports a suspicion (`suspect`) - the bridge then shows a red
+message (alarm in the app) until feeding is normal again or the print pauses/ends.
+Reaction in Klipper: warn only (default) or also pause.
+Can be switched off in Klipper: KOBRA_CLOG ENABLE=0 (POST /api/clog/switch), there also ACTION=warn|pause.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Optional
+
+from .i18n import tr
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
@@ -48,18 +50,20 @@ class Clog:
         if not v["suspect"] or not v["alarm"]:
             return None
         a = v["alarm"]
-        text = (f"Verstopfung? Extruder {a.get('extruder_mm', 0):.0f} mm gefördert, Encoder sah nur "
-                f"{a.get('encoder_mm', 0):.0f} mm ({100 * (a.get('ratio') or 0):.0f} %)")
-        return text + (" – Druck pausiert" if a.get("action") == "pause" else " – Düse und Filamentweg prüfen")
+        vals = {"ext": a.get("extruder_mm", 0), "enc": a.get("encoder_mm", 0), "pct": 100 * (a.get("ratio") or 0)}
+        if a.get("action") == "pause":
+            return tr("Clog? Extruder pushed {ext:.0f} mm, the encoder saw only {enc:.0f} mm ({pct:.0f} %) – "
+                      "print paused", **vals)
+        return tr("Clog? Extruder pushed {ext:.0f} mm, the encoder saw only {enc:.0f} mm ({pct:.0f} %) – "
+                  "check the nozzle and the filament path", **vals)
 
     async def switch(self, enabled: Optional[bool] = None, action: Optional[str] = None) -> None:
         if self.klipper is None:
-            raise ClogError(503, "Verstopfungserkennung ist in Klipper nicht eingerichtet (kobra_clog) "
-                                 "oder Klipper nicht bereit")
+            raise ClogError(503, tr("Clog detection is not set up in Klipper (kobra_clog) or Klipper is not ready"))
         if action is not None and action not in ACTIONS:
-            raise ClogError(400, "action: warn oder pause")
+            raise ClogError(400, tr("action: warn or pause"))
         parts = ([f"ENABLE={int(bool(enabled))}"] if enabled is not None else []) + \
             ([f"ACTION={action}"] if action is not None else [])
         if not parts:
-            raise ClogError(400, "Erwartet enabled und/oder action")
-        await self.moon.gcode("KOBRA_CLOG " + " ".join(parts), source="Verstopfung")
+            raise ClogError(400, tr("Expected enabled and/or action"))
+        await self.moon.gcode("KOBRA_CLOG " + " ".join(parts), source=tr("Clog detection"))

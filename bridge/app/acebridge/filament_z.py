@@ -1,8 +1,8 @@
-"""Z-Versatz pro Filament: Spoolman-Feld `z_offset` (mm) -> Klipper-Makro KOBRA_START (Variable slot_z, je Slot T0-T3).
+"""Z offset per filament: Spoolman field `z_offset` (mm) -> Klipper macro KOBRA_START (variable slot_z, per slot T0-T3).
 
-KOBRA_START (kobra-klipper) rechnet den Wert des Startfilaments beim Druckstart zur ersten Schicht dazu (+ = weiter
-weg vom Bett). Anders als beim PA erbt das Filament hier von seiner Vorlage (z. B. alle PETG +0,02 mm).
-Ohne Bridge stehen alle Slots auf 0. Abschaltbar: Einstellung `filament_z_sync`; in Klipper `use_filament_z`.
+KOBRA_START (kobra-klipper) adds the start filament's value to the first layer at print start (+ = further from the
+bed). Unlike PA the filament inherits it from its template here (e.g. all PETG +0.02 mm).
+Without the bridge all slots stay at 0. Can be switched off: setting `filament_z_sync`; in Klipper `use_filament_z`.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import logging
 from typing import TYPE_CHECKING, List, Optional
 
 from .gcodepush import GcodePush
+from .i18n import tr
 from .profiles import find_template
 from .spoolman import extra_value
 
@@ -23,11 +24,11 @@ if TYPE_CHECKING:
 log = logging.getLogger("filament_z")
 
 FIELD = "z_offset"
-LIMIT = 0.5          # mm; groessere Werte sind sicher ein Tippfehler (KOBRA_START begrenzt ebenso)
+LIMIT = 0.5          # mm; larger values are surely a typo (KOBRA_START limits the same way)
 
 
 def filament_z(fil: dict, templates: list) -> float:
-    """Z-Versatz eines Filaments in mm: eigener Wert, sonst der der Vorlage, sonst 0. Unplausibles zaehlt als 0."""
+    """Z offset of a filament in mm: its own value, else the template's, else 0. Implausible values count as 0."""
     for src in (fil, find_template(fil, templates)):
         v = extra_value(src, FIELD) if src else None
         if isinstance(v, (int, float)) and not isinstance(v, bool):
@@ -39,7 +40,7 @@ class FilamentZSync:
     def __init__(self, cfg: "Config", moon: "Moonraker", sm: "Spoolman", slots: "SlotManager"):
         self.cfg, self.moon, self.sm, self.slots = cfg, moon, sm, slots
         self.pushed: Optional[List[float]] = None
-        self.push = GcodePush(moon, "Z-Versatz")    # hoechstens eine Anfrage offen (Startablauf haelt Klipper fest)
+        self.push = GcodePush(moon, tr("Z offset"))  # at most one request in flight (the print start holds Klipper)
 
     def desired(self) -> List[float]:
         assigned, _ = self.slots.assignments()
@@ -52,19 +53,19 @@ class FilamentZSync:
 
     async def tick(self, full: bool = False) -> None:
         if full or not self.moon.klippy_ready:
-            self.pushed = None       # Klipper neu gestartet: Makro-Variable steht wieder auf 0
+            self.pushed = None       # Klipper restarted: the macro variable is back at 0
         if not getattr(self.cfg, "filament_z_sync", True) or not self.moon.klippy_ready:
             return
         if not getattr(self.sm, "connected", True):
-            return                       # ohne Spoolman-Stand nichts schicken
+            return                       # send nothing without Spoolman data
         want = self.desired()
         if self.pushed == want or self.push.busy:
             return
-        self.pushed = want           # auch bei Fehler merken: kein KOBRA_START im Drucker -> nicht alle 2 s versuchen
+        self.pushed = want           # remember even on error: no KOBRA_START in the printer -> do not retry every 2 s
 
         def done(ok, err):
             if ok:
-                log.info("Z-Versatz je Slot an Klipper: %s", want)
+                log.info("Z offset per slot to Klipper: %s", want)
             else:
-                log.warning("Z-Versatz an Klipper fehlgeschlagen (KOBRA_START vorhanden?): %s", str(err) or type(err).__name__)
+                log.warning("Z offset to Klipper failed (KOBRA_START present?): %s", str(err) or type(err).__name__)
         await self.push.send(f'SET_GCODE_VARIABLE MACRO=KOBRA_START VARIABLE=slot_z VALUE="{want}"', done)

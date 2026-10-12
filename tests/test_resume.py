@@ -37,7 +37,7 @@ def test_offer_and_alarm_message(env):
     rs, moon = env
     v = rs.view()
     assert v["present"] and v["pending"]["layer"] == 26 and not v["running"]
-    assert "Schicht 26" in rs.message()
+    assert "layer 26" in rs.message()
     bridge = SimpleNamespace(moon=moon, resume=rs, safety_warnings=lambda: [],
                              slots=SimpleNamespace(warnings=[], slots_view=lambda: [], unknown_tags={}, tag_events=[]),
                              usage=SimpleNamespace(open=[], history=[]), cfg=SimpleNamespace(),

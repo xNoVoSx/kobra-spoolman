@@ -1,4 +1,4 @@
-"""Konfiguration ausschliesslich ueber Umgebungsvariablen (Portainer-Stack)."""
+"""Configuration only through environment variables (Docker/Portainer stack, Home Assistant add-on options)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ def _bool(name: str, default: bool) -> bool:
     raw = os.environ.get(name)
     if raw is None or raw.strip() == "":
         return default
-    return raw.strip().lower() in ("1", "true", "yes", "ja", "on")
+    return raw.strip().lower() in ("1", "true", "yes", "ja", "on")   # "ja": older German configs
 
 
 def _float(name: str, default: float) -> float:
@@ -29,71 +29,70 @@ def _int(name: str, default: int) -> int:
 
 @dataclass
 class Config:
-    # Drucker
+    # printer
     moonraker_url: str = field(default_factory=lambda: os.environ.get("MOONRAKER_URL", "").rstrip("/"))
     moonraker_api_key: str = field(default_factory=lambda: os.environ.get("MOONRAKER_API_KEY", ""))
 
-    # Spoolman (im selben Stack ueber den Servicenamen erreichbar)
+    # Spoolman (reachable by its service name in the same stack)
     spoolman_url: str = field(default_factory=lambda: os.environ.get("SPOOLMAN_URL", "http://spoolman:8000").rstrip("/"))
     spoolman_poll_s: float = field(default_factory=lambda: _float("SPOOLMAN_POLL_S", 20.0))
 
-    # Webserver fuer API und Weboberflaeche
+    # web server for API and web UI
     http_host: str = field(default_factory=lambda: os.environ.get("HTTP_HOST", "0.0.0.0"))
     http_port: int = field(default_factory=lambda: _int("HTTP_PORT", 7913))
 
-    # Orte in Spoolman
+    # locations and names in Spoolman (data - keep them when upgrading)
     slot_location_prefix: str = field(default_factory=lambda: os.environ.get("SLOT_LOCATION_PREFIX", "ACE Slot "))
     shelf_location: str = field(default_factory=lambda: os.environ.get("SHELF_LOCATION", "Regal"))
     template_vendor: str = field(default_factory=lambda: os.environ.get("TEMPLATE_VENDOR", "Vorlage"))
 
-    # Spule automatisch ins Regal, wenn die ACE einen Slot laenger leer meldet
+    # move the spool to the shelf when the ACE reports a slot empty for a while
     auto_unassign_on_empty: bool = field(default_factory=lambda: _bool("AUTO_UNASSIGN_ON_EMPTY", True))
-    # RFID: Spule mit eigenem Tag (Nummer >= TAG_NR_MIN) im Slot -> automatisch zuordnen
+    # RFID: spool with our own tag (number >= TAG_NR_MIN) in the slot -> assign automatically
     auto_assign_by_tag: bool = field(default_factory=lambda: _bool("AUTO_ASSIGN_BY_TAG", True))
     empty_debounce_s: float = field(default_factory=lambda: _float("EMPTY_DEBOUNCE_S", 15.0))
 
-    # lane_data fuer Orca/Mainsail/Fluidd
+    # lane_data for Orca/Mainsail/Fluidd
     write_lane_data: bool = field(default_factory=lambda: _bool("WRITE_LANE_DATA", True))
     lane_namespace: str = field(default_factory=lambda: os.environ.get("LANE_NAMESPACE", "lane_data"))
     empty_gate_mode: str = field(default_factory=lambda: os.environ.get("EMPTY_GATE_MODE", "delete").lower())
 
-    # Material/Farbe/Temperatur der zugeordneten Spule an die ACE geben (ACEPRO ACE_SET_SLOT), nur Slots ohne
-    # RFID-Tag und nur beim Zuordnen auf der Slot-Seite.
+    # give material/colour/temperature of the assigned spool to the ACE (ACEPRO ACE_SET_SLOT), only slots without an
+    # RFID tag and only when assigning on the slot page
     set_ace_slot_info: bool = field(default_factory=lambda: _bool("SET_ACE_SLOT_INFO", True))
 
-    # Android-App: Schluessel fuer alle schreibenden /api/app-Aufrufe (leer = App darf nur lesen)
+    # legacy key for writing calls (before pairing existed); empty = pairing only
     app_token: str = field(default_factory=lambda: os.environ.get("APP_TOKEN", ""))
-    # Tag-Nummern fuer selbst beschriebene NFC-Tags (SKU "<Praefix>-<Nummer>"); vorlaeufig, bis der
-    # Test zeigt, welche SKU die ACE akzeptiert (docs/findings.md)
+    # tag numbers for self-written NFC tags (SKU "<prefix>-<number>"), see docs/findings.md
     tag_nr_min: int = field(default_factory=lambda: _int("TAG_NR_MIN", 1000))
     tag_nr_max: int = field(default_factory=lambda: _int("TAG_NR_MAX", 99999))
     tag_sku_prefix: str = field(default_factory=lambda: os.environ.get("TAG_SKU_PREFIX", "AHPEBK"))
 
-    # Telemetrie-Logger: Rohdaten jedes Drucks (nur echte Aenderungen)
+    # telemetry recorder: raw data of every print (real changes only)
     telemetry: bool = field(default_factory=lambda: _bool("TELEMETRY", True))
     telemetry_keep: int = field(default_factory=lambda: _int("TELEMETRY_KEEP", 30))
 
-    # Verbrauchsbuchung (Etappe 2)
+    # consumption booking
     book_usage: bool = field(default_factory=lambda: _bool("BOOK_USAGE", True))
-    book_interval_s: float = field(default_factory=lambda: _float("BOOK_INTERVAL_S", 300.0))  # Zwischenbuchung im Druck
-    book_min_mm: float = field(default_factory=lambda: _float("BOOK_MIN_MM", 10.0))           # kleinste Zwischenbuchung
-    gate_debounce_s: float = field(default_factory=lambda: _float("GATE_DEBOUNCE_S", 3.0))    # RFID-Tag erst nach so vielen Sekunden im Slot zuordnen
-    usage_tolerance: float = field(default_factory=lambda: _float("USAGE_TOLERANCE", 0.03))   # Abgleich mit Sollwerten
+    book_interval_s: float = field(default_factory=lambda: _float("BOOK_INTERVAL_S", 300.0))  # interim booking while printing
+    book_min_mm: float = field(default_factory=lambda: _float("BOOK_MIN_MM", 10.0))           # smallest interim booking
+    gate_debounce_s: float = field(default_factory=lambda: _float("GATE_DEBOUNCE_S", 3.0))    # assign an RFID tag after this many seconds in the slot
+    usage_tolerance: float = field(default_factory=lambda: _float("USAGE_TOLERANCE", 0.03))   # check against expected values
     job_history: int = field(default_factory=lambda: _int("JOB_HISTORY", 50))
     humidity_days: int = field(default_factory=lambda: _int("HUMIDITY_DAYS", 30))
 
-    # Feuchte der Spulen (moisture.py)
+    # spool moisture (moisture.py)
     room_rh: float = field(default_factory=lambda: _float("ROOM_RH", 50.0))
     dry_locations: str = field(default_factory=lambda: os.environ.get("DRY_LOCATIONS", ""))
     auto_dry_on_insert: bool = field(default_factory=lambda: _bool("AUTO_DRY_ON_INSERT", True))
-    # Auto-PA (Klipper-Modul kobra_pa): PA aus Spoolman an Klipper geben und Messungen zurueckschreiben
+    # auto PA (Klipper module kobra_pa): PA from Spoolman to Klipper, measurements written back
     pa_sync: bool = field(default_factory=lambda: _bool("PA_SYNC", True))
-    # Z-Versatz pro Filament (Spoolman-Feld z_offset) an KOBRA_START geben
+    # Z offset per filament (Spoolman field z_offset) to KOBRA_START
     filament_z_sync: bool = field(default_factory=lambda: _bool("FILAMENT_Z_SYNC", True))
     new_spools_dry: bool = field(default_factory=lambda: _bool("NEW_SPOOLS_DRY", True))
     wet_print_action: str = field(default_factory=lambda: os.environ.get("WET_PRINT_ACTION", "warn").strip().lower())
 
-    # Home Assistant ueber MQTT (mqtt.py). MQTT_HOST leer = aus. MQTT_DISCOVERY leer = keine HA-Discovery.
+    # Home Assistant over MQTT (mqtt.py). MQTT_HOST empty = off. MQTT_DISCOVERY empty = no HA discovery.
     mqtt_host: str = field(default_factory=lambda: os.environ.get("MQTT_HOST", "").strip())
     mqtt_port: int = field(default_factory=lambda: _int("MQTT_PORT", 1883))
     mqtt_user: str = field(default_factory=lambda: os.environ.get("MQTT_USER", ""))
@@ -102,15 +101,15 @@ class Config:
     mqtt_discovery: str = field(default_factory=lambda: os.environ.get("MQTT_DISCOVERY", "homeassistant"))
     room_sensor_topic: str = field(default_factory=lambda: os.environ.get("ROOM_SENSOR_TOPIC", "").strip())
 
-    # Meldungen
+    # messages
     low_spool_g: float = field(default_factory=lambda: _float("LOW_SPOOL_G", 100.0))
     reach_reserve_pct: float = field(default_factory=lambda: _float("REACH_RESERVE_PCT", 5.0))
     default_diameter: float = field(default_factory=lambda: _float("DEFAULT_DIAMETER", 1.75))
     default_density: float = field(default_factory=lambda: _float("DEFAULT_DENSITY", 1.24))
 
-    # Kamera: die Bridge holt Einzelbilder (nur solange jemand zuschaut, mit CAMERA_FPS_MAX) und verteilt sie als
-    # Stream an Weboberflaeche, App, Mainsail und die KI. CAMERA_STREAM=true nimmt den Dauerstream des Druckers
-    # (im Tunnel-Betrieb ist die Drucker-CPU frei). URLs leer = aus Moonrakers Webcam-Liste.
+    # camera: the bridge fetches snapshots (only while someone watches, at most CAMERA_FPS_MAX) and re-distributes
+    # them as a stream to web UI, app, Mainsail and the AI. CAMERA_STREAM=true uses the printer's continuous stream.
+    # URLs empty = from Moonraker's webcam list.
     camera: bool = field(default_factory=lambda: _bool("CAMERA", True))
     camera_stream: bool = field(default_factory=lambda: _bool("CAMERA_STREAM", False))
     camera_fps_min: float = field(default_factory=lambda: _float("CAMERA_FPS_MIN", 1.0))
@@ -119,14 +118,14 @@ class Config:
     camera_snapshot_url: str = field(default_factory=lambda: os.environ.get("CAMERA_SNAPSHOT_URL", ""))
     camera_interval_s: float = field(default_factory=lambda: _float("CAMERA_INTERVAL_S", 1.0))
 
-    # Vorschau der Druckdatei: die Bridge laedt die Datei beim Druckstart einmal (gedrosselt) und zeichnet sie
+    # print file preview: the bridge downloads the file once at print start (throttled) and draws it
     render: bool = field(default_factory=lambda: _bool("RENDER", True))
     render_max_mb: float = field(default_factory=lambda: _float("RENDER_MAX_MB", 200.0))
     render_interval_s: float = field(default_factory=lambda: _float("RENDER_INTERVAL_S", 15.0))
     geometry_max_segments: int = field(default_factory=lambda: _int("GEOMETRY_MAX_SEGMENTS", 1_500_000))
 
-    # KI (kobra-vision): leer = aus. Im Druck alle VISION_INTERVAL_S ein Bild an den Dienst; warn = nur melden,
-    # pause = bei sicherem Fehldruck pausieren. Bilder fuer spaeteres Training: hoechstens VISION_DATASET_GB.
+    # AI (kobra-vision): empty = off. While printing an image to the service every VISION_INTERVAL_S; warn = report
+    # only, pause = pause on a certain failure. Images for later training: at most VISION_DATASET_GB.
     vision_url: str = field(default_factory=lambda: os.environ.get("VISION_URL", "").rstrip("/"))
     vision_token: str = field(default_factory=lambda: os.environ.get("VISION_TOKEN", ""))
     vision_interval_s: float = field(default_factory=lambda: _float("VISION_INTERVAL_S", 10.0))
@@ -138,15 +137,18 @@ class Config:
     dry_run: bool = field(default_factory=lambda: _bool("DRY_RUN", False))
     data_dir: str = field(default_factory=lambda: os.environ.get("DATA_DIR", "/data"))
     log_level: str = field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO").upper())
+    # language for devices that do not say which one they want, and for MQTT / Home Assistant: en | de
+    # (not LANGUAGE - that one belongs to gettext and may be set by the system)
+    language: str = field(default_factory=lambda: os.environ.get("UI_LANGUAGE", "en").strip().lower()[:2] or "en")
 
-    # Links fuer die Weboberflaeche (vom Browser aus erreichbar). Leer = automatisch.
+    # links for the web UI (reachable from the browser). Empty = automatic.
     spoolman_public_url: str = field(default_factory=lambda: os.environ.get("SPOOLMAN_PUBLIC_URL", "").rstrip("/"))
     printer_ui_url: str = field(default_factory=lambda: os.environ.get("PRINTER_UI_URL", "").rstrip("/"))
 
     def links(self) -> dict:
-        """Spoolman: im Stack heisst der Host 'spoolman' - das kennt der Browser nicht,
-        dann baut die Seite den Link selbst (gleicher Host, Port 7912).
-        Drucker-Oberflaeche: Mainsail am Klipper-Rechner (Pi), Port 80 - gleicher Host wie Moonraker."""
+        """Spoolman: in the stack the host is called 'spoolman' - the browser does not know it, then the page builds
+        the link itself (same host, port 7912).
+        Printer UI: Mainsail on the Klipper computer, port 80 - same host as Moonraker."""
         from urllib.parse import urlparse
         sm = self.spoolman_public_url
         if not sm:
@@ -159,14 +161,14 @@ class Config:
         return {"spoolman": sm or None, "printer_ui": ui or None}
 
     def printer_base_url(self) -> str:
-        """Webserver des Klipper-Rechners (Pi, Mainsail/nginx Port 80) - Rueckfall fuer /webcam/, wenn Moonrakers
-        Webcam-Liste nichts liefert (die Kamera selbst haengt am Drucker, siehe moonraker.conf)."""
+        """Web server of the Klipper computer (Mainsail/nginx, port 80) - fallback for /webcam/ when Moonraker's webcam
+        list returns nothing."""
         from urllib.parse import urlparse
         host = urlparse(self.moonraker_url).hostname
         return f"http://{host}" if host else ""
 
     def slot_location(self, slot: int) -> str:
-        """slot ist 1-basiert (Slot 1 = Gate 0)."""
+        """slot is 1-based (slot 1 = gate 0)."""
         return f"{self.slot_location_prefix}{slot}"
 
     def slot_from_location(self, location: str | None) -> int | None:

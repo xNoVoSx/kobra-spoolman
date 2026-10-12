@@ -83,11 +83,11 @@ def test_guards(env):
     moon.position["homed_axes"] = "xy"
     with pytest.raises(MachineError) as e:                 # Z nicht gehomt
         run(m.run("jog", {"axis": "z", "dist": 1}, "Display"))
-    assert "homen" in str(e.value)
+    assert "home first" in str(e.value)
     moon.merge({"extruder": {"temperature": 25.0}})
     with pytest.raises(MachineError) as e:                 # kalt
         run(m.run("extrude", {"mm": 10}, "Display"))
-    assert "kalt" in str(e.value)
+    assert "too cold" in str(e.value)
     moon.merge({"print_stats": {"state": "printing"}, "extruder": {"temperature": 240.0}})
     for action, body in (("home", {}), ("jog", {"axis": "x", "dist": 1}), ("load", {"slot": 1}), ("extrude", {"mm": 5})):
         with pytest.raises(MachineError) as e:

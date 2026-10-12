@@ -51,7 +51,7 @@ def test_spool_reach_and_warning(bridge):
     # T1 -> Slot 2 hat keine Spule: Hinweis statt Rechnung
     assert reach[2]["need_g"] is None and reach[2]["enough"] is None
     msgs = notices(bridge)["messages"]
-    assert any(m["key"] == "reach2" and "keine Spule" in m["text"] for m in msgs)
+    assert any(m["key"] == "reach2" and "no spool" in m["text"] for m in msgs)
 
     bridge.sm.spools[0]["remaining_weight"] = 0.2                     # Spule 1 fast leer
     msgs = notices(bridge)["messages"]
@@ -91,7 +91,7 @@ def test_no_reach_without_print_or_model(bridge):
 def test_messages_for_printer_states(bridge):
     bridge.moon.merge({"print_stats": {"state": "paused", "message": "Filament leer"}})
     first = notices(bridge)["messages"][0]
-    assert first["level"] == "error" and first["text"] == "Druck pausiert: Filament leer"
+    assert first["level"] == "error" and first["text"] == "Print paused: Filament leer"
     bridge.moon.connected = False
     assert notices(bridge)["messages"][0]["key"] == "printer"
     st = {s["key"]: s for s in notices(bridge)["status"]}
@@ -114,7 +114,7 @@ def test_recent_print_and_humidity_info(bridge):
     bridge.usage.history = [{"file": "wuerfel.gcode", "ended": ended, "state": "complete", "slots": []}]
     bridge.moon.merge({"ace_instance_0": {"humidity": 40, "dryer_status": {"status": "stop"}}})
     msgs = {m["key"]: m for m in notices(bridge)["messages"]}
-    assert msgs["done"]["text"].startswith("Druck fertig: wuerfel.gcode")
+    assert msgs["done"]["text"].startswith("Print finished: wuerfel.gcode")
     assert msgs["humidity"]["level"] == "info"
 
 

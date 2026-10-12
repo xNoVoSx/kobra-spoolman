@@ -1,10 +1,12 @@
-"""Feuchte-Verlauf der ACE und jede Trocknung als Eintrag.
+"""Humidity history of the ACE and every drying run as an entry.
 
-Quelle: ACE-Treiber (ace_instance_0 im bestehenden Abo, acemodel.dryer) - am Drucker kommt nichts dazu.
-- Verlauf: ein Punkt pro Minute (Feuchte, Ist-/Soll-Temperatur, trocknet) in DATA_DIR/humidity/<Tag>.jsonl,
-  aelter als cfg.humidity_days wird geloescht.
-- Trocknungen: erkannt am Zustand der ACE (also auch, wenn am Display oder in Mainsail gestartet). Was die Bridge
-  selbst ausgeloest hat, meldet dryer.py mit Ausloeser und Grund (note_start/note_stop) - das landet im Eintrag.
+Source: ACE driver (ace_instance_0 in the existing subscription, acemodel.dryer) - nothing extra on the printer.
+- History: one point per minute (humidity, actual/target temperature, drying) in DATA_DIR/humidity/<day>.jsonl,
+  older than cfg.humidity_days is deleted.
+- Drying runs: detected from the ACE state (so also when started on the display or in Mainsail). What the bridge
+  started itself, dryer.py reports with trigger and reason (note_start/note_stop) - that goes into the entry.
+  Trigger keys (stable API codes, translated by web and app): auto, hand, plan, spule (spool inserted),
+  drucker (display/Mainsail), unbekannt (already running).
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from .dryer import hub_state
+from .i18n import tr
 from .storage import save_json
 
 if TYPE_CHECKING:
@@ -27,7 +30,7 @@ log = logging.getLogger("humidity")
 
 POINT_EVERY_S = 60
 SESSIONS_KEPT = 300
-NOTE_VALID_S = 180            # so lange gilt ein "Bridge hat gestartet/gestoppt"-Hinweis
+NOTE_VALID_S = 180            # a "the bridge started/stopped it" note is valid this long
 
 
 class HumidityLog:
@@ -42,11 +45,11 @@ class HumidityLog:
         self._pending_start: Optional[Dict[str, Any]] = None
         self._pending_stop: Optional[Dict[str, Any]] = None
         self._last_day_cleanup = ""
-        self._seen_hub = False                     # erster Stand nach dem Start der Bridge
-        self.spools_in_ace: Callable[[], List[Dict[str, Any]]] = lambda: []    # setzt die Bridge
+        self._seen_hub = False                     # first state after the bridge started
+        self.spools_in_ace: Callable[[], List[Dict[str, Any]]] = lambda: []    # set by the bridge
         self._load()
 
-    # ------------------------------------------------------------ Speichern
+    # ------------------------------------------------------------ storage
     def _sessions_path(self) -> str:
         return os.path.join(self.dir, "sessions.json")
 
@@ -59,7 +62,7 @@ class HumidityLog:
         except FileNotFoundError:
             pass
         except (OSError, ValueError) as e:
-            log.warning("humidity/sessions.json unlesbar: %s", e)
+            log.warning("humidity/sessions.json unreadable: %s", e)
 
     def _save(self) -> None:
         os.makedirs(self.dir, exist_ok=True)
@@ -75,7 +78,7 @@ class HumidityLog:
             f.write(json.dumps(p) + "\n")
 
     def cleanup(self) -> int:
-        """Tagesdateien aelter als humidity_days loeschen."""
+        """Delete day files older than humidity_days."""
         if not os.path.isdir(self.dir):
             return 0
         keep_from = self._day(self.clock() - self.cfg.humidity_days * 86400)
@@ -86,7 +89,7 @@ class HumidityLog:
                 removed += 1
         return removed
 
-    # ------------------------------------------------------------ Hinweise von dryer.py
+    # ------------------------------------------------------------ notes from dryer.py
     def note_start(self, source: str, temp: int, hours: float, reason: str = "") -> None:
         self._pending_start = {"at": self.clock(), "source": source, "temp": temp, "hours": hours, "reason": reason}
 
@@ -96,9 +99,9 @@ class HumidityLog:
     def _fresh(self, note: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         return note if note and self.clock() - note["at"] <= NOTE_VALID_S else None
 
-    # ------------------------------------------------------------ Ablauf
+    # ------------------------------------------------------------ flow
     def tick(self) -> None:
-        """Jede Sekunde (Ticker): Punkt pro Minute, Beginn/Ende einer Trocknung."""
+        """Every second (ticker): one point per minute, start/end of a drying run."""
         hub = hub_state(self.moon.status)
         if not hub["present"] or hub["humidity"] is None:
             return
@@ -108,7 +111,7 @@ class HumidityLog:
             try:
                 self._append_point(now, hub)
             except OSError as e:
-                log.warning("Feuchte-Punkt nicht gespeichert: %s", e)
+                log.warning("Humidity point not saved: %s", e)
             day = self._day(now)
             if day != self._last_day_cleanup:
                 self._last_day_cleanup = day
@@ -119,7 +122,7 @@ class HumidityLog:
         elif not hub["drying"] and self.open is not None:
             self._end(now, hub)
         elif hub["drying"] and self.open is not None:
-            o = self.open                              # Soll-Temperatur kann sich aendern (Bridge senkt sie)
+            o = self.open                              # the target may change (the bridge lowers it)
             if hub["target_temp"] and hub["target_temp"] != o["temps"][-1][1]:
                 o["temps"].append([round(now), hub["target_temp"]])
                 self._save()
@@ -127,15 +130,15 @@ class HumidityLog:
     def _begin(self, now: float, hub: Dict[str, Any], already: bool = False) -> None:
         note = self._fresh(self._pending_start)
         self._pending_start = None
-        if already and not note:                   # lief schon, als die Bridge gestartet ist: Ursprung unbekannt
-            note = {"source": "unbekannt", "reason": "lief schon beim Start der Bridge"}
+        if already and not note:                   # was already running when the bridge started: origin unknown
+            note = {"source": "unbekannt", "reason": tr("was already running when the bridge started")}
         self.open = {"id": uuid.uuid4().hex[:10], "start": round(now), "temps": [[round(now), hub["target_temp"]]],
                      "planned_min": hub["duration_min"], "humidity_start": hub["humidity"],
                      "source": note["source"] if note else "drucker",
-                     "reason": note["reason"] if note else "am Display oder in Mainsail gestartet",
+                     "reason": note["reason"] if note else tr("started on the display or in Mainsail"),
                      "spools": self.spools_in_ace()}
         self._save()
-        log.info("Trocknung begonnen: %s °C, %s", hub["target_temp"], self.open["reason"])
+        log.info("Drying started: %s °C, %s", hub["target_temp"], self.open["reason"])
 
     def _end(self, now: float, hub: Dict[str, Any]) -> None:
         o, self.open = self.open, None
@@ -143,21 +146,22 @@ class HumidityLog:
         self._pending_stop = None
         dur_min = (now - o["start"]) / 60
         if note:
-            end = note["reason"] or {"auto": "Ziel erreicht", "hand": "von Hand gestoppt"}.get(note["source"], note["source"])
+            end = note["reason"] or {"auto": tr("target reached"),
+                                     "hand": tr("stopped by hand")}.get(note["source"], note["source"])
         elif o.get("planned_min") and dur_min >= o["planned_min"] - 3:
-            end = "Laufzeit um"
+            end = tr("time is up")
         else:
-            end = "beendet (Display, Neustart oder Fehler)"
+            end = tr("ended (display, restart or error)")
         o.update({"end": round(now), "minutes": round(dur_min), "humidity_end": hub["humidity"], "end_reason": end})
         self.sessions.append(o)
         self.sessions = self.sessions[-SESSIONS_KEPT:]
         self._save()
-        log.info("Trocknung beendet nach %d min: %s (Feuchte %s → %s %%)", o["minutes"], end, o["humidity_start"],
+        log.info("Drying ended after %d min: %s (humidity %s → %s %%)", o["minutes"], end, o["humidity_start"],
                  o["humidity_end"])
 
-    # ------------------------------------------------------------ Lesen
+    # ------------------------------------------------------------ reading
     def points(self, hours: float, max_points: int = 1500) -> List[List[Any]]:
-        """Punkte der letzten Stunden, auf hoechstens max_points verdichtet (Mittel je Abschnitt, trocknet = max)."""
+        """Points of the last hours, condensed to at most max_points (mean per section, drying = max)."""
         now = self.clock()
         since = now - hours * 3600
         out: List[List[Any]] = []

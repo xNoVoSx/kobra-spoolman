@@ -1,11 +1,11 @@
-"""Auslieferung der Weboberflaeche mit Fingerabdruck.
+"""Serving the web UI with a fingerprint.
 
-Ohne Cache-Angaben behalten Browser alte JS/CSS-Dateien nach einem Update (Strg+Shift+R noetig, alte
-Oberflaeche trifft auf neue API). Deshalb:
-- TAG = Fingerabdruck aller Dateien in static/ (beim Start berechnet). Die Startseite verweist auf
-  assets/<TAG>/..., ist selbst nie zwischengespeichert und nennt den TAG in <meta name="ui-tag">.
-- Unter assets/<TAG>/ ist alles unveraenderlich (ein Jahr Cache). Neue Dateien -> neuer TAG -> neue Adressen.
-- /api/app/state meldet den TAG; eine offene Seite mit altem TAG laedt sich selbst neu.
+Without cache headers browsers keep old JS/CSS files after an update (Ctrl+Shift+R needed, old UI meets new API).
+Therefore:
+- TAG = fingerprint of all files in static/ (computed at start). The start page points to assets/<TAG>/..., is never
+  cached itself and names the TAG in <meta name="ui-tag">.
+- Everything under assets/<TAG>/ is immutable (cached for a year). New files -> new TAG -> new URLs.
+- /api/app/state reports the TAG; an open page with an old TAG reloads itself.
 """
 
 from __future__ import annotations
@@ -47,18 +47,18 @@ async def index(_: web.Request) -> web.Response:
 
 
 async def viewer(_: web.Request) -> web.Response:
-    """Nur die 3D-Ansicht der Druckdatei (App, Teilen im Heimnetz)."""
+    """Only the 3D view of the print file (app, sharing in the home network)."""
     return web.Response(text=index_html(page="viewer.html"), content_type="text/html", headers={"Cache-Control": NO_CACHE})
 
 
 async def display(_: web.Request) -> web.Response:
-    """Drucker-Display (800x480, Kiosk-Browser auf dem Klipper-Pi)."""
+    """Printer display (800x480, kiosk browser on the Klipper Pi)."""
     return web.Response(text=index_html(page="display.html"), content_type="text/html",
                         headers={"Cache-Control": NO_CACHE})
 
 
 async def asset(request: web.Request) -> web.StreamResponse:
-    """assets/<tag>/<pfad>: aktueller TAG -> unveraenderlich; alter TAG (alte, offene Seite) -> ohne Cache."""
+    """assets/<tag>/<path>: current TAG -> immutable; old TAG (an old, open page) -> not cached."""
     rel = request.match_info["path"]
     path = os.path.realpath(os.path.join(STATIC, rel))
     if not path.startswith(os.path.realpath(STATIC) + os.sep) or not os.path.isfile(path):
@@ -72,5 +72,5 @@ def add_routes(app: web.Application) -> None:
     app.router.add_get("/viewer", viewer)
     app.router.add_get("/display", display)
     app.router.add_get("/assets/{tag}/{path:.+}", asset)
-    # alte Adressen (Lizenzen, Links): weiter erreichbar, aber immer frisch pruefen
+    # old URLs (licenses, links): still reachable, but always revalidated
     app.router.add_static("/static", STATIC, append_version=False)

@@ -1,7 +1,7 @@
-"""Bildersammlung der KI: DATA_DIR/vision/jobs/<start>_<datei>/ mit Bildern, frames.jsonl und labels.jsonl.
+"""Image collection of the AI: DATA_DIR/vision/jobs/<start>_<file>/ with images, frames.jsonl and labels.jsonl.
 
-Jedes Bild hat eine Zeile in frames.jsonl (Zeit, Art, Wert, Funde, Schicht ...). Kennzeichnungen stehen in
-labels.jsonl (die letzte Zeile je Bild gilt) - daraus entstehen spaeter die Trainingsdaten fuer Stufe 2/3.
+Every image has a line in frames.jsonl (time, kind, score, detections, layer ...). Labels are in labels.jsonl (the last
+line per image counts) - later training data for stage 2/3 come from them.
 """
 
 from __future__ import annotations
@@ -14,16 +14,18 @@ import shutil
 import zipfile
 from typing import Any, Callable, Dict, Iterator, List, Optional
 
+from .i18n import tr
+
 log = logging.getLogger("vision")
 
-# Kennzeichnungen fuer die Trainingsdaten (Schluessel -> Anzeige)
+# labels for the training data (key -> display)
 LABELS = {
-    "ok": "In Ordnung",
-    "spaghetti": "Spaghetti",
-    "detached": "Teil gelöst",
-    "tower": "Turm umgefallen",
-    "plate_not_empty": "Platte nicht leer",
-    "plate_empty": "Platte leer",
+    "ok": tr("OK"),
+    "spaghetti": tr("Spaghetti"),
+    "detached": tr("Part detached"),
+    "tower": tr("Tower fell over"),
+    "plate_not_empty": tr("Plate not empty"),
+    "plate_empty": tr("Plate empty"),
 }
 KINDS = ("start", "periodic", "suspect", "event", "end", "test")
 _NAME = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -40,7 +42,7 @@ class Dataset:
         return os.path.join(self.root, job)
 
     def frame_path(self, job: str, frame: str) -> Optional[str]:
-        """Pfad eines Bildes - nur Namen ohne Verzeichnisanteile, nur .jpg, nur wenn es existiert."""
+        """Path of an image - names without directory parts only, .jpg only, only if it exists."""
         if not _NAME.match(frame or "") or not frame.endswith(".jpg"):
             return None
         try:
@@ -79,7 +81,7 @@ class Dataset:
         if not p:
             raise KeyError(frame)
         os.remove(p)
-        # Zeilen bleiben; frames() zeigt nur vorhandene Bilder
+        # lines stay; frames() shows only existing images
 
     # ------------------------------------------------------------ Lesen
     def _labels(self, d: str) -> Dict[str, Optional[str]]:
@@ -90,7 +92,7 @@ class Dataset:
                     try:
                         r = json.loads(line)
                         lab = r.get("label")
-                        if lab is None and "verdict" in r:          # Rueckmeldungen aus 2.17.0
+                        if lab is None and "verdict" in r:          # feedback from 2.17.0
                             lab = {"false_alarm": "ok", "confirmed": "spaghetti"}.get(r["verdict"])
                         out[r["frame"]] = lab
                     except (ValueError, KeyError):
@@ -120,7 +122,7 @@ class Dataset:
         return out
 
     def page(self, job: str, flt: str = "all", offset: int = 0, limit: int = 120) -> Dict[str, Any]:
-        """Bilder eines Drucks gefiltert und seitenweise (ein langer Druck hat tausende Bilder)."""
+        """Images of a print, filtered and paged (a long print has thousands of images)."""
         tests = {"all": lambda f: True, "event": lambda f: f.get("kind") == "event",
                  "suspect": lambda f: f.get("kind") == "suspect",
                  "startend": lambda f: f.get("kind") in ("start", "end"),
@@ -132,7 +134,7 @@ class Dataset:
         return {"job": job, "total": len(sel), "offset": offset, "frames": sel[offset:offset + limit]}
 
     def jobs(self) -> List[Dict[str, Any]]:
-        """Alle Drucke, neueste zuerst, mit Anzahl Bilder/Alarme/Kennzeichnungen und Groesse."""
+        """All prints, newest first, with number of images/alarms/labels and size."""
         if not os.path.isdir(self.root):
             return []
         out = []
@@ -159,7 +161,7 @@ class Dataset:
                 "labels": {k: v for k, v in LABELS.items()}}
 
     def prune(self, limit_gb: float, keep: Optional[str] = None) -> int:
-        """Aelteste Drucke loeschen, bis die Sammlung unter limit_gb liegt (keep bleibt immer)."""
+        """Delete the oldest prints until the collection is below limit_gb (keep always stays)."""
         if not os.path.isdir(self.root):
             return 0
         limit = limit_gb * 1024 ** 3
@@ -179,12 +181,12 @@ class Dataset:
             total -= size
             removed += 1
         if removed:
-            log.info("Bildersammlung: %d alte Drucke gelöscht (Grenze %.1f GB)", removed, limit_gb)
+            log.info("Image collection: %d old prints deleted (limit %.1f GB)", removed, limit_gb)
         return removed
 
     # ------------------------------------------------------------ Export
     def iter_files(self, job: Optional[str] = None) -> Iterator[str]:
-        """Alle Dateien (relativ zu root) - fuer den ZIP-Export."""
+        """All files (relative to root) - for the ZIP export."""
         names = [job] if job else (sorted(os.listdir(self.root)) if os.path.isdir(self.root) else [])
         for name in names:
             d = self._job_dir(name)
@@ -193,12 +195,12 @@ class Dataset:
                     yield os.path.join(name, f)
 
     def write_zip(self, out, job: Optional[str] = None, cancelled: Callable[[], bool] = lambda: False) -> int:
-        """ZIP (Bilder unkomprimiert) in einen nicht-seekbaren Strom schreiben. Rueckgabe: Anzahl Dateien."""
+        """Write a ZIP (images uncompressed) into a non-seekable stream. Returns: number of files."""
         n = 0
         with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_STORED) as z:
-            z.writestr("README.txt", "kobra-spoolman KI-Bildersammlung\n"
-                       "Pro Druck: Bilder, frames.jsonl (Zeit, Art, Wert p, Funde, Schicht), labels.jsonl (Kennzeichnung,\n"
-                       "die letzte Zeile je Bild gilt). Kennzeichnungen: " + ", ".join(LABELS) + "\n")
+            z.writestr("README.txt", "kobra-spoolman AI image collection\n"
+                       "Per print: images, frames.jsonl (time, kind, score p, detections, layer), labels.jsonl (label,\n"
+                       "the last line per image counts). Labels: " + ", ".join(LABELS) + "\n")
             for rel in self.iter_files(job):
                 if cancelled():
                     break

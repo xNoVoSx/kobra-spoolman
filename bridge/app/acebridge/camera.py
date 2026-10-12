@@ -1,12 +1,10 @@
-"""Kamera ueber die Bridge: eine Quelle am Drucker, weiterverteilt an alle Zuschauer.
+"""Camera through the bridge: one source at the printer, re-distributed to every viewer.
 
-Die Kamera haengt am Drucker (mjpg-streamer von Rinkhals, Port 8080), Klipper laeuft am Pi; die Adressen kommen
-aus Moonrakers Webcam-Liste (moonraker.conf des Pi). Unter GoKlipper kostete schon EIN Dauerstream die ganze
-Drucker-CPU (01.10.2026) - darum holt die Bridge Einzelbilder (wie Mainsails "adaptive"-Modus), nur solange jemand
-zuschaut, mit CAMERA_FPS_MAX, und verteilt sie als MJPEG-Stream an Weboberflaeche, App, Mainsail (Kamera-Link) und
-die KI. Im Tunnel-Betrieb ist die Drucker-CPU frei: CAMERA_STREAM=true nutzt den Dauerstream des Druckers (volle
-Bildrate) - am Geraet pruefen. Die fruehere Drosselung nach der Drucker-CPU entfaellt (Moonraker meldet jetzt die
-CPU des Pi).
+The camera is attached to the printer (mjpg-streamer, port 8080); its URLs come from Moonraker's webcam list. On the
+stock firmware even ONE continuous stream used the whole printer CPU (2026-10-01) - so the bridge fetches snapshots
+(like Mainsail's "adaptive" mode), only while someone watches, at most CAMERA_FPS_MAX, and re-distributes them as an
+MJPEG stream to web UI, app, Mainsail (camera link) and the AI. With Klipper on a separate computer the printer CPU is
+free: CAMERA_STREAM=true uses the printer's continuous stream (full frame rate).
 """
 
 from __future__ import annotations
@@ -19,16 +17,18 @@ from typing import TYPE_CHECKING, AsyncIterator, Deque, Optional, Tuple
 
 import aiohttp
 
+from .i18n import msg_of, tr
+
 if TYPE_CHECKING:
     from .config import Config
     from .moonraker import Moonraker
 
 log = logging.getLogger("camera")
 
-IDLE_CLOSE_S = 20.0          # so lange nach dem letzten Zuschauer bleibt der Stream offen
+IDLE_CLOSE_S = 20.0          # the stream stays open this long after the last viewer
 FIRST_FRAME_TIMEOUT_S = 6.0
-RETRY_S = 5.0                # nach einem Abbruch frühestens wieder verbinden
-NO_STREAM_RETRY_S = 300.0    # Drucker liefert gar keinen Stream: so lange Einzelbilder
+RETRY_S = 5.0                # reconnect no sooner after a failure
+NO_STREAM_RETRY_S = 300.0    # printer delivers no stream at all: snapshots for this long
 
 
 class CameraError(Exception):
@@ -36,23 +36,23 @@ class CameraError(Exception):
 
 
 def is_bridge_url(url: Optional[str]) -> bool:
-    """Zeigt die Adresse auf den Restream einer Bridge (Kamera-Link)? Dann waere es eine Schleife."""
+    """Does the URL point to a bridge's restream (camera link)? Then it would be a loop."""
     return bool(url) and "/api/camera/" in url
 
 
 async def read_mjpeg(content: aiohttp.StreamReader) -> AsyncIterator[bytes]:
-    """JPEG-Bilder aus einem multipart/x-mixed-replace-Strom (mjpg-streamer). Nutzt Content-Length,
-    sonst die JPEG-Endmarke."""
+    """JPEG images from a multipart/x-mixed-replace stream (mjpg-streamer). Uses Content-Length, else the JPEG end
+    marker."""
     buf = b""
     while True:
-        # Kopfzeilen bis zur Leerzeile
+        # headers up to the empty line
         while b"\r\n\r\n" not in buf:
             chunk = await content.read(16384)
             if not chunk:
                 return
             buf += chunk
             if len(buf) > 1_000_000:
-                raise CameraError("Stream ohne erkennbare Bildgrenzen")
+                raise CameraError(tr("Stream without recognisable image boundaries"))
         head, buf = buf.split(b"\r\n\r\n", 1)
         length = None
         for line in head.split(b"\r\n"):
@@ -89,7 +89,7 @@ class Camera:
         self.clock = clock
         self.stream_url: Optional[str] = cfg.camera_stream_url or None
         self.snapshot_url: Optional[str] = cfg.camera_snapshot_url or None
-        self._resolved = bool(self.stream_url and self.snapshot_url)   # fehlende aus Moonrakers Liste
+        self._resolved = bool(self.stream_url and self.snapshot_url)   # missing ones from Moonraker's list
         self.image: Optional[bytes] = None
         self.frame_no = 0
         self.taken_at = 0.0
@@ -105,7 +105,7 @@ class Camera:
         self._retry_at = 0.0
         self.target_fps = float(cfg.camera_fps_max)
 
-    # ------------------------------------------------------------ Adressen
+    # ------------------------------------------------------------ URLs
     async def _resolve(self) -> None:
         if self._resolved:
             return
@@ -113,11 +113,11 @@ class Camera:
         cam = None
         try:
             cams = (await self.moon.get_json("/server/webcams/list")).get("webcams") or []
-            # Eintraege, die auf den Restream der Bridge zeigen (Mainsail mit Kamera-Link), nie als Quelle nehmen
+            # never use entries that point to the bridge's restream (Mainsail with the camera link) as the source
             cam = next((c for c in cams if c.get("enabled", True) and not is_bridge_url(c.get("stream_url"))
                         and not is_bridge_url(c.get("snapshot_url"))), None)
         except Exception as e:  # noqa: BLE001
-            log.info("Webcam-Liste nicht lesbar (%s) - nehme /webcam/", e)
+            log.info("Webcam list unreadable (%s) - using /webcam/", e)
         base = self.cfg.printer_base_url()
 
         def absolute(u: Optional[str], default: str) -> str:
@@ -125,9 +125,9 @@ class Camera:
             return u if u.startswith("http") else base + u
         self.stream_url = self.stream_url or absolute((cam or {}).get("stream_url"), "/webcam/?action=stream")
         self.snapshot_url = self.snapshot_url or absolute((cam or {}).get("snapshot_url"), "/webcam/?action=snapshot")
-        log.info("Kamera: Stream %s, Einzelbild %s", self.stream_url, self.snapshot_url)
+        log.info("Camera: stream %s, snapshot %s", self.stream_url, self.snapshot_url)
 
-    # ------------------------------------------------------------ Stream lesen (eine Verbindung)
+    # ------------------------------------------------------------ reading the stream (one connection)
     def fps(self) -> Optional[float]:
         now = self.clock()
         recent = [t for t in self._times if now - t <= 3.0]
@@ -144,11 +144,11 @@ class Camera:
         return self._viewers == 0 and self.clock() > self._wanted_until
 
     async def _run_pump(self) -> None:
-        """Einzelbilder nacheinander (nie zwei gleichzeitig) mit CAMERA_FPS_MAX."""
+        """Snapshots one after the other (never two at once) at CAMERA_FPS_MAX."""
         await self._resolve()
         self.mode, self.target_fps = "snapshots", float(self.cfg.camera_fps_max)
         fails = 0
-        log.info("Kamera: Einzelbilder, bis %.0f fps", self.target_fps)
+        log.info("Camera: snapshots, up to %.0f fps", self.target_fps)
         try:
             while not self._idle():
                 started = self.clock()
@@ -157,22 +157,22 @@ class Camera:
                         r.raise_for_status()
                         data = await r.read()
                     if not data.startswith(b"\xff\xd8"):
-                        raise CameraError("Antwort ist kein JPEG")
+                        raise CameraError(tr("Answer is not a JPEG"))
                     await self._publish(data)
                     fails = 0
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:  # noqa: BLE001
                     fails += 1
-                    self.error = f"Kamera nicht erreichbar: {e}"
+                    self.error = tr("Camera not reachable: {error}", error=str(e))
                     if fails >= 3:
                         self._retry_at = self.clock() + RETRY_S
-                        log.warning("Kamera: %s - neuer Versuch in %.0f s", e, RETRY_S)
+                        log.warning("Camera: %s - retrying in %.0f s", e, RETRY_S)
                         return
                 await asyncio.sleep(max(0.0, 1.0 / self.target_fps - (self.clock() - started)))
         finally:
             self.mode = "idle"
-            log.info("Kamera: keine Zuschauer mehr - Abfrage beendet")
+            log.info("Camera: no viewers left - polling stopped")
 
     async def _publish(self, frame: bytes) -> None:
         now = self.clock()
@@ -189,7 +189,7 @@ class Camera:
     async def _run_stream(self) -> None:
         await self._resolve()
         got = 0
-        log.info("Kamera-Stream geoeffnet (eine Verbindung zum Drucker)")
+        log.info("Camera stream opened (one connection to the printer)")
         self.mode = "stream"
         try:
             async with self.session.get(self.stream_url, timeout=aiohttp.ClientTimeout(total=None, sock_read=10)) as r:
@@ -202,20 +202,20 @@ class Camera:
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001
-            self.error = f"Kamera-Stream: {e}"
-            # ohne ein einziges Bild kann der Drucker wohl keinen Stream: eine Weile Einzelbilder
+            self.error = tr("Camera stream: {error}", error=str(e))
+            # without a single image the printer probably cannot stream: snapshots for a while
             self._retry_at = self.clock() + (RETRY_S if got else NO_STREAM_RETRY_S)
-            log.warning("Kamera-Stream unterbrochen (%s) - %s", e,
-                        "verbinde neu" if got else "nehme Einzelbilder")
+            log.warning("Camera stream interrupted (%s) - %s", e,
+                        "reconnecting" if got else "using snapshots")
         finally:
             self.mode = "idle"
-            log.info("Kamera-Stream geschlossen")
+            log.info("Camera stream closed")
 
-    # ------------------------------------------------------------ Einzelbild
+    # ------------------------------------------------------------ snapshot
     async def snapshot(self) -> Tuple[bytes, float]:
-        """Aktuelles Bild. Aus dem Stream, wenn er laeuft (oder kurz geoeffnet wird), sonst ein Einzelabruf."""
+        """Current image. From the stream when it runs (or is opened briefly), else a single request."""
         if not self.cfg.camera:
-            raise CameraError("Kamera ist abgeschaltet (CAMERA=false)")
+            raise CameraError(tr("Camera is switched off (CAMERA=false)"))
         if self.image is not None and self.clock() - self.taken_at < self.cfg.camera_interval_s:
             return self.image, self.taken_wall
         self._want()
@@ -230,10 +230,10 @@ class Camera:
         return await self._single()
 
     async def still(self) -> Tuple[bytes, float]:
-        """Ein Bild fuer die KI: das aktuelle, wenn jemand zuschaut, sonst genau ein Einzelabruf - startet die
-        Bildpumpe nicht (snapshot() haelt sie IDLE_CLOSE_S lang mit bis zu CAMERA_FPS_MAX am Laufen)."""
+        """One image for the AI: the current one when someone watches, else exactly one request - does not start the
+        image pump (snapshot() keeps it running for IDLE_CLOSE_S at up to CAMERA_FPS_MAX)."""
         if not self.cfg.camera:
-            raise CameraError("Kamera ist abgeschaltet (CAMERA=false)")
+            raise CameraError(tr("Camera is switched off (CAMERA=false)"))
         return await self._single()
 
     async def _single(self) -> Tuple[bytes, float]:
@@ -246,12 +246,12 @@ class Camera:
                     r.raise_for_status()
                     data = await r.read()
                 if not data.startswith(b"\xff\xd8"):
-                    raise CameraError("Antwort ist kein JPEG")
+                    raise CameraError(tr("Answer is not a JPEG"))
             except CameraError as e:
-                self.error = str(e)
+                self.error = msg_of(e)
                 raise
             except Exception as e:  # noqa: BLE001
-                self.error = f"Kamera nicht erreichbar: {e}"
+                self.error = tr("Camera not reachable: {error}", error=str(e))
                 if self.image is not None and self.clock() - self.taken_at < 30:
                     return self.image, self.taken_wall
                 raise CameraError(self.error) from None
@@ -260,11 +260,11 @@ class Camera:
             await self._publish(data)
             return data, self.taken_wall
 
-    # ------------------------------------------------------------ Weiterverteilen
+    # ------------------------------------------------------------ re-distributing
     async def frames(self, max_fps: Optional[float] = None) -> AsyncIterator[bytes]:
-        """Bilder fuer einen Zuschauer: immer das neueste, langsame Zuschauer verpassen Bilder statt zu stauen."""
+        """Images for one viewer: always the newest; slow viewers miss images instead of piling them up."""
         if not self.cfg.camera:
-            raise CameraError("Kamera ist abgeschaltet (CAMERA=false)")
+            raise CameraError(tr("Camera is switched off (CAMERA=false)"))
         self._viewers += 1
         try:
             min_gap = 1.0 / max_fps if max_fps else 0.0
@@ -272,7 +272,7 @@ class Camera:
             while True:
                 self._want()
                 if not self.streaming:
-                    data, _ = await self.snapshot()          # ohne Stream: Einzelbilder im Takt
+                    data, _ = await self.snapshot()          # without a stream: snapshots at the interval
                     if self.frame_no != last_no:
                         last_no = self.frame_no
                         yield data
@@ -297,5 +297,5 @@ class Camera:
                 "error": self.error, "stream": bool(self.cfg.camera_stream),
                 "source": "stream" if self.cfg.camera_stream else "snapshots",
                 "target_fps": round(self.target_fps, 1) if self.mode == "snapshots" else None,
-                "throttled": False,          # Drosselung nach Drucker-CPU entfallen (Feld fuer App 1.8.0)
+                "throttled": False,          # throttling by printer CPU was dropped (field kept for app 1.8.0)
                 "last": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.taken_wall)) if self.taken_wall else None}

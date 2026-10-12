@@ -1,10 +1,10 @@
-"""HTTP-API (Weboberflaeche, Android-App, Orca-Plugin, Display).
+"""HTTP API (web UI, Android app, Orca plugin, display).
 
-Lesen ist offen. Alles, was schreibt oder am Drucker etwas ausloest, braucht den Schluessel eines
-gekoppelten Geraets (Header "Authorization: Bearer <schluessel>", siehe auth.py).
+Reading is open. Everything that writes or triggers something on the printer needs the key of a paired device
+(header "Authorization: Bearer <key>", see auth.py).
 
-Hier: App, CORS, Health, Slots, Spulen. Die uebrigen Bereiche stehen in api_*.py (je ein add_routes), gemeinsame
-Hilfen in webcommon.py, die Android-App-Schnittstelle in appapi.py."""
+Here: app, language, CORS, health, slots, spools. The other areas are in api_*.py (one add_routes each), shared
+helpers in webcommon.py, the Android app interface in appapi.py."""
 
 from __future__ import annotations
 
@@ -28,15 +28,27 @@ from . import (
     api_orca,
     api_vision,
     assets,
+    i18n,
 )
 from .appapi import AppApi
-from .webcommon import Ctx, _err
+from .i18n import tr
+from .webcommon import Ctx, json_response, msg_of, _err
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
 
 log = logging.getLogger("web")
 STARTED = time.time()
+
+
+@web.middleware
+async def language(request: web.Request, handler):
+    """Texts of this request in the language the device asked for (i18n.request_lang), else the bridge default."""
+    token = i18n.use(i18n.request_lang(request.headers, request.query))
+    try:
+        return await handler(request)
+    finally:
+        i18n.reset(token)
 
 
 @web.middleware
@@ -48,7 +60,7 @@ async def cors(request: web.Request, handler):
             resp = await handler(request)
         except web.HTTPException as e:
             resp = e
-    if getattr(resp, "prepared", False):   # Stream: Kopfzeilen sind schon raus (setzt der Handler selbst)
+    if getattr(resp, "prepared", False):   # stream: headers are already sent (the handler sets them itself)
         return resp
     if request.path.startswith("/static/"):
         resp.headers["Cache-Control"] = assets.NO_CACHE
@@ -59,7 +71,8 @@ async def cors(request: web.Request, handler):
 
 
 def build_app(bridge: "Bridge") -> web.Application:
-    app = web.Application(middlewares=[cors])
+    i18n.bind(lambda: getattr(bridge.cfg, "language", i18n.SOURCE_LANG))
+    app = web.Application(middlewares=[language, cors])
     r = web.RouteTableDef()
 
     ctx = Ctx(bridge)
@@ -68,7 +81,7 @@ def build_app(bridge: "Bridge") -> web.Application:
     @r.get("/api/health")
     async def health(_):
         cfg = bridge.cfg
-        return web.json_response({
+        return json_response({
             "app": __app_name__,
             "description": __description__,
             "version": __version__,
@@ -102,7 +115,7 @@ def build_app(bridge: "Bridge") -> web.Application:
 
     @r.get("/api/slots")
     async def slots(_):
-        return web.json_response({"print_state": bridge.slots.print_state,
+        return json_response({"print_state": bridge.slots.print_state,
                                   "warnings": bridge.safety_warnings() + bridge.slots.warnings,
                                   "slots": bridge.slots.slots_view(),
                                   "dryer": bridge.dryer.state(),
@@ -117,33 +130,33 @@ def build_app(bridge: "Bridge") -> web.Application:
             slot = int(request.match_info["slot"])
             body = await request.json()
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"spool_id\": <id oder null>}")
+            return _err(400, tr("Expected JSON {\"spool_id\": <id or null>}"))
         spool_id = body.get("spool_id")
         if spool_id is not None:
             try:
                 spool_id = int(spool_id)
             except (TypeError, ValueError):
-                return _err(400, "spool_id muss eine Zahl oder null sein")
+                return _err(400, tr("spool_id must be a number or null"))
         try:
             await bridge.slots.assign(slot, spool_id)
         except ValueError as e:
-            return _err(400, str(e))
+            return _err(400, msg_of(e))
         except Exception as e:  # noqa: BLE001
             log.warning("Zuordnung fehlgeschlagen: %s", e)
-            return _err(502, str(e))
-        return web.json_response({"ok": True, "slots": bridge.slots.slots_view()})
+            return _err(502, msg_of(e))
+        return json_response({"ok": True, "slots": bridge.slots.slots_view()})
 
     @r.get("/api/spools")
     async def spools(request):
         try:
             slot = int(request.query["slot"]) if "slot" in request.query else None
         except ValueError:
-            return _err(400, "slot muss eine Zahl sein")
-        return web.json_response({"spools": bridge.slots.assignable_spools(slot)})
+            return _err(400, tr("slot must be a number"))
+        return json_response({"spools": bridge.slots.assignable_spools(slot)})
 
     for mod in (api_modules, api_display, api_camera, api_data, api_vision, api_orca, api_control):
         mod.add_routes(r, bridge, ctx)
     app.add_routes(r)
     assets.add_routes(app)
-    app.add_routes(AppApi(bridge).routes())   # Android-App (docs/android-app.md)
+    app.add_routes(AppApi(bridge).routes())   # Android app (docs/android-app.md)
     return app

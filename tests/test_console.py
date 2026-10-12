@@ -35,7 +35,7 @@ def test_console_seed_and_since():
     c = Console(clock=lambda: 100.0)
     c.seed([{"message": "G28", "type": "command", "time": 1.0}, {"message": "ok", "type": "response", "time": 2.0}])
     c.seed([{"message": "doppelt", "type": "response", "time": 3.0}])       # nach Reconnect kein zweiter Vorlauf
-    assert [(x["kind"], x["text"], x["source"]) for x in c.lines] == [("command", "G28", "Verlauf"), ("response", "ok", None)]
+    assert [(x["kind"], x["text"], x["source"]) for x in c.lines] == [("command", "G28", "History"), ("response", "ok", None)]
     c.add("command", "M115", "Browser")
     c.add("response", "   ")                                                 # leere Zeilen weg
     new = c.since(2)
@@ -88,7 +88,7 @@ def test_console_send_needs_confirm_for_risky(api):
     assert call("POST", "/api/console", {"script": "SAVE_CONFIG", "confirm": True})[0] == 200
     bridge.moon.merge({"print_stats": {"state": "printing"}})
     assert call("POST", "/api/console", {"script": "G28"})[0] == 409
-    assert [s for s, _ in sent] == ["M115", "SAVE_CONFIG"] and sent[0][1] == "APP_TOKEN (Übergang)"
+    assert [s for s, _ in sent] == ["M115", "SAVE_CONFIG"] and sent[0][1] == "APP_TOKEN (legacy)"
 
 
 def test_console_and_logs_read(api):

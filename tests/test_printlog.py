@@ -45,12 +45,12 @@ def test_console_lines_recorded_and_rendered(tmp_path):
     assert "vor dem Druck" not in raw and "B:112" not in raw and "Hot wipe" in raw
     text = printlog.render(raw.splitlines())
     lines = text.splitlines()
-    assert lines[0] == "Druckprotokoll: teil_ASA.gcode" and "Slot 1: PETG 685BC7 250°C ready" in text
-    order = [i for i, line in enumerate(lines) for key in ("Hot wipe", "Wechsel nach T: 3", "> KOBRA_PA_AUTO T=3",
-                                                           "!! Auto-PA", "Auto-PA misst: True", "Schicht 3/42",
-                                                           "Druckstatus: complete") if key in line]
+    assert lines[0] == "Print log: teil_ASA.gcode" and "Slot 1: PETG 685BC7 250°C ready" in text
+    order = [i for i, line in enumerate(lines) for key in ("Hot wipe", "change to T: 3", "> KOBRA_PA_AUTO T=3",
+                                                           "!! Auto-PA", "Auto PA measuring: True", "Layer 3/42",
+                                                           "Print state: complete") if key in line]
     assert len(order) == 7 and order == sorted(order)             # alles da, in zeitlicher Reihenfolge
-    assert "Ende: complete" in text
+    assert "End: complete" in text
 
 
 def test_render_tolerates_garbage_and_old_files():

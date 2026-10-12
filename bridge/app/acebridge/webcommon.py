@@ -1,5 +1,5 @@
-"""Gemeinsame Hilfen der HTTP-API (web.py und die Bereiche api_*.py): Fehlerantwort, Kopplungspruefung, Kamera-Zugang,
-JSON-Koerper, MJPEG-Stream."""
+"""Shared helpers of the HTTP API (web.py and the areas api_*.py): translated JSON responses, error response, pairing
+check, camera access, JSON body, MJPEG stream."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from aiohttp import web
 
+from . import i18n
+from .i18n import msg_of, tr  # noqa: F401 - msg_of is used by the api_*.py modules
 from .auth import AuthError
 from .camera import CameraError
 
@@ -18,13 +20,18 @@ log = logging.getLogger("web")
 BOUNDARY = "kobraframe"
 
 
+def json_response(data: Any, status: int = 200, **kw: Any) -> web.Response:
+    """web.json_response with every text in the language of the request (i18n.localize)."""
+    return web.json_response(data, status=status, dumps=i18n.dumps, **kw)
+
+
 def _err(status: int, msg: str) -> web.Response:
-    return web.json_response({"error": msg}, status=status)
+    return json_response({"error": msg}, status=status)
 
 
 async def send_mjpeg(resp: web.StreamResponse, first: bytes, frames, who: Optional[str] = None) -> None:
-    """Bilder als multipart/x-mixed-replace schreiben, bis der Zuschauer geht. Trennen (Reset, Broken pipe,
-    aiohttp "Connection lost") ist normal und kein Fehler - sonst stuende jedes Schliessen als Traceback im Log."""
+    """Write images as multipart/x-mixed-replace until the viewer leaves. A disconnect (reset, broken pipe, aiohttp
+    "Connection lost") is normal and no error - otherwise every close would leave a traceback in the log."""
     frame = first
     try:
         while True:
@@ -32,45 +39,45 @@ async def send_mjpeg(resp: web.StreamResponse, first: bytes, frames, who: Option
                              + f"Content-Length: {len(frame)}\r\n\r\n".encode() + frame + b"\r\n")
             frame = await frames.__anext__()
     except (ConnectionError, CameraError, StopAsyncIteration):
-        log.debug("Kamera-Zuschauer %s getrennt", who)
+        log.debug("Camera viewer %s disconnected", who)
 
 
 class Ctx:
-    """Hilfen, die mehrere Bereiche der API brauchen (an die Bridge gebunden)."""
+    """Helpers several areas of the API need (bound to the bridge)."""
 
     def __init__(self, bridge: "Bridge"):
         self.bridge = bridge
 
     def need_device(self, fn):
-        """Dekorator: nur fuer gekoppelte Geraete (Weboberflaeche, App, Plugin, Display)."""
+        """Decorator: paired devices only (web UI, app, plugin, display)."""
         async def wrapped(request: web.Request):
             try:
                 self.bridge.devices.require(request.headers.get("Authorization"))
             except AuthError as e:
-                return _err(e.status, str(e))
+                return _err(e.status, msg_of(e))
             return await fn(request)
         return wrapped
 
     def paired(self, request: web.Request) -> Optional[web.Response]:
-        """None, wenn gekoppelt, sonst die Fehlerantwort."""
+        """None when paired, else the error response."""
         try:
             self.bridge.devices.require(request.headers.get("Authorization"))
         except AuthError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         return None
 
     def camera_allowed(self, request: web.Request) -> bool:
-        """Kamera: gekoppeltes Geraet (Header) oder der Kamera-Schluessel in der Adresse (Mainsail, <img>)."""
+        """Camera: a paired device (header) or the camera key in the URL (Mainsail, <img>)."""
         return (self.bridge.camera_key.check(request.query.get("key"))
                 or self.bridge.devices.identify(request.headers.get("Authorization")) is not None)
 
     @staticmethod
     def camera_denied() -> web.Response:
-        return _err(401, "Kamera nur für gekoppelte Geräte oder mit dem Kamera-Link")
+        return _err(401, tr("Camera only for paired devices or with the camera link"))
 
     @staticmethod
     async def body(request: web.Request) -> dict:
-        """JSON-Koerper als dict ({} bei fehlendem oder kaputtem Koerper)."""
+        """JSON body as a dict ({} for a missing or broken body)."""
         try:
             data: Any = await request.json()
         except Exception:  # noqa: BLE001

@@ -1,6 +1,6 @@
-"""HTTP-API, Bereich: Display: Steuerung (homen, joggen, laden, Makros), Dateien am Drucker, Rueckfragen von Makros, System.
+"""HTTP API, area display: control (home, jog, load, macros), files on the printer, macro prompts, system.
 
-Eingebunden von web.build_app; gemeinsame Hilfen in webcommon.py."""
+Added by web.build_app; shared helpers in webcommon.py."""
 
 from __future__ import annotations
 
@@ -11,8 +11,9 @@ from aiohttp import web
 
 from .auth import AuthError
 from .files import FileError
+from .i18n import tr
 from .machine import MachineError
-from .webcommon import Ctx, _err
+from .webcommon import Ctx, json_response, msg_of, _err
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -23,37 +24,37 @@ log = logging.getLogger("web")
 def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     _body = ctx.body
 
-    # ---------------------------------------------------------------- Steuerung (homen, joggen, laden, Makros)
+    # ---------------------------------------------------------------- control (home, jog, load, macros)
     @r.get("/api/machine")
     async def machine_state(_):
-        return web.json_response(await bridge.machine.view())
+        return json_response(await bridge.machine.view())
 
     @r.post("/api/machine/{action}")
     async def machine_action(request: web.Request):
         try:
             dev = bridge.devices.require(request.headers.get("Authorization"))
         except AuthError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         body = await _body(request)
         try:
-            return web.json_response(await bridge.machine.run(request.match_info["action"], body,
+            return json_response(await bridge.machine.run(request.match_info["action"], body,
                                                               source=dev.get("name") or "Display"))
         except MachineError as e:
             if e.confirm:
-                return web.json_response({"error": str(e), "confirm": True}, status=409)
-            return _err(e.status, str(e))
+                return json_response({"error": msg_of(e), "confirm": True}, status=409)
+            return _err(e.status, msg_of(e))
 
     async def _paired(request: web.Request):
-        """Gekoppeltes Geraet oder Fehlerantwort (zweiter Wert)."""
+        """Paired device, or the error response (second value)."""
         try:
             return bridge.devices.require(request.headers.get("Authorization")), None
         except AuthError as e:
-            return None, _err(e.status, str(e))
+            return None, _err(e.status, msg_of(e))
 
     def _confirm_or_err(e):
         if getattr(e, "confirm", None):
-            return web.json_response({"error": str(e), "confirm": True}, status=409)
-        return _err(e.status, str(e))
+            return json_response({"error": msg_of(e), "confirm": True}, status=409)
+        return _err(e.status, msg_of(e))
 
     @r.post("/api/machine-z/save")
     async def machine_zsave(request: web.Request):
@@ -61,19 +62,19 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         if denied is not None:
             return denied
         try:
-            return web.json_response(await bridge.machine.save_z())
+            return json_response(await bridge.machine.save_z())
         except MachineError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
-            return _err(502, f"Spoolman: {e}")
+            return _err(502, tr("Spoolman: {error}", error=msg_of(e)))
 
-    # ---------------------------------------------------------------- Dateien am Drucker (Display)
+    # ---------------------------------------------------------------- files on the printer (display)
     @r.get("/api/files")
     async def files_list(_):
         try:
-            return web.json_response({"files": await bridge.files.list()})
+            return json_response({"files": await bridge.files.list()})
         except Exception as e:  # noqa: BLE001
-            return _err(502, f"Dateiliste: {e}")
+            return _err(502, tr("File list: {error}", error=msg_of(e)))
 
     @r.get("/api/files/thumb")
     async def files_thumb(request: web.Request):
@@ -82,15 +83,15 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         except Exception:  # noqa: BLE001
             png = None
         if not png:
-            return _err(404, "Kein Vorschaubild")
+            return _err(404, tr("No thumbnail"))
         return web.Response(body=png, content_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
     @r.get("/api/files/check")
     async def files_check(request: web.Request):
         try:
-            return web.json_response(await bridge.files.check(request.query.get("path", "")))
+            return json_response(await bridge.files.check(request.query.get("path", "")))
         except FileError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
 
     @r.post("/api/files/start")
     async def files_start(request: web.Request):
@@ -99,14 +100,14 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             return denied
         body = await _body(request)
         try:
-            return web.json_response(await bridge.files.start(str(body.get("path") or ""), body.get("confirm") is True,
+            return json_response(await bridge.files.start(str(body.get("path") or ""), body.get("confirm") is True,
                                                               source=dev.get("name") or "Display"))
         except FileError as e:
             return _confirm_or_err(e)
         except Exception as e:  # noqa: BLE001
-            return _err(502, str(e))
+            return _err(502, msg_of(e))
 
-    # ---------------------------------------------------------------- Rueckfragen von Makros, System
+    # ---------------------------------------------------------------- macro prompts, system
     @r.post("/api/prompt")
     async def prompt_answer(request: web.Request):
         dev, denied = await _paired(request)
@@ -116,13 +117,13 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         try:
             cmd = bridge.moon.prompts.command(body.get("id"))
         except KeyError as e:
-            return _err(409, str(e))
+            return _err(409, msg_of(e))
         bridge.moon.prompts.close()
         try:
             await bridge.moon.gcode(cmd, source=dev.get("name") or "Display")
         except Exception as e:  # noqa: BLE001
-            return _err(400, str(e))
-        return web.json_response({"ok": True})
+            return _err(400, msg_of(e))
+        return json_response({"ok": True})
 
     @r.post("/api/prompt/close")
     async def prompt_close(request: web.Request):
@@ -130,11 +131,11 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         if denied is not None:
             return denied
         bridge.moon.prompts.close()
-        return web.json_response({"ok": True})
+        return json_response({"ok": True})
 
     @r.get("/api/system")
     async def system_info(_):
-        return web.json_response(await bridge.machine.system())
+        return json_response(await bridge.machine.system())
 
     @r.post("/api/system/{what}")
     async def system_power(request: web.Request):
@@ -143,9 +144,9 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             return denied
         body = await _body(request)
         try:
-            return web.json_response(await bridge.machine.power(request.match_info["what"], body.get("confirm") is True,
+            return json_response(await bridge.machine.power(request.match_info["what"], body.get("confirm") is True,
                                                                 source=dev.get("name") or "Display"))
         except MachineError as e:
             return _confirm_or_err(e)
         except Exception as e:  # noqa: BLE001
-            return _err(502, str(e))
+            return _err(502, msg_of(e))

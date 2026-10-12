@@ -55,11 +55,11 @@ def test_api_needs_pairing(cfg):
     async def go():
         async with TestClient(TestServer(build_app(bridge))) as c:
             v = await (await c.get("/api/settings")).json()
-            assert {g["name"] for g in v["groups"]} >= {"Kamera", "Meldungen", "Daten"} and v["readonly"]
+            assert {g["name"] for g in v["groups"]} >= {"Camera", "Messages", "Data"} and v["readonly"]
             assert (await c.post("/api/settings", json={"low_spool_g": 50})).status == 401
             h = {"Authorization": "Bearer geheim"}
             r = await c.post("/api/settings", json={"low_spool_g": 5000}, headers=h)
-            assert r.status == 400 and "erlaubt" in (await r.json())["error"]
+            assert r.status == 400 and "allowed" in (await r.json())["error"]
             assert (await c.post("/api/settings", json={"low_spool_g": 50}, headers=h)).status == 200
             assert cfg.low_spool_g == 50
             assert (await c.post("/api/settings/reset", json={"key": "low_spool_g"}, headers=h)).status == 200

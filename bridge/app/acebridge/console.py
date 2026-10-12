@@ -1,11 +1,11 @@
-"""Konsole: was der Drucker antwortet, welche Befehle gesendet wurden (von wem) - und ein Bridge-Log.
+"""Console: what the printer answers, which commands were sent (by whom) - and a bridge log.
 
-- Antworten des Druckers kommen als notify_gcode_response ueber die eine WebSocket-Verbindung der
-  Bridge (kein zusaetzlicher Client, kein Abfragen). Beim Verbinden einmal server.gcode_store als Vorlauf.
-- Befehle, die ueber die Bridge gehen (Weboberflaeche, Trockner, ACE, Slots), stehen mit Quelle drin.
-  Befehle anderer Clients (Mainsail) zeigt Moonraker nur ueber ihre Antworten.
-- Riskante Befehle brauchen eine Bestaetigung (check_command), Bewegungen auch waehrend eines Drucks.
-- LogBuffer haelt die letzten Zeilen des Bridge-Logs fuer die Seite "Logs" und die App.
+- Printer answers arrive as notify_gcode_response over the bridge's one WebSocket connection (no extra client, no
+  polling). On connecting, server.gcode_store once as a backlog.
+- Commands that go through the bridge (web UI, dryer, ACE, slots) appear with their source. Commands of other clients
+  (Mainsail) Moonraker only shows through their answers.
+- Risky commands need a confirmation (check_command), moves during a print too.
+- LogBuffer keeps the last lines of the bridge log for the "Logs" page and the app.
 """
 
 from __future__ import annotations
@@ -17,24 +17,26 @@ import re
 import time
 from typing import Any, Callable, Deque, Dict, List, Optional
 
+from .i18n import Text, tr
+
 log = logging.getLogger("console")
 
 KEEP_LINES = 500
 KEEP_LOG = 2000
-MAX_HOTEND = 260          # darueber: Rueckfrage
+MAX_HOTEND = 260          # above: ask first
 
-# Befehl (erstes Wort) -> Grund der Rueckfrage
+# command (first word) -> reason to ask first
 RISKY = {
-    "M112": "Not-Aus: alles stoppt sofort, danach Klipper neu laden (FIRMWARE_RESTART)",
-    "EMERGENCY_STOP": "Not-Aus: alles stoppt sofort, danach Klipper neu laden (FIRMWARE_RESTART)",
-    "FIRMWARE_RESTART": "Lädt Klipper neu – ein laufender Druck bricht ab",
-    "RESTART": "Lädt Klipper neu – ein laufender Druck bricht ab",
-    "SAVE_CONFIG": "Schreibt die Drucker-Konfiguration und startet neu",
-    "CANCEL_PRINT": "Bricht den laufenden Druck ab",
-    "SDCARD_RESET_FILE": "Setzt die laufende Druckdatei zurück",
-    "PID_CALIBRATE": "Heizt stark auf (Kalibrierung)",
-    "SET_KINEMATIC_POSITION": "Setzt die Position ohne Referenzfahrt – kann crashen",
-    "FORCE_MOVE": "Bewegt einen Motor ohne Grenzen – kann crashen",
+    "M112": tr("Emergency stop: everything stops at once, reload Klipper afterwards (FIRMWARE_RESTART)"),
+    "EMERGENCY_STOP": tr("Emergency stop: everything stops at once, reload Klipper afterwards (FIRMWARE_RESTART)"),
+    "FIRMWARE_RESTART": tr("Reloads Klipper – a running print is cancelled"),
+    "RESTART": tr("Reloads Klipper – a running print is cancelled"),
+    "SAVE_CONFIG": tr("Writes the printer config and restarts"),
+    "CANCEL_PRINT": tr("Cancels the running print"),
+    "SDCARD_RESET_FILE": tr("Resets the running print file"),
+    "PID_CALIBRATE": tr("Heats up a lot (calibration)"),
+    "SET_KINEMATIC_POSITION": tr("Sets the position without homing – can crash"),
+    "FORCE_MOVE": tr("Moves a motor without limits – can crash"),
 }
 MOVES = re.compile(r"^(G0|G1|G2|G3|G28|G29|G92|M84|M18|BED_MESH_CALIBRATE|KOBRA_BED_MESH_ALL|G9111|PROBE\w*|"
                    r"MOVE_TO_\w+|WIPE_\w+|SHAPER_CALIBRATE|TEST_RESONANCES|T\d+|ACE_CHANGE_TOOL|CUT_TIP)$")
@@ -44,14 +46,14 @@ SET_HEATER = re.compile(r"HEATER=extruder\b.*\bTARGET=(\d+(?:\.\d+)?)", re.I)
 
 
 def check_command(script: str, printing: bool) -> Optional[str]:
-    """Grund fuer eine Rueckfrage oder None. Prueft jede Zeile des Skripts."""
+    """Reason to ask first, or None. Checks every line of the script."""
     for raw in script.splitlines():
         line = raw.split(";", 1)[0].strip()
         if not line:
             continue
         word = line.split()[0].upper()
         if word in RISKY:
-            return f"{word}: {RISKY[word]}"
+            return tr("{cmd}: {reason}", cmd=word, reason=RISKY[word])
         temp = None
         if TEMP_CMD.match(word):
             m = TEMP_ARG.search(line)
@@ -60,9 +62,9 @@ def check_command(script: str, printing: bool) -> Optional[str]:
             m = SET_HEATER.search(line)
             temp = float(m.group(1)) if m else None
         if temp is not None and temp > MAX_HOTEND:
-            return f"{word}: Düse auf {temp:g} °C (mehr als {MAX_HOTEND} °C)"
+            return tr("{cmd}: nozzle to {t:g} °C (more than {max} °C)", cmd=word, t=temp, max=MAX_HOTEND)
         if printing and MOVES.match(word):
-            return f"{word}: Bewegung während eines Drucks"
+            return tr("{cmd}: move during a print", cmd=word)
     return None
 
 
@@ -71,11 +73,12 @@ class Console:
         self.clock = clock
         self.lines: Deque[Dict[str, Any]] = collections.deque(maxlen=KEEP_LINES)
         self._ids = itertools.count(1)
-        self.listeners: List[Callable[[Dict[str, Any]], None]] = []   # z. B. Druck-Aufzeichnung (telemetry)
+        self.listeners: List[Callable[[Dict[str, Any]], None]] = []   # e.g. print recording (telemetry)
 
     def add(self, kind: str, text: str, source: Optional[str] = None, at: Optional[float] = None) -> None:
         """kind: command | response | error"""
-        text = (text or "").rstrip()
+        if not isinstance(text, Text):                # a translatable label stays translatable
+            text = (text or "").rstrip()
         if not text:
             return
         entry = {"id": next(self._ids), "time": round(at if at is not None else self.clock(), 3),
@@ -84,16 +87,16 @@ class Console:
         for listener in self.listeners:
             try:
                 listener(entry)
-            except Exception:  # noqa: BLE001 - eine Aufzeichnung darf die Konsole nie stoeren
-                log.exception("Konsolen-Empfaenger")
+            except Exception:  # noqa: BLE001 - a recording must never disturb the console
+                log.exception("Console listener")
 
     def seed(self, store: List[Dict[str, Any]]) -> None:
-        """Vorlauf aus server.gcode_store - nur, wenn noch nichts da ist (nach Reconnect nicht doppelt)."""
+        """Backlog from server.gcode_store - only while empty (not twice after a reconnect)."""
         if self.lines:
             return
         for e in store or []:
             kind = "command" if e.get("type") == "command" else "response"
-            self.add(kind, e.get("message") or "", "Verlauf" if kind == "command" else None, e.get("time"))
+            self.add(kind, e.get("message") or "", tr("History") if kind == "command" else None, e.get("time"))
 
     def since(self, after: int = 0, limit: int = KEEP_LINES) -> List[Dict[str, Any]]:
         out = [line for line in self.lines if line["id"] > after]
@@ -101,7 +104,7 @@ class Console:
 
 
 class LogBuffer(logging.Handler):
-    """Letzte Zeilen des Bridge-Logs (Seite "Logs", App-Protokoll)."""
+    """Last lines of the bridge log ("Logs" page, app log)."""
 
     def __init__(self, keep: int = KEEP_LOG):
         super().__init__(level=logging.DEBUG)

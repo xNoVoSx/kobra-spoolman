@@ -54,11 +54,11 @@ def test_filament_body_only_contains_what_was_set():
 
 def test_filament_body_validation():
     for bad, msg in (({"material": "PETG"}, "name"), ({"name": "x"}, "material"),
-                     ({"name": "x", "material": "PETG", "color_hex": "lila"}, "Farbe"),
-                     ({"name": "x", "material": "PETG", "extra": {"gibtsnicht": 1}}, "Zusatzfeld"),
-                     ({"name": "x", "material": "PETG", "extra": {"vorlage": "Vorlage ABS"}}, "erlaubt"),
-                     ({"name": "x", "material": "PETG", "vendor_id": 99}, "Hersteller"),
-                     ({"name": "x", "material": "PETG", "remaining_weight": 5}, "nicht setzen"),
+                     ({"name": "x", "material": "PETG", "color_hex": "lila"}, "colour"),
+                     ({"name": "x", "material": "PETG", "extra": {"gibtsnicht": 1}}, "extra field"),
+                     ({"name": "x", "material": "PETG", "extra": {"vorlage": "Vorlage ABS"}}, "allowed"),
+                     ({"name": "x", "material": "PETG", "vendor_id": 99}, "vendor"),
+                     ({"name": "x", "material": "PETG", "remaining_weight": 5}, "cannot set"),
                      ({"name": "x", "material": "EXOTISCH"}, "density")):
         with pytest.raises(AppError, match=msg):
             build_filament_body(bad, FIELDS, VENDORS, [TPL_PETG], creating=True)

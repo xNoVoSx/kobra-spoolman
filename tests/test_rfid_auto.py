@@ -71,7 +71,7 @@ def test_already_loaded_tag_is_assigned_at_start_after_debounce(make):
     assert loc(sm, 1) == "Regal"                                  # erst entprellen
     run(sm.auto_by_tag(now=104))
     assert loc(sm, 1) == "ACE Slot 1" and sm.by_tag == {0: 34532}
-    assert "Lavendel per RFID erkannt" in sm.tag_events[-1]["text"]
+    assert "Lavendel recognised by RFID" in sm.tag_events[-1]["text"]
     assert 2 not in sm.by_tag                                    # Anycubic-Sortencode 102 bleibt manuell
 
 

@@ -1,6 +1,6 @@
-"""App-Update ueber die Bridge: der Release-Workflow legt die signierte APK samt app.json ins Docker-Image
-(acebridge/appdist/). Die App fragt /api/app/update und laedt bei neuerer Version /api/app/update/apk -
-so passen Bridge und App immer zusammen, und die App braucht kein Internet."""
+"""App update through the bridge: the release workflow puts the signed APK and app.json into the Docker image
+(acebridge/appdist/). The app asks /api/app/update and, for a newer version, downloads /api/app/update/apk -
+so bridge and app always match, and the app needs no internet."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ APPDIST = os.path.join(os.path.dirname(__file__), "appdist")
 
 
 def load(folder: str = APPDIST) -> Optional[Dict[str, Any]]:
-    """app.json lesen und pruefen, dass die APK daneben liegt; sonst None (z.B. Image vom main-Zweig)."""
+    """Read app.json and check that the APK is next to it; else None (e.g. an image built from main)."""
     try:
         with open(os.path.join(folder, "app.json"), encoding="utf-8") as fh:
             info = json.load(fh)
@@ -26,7 +26,7 @@ def load(folder: str = APPDIST) -> Optional[Dict[str, Any]]:
     except FileNotFoundError:
         return None
     except Exception as e:  # noqa: BLE001
-        log.warning("App-Update in %s unlesbar: %s", folder, e)
+        log.warning("App update in %s unreadable: %s", folder, e)
         return None
 
 

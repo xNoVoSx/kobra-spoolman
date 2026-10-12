@@ -1,21 +1,19 @@
-"""Verbrauchsmessung und -buchung pro Slot (Etappe 2).
+"""Consumption measuring and booking per slot.
 
-Grundlage: print_stats.filament_used (Klipper, mm) zaehlt jeden Extruder-Vorschub im Druck - auch Laden und
-Spuelen der ACE, die unter ACEPRO ueber die Duese laufen (mit ACEPRO-Patch 0003 sofort, nicht erst nach dem
-Wechsel). Daraus folgt:
+Basis: print_stats.filament_used (Klipper, mm) counts every extruder move in a print - also loading and purging of
+the ACE, which under ACEPRO run through the nozzle (with ACEPRO patch 0003 at once, not only after the change). So:
 
-- Verbrauch = vorzeichenrichtige Differenz von filament_used. Rueckzuege heben sich auf.
-- Jede Differenz gehoert dem Slot, der laut ACE-Treiber gerade verbraucht (acemodel.consuming_slot):
-  dem geladenen Slot, waehrend eines Wechsels nach dem Entladen dem Ziel-Slot. Momente ohne solchen Slot
-  zaehlen zum zuletzt aktiven Slot.
-- Verbrauch vor dem ersten aktiven Slot bekommt der erste Slot, der aktiv wird.
-- Gebucht wird auf die Spule, die zum Zeitpunkt des Verbrauchs im Slot war
-  ("Topf" = Slot + Spule). Buchung beim Slotwechsel, bei Druckende und zwischendurch
-  alle BOOK_INTERVAL_S.
-- Verbrauch ohne zugeordnete Spule, oder auf eine inzwischen geloeschte Spule, wird ein
-  offener Posten und kann in der Weboberflaeche nachgebucht werden.
-- Alles steht in data/usage/state.json; startet die Bridge mitten im Druck neu, geht es
-  am gespeicherten Zaehlerstand weiter.
+- consumption = signed difference of filament_used. Retractions cancel out.
+- every difference belongs to the slot that is consuming according to the ACE driver (acemodel.consuming_slot):
+  the loaded slot, during a change after unloading the target slot. Moments without such a slot count for the last
+  active slot.
+- consumption before the first active slot goes to the first slot that becomes active.
+- it is booked to the spool that was in the slot at the time of consumption ("bucket" = slot + spool). Booking at a
+  slot change, at print end and in between every BOOK_INTERVAL_S.
+- consumption without an assigned spool, or on a spool deleted meanwhile, becomes an open item and can be booked
+  later in the web UI.
+- everything is in data/usage/state.json; if the bridge restarts in the middle of a print, it continues at the
+  saved counter.
 """
 
 from __future__ import annotations
@@ -32,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from . import acemodel
 from .config import Config
+from .i18n import tr
 from .storage import save_json, save_lines
 
 if TYPE_CHECKING:
@@ -51,19 +50,19 @@ def _now_iso() -> str:
 
 
 def targets_from_gcode(e_total: Dict[int, float]) -> Optional[Dict[str, Any]]:
-    """Sollwerte pro Slot aus der Druckdatei (render.py zaehlt die Extrusion je Werkzeug; T<n> = Slot n).
-    Das Spuelen der ACE steht nicht im G-code - gemessen wird also immer mindestens das Soll."""
+    """Expected values per slot from the print file (render.py counts the extrusion per tool; T<n> = slot n+1).
+    The ACE's purging is not in the G-code - so at least the expected value is always measured."""
     per_gate = {str(t): {"mm": round(mm, 1), "g": None} for t, mm in sorted(e_total.items()) if mm > 1}
     return {"source": "gcode", "per_gate": per_gate} if per_gate else None
 
 
-# Spuelmenge, die Orcas Filamentwechsel-G-Code vor jedem T setzt (ACE_SET_PURGE_AMOUNT -> Antwort von ACEPRO)
+# purge length Orca's change-filament G-code sets before every T (ACE_SET_PURGE_AMOUNT -> ACEPRO's answer)
 PURGE_RX = re.compile(r"ACE: Purge settings updated - Length: ([0-9.]+)mm")
-PURGE_LOG_KEEP = 2000          # Zeilen im Spuelprotokoll (ueber alle Drucke)
+PURGE_LOG_KEEP = 2000          # lines in the purge log (across all prints)
 
 
 def group_transitions(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Gleiche Wechsel (von, nach, Farben) zusammenfassen: [{..., "count": n}]."""
+    """Merge equal changes (from, to, colours): [{..., "count": n}]."""
     out: Dict[tuple, Dict[str, Any]] = {}
     for t in items:
         key = (t.get("from_slot"), t.get("to_slot"), t.get("from_color"), t.get("to_color"))
@@ -85,7 +84,7 @@ class UsageTracker:
         self.state_path = os.path.join(self.dir, "state.json")
         self.history_path = os.path.join(self.dir, "jobs.json")
         self.journal_path = os.path.join(self.dir, "journal.jsonl")
-        self.purge_path = os.path.join(self.dir, "purge.jsonl")   # jeder Farbwechsel mit Spuelmenge (Spuelwerte lernen)
+        self.purge_path = os.path.join(self.dir, "purge.jsonl")   # every colour change with its purge length (to learn purge values)
         self._purge_set: Optional[float] = None                     # zuletzt von Orca gesetzte Spuelmenge (mm)
         self._lock = asyncio.Lock()
         self._dirty = False
@@ -106,7 +105,7 @@ class UsageTracker:
         except FileNotFoundError:
             pass
         except Exception as e:  # noqa: BLE001
-            log.error("usage/state.json nicht lesbar (%s) - starte leer, Datei bleibt als .broken liegen", e)
+            log.error("usage/state.json unreadable (%s) - starting empty, the file stays as .broken", e)
             try:
                 os.replace(self.state_path, self.state_path + ".broken")
             except OSError:
@@ -117,14 +116,14 @@ class UsageTracker:
         except FileNotFoundError:
             pass
         except Exception as e:  # noqa: BLE001
-            log.warning("usage/jobs.json nicht lesbar: %s", e)
+            log.warning("usage/jobs.json unreadable: %s", e)
         if self.job:
-            log.info("Offener Druck aus letztem Lauf gefunden: %s (Zaehler %.1f mm)",
+            log.info("Open print from the last run found: %s (counter %.1f mm)",
                      self.job.get("file"), self.job.get("last_used") or 0)
 
     # ================================================================== Spuelprotokoll (Spuelwerte lernen, Teil 1)
     def on_console(self, entry: Dict[str, Any]) -> None:
-        """Konsolen-Empfaenger: merkt sich die Spuelmenge, die Orca vor dem naechsten Wechsel setzt."""
+        """Console listener: remembers the purge length Orca sets before the next change."""
         m = PURGE_RX.search(entry.get("text") or "")
         if m:
             self._purge_set = float(m.group(1))
@@ -133,7 +132,7 @@ class UsageTracker:
         try:
             with open(self.purge_path, "a", encoding="utf-8") as fh:
                 fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            if os.path.getsize(self.purge_path) > PURGE_LOG_KEEP * 400:     # grob: kuerzen, wenn zu lang
+            if os.path.getsize(self.purge_path) > PURGE_LOG_KEEP * 400:     # rough: trim when too long
                 with open(self.purge_path, encoding="utf-8") as fh:
                     lines = fh.readlines()[-PURGE_LOG_KEEP:]
                 save_lines(self.purge_path, lines)
@@ -141,7 +140,7 @@ class UsageTracker:
             log.warning("Spuelprotokoll: %s", e)
 
     def purge_pairs(self) -> List[Dict[str, Any]]:
-        """Spuelprotokoll je Farbpaar (Farbe + Material vorher/nachher): Anzahl, Spuelmengen, zuletzt."""
+        """Purge log per colour pair (colour + material before/after): count, purge lengths, last."""
         pairs: Dict[tuple, Dict[str, Any]] = {}
         try:
             with open(self.purge_path, encoding="utf-8") as fh:
@@ -173,7 +172,7 @@ class UsageTracker:
             self._dirty = False
             self._last_save = now
         except OSError as e:
-            log.error("Zustand speichern fehlgeschlagen: %s", e)
+            log.error("Saving the state failed: %s", e)
 
     def _journal(self, event: str, **data: Any) -> None:
         try:
@@ -191,7 +190,7 @@ class UsageTracker:
         return spool.get("id") if spool else None
 
     def _geometry(self, spool_id: Optional[int]) -> Tuple[float, float]:
-        """(Durchmesser mm, Dichte g/cm3) der Spule, sonst Standardwerte."""
+        """(diameter mm, density g/cm3) of the spool, else default values."""
         fil = ((self.sm.spool(spool_id) or {}).get("filament") or {}) if spool_id else {}
         d = fil.get("diameter") or self.cfg.default_diameter
         rho = fil.get("density") or self.cfg.default_density
@@ -225,26 +224,26 @@ class UsageTracker:
             "started": _now_iso(),
             "used_start": used if isinstance(used, (int, float)) else 0.0,
             "last_used": used if isinstance(used, (int, float)) else 0.0,
-            "gate": None,              # Slot, dem der Verbrauch gerade gehoert (0-basiert)
-            "pending_gate": None,      # nur noch fuer gespeicherte Stände aus Bridge < 3.0 (Entprellung)
+            "gate": None,              # slot the consumption currently belongs to (0-based)
+            "pending_gate": None,      # only for saved states from bridge < 3.0 (debouncing)
             "pending_since": None,
             "pending_mm": 0.0,
-            "pre_mm": 0.0,             # Verbrauch vor dem ersten aktiven Slot
+            "pre_mm": 0.0,             # consumption before the first active slot
             "buckets": {},             # "gate:spool" -> {gate, spool_id, mm, booked_mm, last_book}
-            "loads": 0,                # wie oft ein Slot aktiv wurde (erster + Wechsel)
+            "loads": 0,                # how often a slot became active (first + changes)
             "changes": [],             # Slotwechsel
-            "transitions": [],         # jedes Laden mit ACE-Farben (Farbwechsel-Statistik)
-            "targets": None,           # kommt, sobald die Bridge die Druckdatei gelesen hat (set_targets)
+            "transitions": [],         # every load with ACE colours (colour change statistics)
+            "targets": None,           # arrives as soon as the bridge has read the print file (set_targets)
         }
         self._dirty = True
         self._journal("job_start", job=self.job["id"], file=self.job["file"], used_start=self.job["used_start"])
-        log.info("Druck gestartet: %s (Zaehler %.1f mm)", self.job["file"], self.job["used_start"])
+        log.info("Print started: %s (counter %.1f mm)", self.job["file"], self.job["used_start"])
         seen = acemodel.consuming_slot(status)
         if seen is not None:
             self._confirm_gate(seen)
 
     def set_targets(self, file: str, e_total: Dict[int, float]) -> None:
-        """Die Bridge hat die Druckdatei gelesen (render.py): Sollwerte pro Slot fuer die Pruefung am Druckende."""
+        """The bridge has read the print file (render.py): expected values per slot for the check at print end."""
         if not self.job or self.job["file"] != file or self.job.get("targets"):
             return
         self.job["targets"] = targets_from_gcode(e_total)
@@ -268,7 +267,7 @@ class UsageTracker:
             self._dirty = True
 
     def _confirm_gate(self, gate: int) -> None:
-        """gate ist ab jetzt der aktive Slot."""
+        """gate is the active slot from now on."""
         job = self.job
         assert job is not None
         old = job["gate"]
@@ -278,7 +277,7 @@ class UsageTracker:
         job["loads"] += 1
         src = self.slots.ace_gate(old) if old is not None else {}
         dst = self.slots.ace_gate(gate)
-        # Spuelmenge nur bei echtem Wechsel (der erste Ladevorgang im Druckstart spuelt nach G9111, nicht nach Orca)
+        # purge length only for a real change (the first load at print start purges by G9111, not by Orca)
         purge, self._purge_set = (self._purge_set if old is not None else None), None
         job.setdefault("transitions", []).append({
             "from_slot": old + 1 if old is not None else None, "to_slot": gate + 1,
@@ -294,8 +293,8 @@ class UsageTracker:
             job["pre_mm"] = 0.0
         if old is not None:
             job["changes"].append({"ts": _now_iso(), "from": old, "to": gate, "used": job["last_used"]})
-            log.info("Slotwechsel %d -> %d bei %.1f mm", old + 1, gate + 1, job["last_used"])
-            self._book_due_gate = old  # nach dem Wechsel den alten Slot buchen
+            log.info("Slot change %d -> %d at %.1f mm", old + 1, gate + 1, job["last_used"])
+            self._book_due_gate = old  # after the change, book the old slot
         else:
             log.info("Slot %d aktiv", gate + 1)
         self._dirty = True
@@ -303,16 +302,16 @@ class UsageTracker:
     _book_due_gate: Optional[int] = None
 
     def _observe_gate(self, seen: Optional[int], now: float) -> None:
-        """Der ACE-Treiber meldet den verbrauchenden Slot ohne Flackern - Wechsel sofort uebernehmen."""
+        """The ACE driver reports the consuming slot without flicker - take changes over at once."""
         job = self.job
         assert job is not None
         if seen is None or seen == job["gate"]:
-            return  # kein Slot: Verbrauch geht weiter an den bisherigen
+            return  # no slot: consumption keeps going to the previous one
         self._settle(now, force=True)
         self._confirm_gate(seen)
 
     def _settle(self, now: float, force: bool = False) -> None:
-        """Nur fuer gespeicherte Staende aus Bridge < 3.0: ausstehenden Slot (Entprellung) bestaetigen."""
+        """Only for saved states from bridge < 3.0: confirm the pending slot (debouncing)."""
         job = self.job
         if not job or job["pending_gate"] is None:
             return
@@ -357,15 +356,15 @@ class UsageTracker:
                 return
 
             ps_d = delta.get("print_stats") or {}
-            # Neuer Druck, obwohl der alte nie sauber endete (Zaehler zurueckgesetzt, andere Datei)
+            # new print although the old one never ended cleanly (counter reset, other file)
             if "filename" in ps_d and ps_d["filename"] and ps_d["filename"] != self.job["file"] \
                     and state in PRINTING_STATES:
-                log.warning("Neuer Druck ohne Ende des alten erkannt - schliesse %s ab", self.job["file"])
+                log.warning("New print without an end of the old one - closing %s", self.job["file"])
                 await self._finish("abgebrochen (unbemerkt)")
                 self._new_job(status)
                 return
 
-            # Reihenfolge: erst den Verbrauch dem bisher bekannten Slot geben, dann den Slot aktualisieren
+            # order: first give the consumption to the slot known so far, then update the slot
             if "filament_used" in ps_d and isinstance(ps_d["filament_used"], (int, float)):
                 self._consume(ps_d["filament_used"])
             if "ace" in delta:
@@ -379,7 +378,7 @@ class UsageTracker:
             self.save()
 
     async def _on_snapshot(self, status: Dict[str, Dict[str, Any]]) -> None:
-        """Erster Status nach Start oder Wiederverbindung."""
+        """First status after a start or reconnect."""
         ps = status.get("print_stats", {}) or {}
         state = ps.get("state") or ""
         used = ps.get("filament_used")
@@ -393,7 +392,7 @@ class UsageTracker:
         if same_file and plausible:
             gap = used - (self.job["last_used"] or 0)
             if abs(gap) > 0.05:
-                log.info("Setze Druck %s fort: %.1f mm seit dem letzten gespeicherten Stand",
+                log.info("Continuing print %s: %.1f mm since the last saved state",
                          self.job["file"], gap)
                 self._journal("resume", job=self.job["id"], gap_mm=round(gap, 1))
             self._consume(used)
@@ -401,7 +400,7 @@ class UsageTracker:
             if not printing:
                 await self._finish(state or "beendet")
         else:
-            log.warning("Gespeicherter Druck %s passt nicht zum Drucker (%s, %s) - schliesse mit letztem Stand ab",
+            log.warning("Saved print %s does not match the printer (%s, %s) - closing with the last state",
                         self.job["file"], ps.get("filename"), state)
             await self._finish("unterbrochen")
             if printing:
@@ -409,7 +408,7 @@ class UsageTracker:
         self.save(force=True)
 
     async def tick(self) -> None:
-        """Regelmaessig: Entprellung ohne neue Updates, Zwischenbuchung, Wiederholungen."""
+        """Regularly: debouncing without new updates, interim booking, retries."""
         async with self._lock:
             now = time.monotonic()
             if self.job:
@@ -420,11 +419,11 @@ class UsageTracker:
 
     # ================================================================== Buchen
     async def _use(self, spool_id: int, mm: float) -> str:
-        """Bucht mm auf eine Spule. Rueckgabe: 'ok', 'missing' (Spule weg) oder 'error'."""
+        """Books mm onto a spool. Returns: 'ok', 'missing' (spool gone) or 'error'."""
         if time.monotonic() < self._backoff_until:
-            return "error"  # Spoolman war eben nicht erreichbar - nicht bei jedem Tick neu versuchen
+            return "error"  # Spoolman was just unreachable - do not retry on every tick
         if not self.cfg.book_usage or self.cfg.dry_run:
-            log.info("[%s] %.1f mm auf Spule #%s", "dry-run" if self.cfg.dry_run else "Buchung aus",
+            log.info("[%s] %.1f mm on spool #%s", "dry-run" if self.cfg.dry_run else "booking off",
                      mm, spool_id)
             return "ok"
         try:
@@ -433,7 +432,7 @@ class UsageTracker:
         except LookupError:
             return "missing"
         except Exception as e:  # noqa: BLE001
-            log.warning("Buchung auf Spule #%s fehlgeschlagen (%s) - neuer Versuch in %d s",
+            log.warning("Booking on spool #%s failed (%s) - retrying in %d s",
                         spool_id, e, RETRY_BACKOFF_S)
             self._backoff_until = time.monotonic() + RETRY_BACKOFF_S
             return "error"
@@ -458,18 +457,18 @@ class UsageTracker:
                 b["booked_mm"] += todo
                 b["last_book"] = now
                 self._dirty = True
-                self.save(force=True)  # sofort sichern, sonst koennte ein Absturz doppelt buchen
+                self.save(force=True)  # save at once, otherwise a crash could book twice
                 self._journal("book", job=job["id"], slot=b["gate"] + 1, spool=spool_id,
                               mm=round(todo, 1), g=round(self.grams(todo, spool_id), 2),
-                              reason="final" if final else ("wechsel" if b["gate"] == due_gate else reason))
-                log.info("Gebucht: Slot %d -> Spule #%s %.1f mm (%.2f g)", b["gate"] + 1, spool_id, todo,
+                              reason="final" if final else ("change" if b["gate"] == due_gate else reason))
+                log.info("Booked: slot %d -> spool #%s %.1f mm (%.2f g)", b["gate"] + 1, spool_id, todo,
                          self.grams(todo, spool_id))
             elif res == "missing":
-                log.warning("Spule #%s gibt es nicht mehr - %.1f mm werden offener Posten", spool_id, todo)
+                log.warning("Spool #%s no longer exists - %.1f mm become an open item", spool_id, todo)
                 self._add_open(job, b, todo, "spool_missing")
-                b["booked_mm"] += todo  # ist jetzt im offenen Posten
+                b["booked_mm"] += todo  # is in the open item now
                 self.save(force=True)
-            # 'error': beim naechsten Mal erneut
+            # 'error': again next time
             self._dirty = True
 
     def _add_open(self, job: Dict[str, Any], b: Dict[str, Any], mm: float, reason: str) -> None:
@@ -499,8 +498,8 @@ class UsageTracker:
                 self._dirty = True
                 self.save(force=True)
                 self._journal("book", job=item["job"], slot=item["slot"], spool=item["spool_id"],
-                              mm=item["mm"], reason="nachgeholt")
-                log.info("Nachgeholt: %.1f mm auf Spule #%s", item["mm"], item["spool_id"])
+                              mm=item["mm"], reason="retried")
+                log.info("Retried: %.1f mm on spool #%s", item["mm"], item["spool_id"])
                 self._dirty = True
             elif res == "missing":
                 item["reason"], item["spool_id"] = "spool_missing", None
@@ -513,14 +512,14 @@ class UsageTracker:
         now = time.monotonic()
         self._settle(now, force=True)
         if job["pre_mm"]:
-            # nie ein Slot aktiv (z.B. Druck ohne ACE): bleibt ein offener Posten ohne Slot
+            # never a slot active (e.g. print without ACE): stays an open item without a slot
             job["buckets"].setdefault("x:-", {"gate": -1, "spool_id": None, "mm": 0.0, "booked_mm": 0.0,
                                               "last_book": 0.0, "ace": None})["mm"] += job["pre_mm"]
             job["pre_mm"] = 0.0
         await self._book(now, reason="ende", final=True)
-        await self.sm.refresh()  # Restgewichte fuer die Seite aktualisieren
+        await self.sm.refresh()  # update remaining weights for the page
 
-        # Was jetzt noch nicht gebucht ist, wird offener Posten
+        # what is not booked by now becomes an open item
         for b in job["buckets"].values():
             rest = b["mm"] - b["booked_mm"]
             if abs(rest) < 0.5:
@@ -537,10 +536,10 @@ class UsageTracker:
         except OSError as e:
             log.error("Historie speichern fehlgeschlagen: %s", e)
         self._journal("job_end", **{k: v for k, v in summary.items() if k != "slots"}, slots=summary["slots"])
-        log.info("Druck beendet (%s): %s | gesamt %.1f mm | %s", end_state, job["file"], summary["total_mm"],
+        log.info("Print ended (%s): %s | total %.1f mm | %s", end_state, job["file"], summary["total_mm"],
                  ", ".join(f"Slot {s['slot']}: {s['mm']:.0f} mm/{s['g']:.1f} g" for s in summary["slots"]))
         for w in summary["warnings"]:
-            log.warning("Abgleich: %s", w)
+            log.warning("Check: %s", w)
         self.job = None
         self._book_due_gate = None
         self._dirty = True
@@ -574,12 +573,12 @@ class UsageTracker:
             for g, t in tgt.items():
                 meas = per_slot.get(int(g), {}).get("mm", 0.0)
                 if meas < t["mm"] * (1 - self.cfg.usage_tolerance):
-                    warnings.append(f"Slot {int(g) + 1}: gemessen {meas:.0f} mm, laut G-code mindestens "
-                                    f"{t['mm']:.0f} mm (Modell)")
+                    warnings.append(tr("Slot {slot}: measured {meas:.0f} mm, the G-code says at least {want:.0f} mm "
+                                       "(model)", slot=int(g) + 1, meas=float(meas), want=float(t["mm"])))
             for s in per_slot.values():
                 if s["gate"] >= 0 and str(s["gate"]) not in tgt and s["mm"] > 50:
-                    warnings.append(f"Slot {s['slot']}: {s['mm']:.0f} mm verbraucht, im G-code nicht vorgesehen "
-                                    "(Backup-Umschaltung?)")
+                    warnings.append(tr("Slot {slot}: {mm:.0f} mm used, not planned in the G-code (backup switch?)",
+                                       slot=s["slot"], mm=float(s["mm"])))
         return {
             "job": job["id"],
             "file": job["file"],
@@ -598,7 +597,7 @@ class UsageTracker:
         }
 
     def live(self) -> Optional[Dict[str, Any]]:
-        """Stand des laufenden Drucks fuer Weboberflaeche, App und Plugin."""
+        """State of the running print for web UI, app and plugin."""
         job = self.job
         if not job:
             return None
@@ -616,38 +615,38 @@ class UsageTracker:
                 "changes": len(job["changes"]), "slots": slots}
 
     def last_by_slot(self) -> Dict[int, Dict[str, Any]]:
-        """Verbrauch pro Slot im letzten abgeschlossenen Druck."""
+        """Consumption per slot in the last finished print."""
         if not self.history:
             return {}
         last = self.history[0]
         return {s["slot"]: {"mm": s["mm"], "g": s["g"], "file": last["file"], "ended": last["ended"]}
                 for s in last["slots"] if s["slot"] > 0}
 
-    # ================================================================== offene Posten (API)
+    # ================================================================== open items (API)
     async def resolve_open(self, item_id: str, spool_id: Optional[int]) -> Dict[str, Any]:
         async with self._lock:
             item = next((i for i in self.open if i["id"] == item_id), None)
             if not item:
-                raise KeyError("offener Posten nicht gefunden")
+                raise KeyError(tr("open item not found"))
             if spool_id is None:
                 self.open.remove(item)
                 self._journal("discard", **item)
-                log.info("Offener Posten %s verworfen (%.1f mm)", item_id, item["mm"])
+                log.info("Open item %s discarded (%.1f mm)", item_id, item["mm"])
                 self._dirty = True
                 self.save(force=True)
                 return {"discarded": item}
             if not self.sm.spool(spool_id):
                 await self.sm.refresh()
                 if not self.sm.spool(spool_id):
-                    raise ValueError(f"Spule #{spool_id} nicht gefunden")
-            self._backoff_until = 0.0  # Handaktion: sofort versuchen
+                    raise ValueError(tr("Spool #{id} not found", id=spool_id))
+            self._backoff_until = 0.0  # manual action: try at once
             res = await self._use(spool_id, item["mm"])
             if res != "ok":
-                raise RuntimeError("Buchung fehlgeschlagen" if res == "error" else f"Spule #{spool_id} nicht gefunden")
+                raise RuntimeError(tr("Booking failed") if res == "error" else tr("Spool #{id} not found", id=spool_id))
             self.open.remove(item)
             self._journal("book", job=item["job"], slot=item["slot"], spool=spool_id, mm=item["mm"],
-                          reason="nachgebucht")
-            log.info("Offener Posten %s auf Spule #%s gebucht (%.1f mm)", item_id, spool_id, item["mm"])
+                          reason="booked later")
+            log.info("Open item %s booked on spool #%s (%.1f mm)", item_id, spool_id, item["mm"])
             self._dirty = True
             self.save(force=True)
             return {"booked": {**item, "spool_id": spool_id}}

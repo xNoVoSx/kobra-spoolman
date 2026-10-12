@@ -1,6 +1,7 @@
-"""HTTP-API, Bereich: Klipper-Module und ACE: Trockner, Auto-PA, Fortsetzen, Schalter (inkl. USB-Waechter, Spuelprotokoll), Verstopfung, ACE-Einstellungen.
+"""HTTP API, area Klipper modules and ACE: dryer, auto PA, resume, switches (incl. USB watchdog, purge log), clog
+detection, ACE settings.
 
-Eingebunden von web.build_app; gemeinsame Hilfen in webcommon.py."""
+Added by web.build_app; shared helpers in webcommon.py."""
 
 from __future__ import annotations
 
@@ -11,10 +12,11 @@ from aiohttp import web
 
 from .ace import AceError
 from .clog import ClogError
+from .i18n import tr
 from .pa import PaError
 from .resume import ResumeError
 from .switches import SwitchError
-from .webcommon import Ctx, _err
+from .webcommon import Ctx, json_response, msg_of, _err
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -25,22 +27,22 @@ log = logging.getLogger("web")
 def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     need_device = ctx.need_device
 
-    # ---------------------------------------------------------------- Trockner (ACE)
+    # ---------------------------------------------------------------- dryer (ACE)
     async def _dryer_call(coro):
         try:
             res = await coro
         except ValueError as e:
-            return _err(400, str(e))
+            return _err(400, msg_of(e))
         except ConnectionError as e:
-            return _err(503, f"Drucker nicht bereit: {e}")
+            return _err(503, tr("Printer not ready: {error}", error=msg_of(e)))
         except Exception as e:  # noqa: BLE001
-            log.warning("Trockner: %s", e)
-            return _err(502, str(e))
-        return web.json_response({"ok": True, "result": res, "dryer": bridge.dryer.state()})
+            log.warning("Dryer: %s", e)
+            return _err(502, msg_of(e))
+        return json_response({"ok": True, "result": res, "dryer": bridge.dryer.state()})
 
     @r.get("/api/dryer")
     async def dryer_state(_):
-        return web.json_response(bridge.dryer.state())
+        return json_response(bridge.dryer.state())
 
     @r.post("/api/dryer/start")
     @need_device
@@ -50,7 +52,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             temp = float(body["temp"]) if body.get("temp") not in (None, "") else None
             hours = float(body["hours"]) if body.get("hours") not in (None, "") else None
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"temp\": <degC oder null>, \"hours\": <h oder null>}")
+            return _err(400, tr("Expected JSON {\"temp\": <degC or null>, \"hours\": <h or null>}"))
         return await _dryer_call(bridge.dryer.start(temp, hours, source="hand"))
 
     @r.post("/api/dryer/stop")
@@ -66,7 +68,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             if not isinstance(body, dict):
                 raise TypeError
         except Exception:  # noqa: BLE001
-            return _err(400, "JSON-Objekt erwartet")
+            return _err(400, tr("Expected a JSON object"))
 
         async def apply():
             return bridge.dryer.set_config(body).__dict__
@@ -85,7 +87,8 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             temp = float(body["temp"]) if body.get("temp") not in (None, "") else None
             hours = float(body["hours"]) if body.get("hours") not in (None, "") else None
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"at\": <ISO-Zeit oder Sekunden>, \"temp\": <degC oder null>, \"hours\": <h oder null>}")
+            return _err(400, tr("Expected JSON {\"at\": <ISO time or seconds>, \"temp\": <degC or null>, "
+                                "\"hours\": <h or null>}"))
 
         async def apply():
             return bridge.dryer.set_schedule(at, temp, hours)
@@ -98,20 +101,20 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             bridge.dryer.clear_schedule()
         return await _dryer_call(apply())
 
-    # ---------------------------------------------------------------- Auto-PA (Klipper-Modul kobra_pa)
+    # ---------------------------------------------------------------- auto PA (Klipper module kobra_pa)
     async def _pa_call(coro):
         try:
             await coro
-            return web.json_response({"ok": True, **bridge.pa.view()})
+            return json_response({"ok": True, **bridge.pa.view()})
         except PaError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
             log.warning("Auto-PA: %s", e)
-            return _err(502, str(e))
+            return _err(502, msg_of(e))
 
     @r.get("/api/pa")
     async def pa_state(_):
-        return web.json_response(bridge.pa.view())
+        return json_response(bridge.pa.view())
 
     @r.post("/api/pa/switch")
     @need_device
@@ -120,10 +123,10 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             body = await request.json()
             assert isinstance(body, dict)
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"enabled\": true, \"auto\": false}")
+            return _err(400, tr("Expected JSON {\"enabled\": true, \"auto\": false}"))
         en, au = body.get("enabled"), body.get("auto")
         if any(v is not None and not isinstance(v, bool) for v in (en, au)):
-            return _err(400, "enabled/auto: true oder false")
+            return _err(400, tr("enabled/auto: true or false"))
         return await _pa_call(bridge.pa.switch(en, au))
 
     @r.post("/api/pa/calibrate")
@@ -132,7 +135,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         try:
             slot = int((await request.json()).get("slot"))
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"slot\": 1}")
+            return _err(400, tr("Expected JSON {\"slot\": 1}"))
 
         async def start():
             bridge.pa.calibrate(slot)
@@ -144,23 +147,23 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         try:
             fid = int((await request.json()).get("filament_id"))
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"filament_id\": 5}")
+            return _err(400, tr("Expected JSON {\"filament_id\": 5}"))
         return await _pa_call(bridge.pa.forget(fid))
 
-    # ---------------------------------------------------------------- Fortsetzen nach Stromausfall
+    # ---------------------------------------------------------------- resume after power loss
     async def _resume_call(coro):
         try:
             await coro
-            return web.json_response({"ok": True, **bridge.resume.view()})
+            return json_response({"ok": True, **bridge.resume.view()})
         except ResumeError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
-            log.warning("Fortsetzen: %s", e)
-            return _err(502, str(e))
+            log.warning("Resume: %s", e)
+            return _err(502, msg_of(e))
 
     @r.get("/api/resume")
     async def resume_state(_):
-        return web.json_response(bridge.resume.view())
+        return json_response(bridge.resume.view())
 
     @r.post("/api/resume")
     @need_device
@@ -170,7 +173,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         except Exception:  # noqa: BLE001
             body = {}
         if body.get("confirm") is not True:
-            return _err(409, "Erst das Teil prüfen – dann mit {\"confirm\": true} fortsetzen")
+            return _err(409, tr("Check the part first – then resume with {\"confirm\": true}"))
 
         async def go():
             bridge.resume.start()
@@ -188,24 +191,24 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             en = (await request.json()).get("enabled")
             assert isinstance(en, bool)
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"enabled\": true}")
+            return _err(400, tr("Expected JSON {\"enabled\": true}"))
         return await _resume_call(bridge.resume.switch(en))
 
-    # ---------------------------------------------------------------- Schalter der Klipper-Module (Display, Web, App)
+    # ---------------------------------------------------------------- switches of the Klipper modules (display, web, app)
     @r.get("/api/switches")
     async def switches_state(_):
-        return web.json_response(bridge.switches.view())
+        return json_response(bridge.switches.view())
 
     @r.get("/api/purge")
     async def purge_pairs(_):
-        """Spuelprotokoll je Farbpaar (Farbe/Material vorher -> nachher): Anzahl, letzte Spuelmengen (Orca-Matrix)."""
-        return web.json_response({"pairs": bridge.usage.purge_pairs()})
+        """Purge log per colour pair (colour/material before -> after): count, last purge lengths (Orca matrix)."""
+        return json_response({"pairs": bridge.usage.purge_pairs()})
 
     @r.get("/api/usb")
     async def usb_state(_):
-        """USB-Tunnel Drucker <-> Pi: Zustand des Waechters, Schalter, letzte Ereignisse (Schalten ueber /api/switch)."""
+        """USB tunnel printer <-> Pi: watchdog state, switches, last events (switching through /api/switch)."""
         await bridge.usb.tick(force=True)
-        return web.json_response(bridge.usb.view())
+        return json_response(bridge.usb.view())
 
     @r.post("/api/switch")
     @need_device
@@ -215,19 +218,19 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             key = body["key"]
             assert isinstance(key, str)
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"key\": \"pa\", \"value\": true}")
+            return _err(400, tr("Expected JSON {\"key\": \"pa\", \"value\": true}"))
         try:
-            return web.json_response(await bridge.switches.set(key, body.get("value")))
+            return json_response(await bridge.switches.set(key, body.get("value")))
         except SwitchError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
-            log.warning("Schalter %s: %s", key, e)
-            return _err(502, str(e))
+            log.warning("Switch %s: %s", key, e)
+            return _err(502, msg_of(e))
 
-    # ---------------------------------------------------------------- Verstopfung erkennen
+    # ---------------------------------------------------------------- clog detection
     @r.get("/api/clog")
     async def clog_state(_):
-        return web.json_response(bridge.clog.view())
+        return json_response(bridge.clog.view())
 
     @r.post("/api/clog/switch")
     @need_device
@@ -238,29 +241,29 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             assert en is None or isinstance(en, bool)
             assert act is None or isinstance(act, str)
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"enabled\": true, \"action\": \"warn\"|\"pause\"}")
+            return _err(400, tr("Expected JSON {\"enabled\": true, \"action\": \"warn\"|\"pause\"}"))
         try:
             await bridge.clog.switch(en, act)
-            return web.json_response({"ok": True, **bridge.clog.view()})
+            return json_response({"ok": True, **bridge.clog.view()})
         except ClogError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
-            log.warning("Verstopfung: %s", e)
-            return _err(502, str(e))
+            log.warning("Clog: %s", e)
+            return _err(502, msg_of(e))
 
-    # ---------------------------------------------------------------- ACE-Einstellungen
+    # ---------------------------------------------------------------- ACE settings
     async def _ace_call(coro):
         try:
-            return web.json_response({"ok": True, "settings": await coro})
+            return json_response({"ok": True, "settings": await coro})
         except AceError as e:
-            return _err(e.status, str(e))
+            return _err(e.status, msg_of(e))
         except Exception as e:  # noqa: BLE001
-            log.warning("ACE-Einstellung: %s", e)
-            return _err(502, str(e))
+            log.warning("ACE setting: %s", e)
+            return _err(502, msg_of(e))
 
     @r.get("/api/ace")
     async def ace_state(request: web.Request):
-        return web.json_response({"settings": bridge.ace.state()})
+        return json_response({"settings": bridge.ace.state()})
 
     @r.post("/api/ace/options")
     @need_device
@@ -270,6 +273,6 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             if not isinstance(body, dict):
                 raise TypeError
         except Exception:  # noqa: BLE001
-            return _err(400, "Erwartet JSON {\"endless_spool\": true, \"endless_mode\": \"exact\"}")
-        body.pop("confirm_printing", None)            # aeltere Clients schicken es noch mit - wird nicht gebraucht
+            return _err(400, tr("Expected JSON {\"endless_spool\": true, \"endless_mode\": \"exact\"}"))
+        body.pop("confirm_printing", None)            # older clients still send it - not needed
         return await _ace_call(bridge.ace.set_options(body))

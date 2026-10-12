@@ -1,4 +1,4 @@
-"""Einstiegspunkt: python -m acebridge"""
+"""Entry point: python -m acebridge"""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from .usb import UsbTunnel
 from .dryer import Dryer
 from .usage import UsageTracker
 from .humidity import HumidityLog
+from .i18n import tr
 from .moisture import MoistureModel, hours_needed
 from .mqtt import MqttBridge
 from .filament_z import FilamentZSync
@@ -47,7 +48,7 @@ log = logging.getLogger("bridge")
 class Bridge:
     def __init__(self, cfg: Config, session: aiohttp.ClientSession):
         self.cfg = cfg
-        self.settings = RuntimeSettings(cfg)      # gespeicherte Einstellungen vor allen Bausteinen anwenden
+        self.settings = RuntimeSettings(cfg)      # apply saved settings before all parts
         self.session = session
         self.moon = Moonraker(cfg, session, self._on_status)
         self.sm = Spoolman(cfg, session)
@@ -59,7 +60,7 @@ class Bridge:
         self.filament_z = FilamentZSync(cfg, self.moon, self.sm, self.slots)
         self.resume = Resume(self.moon, self.slots)
         self.clog = Clog(self.moon)
-        self.usb = UsbTunnel(self.moon)                           # USB-Waechter am Pi (Moonraker-Datenbank)
+        self.usb = UsbTunnel(self.moon)                           # USB watchdog on the Klipper computer (Moonraker DB)
         self.switches = Switches(self.moon, self.usb)
         self.machine = Machine(self.moon, self.sm, self.slots)
         self.files = Files(self.moon, self.slots)
@@ -80,35 +81,34 @@ class Bridge:
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
         self.moon.console = self.console
-        self.console.listeners.append(self.recorder.on_console)   # Konsole in die Druck-Aufzeichnung
-        self.phase_steps = ChangeSteps()                          # Teilschritt beim Werkzeugwechsel (Druckphase)
+        self.console.listeners.append(self.recorder.on_console)   # console into the print recording
+        self.phase_steps = ChangeSteps()                          # sub-step of a tool change (print phase)
         self.console.listeners.append(self.phase_steps.on_console)
-        self.console.listeners.append(self.usage.on_console)      # Spuelmenge je Farbwechsel (Spuelprotokoll)
+        self.console.listeners.append(self.usage.on_console)      # purge length per colour change (purge log)
         self._print_state = ""
-        # zuletzt ueber die Bridge ausgeloeste Druckaktion - die App meldet eigene Pausen nicht als Alarm
+        # last print action triggered through the bridge - the app does not report its own pauses as an alarm
         self.last_control: Optional[Dict[str, Any]] = None
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:
         if full:
-            self.slots.reset_lane_cache()  # nach (Re-)Connect alles neu schreiben
+            self.slots.reset_lane_cache()  # after a (re)connect write everything again
         try:
             self.recorder.on_status(delta, full, self.moon.status)
         except Exception:  # noqa: BLE001
-            log.exception("Telemetrie-Fehler")
-        # Verbrauch zuerst: bei Druckende muss gebucht sein, bevor aufgeschobene
-        # Rueckbuchungen ins Regal laufen
+            log.exception("Telemetry error")
+        # consumption first: at print end it must be booked before postponed moves to the shelf run
         try:
             await self.usage.on_status(delta, full, self.moon.status)
         except Exception:  # noqa: BLE001
-            log.exception("Verbrauchs-Fehler")
+            log.exception("Consumption error")
         try:
-            self.preview.watch(self.moon.status)        # neuer Druck -> Datei fuer die Vorschau laden
+            self.preview.watch(self.moon.status)        # new print -> load the file for the preview
         except Exception:  # noqa: BLE001
-            log.exception("Vorschau-Fehler")
+            log.exception("Preview error")
         new_state = (self.moon.status.get("print_stats", {}) or {}).get("state", "") or ""
         old_state, self._print_state = self._print_state, new_state
         if new_state != old_state:
-            log.info("Druckerstatus: %s -> %s", old_state or "?", new_state or "?")
+            log.info("Printer state: %s -> %s", old_state or "?", new_state or "?")
         if full or "ace_instance_0" in delta:
             await self.dryer.evaluate()
         if full or "ace" in delta or "ace_instance_0" in delta or new_state != old_state:
@@ -117,9 +117,9 @@ class Bridge:
                 await self.slots.on_print_state_change(old_state, new_state)
         if full or PA_OBJ in delta:
             try:
-                await self.pa.tick(full)     # Auto-PA: neues Messergebnis sofort nach Spoolman
+                await self.pa.tick(full)     # auto PA: new measurement result to Spoolman at once
             except Exception:  # noqa: BLE001
-                log.exception("Auto-PA-Fehler")
+                log.exception("Auto PA error")
         if full:
             await self.filament_z.tick(full=True)
 
@@ -134,7 +134,7 @@ class Bridge:
         return out
 
     def wet_loaded(self) -> list:
-        """Eingelegte Spulen, die getrocknet werden sollten: (Slot, Spule, Feuchte-Info, Stunden bei der ACE-Temperatur)."""
+        """Loaded spools that should be dried: (slot, spool, moisture info, hours at the ACE temperature)."""
         assigned, _ = self.slots.assignments()
         temp = self.dryer.required_temp()["temp"]
         out = []
@@ -150,7 +150,7 @@ class Bridge:
         return out
 
     async def _spool_inserted(self, spool: dict, info: dict) -> None:
-        """Feuchte Spule eingelegt: melden (messages) und - wenn eingestellt - trocknen lassen."""
+        """Damp spool inserted: report it (messages) and - if set - have it dried."""
         if not info.get("needs_drying") or not self.cfg.auto_dry_on_insert:
             return
         if self.slots.printing and not self.dryer.config.while_printing:
@@ -159,21 +159,27 @@ class Bridge:
         if not wet:
             return
         hours = max(h for *_, h in wet)
-        name = ((spool.get("filament") or {}).get("name") or f"Spule #{spool.get('id')}")
-        why = "neu – Verlauf unbekannt" if info.get("score") is None else \
-            f"Feuchte-Schätzung {info['score']} %" + (f", lag {info['outside_h']:g} h draußen" if info.get("outside_h") else "")
+        name = ((spool.get("filament") or {}).get("name") or tr("Spool #{id}", id=spool.get("id")))
+        if info.get("score") is None:
+            why = tr("new – history unknown")
+        elif info.get("outside_h"):
+            why = tr("moisture estimate {score} %, was outside for {h:g} h", score=info["score"],
+                     h=float(info["outside_h"]))
+        else:
+            why = tr("moisture estimate {score} %", score=info["score"])
         try:
-            if await self.dryer.ensure(hours, f"Spule eingelegt: {name} (Slot {info.get('slot')}) – {why}"):
-                log.info("Trockne %.1f h wegen %s (%s)", hours, name, why)
+            if await self.dryer.ensure(hours, tr("Spool inserted: {name} (slot {slot}) – {why}", name=name,
+                                                 slot=info.get("slot"), why=why)):
+                log.info("Drying %.1f h because of %s (%s)", hours, name, why)
         except Exception as e:  # noqa: BLE001
-            log.warning("Trocknen beim Einlegen nicht gestartet: %s", e)
+            log.warning("Drying on insert not started: %s", e)
 
     def safety_warnings(self) -> list:
-        """Doppelte Buchung verhindern: Moonraker/Firmware duerfen nicht selbst buchen."""
+        """Prevent double booking: Moonraker/firmware must not book by themselves."""
         out = []
         if "spoolman" in (self.moon.components or []):
-            out.append("Moonraker hat [spoolman] aktiv - Verbrauch wuerde doppelt gebucht. "
-                       "Abschnitt [spoolman] in moonraker.conf entfernen.")
+            out.append(tr("Moonraker has [spoolman] active - consumption would be booked twice. Remove the section "
+                          "[spoolman] from moonraker.conf."))
         return out
 
     async def spoolman_loop(self) -> None:
@@ -193,38 +199,38 @@ class Bridge:
             try:
                 self.recorder.tick(self.moon.status)
                 await self.usage.tick()
-                await self.slots.evaluate()  # Entprellung der Auto-Freigabe
-                await self.dryer.evaluate()  # Automatik und Temperatur-Sicherheit
-                self.humidity.tick()         # Feuchte-Verlauf, Trocknungen
-                await self.moisture.tick()   # Feuchte je Spule
-                await self.print_guard.tick()  # feuchte Spule beim Druckstart -> ggf. pausieren
+                await self.slots.evaluate()  # debouncing of the auto release
+                await self.dryer.evaluate()  # automation and temperature safety
+                self.humidity.tick()         # humidity history, drying runs
+                await self.moisture.tick()   # moisture per spool
+                await self.print_guard.tick()  # damp spool at print start -> pause if set
                 await self.ace.refresh()
-                await self.pa.tick()         # Auto-PA: Spoolman-Stand der Slots an Klipper (nur bei Aenderung)
-                await self.filament_z.tick()  # Z-Versatz je Slot an KOBRA_START (nur bei Aenderung)
-                await self.usb.tick()        # Zustand des USB-Waechters am Pi (alle 30 s)
+                await self.pa.tick()         # auto PA: Spoolman state of the slots to Klipper (only on change)
+                await self.filament_z.tick()  # Z offset per slot to KOBRA_START (only on change)
+                await self.usb.tick()        # state of the USB watchdog (every 30 s)
             except Exception:  # noqa: BLE001
-                log.exception("Ticker-Fehler")
+                log.exception("Ticker error")
 
 
 async def amain() -> None:
     cfg = Config()
     logging.basicConfig(level=getattr(logging, cfg.log_level, logging.INFO),
                         format="%(asctime)s %(levelname)-7s %(name)-10s %(message)s", datefmt="%H:%M:%S")
-    logging.getLogger().addHandler(LOG_BUFFER)      # Seite "Logs" / App-Protokoll
+    logging.getLogger().addHandler(LOG_BUFFER)      # "Logs" page / app log
     log.info("ace-lane-bridge %s", __version__)
     if not cfg.moonraker_url:
-        log.error("MOONRAKER_URL fehlt - z.B. MOONRAKER_URL=http://<drucker-ip>:7125 setzen")
+        log.error("MOONRAKER_URL missing - set e.g. MOONRAKER_URL=http://<printer-ip>:7125")
         sys.exit(2)
     log.info("  Moonraker : %s", cfg.moonraker_url)
     log.info("  Spoolman  : %s", cfg.spoolman_url)
     log.info("  HTTP      : %s:%d", cfg.http_host, cfg.http_port)
-    log.info("  Buchung   : %s (Zwischenbuchung alle %ss)", "an" if cfg.book_usage else "aus",
+    log.info("  Booking   : %s (interim booking every %ss)", "on" if cfg.book_usage else "off",
              int(cfg.book_interval_s))
-    log.info("  lane_data : %s | Auto-Regal: %s (%ss) | Telemetrie: %s",
-             "an" if cfg.write_lane_data else "aus", "an" if cfg.auto_unassign_on_empty else "aus",
-             int(cfg.empty_debounce_s), "an" if cfg.telemetry else "aus")
+    log.info("  lane_data : %s | auto shelf: %s (%ss) | telemetry: %s | language: %s",
+             "on" if cfg.write_lane_data else "off", "on" if cfg.auto_unassign_on_empty else "off",
+             int(cfg.empty_debounce_s), "on" if cfg.telemetry else "off", cfg.language)
     if cfg.dry_run:
-        log.warning("  DRY_RUN aktiv - es wird nichts geschrieben")
+        log.warning("  DRY_RUN active - nothing is written")
 
     async with aiohttp.ClientSession() as session:
         bridge = Bridge(cfg, session)
@@ -245,7 +251,7 @@ async def amain() -> None:
             except NotImplementedError:
                 pass
         await stop.wait()
-        log.info("Beende ...")
+        log.info("Stopping ...")
         for t in tasks:
             t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)

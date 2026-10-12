@@ -1,9 +1,9 @@
-"""Abgleich per G-Code (Auto-PA-Werte, Z-Versatz je Slot): hoechstens eine Anfrage offen, nie nachschiessen.
+"""Sync through G-code (auto PA values, Z offset per slot): at most one request in flight, never resent.
 
-Klipper fuehrt G-Code ueber die API erst aus, wenn kein anderer Befehl laeuft - im Startablauf (G9111 ist ein
-einziges Makro) also erst nach Minuten. Bis 3.11.0 lief jede Anfrage nach 15 s in einen Timeout und wurde beim
-naechsten Status neu geschickt; in Klipper stauten sich so dutzende Anfragen (und PAUSE dahinter). Jetzt: eine
-Anfrage mit langer Frist, der Aufrufer wartet nur kurz und erfaehrt das Ergebnis ueber on_done."""
+Klipper runs API G-code only when no other command is running - during the print start (G9111 is a single macro)
+that can take minutes. Up to 3.11.0 every request timed out after 15 s and was resent with the next status; dozens of
+requests piled up in Klipper (and a PAUSE behind them). Now: one request with a long deadline; the caller waits only
+briefly and learns the result through on_done."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("gcodepush")
 
-WAIT_S = 2.0          # so lange wartet der Aufrufer (Statusverarbeitung) hoechstens
-TIMEOUT_S = 3600.0    # so lange darf Klipper brauchen (laengster Startablauf mit Durchwaermen)
+WAIT_S = 2.0          # the caller (status processing) waits at most this long
+TIMEOUT_S = 3600.0    # Klipper may take this long (longest print start with heat soak)
 
 
 class GcodePush:
@@ -28,11 +28,11 @@ class GcodePush:
 
     @property
     def busy(self) -> bool:
-        """Eine Anfrage ist noch offen (Klipper beschaeftigt) - dann nichts Neues schicken."""
+        """A request is still open (Klipper busy) - send nothing new meanwhile."""
         return self._task is not None and not self._task.done()
 
     async def send(self, script: str, on_done: Callable[[bool, Optional[Exception]], None]) -> None:
-        """script schicken (nicht, solange busy); on_done(ok, fehler) laeuft, sobald Klipper geantwortet hat."""
+        """Send script (not while busy); on_done(ok, error) runs as soon as Klipper has answered."""
         if self.busy:
             return
 

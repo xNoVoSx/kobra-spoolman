@@ -1,13 +1,14 @@
-"""Home Assistant ueber MQTT - die Bridge verteilt, was sie ohnehin weiss (Drucker, Slots, ACE, Meldungen, KI).
+"""Home Assistant over MQTT - the bridge shares what it knows anyway (printer, slots, ACE, messages, AI).
 
-Der Drucker merkt davon nichts: alles stammt aus dem Moonraker-Abo der Bridge, keine eigene Verbindung fuer HA.
-- Zustaende als JSON (retained) unter <MQTT_PREFIX>/printer, /ace, /slot/<n>, /notices, /vision;
-  <MQTT_PREFIX>/status = online/offline (Testament/LWT).
-- Home Assistant erkennt die Sensoren selbst (MQTT-Discovery unter <MQTT_DISCOVERY>/...), alle an einem Geraet
-  "Kobra S1 (ace-lane-bridge)". MQTT_DISCOVERY leer = keine Discovery.
-- Raumsensor (z. B. Zigbee2MQTT): ROOM_SENSOR_TOPIC abonnieren; JSON mit "humidity" (und "temperature") oder eine
-  Zahl. Die gemessene Luftfeuchte ersetzt dann die eingestellte Raumfeuchte der Feuchte-Schaetzung (moisture.py).
-Gesendet wird bei Aenderung, hoechstens alle 5 s; die Verbindung kommt nach Abbruechen von selbst wieder.
+The printer notices nothing: everything comes from the bridge's Moonraker subscription, no extra connection for HA.
+- States as JSON (retained) under <MQTT_PREFIX>/printer, /ace, /slot/<n>, /notices, /vision;
+  <MQTT_PREFIX>/status = online/offline (last will).
+- Home Assistant finds the sensors by itself (MQTT discovery under <MQTT_DISCOVERY>/...), all on one device
+  "Kobra S1 (ace-lane-bridge)". MQTT_DISCOVERY empty = no discovery.
+- Room sensor (e.g. Zigbee2MQTT): subscribe ROOM_SENSOR_TOPIC; JSON with "humidity" (and "temperature") or a number.
+  The measured humidity then replaces the configured room humidity of the moisture estimate (moisture.py).
+Texts (sensor names, messages, phase) are in the bridge's default language (setting "language").
+Sent on change, at most every 5 s; the connection comes back by itself after failures.
 """
 
 from __future__ import annotations
@@ -18,7 +19,8 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from . import phase
+from . import i18n, phase
+from .i18n import tr
 from .status import notices, printer_cpu
 
 if TYPE_CHECKING:
@@ -28,7 +30,7 @@ log = logging.getLogger("mqtt")
 
 MIN_GAP_S = 5
 RECONNECT_S = 15
-ROOM_FRESH_S = 2 * 3600          # so lange gilt ein Messwert des Raumsensors
+ROOM_FRESH_S = 2 * 3600          # a room sensor reading is valid this long
 
 
 def _f(v: Any, digits: int = 1) -> Optional[float]:
@@ -38,12 +40,8 @@ def _f(v: Any, digits: int = 1) -> Optional[float]:
         return None
 
 
-def _de(x: float) -> str:
-    return f"{x:g}".replace(".", ",")
-
-
 def room_reading(payload: bytes) -> Tuple[Optional[float], Optional[float]]:
-    """(Feuchte, Temperatur) aus einer Sensor-Nachricht: JSON wie Zigbee2MQTT oder nur eine Zahl."""
+    """(humidity, temperature) from a sensor message: JSON like Zigbee2MQTT or just a number."""
     text = payload.decode("utf-8", "ignore").strip()
     try:
         data = json.loads(text)
@@ -65,12 +63,12 @@ class MqttBridge:
         self.enabled = bool(self.cfg.mqtt_host)
         self.connected = False
         self.error: Optional[str] = None
-        self.sent: Dict[str, str] = {}               # zuletzt gesendet je Thema (nur bei Aenderung neu)
+        self.sent: Dict[str, str] = {}               # last sent per topic (resent only on change)
         self.room: Optional[Dict[str, Any]] = None    # {"rh", "temp", "at"}
         self._client_factory = client_factory
         self.prefix = self.cfg.mqtt_prefix.strip("/") or "kobra-spoolman"
 
-    # ------------------------------------------------------------ Inhalte
+    # ------------------------------------------------------------ content
     def payloads(self) -> Dict[str, Dict[str, Any]]:
         b = self.b
         st = b.moon.status
@@ -111,14 +109,14 @@ class MqttBridge:
         msgs = n.get("messages", [])
         out["notices"] = {"count": len(msgs), "errors": sum(m["level"] == "error" for m in msgs),
                           "warnings": sum(m["level"] == "warn" for m in msgs),
-                          "top": msgs[0]["text"] if msgs else "alles gut", "messages": [m["text"] for m in msgs[:10]]}
+                          "top": msgs[0]["text"] if msgs else tr("all good"), "messages": [m["text"] for m in msgs[:10]]}
         v = getattr(b, "vision", None)
         if v is not None and v.configured:
             out["vision"] = {"level": v.level, "score": v.pred.score(v.settings.sensitivity), "muted": bool(v.muted)}
         return out
 
     def discovery(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """(Thema, Konfiguration) fuer Home Assistants MQTT-Discovery."""
+        """(topic, configuration) for Home Assistant's MQTT discovery."""
         base = (self.cfg.mqtt_discovery or "").strip("/")
         if not base:
             return []
@@ -128,39 +126,42 @@ class MqttBridge:
         avail = {"availability_topic": f"{self.prefix}/status", "payload_available": "online", "payload_not_available": "offline"}
         out: List[Tuple[str, Dict[str, Any]]] = []
 
-        def ent(comp: str, oid: str, name: str, topic: str, tpl: str, **extra: Any) -> None:
+        def ent(comp: str, oid: str, name: Any, topic: str, tpl: str, **extra: Any) -> None:
             uid = f"{self.prefix}_{oid}".replace("/", "_").replace("-", "_")
-            out.append((f"{base}/{comp}/{uid}/config", {"name": name, "unique_id": uid, "object_id": uid,
+            out.append((f"{base}/{comp}/{uid}/config", {"name": i18n.localize(name, i18n.default_lang()),
+                                                       "unique_id": uid, "object_id": uid,
                                                        "state_topic": f"{self.prefix}/{topic}", "value_template": tpl,
                                                        "device": dev, **avail, **extra}))
-        ent("sensor", "state", "Druckerstatus", "printer", "{{ value_json.state }}", icon="mdi:printer-3d")
-        ent("sensor", "phase", "Druckphase", "printer", "{{ value_json.phase or '' }}", icon="mdi:progress-wrench")
-        ent("sensor", "progress", "Fortschritt", "printer", "{{ value_json.progress }}", unit_of_measurement="%", icon="mdi:progress-clock")
-        ent("sensor", "eta", "Restzeit", "printer", "{{ value_json.eta_min }}", unit_of_measurement="min", device_class="duration")
-        ent("sensor", "finish", "Fertig um", "printer", "{{ value_json.finish }}", device_class="timestamp")
-        ent("sensor", "file", "Druckdatei", "printer", "{{ value_json.file }}", icon="mdi:file")
-        ent("sensor", "layer", "Schicht", "printer", "{{ value_json.layer }}", icon="mdi:layers")
-        ent("sensor", "nozzle", "Düse", "printer", "{{ value_json.nozzle }}", unit_of_measurement="°C", device_class="temperature")
-        ent("sensor", "bed", "Bett", "printer", "{{ value_json.bed }}", unit_of_measurement="°C", device_class="temperature")
-        ent("sensor", "cpu", "Klipper-CPU (Pi)", "printer", "{{ value_json.cpu }}", unit_of_measurement="%", icon="mdi:cpu-32-bit",
+        ent("sensor", "state", tr("Printer state"), "printer", "{{ value_json.state }}", icon="mdi:printer-3d")
+        ent("sensor", "phase", tr("Print phase"), "printer", "{{ value_json.phase or '' }}", icon="mdi:progress-wrench")
+        ent("sensor", "progress", tr("Progress"), "printer", "{{ value_json.progress }}", unit_of_measurement="%", icon="mdi:progress-clock")
+        ent("sensor", "eta", tr("Time left"), "printer", "{{ value_json.eta_min }}", unit_of_measurement="min", device_class="duration")
+        ent("sensor", "finish", tr("Finished at"), "printer", "{{ value_json.finish }}", device_class="timestamp")
+        ent("sensor", "file", tr("Print file"), "printer", "{{ value_json.file }}", icon="mdi:file")
+        ent("sensor", "layer", tr("Layer"), "printer", "{{ value_json.layer }}", icon="mdi:layers")
+        ent("sensor", "nozzle", tr("Nozzle"), "printer", "{{ value_json.nozzle }}", unit_of_measurement="°C", device_class="temperature")
+        ent("sensor", "bed", tr("Bed"), "printer", "{{ value_json.bed }}", unit_of_measurement="°C", device_class="temperature")
+        ent("sensor", "cpu", tr("Klipper CPU"), "printer", "{{ value_json.cpu }}", unit_of_measurement="%", icon="mdi:cpu-32-bit",
             entity_category="diagnostic")
-        ent("sensor", "ace_humidity", "ACE Feuchte", "ace", "{{ value_json.humidity }}", unit_of_measurement="%", device_class="humidity")
-        ent("sensor", "ace_temp", "ACE Temperatur", "ace", "{{ value_json.temp }}", unit_of_measurement="°C", device_class="temperature")
-        ent("binary_sensor", "ace_drying", "ACE trocknet", "ace", "{{ 'ON' if value_json.drying else 'OFF' }}", device_class="running")
+        ent("sensor", "ace_humidity", tr("ACE humidity"), "ace", "{{ value_json.humidity }}", unit_of_measurement="%", device_class="humidity")
+        ent("sensor", "ace_temp", tr("ACE temperature"), "ace", "{{ value_json.temp }}", unit_of_measurement="°C", device_class="temperature")
+        ent("binary_sensor", "ace_drying", tr("ACE drying"), "ace", "{{ 'ON' if value_json.drying else 'OFF' }}", device_class="running")
         for n in range(1, self.b.slots.num_gates() + 1):
-            ent("sensor", f"slot{n}_spool", f"Slot {n} Spule", f"slot/{n}", "{{ value_json.spool or 'leer' }}", icon="mdi:printer-3d-nozzle")
-            ent("sensor", f"slot{n}_remaining", f"Slot {n} Rest", f"slot/{n}", "{{ value_json.remaining_g }}",
+            empty = i18n.localize(tr("empty"), i18n.default_lang())
+            ent("sensor", f"slot{n}_spool", tr("Slot {n} spool", n=n), f"slot/{n}",
+                "{{ value_json.spool or '" + empty + "' }}", icon="mdi:printer-3d-nozzle")
+            ent("sensor", f"slot{n}_remaining", tr("Slot {n} remaining", n=n), f"slot/{n}", "{{ value_json.remaining_g }}",
                 unit_of_measurement="g", device_class="weight")
-            ent("sensor", f"slot{n}_moisture", f"Slot {n} Feuchte-Schätzung", f"slot/{n}", "{{ value_json.moisture }}",
+            ent("sensor", f"slot{n}_moisture", tr("Slot {n} moisture estimate", n=n), f"slot/{n}", "{{ value_json.moisture }}",
                 unit_of_measurement="%", icon="mdi:water-percent")
-        ent("sensor", "notices", "Meldungen", "notices", "{{ value_json.count }}", icon="mdi:bell")
-        ent("sensor", "notice_top", "Wichtigste Meldung", "notices", "{{ value_json.top }}", icon="mdi:message-alert")
+        ent("sensor", "notices", tr("Messages"), "notices", "{{ value_json.count }}", icon="mdi:bell")
+        ent("sensor", "notice_top", tr("Top message"), "notices", "{{ value_json.top }}", icon="mdi:message-alert")
         if getattr(self.b, "vision", None) is not None and self.b.vision.configured:
-            ent("sensor", "vision", "KI", "vision", "{{ value_json.level }}", icon="mdi:eye")
-            ent("sensor", "vision_score", "KI Wert", "vision", "{{ (value_json.score * 100) | round(0) }}", unit_of_measurement="%")
+            ent("sensor", "vision", tr("AI"), "vision", "{{ value_json.level }}", icon="mdi:eye")
+            ent("sensor", "vision_score", tr("AI score"), "vision", "{{ (value_json.score * 100) | round(0) }}", unit_of_measurement="%")
         return out
 
-    # ------------------------------------------------------------ Raumsensor
+    # ------------------------------------------------------------ room sensor
     def on_room(self, payload: bytes) -> None:
         rh, temp = room_reading(payload)
         if rh is None or not 0 <= rh <= 100:
@@ -168,16 +169,16 @@ class MqttBridge:
         self.room = {"rh": rh, "temp": temp, "at": self.clock()}
 
     def room_rh(self) -> Optional[float]:
-        """Gemessene Raumfeuchte, solange frisch (sonst None -> eingestellter Wert)."""
+        """Measured room humidity while fresh (else None -> the configured value)."""
         if self.room and self.clock() - self.room["at"] <= ROOM_FRESH_S:
             return self.room["rh"]
         return None
 
-    # ------------------------------------------------------------ Senden
+    # ------------------------------------------------------------ sending
     async def publish_changes(self, client: Any, force: bool = False) -> int:
         n = 0
         for topic, data in self.payloads().items():
-            text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+            text = json.dumps(i18n.localize(data, i18n.default_lang()), ensure_ascii=False, separators=(",", ":"))
             full = f"{self.prefix}/{topic}"
             if force or self.sent.get(full) != text:
                 await client.publish(full, text, retain=True)
@@ -191,15 +192,16 @@ class MqttBridge:
         import aiomqtt
         factory = self._client_factory or aiomqtt.Client
         status = f"{self.prefix}/status"
-        log.info("MQTT: %s:%s, Präfix %s, Discovery %s%s", self.cfg.mqtt_host, self.cfg.mqtt_port, self.prefix,
-                 self.cfg.mqtt_discovery or "aus", f", Raumsensor {self.cfg.room_sensor_topic}" if self.cfg.room_sensor_topic else "")
+        log.info("MQTT: %s:%s, prefix %s, discovery %s%s", self.cfg.mqtt_host, self.cfg.mqtt_port, self.prefix,
+                 self.cfg.mqtt_discovery or "off",
+                 f", room sensor {self.cfg.room_sensor_topic}" if self.cfg.room_sensor_topic else "")
         while True:
             try:
                 async with factory(self.cfg.mqtt_host, self.cfg.mqtt_port, username=self.cfg.mqtt_user or None,
                                    password=self.cfg.mqtt_password or None, identifier=f"{self.prefix}-bridge",
                                    will=aiomqtt.Will(status, "offline", retain=True)) as client:
                     self.connected, self.error = True, None
-                    log.info("MQTT verbunden")
+                    log.info("MQTT connected")
                     await client.publish(status, "online", retain=True)
                     for topic, conf in self.discovery():
                         await client.publish(topic, json.dumps(conf, ensure_ascii=False), retain=True)
@@ -212,7 +214,7 @@ class MqttBridge:
                             await asyncio.sleep(MIN_GAP_S)
                             await self.publish_changes(client)
                     except asyncio.CancelledError:
-                        # Bridge wird beendet: sauberes Trennen loest das Testament nicht aus -> selbst melden
+                        # the bridge is stopping: a clean disconnect does not trigger the last will -> report it ourselves
                         try:
                             await asyncio.wait_for(client.publish(status, "offline", retain=True), 2)
                         except Exception:  # noqa: BLE001
@@ -225,8 +227,8 @@ class MqttBridge:
                 raise
             except Exception as e:  # noqa: BLE001  (aiomqtt.MqttError, OSError ...)
                 if self.connected or self.error is None:
-                    log.warning("MQTT getrennt: %s – neuer Versuch in %d s", e, RECONNECT_S)
-                self.connected, self.error = False, f"nicht erreichbar: {e}"
+                    log.warning("MQTT disconnected: %s – retrying in %d s", e, RECONNECT_S)
+                self.connected, self.error = False, tr("not reachable: {error}", error=str(e))
                 await asyncio.sleep(RECONNECT_S)
 
     async def _listen(self, client: Any) -> None:
@@ -238,15 +240,16 @@ class MqttBridge:
         out = []
         if self.enabled:
             out.append({"key": "mqtt", "label": "MQTT / HA", "state": "ok" if self.connected else "warn",
-                        "detail": f"verbunden · {len(self.sent)} Themen" if self.connected else (self.error or "verbindet …")})
+                        "detail": tr("connected · {n} topics", n=len(self.sent)) if self.connected
+                        else (self.error or tr("connecting …"))})
         if self.cfg.room_sensor_topic:
             r = self.room
             if r and self.room_rh() is not None:
                 age = int((self.clock() - r["at"]) / 60)
-                out.append({"key": "room", "label": "Raumsensor", "state": "ok",
-                            "detail": _de(r["rh"]) + " %" + (f" · {_de(r['temp'])} °C" if r.get("temp") is not None else "")
-                            + f" · vor {age} min"})
+                detail = (tr("{rh:g} % · {t:g} °C · {age} min ago", rh=float(r["rh"]), t=float(r["temp"]), age=age)
+                          if r.get("temp") is not None else tr("{rh:g} % · {age} min ago", rh=float(r["rh"]), age=age))
+                out.append({"key": "room", "label": tr("Room sensor"), "state": "ok", "detail": detail})
             else:
-                out.append({"key": "room", "label": "Raumsensor", "state": "warn",
-                            "detail": f"kein aktueller Wert – rechne mit {_de(self.cfg.room_rh)} %"})
+                out.append({"key": "room", "label": tr("Room sensor"), "state": "warn",
+                            "detail": tr("no current value – assuming {rh:g} %", rh=float(self.cfg.room_rh))})
         return out

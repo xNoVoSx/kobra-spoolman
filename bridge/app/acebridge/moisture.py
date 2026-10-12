@@ -1,18 +1,18 @@
-"""Feuchte-Schaetzung pro Spule - damit niemand mitdenken muss, welche Spule getrocknet werden sollte.
+"""Moisture estimate per spool - so nobody has to keep track of which spool should be dried.
 
-Messen laesst sich die Feuchte in einer Spule nicht. Geschaetzt wird aus dem Verlauf: wie lange lag sie wo, bei
-welcher Luftfeuchte, wann wurde sie wie getrocknet. Modell (bewusst einfach, Werte je Material einstellbar):
+The moisture inside a spool cannot be measured. It is estimated from its history: how long it lay where, at which
+humidity, when and how it was dried. Model (deliberately simple, values adjustable per material):
 
-- u = Feuchte-Last 0..1 (Anteil des Gleichgewichts bei 100 % rF). Die Spule naehert sich exponentiell der
-  Luftfeuchte ihrer Umgebung: u_eq = rF/100, Zeitkonstante tau so, dass sie bei 50 % rF nach `open_days` die
-  Warnschwelle U_WARN erreicht. Bei niedriger Luftfeuchte (Trockenbox, ACE) erreicht sie die Schwelle nie.
-- Umgebung: in der ACE der Sensor der ACE; im Regal die Raumfeuchte (Einstellung), fuer eigene Lagerorte
-  (z. B. "Trockenbox=15") deren Wert.
-- Trocknen: u faellt exponentiell; nach `dry_hours` bei der empfohlenen Temperatur auf ~10 %. Ist die ACE
-  kuehler (empfindliche Nachbarspule), dauert es laenger: Faktor 2 je 10 °C weniger.
-- Neue Spulen ohne Verlauf: "unbekannt" - mit "neue Spulen zuerst trocknen" gelten sie als zu trocknen.
+- u = moisture load 0..1 (share of the equilibrium at 100 % RH). The spool approaches the humidity of its
+  surroundings exponentially: u_eq = RH/100, time constant tau such that at 50 % RH it reaches the warning threshold
+  U_WARN after `open_days`. At low humidity (dry box, ACE) it never reaches the threshold.
+- Surroundings: in the ACE the ACE's sensor; on the shelf the room humidity (setting), for own storage places
+  (e.g. "Drybox=15") their value.
+- Drying: u falls exponentially; after `dry_hours` at the recommended temperature to ~10 %. If the ACE is cooler
+  (a sensitive neighbour spool), it takes longer: factor 2 per 10 °C less.
+- New spools without history: "unknown" - with "dry new spools first" they count as needing drying.
 
-Schreibt (wenn die Felder in Spoolman angelegt sind) last_in_ace, last_dried, last_dried_info und moisture an die Spule.
+Writes (when the fields exist in Spoolman) last_in_ace, last_dried, last_dried_info and moisture to the spool.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from .dryer import DEFAULT_DRY_TEMP, filament_dry_temp, hub_state
+from .i18n import tr
 from .profiles import find_template
 from .slots import base_type
 from .spoolman import extra_value
@@ -37,15 +38,15 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("moisture")
 
-U_WARN = 0.30                    # ab hier "trocknen empfohlen" (Wert 100)
-REF_RH = 50.0                    # open_days gilt bei dieser Luftfeuchte
-ACE_RH_FALLBACK = 30.0           # ACE ohne Messwert
-TICK_S = 300                     # Rechenschritt
-SPOOLMAN_EVERY_S = 6 * 3600      # moisture-Feld in Spoolman hoechstens so oft (ausser bei Ereignissen)
+U_WARN = 0.30                    # from here "drying recommended" (score 100)
+REF_RH = 50.0                    # open_days applies at this humidity
+ACE_RH_FALLBACK = 30.0           # ACE without a reading
+TICK_S = 300                     # calculation step
+SPOOLMAN_EVERY_S = 6 * 3600      # moisture field in Spoolman at most this often (except on events)
 HISTORY_KEPT = 40
 
-# Startwerte je Material (vorsichtig; die Quellen widersprechen sich stark) - in Spoolman am Filament oder an
-# der Vorlage aenderbar: open_days ("Offen bis Trocknen") und dry_hours ("Trocknen Dauer")
+# start values per material (cautious; the sources contradict each other a lot) - changeable in Spoolman on the
+# filament or the template: open_days and dry_hours
 OPEN_DAYS = {"PLA": 14, "PLA-CF": 14, "PETG": 5, "PET": 5, "PCTG": 5, "PETG-CF": 5, "PET-CF": 5,
              "TPU": 2, "PEBA": 2, "ABS": 21, "ABS-GF": 21, "ASA": 21, "ASA-CF": 21, "HIPS": 21,
              "PA": 0.5, "PA-CF": 0.5, "PA6-CF": 0.5, "PC": 0.5, "PVA": 0.5, "BVOH": 0.5, "PPS": 2}
@@ -56,7 +57,7 @@ FALLBACK_OPEN_DAYS, FALLBACK_DRY_HOURS = 5, 6
 
 
 def material_params(fil: Dict[str, Any], templates: List[Dict[str, Any]]) -> Dict[str, float]:
-    """open_days, dry_hours, dry_temp - am Filament, an der Vorlage, sonst Startwert je Material."""
+    """open_days, dry_hours, dry_temp - on the filament, on the template, else the start value per material."""
     tpl = find_template(fil, templates)
     mat = base_type(fil.get("material") or (tpl or {}).get("material") or "").upper()
 
@@ -75,21 +76,21 @@ def material_params(fil: Dict[str, Any], templates: List[Dict[str, Any]]) -> Dic
 
 
 def absorb(u: float, rh: float, hours: float, open_days: float) -> float:
-    """Annaeherung an das Gleichgewicht der Umgebung."""
-    tau = open_days * 24 / -math.log(1 - U_WARN / (REF_RH / 100))      # bei 50 % rF: Schwelle nach open_days
+    """Approach to the equilibrium of the surroundings."""
+    tau = open_days * 24 / -math.log(1 - U_WARN / (REF_RH / 100))      # at 50 % RH: threshold after open_days
     u_eq = max(0.0, min(1.0, rh / 100))
     return u_eq + (u - u_eq) * math.exp(-hours / tau)
 
 
 def dry(u: float, hours: float, dry_hours: float, temp: float, rec_temp: float) -> float:
-    """Trocknen: nach dry_hours bei rec_temp auf ~10 %; je 10 °C kuehler doppelt so lange."""
+    """Drying: after dry_hours at rec_temp down to ~10 %; twice as long per 10 °C cooler."""
     factor = 2 ** (max(0.0, rec_temp - temp) / 10)
     tau = dry_hours * factor / math.log(10)
     return u * math.exp(-hours / tau)
 
 
 def hours_needed(u: Optional[float], dry_hours: float, temp: float, rec_temp: float) -> float:
-    """So lange bei temp, bis die Spule wieder bei ~10 % des Ausgangs liegt (unbekannt: volle Dauer)."""
+    """How long at temp until the spool is back at ~10 % of the start (unknown: full duration)."""
     factor = 2 ** (max(0.0, rec_temp - temp) / 10)
     if u is None:
         return dry_hours * factor
@@ -100,21 +101,21 @@ def hours_needed(u: Optional[float], dry_hours: float, temp: float, rec_temp: fl
 
 
 def parse_locations(text: str) -> Dict[str, float]:
-    """"Trockenbox=15; Vakuumbeutel=10" -> {name: rF}. ValueError bei Unsinn."""
+    """"Drybox=15; Vacuum bag=10" -> {name: RH}. ValueError for nonsense."""
     out: Dict[str, float] = {}
     for part in (text or "").replace("\n", ";").split(";"):
         part = part.strip()
         if not part:
             continue
         if "=" not in part:
-            raise ValueError(f"„{part}“: Ort=Feuchte erwartet, z. B. Trockenbox=15")
+            raise ValueError(tr("“{part}”: expected place=humidity, e.g. Drybox=15", part=part))
         name, val = (x.strip() for x in part.split("=", 1))
         try:
             rh = float(val.replace(",", ".").rstrip("%"))
         except ValueError:
-            raise ValueError(f"„{part}“: Feuchte muss eine Zahl sein") from None
+            raise ValueError(tr("“{part}”: humidity must be a number", part=part)) from None
         if not name or not 0 <= rh <= 100:
-            raise ValueError(f"„{part}“: Feuchte 0–100 %")
+            raise ValueError(tr("“{part}”: humidity 0–100 %", part=part))
         out[name] = rh
     return out
 
@@ -129,13 +130,13 @@ class MoistureModel:
         self.path = os.path.join(cfg.data_dir, "moisture.json")
         self.state: Dict[str, Dict[str, Any]] = {}
         self._last_tick = 0.0
-        self._in_ace: Dict[int, int] = {}            # spool_id -> slot (letzter Stand)
+        self._in_ace: Dict[int, int] = {}            # spool_id -> slot (last state)
         self._first = True
         self.on_insert: Callable[[Dict[str, Any], Dict[str, Any]], Any] = lambda spool, info: None
-        self.room_rh_measured: Callable[[], Optional[float]] = lambda: None    # Raumsensor (mqtt.py), None = keiner
+        self.room_rh_measured: Callable[[], Optional[float]] = lambda: None    # room sensor (mqtt.py), None = none
         self._load()
 
-    # ------------------------------------------------------------ Speichern
+    # ------------------------------------------------------------ storage
     def _load(self) -> None:
         try:
             with open(self.path, encoding="utf-8") as f:
@@ -143,13 +144,13 @@ class MoistureModel:
         except FileNotFoundError:
             pass
         except (OSError, ValueError) as e:
-            log.warning("moisture.json unlesbar, fange neu an: %s", e)
+            log.warning("moisture.json unreadable, starting over: %s", e)
 
     def _save(self) -> None:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         save_json(self.path, {"spools": self.state})
 
-    # ------------------------------------------------------------ Hilfen
+    # ------------------------------------------------------------ helpers
     def _templates(self) -> List[Dict[str, Any]]:
         try:
             return self.sm.templates()
@@ -163,14 +164,14 @@ class MoistureModel:
             return {}
 
     def _env(self, spool: Dict[str, Any], slot: Optional[int], hub: Dict[str, Any]) -> Tuple[str, float, Optional[float]]:
-        """(wo, rF, Trockentemperatur oder None)."""
+        """(where, RH, drying temperature or None)."""
         if slot is not None:
             rh = hub["humidity"] if hub.get("humidity") is not None else ACE_RH_FALLBACK
             return f"ACE Slot {slot}", float(rh), (float(hub["temp"] or hub["target_temp"] or 0) if hub.get("drying") else None)
         loc = spool.get("location") or ""
         room = self.room_rh_measured()
         rh = self._locations().get(loc, room if room is not None else getattr(self.cfg, "room_rh", 50.0))
-        return loc or "Regal", float(rh), None
+        return loc or getattr(self.cfg, "shelf_location", "Shelf"), float(rh), None
 
     def _entry(self, sid: int) -> Dict[str, Any]:
         return self.state.setdefault(str(sid), {"u": None, "t": None, "history": [], "known": False})
@@ -179,12 +180,12 @@ class MoistureModel:
         e["history"].append({"at": round(self.clock()), "kind": kind, **data})
         e["history"] = e["history"][-HISTORY_KEPT:]
 
-    # ------------------------------------------------------------ Rechnen
+    # ------------------------------------------------------------ calculating
     def score(self, u: Optional[float]) -> Optional[int]:
         return None if u is None else int(round(u / U_WARN * 100))
 
     def view(self, spool: Dict[str, Any]) -> Dict[str, Any]:
-        """Fuer Spulenkarte, Regal und App."""
+        """For the spool card, the shelf and the app."""
         sid = spool.get("id")
         e = self.state.get(str(sid)) or {"u": None, "history": [], "known": False}
         fil = spool.get("filament") or {}
@@ -202,7 +203,7 @@ class MoistureModel:
         return list((self.state.get(str(spool_id)) or {}).get("history", []))[::-1]
 
     async def tick(self) -> None:
-        """Alle paar Sekunden aufrufen: Ein-/Auslegen sofort, Rechnen alle TICK_S."""
+        """Call every few seconds: inserting/removing at once, calculating every TICK_S."""
         if not self.sm.spools:
             return
         now = self.clock()
@@ -240,9 +241,9 @@ class MoistureModel:
             if dt <= 0:
                 continue
             p = material_params(spool.get("filament") or {}, templates)
-            if temp:                                   # in der ACE, die gerade trocknet
+            if temp:                                   # in the ACE, which is drying right now
                 if e["u"] is None:
-                    e["u"] = REF_RH / 100              # unbekannt: wie eine offene Spule bei 50 % rF
+                    e["u"] = REF_RH / 100              # unknown: like an open spool at 50 % RH
                 e["u"] = dry(e["u"], dt, p["dry_hours"], temp, p["dry_temp"])
                 e.setdefault("drying_since", self.clock() - dt * 3600)
                 e["drying_temp"] = hub.get("target_temp") or temp
@@ -271,7 +272,7 @@ class MoistureModel:
                 if hasattr(res, "__await__"):
                     await res
             except Exception as ex:  # noqa: BLE001
-                log.warning("Feuchte beim Einlegen: %s", ex)
+                log.warning("Moisture on insert: %s", ex)
 
     async def _removed(self, sid: int, slot: int) -> None:
         e = self._entry(sid)
@@ -281,7 +282,7 @@ class MoistureModel:
         await self._write(sid, {"last_in_ace": self._iso(self.clock())})
 
     def note_dried(self, sid: int, temp: float, minutes: float) -> None:
-        """Von aussen bekannte Trocknung (z. B. eigener Trockner) - setzt die Spule auf trocken."""
+        """A drying run known from outside (e.g. own dryer) - sets the spool to dry."""
         e = self._entry(sid)
         e["u"], e["known"], e["dried_at"] = 0.03, True, round(self.clock())
         self._hist(e, "dried", temp=temp, minutes=minutes, manual=True, score=self.score(e["u"]))
@@ -308,7 +309,7 @@ class MoistureModel:
         try:
             await self.sm.patch_spool(sid, {"extra": extra})
         except Exception as e:  # noqa: BLE001
-            log.warning("Spule %s: Feuchte-Felder nicht geschrieben: %s", sid, e)
+            log.warning("Spool %s: moisture fields not written: %s", sid, e)
 
     async def _sync_spoolman(self, force: bool) -> None:
         now = self.clock()

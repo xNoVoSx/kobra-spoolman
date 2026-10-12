@@ -132,7 +132,7 @@ def test_result_is_written_to_the_filament(env):
     assert tbl["k"] == [0.05, 0.045, 0.04] and tbl["temp"] == 250.0 and tbl["kind"] == "dynamic"
     assert extra_value(fil, "pressure_advance") == 0.045 and ("filament", "pa_table") in sm.fields
     assert moon.sent[-1] == "KOBRA_PA_SET T=1 SPEEDS=100,200,300 K=0.05,0.045,0.04 FILAMENT=102"
-    assert any("gemessen: 0.045" in e["text"] for e in pa.events)
+    assert any(": 0.045 (at 200 mm/s" in e["text"] for e in pa.events)
     # gleiches Ergebnis nach Bridge-Neustart: nicht nochmal schreiben
     del fil["extra"]["pa_table"]
     pa2 = PaSync(pa.cfg, moon, sm, pa.slots)
@@ -151,7 +151,7 @@ def test_failed_result_and_spoolman_down(env):
     moon.merge({"kobra_pa": {"result": {"t": 1, "kind": "static", "speeds": [200.0], "k": [0.04], "filament": "102",
                                         "time": time.time() + 1}}})
     run(pa.tick())
-    assert any("nachgeholt" in e["text"] for e in pa.events)
+    assert any("saved later" in e["text"] for e in pa.events)
     sm.down = False
     run(pa.tick())                                               # beim naechsten Takt gespeichert
     assert extra_value(sm.filament(102), "pressure_advance") == 0.04

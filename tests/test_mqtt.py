@@ -147,10 +147,10 @@ def test_room_sensor_freshness(monkeypatch):
     assert m.room_rh() is None
     m.on_room(b'{"humidity": 44.5, "temperature": 20.1}')
     assert m.room_rh() == 44.5
-    assert m.status_lines()[-1]["state"] == "ok" and "44,5 %" in m.status_lines()[-1]["detail"]
+    assert m.status_lines()[-1]["state"] == "ok" and "44.5 %" in m.status_lines()[-1]["detail"]
     clock.t += mq.ROOM_FRESH_S + 1
     assert m.room_rh() is None
-    assert "rechne mit 50 %" in m.status_lines()[-1]["detail"]
+    assert "assuming 50 %" in m.status_lines()[-1]["detail"]
 
 
 def test_moisture_uses_measured_room(tmp_path):

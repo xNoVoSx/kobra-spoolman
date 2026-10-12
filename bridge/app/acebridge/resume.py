@@ -1,9 +1,9 @@
-"""Fortsetzen nach Stromausfall: Sicht der Bridge auf das Klipper-Modul kobra_resume (kobra-klipper).
+"""Resume after a power loss: the bridge's view of the Klipper module kobra_resume (kobra-klipper).
 
-Klipper sichert im Druck laufend die zuletzt ausgefuehrte Stelle. Ist nach dem Einschalten ein unterbrochener Druck
-gespeichert, zeigt die Bridge das als rote Meldung (Alarm in der App) und als Karte mit Kamerabild; fortgesetzt wird
-nur auf Knopfdruck (KOBRA_RESUME CONFIRM=1 - Klipper tastet dabei Z auf das Teil an).
-Abschaltbar in Klipper: KOBRA_POWERLOSS ENABLE=0 (POST /api/resume/switch).
+While printing Klipper keeps saving the last executed position. If an interrupted print is saved after switching on,
+the bridge shows it as a red message (alarm in the app) and as a card with a camera image; it is resumed only on a
+button press (KOBRA_RESUME CONFIRM=1 - Klipper then probes Z on the part).
+Can be switched off in Klipper: KOBRA_POWERLOSS ENABLE=0 (POST /api/resume/switch).
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, Dict, Optional
+
+from .i18n import msg_of, tr
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
@@ -31,7 +33,7 @@ class ResumeError(Exception):
 class Resume:
     def __init__(self, moon: "Moonraker", slots: "SlotManager"):
         self.moon, self.slots = moon, slots
-        self.running = False          # Fortsetzen laeuft (dauert einige Minuten: heizen, antasten, spuelen)
+        self.running = False          # resuming (takes a few minutes: heating, probing, purging)
         self.error: Optional[str] = None
 
     @property
@@ -49,32 +51,32 @@ class Resume:
         p = self.view()["pending"]
         if not p or self.running:
             return None
-        return (f"Druck unterbrochen (Stromausfall?): {p.get('file')} bei Schicht {p.get('layer') or '?'} – "
-                "Teil prüfen, dann fortsetzen oder verwerfen")
+        return tr("Print interrupted (power loss?): {file} at layer {layer} – check the part, then resume or discard",
+                  file=p.get("file"), layer=p.get("layer") or "?")
 
     def _check(self) -> Dict[str, Any]:
         kr = self.klipper
         if kr is None:
-            raise ResumeError(503, "Fortsetzen ist in Klipper nicht eingerichtet (kobra_resume) oder Klipper nicht bereit")
+            raise ResumeError(503, tr("Resume is not set up in Klipper (kobra_resume) or Klipper is not ready"))
         return kr
 
     def start(self) -> None:
-        """KOBRA_RESUME CONFIRM=1 im Hintergrund (heizen, antasten, weiterdrucken - einige Minuten)."""
+        """KOBRA_RESUME CONFIRM=1 in the background (heat, probe, continue printing - a few minutes)."""
         kr = self._check()
         if not kr.get("pending"):
-            raise ResumeError(409, "Kein unterbrochener Druck gespeichert")
+            raise ResumeError(409, tr("No interrupted print saved"))
         if self.running:
-            raise ResumeError(409, "Fortsetzen läuft schon")
+            raise ResumeError(409, tr("Resume is already running"))
         if self.slots.printing:
-            raise ResumeError(409, "Es läuft schon ein Druck")
+            raise ResumeError(409, tr("A print is already running"))
         self.running, self.error = True, None
 
         async def run():
             try:
-                await self.moon.gcode("KOBRA_RESUME CONFIRM=1", source="Fortsetzen", timeout=1800)
+                await self.moon.gcode("KOBRA_RESUME CONFIRM=1", source=tr("Resume"), timeout=1800)
             except Exception as e:  # noqa: BLE001
-                self.error = str(e)
-                log.warning("Fortsetzen fehlgeschlagen: %s", e)
+                self.error = msg_of(e)
+                log.warning("Resume failed: %s", e)
             finally:
                 self.running = False
         asyncio.get_running_loop().create_task(run())
@@ -82,10 +84,10 @@ class Resume:
     async def discard(self) -> None:
         kr = self._check()
         if not kr.get("pending"):
-            raise ResumeError(409, "Kein unterbrochener Druck gespeichert")
-        await self.moon.gcode("KOBRA_RESUME_DISCARD", source="Fortsetzen")
+            raise ResumeError(409, tr("No interrupted print saved"))
+        await self.moon.gcode("KOBRA_RESUME_DISCARD", source=tr("Resume"))
         self.error = None
 
     async def switch(self, enabled: bool) -> None:
         self._check()
-        await self.moon.gcode(f"KOBRA_POWERLOSS ENABLE={int(bool(enabled))}", source="Fortsetzen")
+        await self.moon.gcode(f"KOBRA_POWERLOSS ENABLE={int(bool(enabled))}", source=tr("Resume"))

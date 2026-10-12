@@ -1,14 +1,16 @@
-"""Schalter der Klipper-Module an einer Stelle: Stand aus dem Moonraker-Abo, Schalten ueber eine feste Liste.
+"""Switches of the Klipper modules in one place: state from the Moonraker subscription, switching through a fixed list.
 
-Die Module am Drucker (kobra-klipper: kobra_pa, kobra_resume, kobra_clog, kobra_io, KOBRA_FILAMENT_Z, ACEPRO) speichern
-ihre Schalter selbst - Web, App, Display, KlipperScreen und Mainsail sehen denselben Stand. Diese Bridge-Seite liest nur
-das Abo und schickt bei POST /api/switch genau den G-Code-Befehl aus der Liste unten (nichts Freies).
-Fehlt ein Modul, fehlt sein Schalter.
+The modules on the printer (kobra-klipper: kobra_pa, kobra_resume, kobra_clog, kobra_io, KOBRA_FILAMENT_Z, ACEPRO) store
+their switches themselves - web, app, display, KlipperScreen and Mainsail see the same state. This bridge side only
+reads the subscription and, for POST /api/switch, sends exactly the G-code command from the list below (nothing free).
+If a module is missing, its switch is missing.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+
+from .i18n import msg_of, tr
 
 if TYPE_CHECKING:
     from .moonraker import Moonraker
@@ -21,11 +23,12 @@ SUBSCRIBE = {
     "kobra_debug": ["enabled"],
 }
 
-GROUPS = [("print", "Drucken"), ("watch", "Überwachung"), ("io", "Licht & Töne"), ("system", "System")]
-CLOG_ACTIONS = [("warn", "Nur warnen"), ("pause", "Pausieren")]
-ENDLESS_MODES = [("exact", "Gleiche Farbe"), ("material", "Gleiches Material"), ("next", "Nächste Spule")]
-SOUND_EVENTS = [("done", "Ton: Druck fertig"), ("error", "Ton: Pause, Fehler, Abbruch"), ("clog", "Ton: Verstopfung"),
-                ("change", "Ton: Farbwechsel hängt"), ("prompt", "Ton: Frage nach Stromausfall")]
+GROUPS = [("print", tr("Printing")), ("watch", tr("Monitoring")), ("io", tr("Light & sounds")), ("system", tr("System"))]
+CLOG_ACTIONS = [("warn", tr("Warn only")), ("pause", tr("Pause"))]
+ENDLESS_MODES = [("exact", tr("Same colour")), ("material", tr("Same material")), ("next", tr("Next spool"))]
+SOUND_EVENTS = [("done", tr("Sound: print finished")), ("error", tr("Sound: pause, error, cancel")),
+                ("clog", tr("Sound: clog")), ("change", tr("Sound: colour change stuck")),
+                ("prompt", tr("Sound: question after a power loss"))]
 
 St = Dict[str, Any]
 
@@ -47,28 +50,28 @@ def _filament_z(st: St) -> Optional[bool]:
 def _bool_cmd(fmt: str) -> Callable[[Any], str]:
     def cmd(v: Any) -> str:
         if not isinstance(v, bool):
-            raise SwitchError(400, "Wert: true oder false")
+            raise SwitchError(400, tr("Value: true or false"))
         return fmt % int(v)
     return cmd
 
 
 def _endless(v: Any) -> str:
     if not isinstance(v, bool):
-        raise SwitchError(400, "Wert: true oder false")
+        raise SwitchError(400, tr("Value: true or false"))
     return "ACE_ENABLE_ENDLESS_SPOOL" if v else "ACE_DISABLE_ENDLESS_SPOOL"
 
 
 def _choice_cmd(fmt: str, options: List[Tuple[str, str]]) -> Callable[[Any], str]:
     def cmd(v: Any) -> str:
         if v not in [o for o, _ in options]:
-            raise SwitchError(400, "Wert: " + ", ".join(o for o, _ in options))
+            raise SwitchError(400, tr("Value: {options}", options=", ".join(o for o, _ in options)))
         return fmt % v
     return cmd
 
 
 def items(st: St) -> List[Dict[str, Any]]:
-    """Alle vorhandenen Schalter und Auswahlen mit Stand. Jeder Eintrag: key, group, kind (switch|choice), title,
-    hint, on bzw. current/options, sensitive. Die Befehle stehen in _commands (nicht im Ergebnis)."""
+    """All existing switches and choices with their state. Each entry: key, group, kind (switch|choice), title, hint,
+    on or current/options, sensitive. The commands are in _commands (not in the result)."""
     out: List[Dict[str, Any]] = []
 
     def sw(key, group, title, hint, on, sensitive=True):
@@ -82,39 +85,41 @@ def items(st: St) -> List[Dict[str, Any]]:
 
     pa = st.get("kobra_pa")
     if pa:
-        sw("pa", "print", "Auto-PA", "PA je Geschwindigkeit aus Spoolman; aus = PA aus Orca", pa.get("enabled"))
-        sw("pa_auto", "print", "PA automatisch messen", "Fehlt es, misst der Drucker (~2 min)", pa.get("auto"),
+        sw("pa", "print", tr("Auto PA"), tr("PA per speed from Spoolman; off = PA from Orca"), pa.get("enabled"))
+        sw("pa_auto", "print", tr("Measure PA automatically"), tr("If missing, the printer measures (~2 min)"), pa.get("auto"),
            pa.get("enabled"))
     fz = _filament_z(st)
     if fz is not None:
-        sw("filament_z", "print", "Z-Versatz pro Filament", "Feld Z-Versatz aus Spoolman für die erste Schicht", fz)
+        sw("filament_z", "print", tr("Z offset per filament"), tr("Field Z offset from Spoolman for the first layer"), fz)
     ace = st.get("ace")
     if ace and "endless_spool_enabled" in ace:
-        sw("endless", "print", "Endlosspule", "Leere Spule → passende andere laden", ace.get("endless_spool_enabled"))
+        sw("endless", "print", tr("Endless spool"), tr("Empty spool → load a matching other one"),
+           ace.get("endless_spool_enabled"))
         if ace.get("endless_spool_enabled"):
-            ch("endless_mode", "print", "Welche Spule passt?", ENDLESS_MODES,
+            ch("endless_mode", "print", tr("Which spool matches?"), ENDLESS_MODES,
                ace.get("endless_spool_match_mode") or "exact")
     rs = st.get("kobra_resume")
     if rs:
-        sw("powerloss", "watch", "Fortsetzen nach Stromausfall", "Sichert im Druck die Stelle, fragt nach dem Einschalten",
-           rs.get("enabled"))
+        sw("powerloss", "watch", tr("Resume after power loss"),
+           tr("Saves the position while printing, asks after switching on"), rs.get("enabled"))
     cl = st.get("kobra_clog")
     if cl:
-        sw("clog", "watch", "Verstopfung erkennen",
-           "Extruder gegen Encoder am Filament-Eingang" if cl.get("available", True) else "Kein Encoder gefunden",
+        sw("clog", "watch", tr("Detect clogs"),
+           tr("Extruder against the encoder at the filament inlet") if cl.get("available", True)
+           else tr("No encoder found"),
            cl.get("enabled"))
         if cl.get("enabled"):
-            ch("clog_action", "watch", "Bei Verdacht", CLOG_ACTIONS, cl.get("action") or "warn")
+            ch("clog_action", "watch", tr("On suspicion"), CLOG_ACTIONS, cl.get("action") or "warn")
     dbg = st.get("kobra_debug")
     if dbg:
-        sw("debug", "system", "Diagnose-Protokoll", "Ausführliches Klipper-Log unserer Module (Entwicklung)",
+        sw("debug", "system", tr("Diagnostic log"), tr("Detailed Klipper log of our modules (development)"),
            dbg.get("enabled"))
     io = st.get("kobra_io")
     if io:
         ok = bool(io.get("available"))
-        sw("light", "io", "Licht", "Licht im Drucker" if ok else "kobra-io ohne Schlüssel", io.get("light"), ok)
-        sw("light_auto", "io", "Licht automatisch", "An beim Druckstart, danach aus", io.get("light_auto"), ok)
-        sw("sound", "io", "Töne", "Piepser bei Ereignissen (nachts nur Alarme)", io.get("sound"), ok)
+        sw("light", "io", tr("Light"), tr("Light in the printer") if ok else tr("kobra-io without a key"), io.get("light"), ok)
+        sw("light_auto", "io", tr("Light automatic"), tr("On at print start, off afterwards"), io.get("light_auto"), ok)
+        sw("sound", "io", tr("Sounds"), tr("Beeper on events (alarms only at night)"), io.get("sound"), ok)
         events = io.get("events") or {}
         for ev, title in SOUND_EVENTS:
             if ev in events:
@@ -145,13 +150,13 @@ def _commands(key: str) -> Optional[Callable[[Any], str]]:
 class Switches:
     def __init__(self, moon: "Moonraker", usb: Optional["UsbTunnel"] = None):
         self.moon = moon
-        self.usb = usb              # Schalter des USB-Waechters am Pi (Moonraker-Datenbank, nicht Klipper)
+        self.usb = usb              # switches of the USB watchdog on the Klipper computer (Moonraker database, not Klipper)
 
     def view(self) -> Dict[str, Any]:
         st = self.moon.status if self.moon.klippy_ready else {}
         all_items = items(st) + (self.usb.items() if self.usb is not None else [])
         used = {i["group"] for i in all_items}
-        # Gruppen ohne Schalter weglassen (z. B. "System" ohne Diagnose-Modul und USB-Waechter) - Display: kein leerer Reiter
+        # leave out groups without switches (e.g. "System" without debug module and USB watchdog) - display: no empty tab
         groups = [{"key": k, "title": t} for k, t in GROUPS if k in used or k in ("print", "watch")]
         return {"groups": groups, "items": all_items}
 
@@ -161,15 +166,15 @@ class Switches:
             try:
                 return await self.usb.set(key, value)
             except UsbError as e:
-                raise SwitchError(e.status, str(e)) from e
+                raise SwitchError(e.status, msg_of(e)) from e
         if not self.moon.klippy_ready:
-            raise SwitchError(503, "Klipper ist nicht bereit")
+            raise SwitchError(503, tr("Klipper is not ready"))
         cur = {i["key"]: i for i in items(self.moon.status)}
         cmd = _commands(key)
         if cmd is None or key not in cur:
-            raise SwitchError(404, f"Schalter {key} gibt es nicht (Modul fehlt?)")
+            raise SwitchError(404, tr("There is no switch {key} (module missing?)", key=key))
         if not cur[key]["sensitive"]:
-            raise SwitchError(409, f"{cur[key]['title']} ist gerade gesperrt")
+            raise SwitchError(409, tr("{title} is locked right now", title=cur[key]["title"]))
         script = cmd(value)
-        await self.moon.gcode(script, source="Schalter")
+        await self.moon.gcode(script, source=tr("Switches"))
         return {"ok": True, "key": key, "sent": script}

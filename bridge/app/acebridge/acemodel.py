@@ -1,12 +1,12 @@
-"""Sicht auf die ACE unter Klipper mit dem ACEPRO-Treiber (Kobra-S1/ACEPRO).
+"""View of the ACE under Klipper with the ACEPRO driver (Kobra-S1/ACEPRO).
 
-Einzige Stelle, die die Moonraker-Objekte des Treibers liest. Alle anderen Teile der Bridge (Slots, Verbrauch,
-Trockner, Web, App, MQTT) arbeiten mit den Woerterbuechern von hier.
+The only place that reads the driver's Moonraker objects. Every other part of the bridge (slots, consumption, dryer,
+web, app, MQTT) works with the dictionaries from here.
 
-Objekte (Stand ACEPRO dev c89fe17, Beispiel: tests/data/acepro_status_2026-10-09.json):
-- `ace`:            current_index (geladenes Werkzeug, -1 = keins), target_index, endless_spool_enabled/_match_mode
+Objects (ACEPRO dev c89fe17, example: tests/data/acepro_status_2026-10-09.json):
+- `ace`:            current_index (loaded tool, -1 = none), target_index, endless_spool_enabled/_match_mode
 - `ace_instance_0`: slots[] (status "ready"/"empty"/"shifting"…, color [R,G,B], material, temp, rfid, sku),
-                    dryer_status (remain_time/duration in Sekunden), temp, humidity, connection_state, firmware
+                    dryer_status (remain_time/duration in seconds), temp, humidity, connection_state, firmware
 """
 
 from __future__ import annotations
@@ -14,10 +14,9 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional
 
-# Abo bei Moonraker (Felder: None = alle)
-# Felder ausdruecklich, nicht None ("alle"): Klipper friert bei None die Feldliste beim ersten Abfragen ein
-# (webhooks.py: subscription[obj] = list(res.keys())). Abonniert die Bridge, waehrend die ACE nach einem Neustart noch
-# nicht verbunden ist, kaemen humidity/firmware sonst nie (10.10.: Feuchte "–" nach Tunnel-Neustart).
+# Moonraker subscription. Fields named explicitly, never None ("all"): with None Klipper freezes the field list at the
+# first query (webhooks.py: subscription[obj] = list(res.keys())). If the bridge subscribes while the ACE is not yet
+# connected after a restart, humidity/firmware would otherwise never arrive (2026-10-10: humidity "–" after a restart).
 SUBSCRIBE = {
     "ace": ["ace_instances", "ace_pro_enabled", "current_index", "target_index", "endless_spool_enabled",
             "endless_spool_match_mode"],
@@ -35,7 +34,7 @@ def _instance(status: Dict[str, Any], n: int = 0) -> Dict[str, Any]:
 
 
 def connected(status: Dict[str, Any]) -> bool:
-    """Treiber geladen und ACE verbunden."""
+    """Driver loaded and ACE connected."""
     inst = _instance(status)
     return bool(inst) and inst.get("connection_state", "connected") == "connected"
 
@@ -46,7 +45,7 @@ def num_slots(status: Dict[str, Any]) -> int:
 
 
 def color_hex(rgb: Any) -> str:
-    """[R, G, B] (ACEPRO) -> "RRGGBB"; Schwarz [0,0,0] eines leeren Slots -> ""."""
+    """[R, G, B] (ACEPRO) -> "RRGGBB"; black [0,0,0] of an empty slot -> ""."""
     if isinstance(rgb, (list, tuple)) and len(rgb) >= 3:
         try:
             r, g, b = (max(0, min(255, int(v))) for v in rgb[:3])
@@ -58,13 +57,13 @@ def color_hex(rgb: Any) -> str:
 
 
 def tag_number(sku: Any) -> Optional[int]:
-    """Tag-Nummer aus der SKU: Zahl hinter dem letzten Bindestrich (AHPEBK-34532 -> 34532)."""
+    """Tag number from the SKU: number after the last hyphen (AHPEBK-34532 -> 34532)."""
     m = re.search(r"-(\d+)\s*$", str(sku or ""))
     return int(m.group(1)) if m else None
 
 
 def active_slot(status: Dict[str, Any]) -> Optional[int]:
-    """Geladenes Werkzeug (0-basiert) laut Treiber, None = keins. Kein Flackern beim Laden wie bei GoKlipper."""
+    """Loaded tool (0-based) according to the driver, None = none. No flicker while loading (unlike GoKlipper)."""
     try:
         idx = int((status.get("ace") or {}).get("current_index", -1))
     except (TypeError, ValueError):
@@ -73,7 +72,7 @@ def active_slot(status: Dict[str, Any]) -> Optional[int]:
 
 
 def target_slot(status: Dict[str, Any]) -> Optional[int]:
-    """Ziel eines laufenden Werkzeugwechsels (0-basiert), sonst None."""
+    """Target of a running tool change (0-based), else None."""
     try:
         idx = int((status.get("ace") or {}).get("target_index", -1))
     except (TypeError, ValueError):
@@ -82,20 +81,20 @@ def target_slot(status: Dict[str, Any]) -> Optional[int]:
 
 
 def consuming_slot(status: Dict[str, Any]) -> Optional[int]:
-    """Slot, dem Filamentverbrauch gerade gehoert.
+    """Slot the filament consumption currently belongs to.
 
-    Werkzeugwechsel unter ACEPRO (mit Patch 0003 zaehlt filament_used jede Bewegung sofort):
-    alter Slot noch geladen (current = alt, target = neu): Schneiden/Zurueckziehen -> alter Slot;
-    nach dem Entladen (current = -1, target = neu): Laden bis zur Duese -> neuer Slot;
-    danach current = neu (Spuelen, Druck)."""
+    Tool change under ACEPRO (with patch 0003 filament_used counts every move at once):
+    old slot still loaded (current = old, target = new): cutting/retracting -> old slot;
+    after unloading (current = -1, target = new): loading to the nozzle -> new slot;
+    then current = new (purging, printing)."""
     cur = active_slot(status)
     return cur if cur is not None else target_slot(status)
 
 
 def slot(status: Dict[str, Any], index: int, ready: bool = True) -> Dict[str, Any]:
-    """Ein Slot (0-basiert) in der Form, mit der die Bridge arbeitet.
+    """One slot (0-based) in the shape the bridge works with.
 
-    ready: Klipper bereit - sonst gilt kein Slot als belegt (Werte waeren veraltet)."""
+    ready: Klipper ready - otherwise no slot counts as loaded (values would be stale)."""
     slots = _instance(status, index // SLOTS_PER_ACE).get("slots")
     raw = slots[index % SLOTS_PER_ACE] if isinstance(slots, list) and index % SLOTS_PER_ACE < len(slots) else {}
     raw = raw or {}
@@ -125,7 +124,7 @@ def slot(status: Dict[str, Any], index: int, ready: bool = True) -> Dict[str, An
 
 
 def dryer(status: Dict[str, Any]) -> Dict[str, Any]:
-    """Trockner, Feuchte und Temperatur der ACE."""
+    """Dryer, humidity and temperature of the ACE."""
     inst = _instance(status)
     ds = inst.get("dryer_status") or {}
     st = ds.get("status") or "stop"

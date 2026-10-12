@@ -82,7 +82,7 @@ def test_wet_spool_warns_and_pauses_only_when_set():
     g = PrintGuard(b)
     asyncio.run(g.tick())
     asyncio.run(g.tick())
-    assert sent == [("printer.print.pause", "Druckstart-Prüfung")]   # einmal je Druck
+    assert sent == [("printer.print.pause", "Print start check")]   # einmal je Druck
 
 
 def test_not_printing_or_file_not_read_yet():

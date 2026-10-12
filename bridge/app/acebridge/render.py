@@ -1,10 +1,10 @@
-"""Vorschau der laufenden Druckdatei - gerechnet von der Bridge, nicht vom Drucker.
+"""Preview of the running print file - calculated by the bridge, not by the printer.
 
-Beim Druckstart laedt die Bridge die Datei einmal ueber Moonraker (gedrosselt, damit der schwache Drucker
-nichts merkt), zerlegt den G-Code in Extrusionsstrecken und zeichnet daraus ein 3D-Bild in den Farben,
-die die ACE fuer die Slots meldet. Schon Gedrucktes ist kraeftig, der Rest blass; die Grenze kommt aus
-virtual_sdcard.file_position (Byte-Position in der Datei) - genauer als die Prozentzahl.
-Dazu das Vorschaubild, das der Slicer in den Dateikopf schreibt ("; thumbnail begin ...").
+At print start the bridge downloads the file once through Moonraker (throttled so the printer notices nothing), splits
+the G-code into extrusion segments and draws a 3D image from them in the colours the ACE reports for the slots.
+Already printed parts are strong, the rest pale; the boundary comes from virtual_sdcard.file_position (byte position in
+the file) - more exact than the percentage.
+Plus the thumbnail the slicer writes into the file header ("; thumbnail begin ...").
 """
 
 from __future__ import annotations
@@ -31,9 +31,9 @@ if TYPE_CHECKING:
 log = logging.getLogger("render")
 
 BED_MM = 250.0                   # Kobra S1
-MAX_SEGMENTS = 600_000           # darueber wird ausgeduennt
+MAX_SEGMENTS = 600_000           # thinned out above this
 BACKGROUND = (16, 18, 21)
-CHECKPOINT_BYTES = 256 * 1024    # Stuetzstellen fuer den Restverbrauch
+CHECKPOINT_BYTES = 256 * 1024    # checkpoints for the remaining consumption
 _MOVE = re.compile(r"^G[0123](?:\s|$)")
 _AXIS = re.compile(r"([XYZEF])(-?\d*\.?\d+)")
 _TOOL = re.compile(r"^T(\d+)\s*$")
@@ -43,28 +43,28 @@ _THUMB = re.compile(r"^;\s*thumbnail(?:_PNG)?\s+begin\s+(\d+)x(\d+)\s+(\d+)", re
 
 # ====================================================================== G-Code zerlegen
 class GcodeModel:
-    """Extrusionsstrecken (in Arrays, sparsam) plus Vorschaubild und Slicer-Farben."""
+    """Extrusion segments (in arrays, compact) plus thumbnail and slicer colours."""
 
     def __init__(self) -> None:
         self.x0, self.y0, self.x1, self.y1, self.z = (array("f") for _ in range(5))
         self.tool = array("B")
-        self.ext = array("f")          # Filament (mm) je Strecke - daraus die Strangbreite fuer die 3D-Ansicht
-        self.offset = array("Q")       # Byte-Position am Ende der Strecke
-        self.diameter = 1.75           # aus "; filament_diameter = 1.75;..."
+        self.ext = array("f")          # filament (mm) per segment - gives the line width for the 3D view
+        self.offset = array("Q")       # byte position at the end of the segment
+        self.diameter = 1.75           # from "; filament_diameter = 1.75;..."
         self.layers: List[float] = []
         self.thumbnail: Optional[bytes] = None
         self._thumb_size = 0
-        self.colours: List[str] = []   # aus "; filament_colour = #..;#.."
-        self.types: List[str] = []     # aus "; filament_type = PETG;PLA" (Pruefung beim Druckstart)
-        # Verbrauch pro Werkzeug (netto mm, Rueckzuege abgezogen) und Werkzeugwechsel - fuer "reicht die Spule?"
+        self.colours: List[str] = []   # from "; filament_colour = #..;#.."
+        self.types: List[str] = []     # from "; filament_type = PETG;PLA" (check at print start)
+        # consumption per tool (net mm, retractions subtracted) and tool changes - for "is the spool enough?"
         self.e_total: Dict[int, float] = {}
-        # (Byte-Position, von, nach, Spuelmenge mm aus ACE_SET_PURGE_AMOUNT oder None); von None = erster
+        # (byte position, from, to, purge mm from ACE_SET_PURGE_AMOUNT or None); from None = first
         self.changes: List[Tuple[int, Optional[int], int, Optional[float]]] = []
         self._purge_next: Optional[float] = None
-        self._cp_off = array("Q")                                   # Stuetzstellen: Position -> Verbrauch bis dahin
+        self._cp_off = array("Q")                                   # checkpoints: position -> consumption up to there
         self._cp_e: List[Dict[int, float]] = []
         self._tool_seen = False
-        # Zustand beim Lesen
+        # state while reading
         self._x = self._y = self._z = 0.0
         self._e = 0.0
         self._abs_xyz = True
@@ -127,9 +127,9 @@ class GcodeModel:
 
     def remaining(self, offset: Optional[int]) -> Tuple[Dict[int, float],
                                                        List[Tuple[Optional[int], int, Optional[float]]]]:
-        """Noch zu druckende mm pro Werkzeug und die noch kommenden Werkzeugwechsel (von, nach, Spuelmenge)
-        ab der Byte-Position.
-        Genauigkeit: eine Stuetzstelle alle CHECKPOINT_BYTES bzw. an jedem Wechsel."""
+        """mm still to print per tool and the tool changes still to come (from, to, purge length) from the byte
+        position on.
+        Precision: one checkpoint every CHECKPOINT_BYTES and at every change."""
         import bisect
         offset = offset or 0
         i = bisect.bisect_right(self._cp_off, offset) - 1
@@ -198,7 +198,7 @@ class GcodeModel:
         length = math.hypot(dx, dy)
         d = (dx / length, dy / length)
         n = len(self.x0)
-        # gerade weiterlaufende Strecke verlaengern statt eine neue anzulegen (spart viel Speicher)
+        # extend a straight continuing segment instead of adding a new one (saves a lot of memory)
         if (n and self._dir is not None and self.tool[n - 1] == self._t and abs(self.z[n - 1] - z) < 1e-4
                 and abs(self.x1[n - 1] - x0) < 1e-3 and abs(self.y1[n - 1] - y0) < 1e-3
                 and d[0] * self._dir[0] + d[1] * self._dir[1] > 0.995):
@@ -210,18 +210,18 @@ class GcodeModel:
         self._dir = d
 
     def done_index(self, offset: Optional[int]) -> int:
-        """Anzahl der Strecken, die an dieser Byte-Position schon gedruckt sind (fuer die 3D-Ansicht)."""
+        """Number of segments already printed at this byte position (for the 3D view)."""
         if not offset or not len(self):
             return 0
         import bisect
         return bisect.bisect_right(self.offset, offset)
 
     def layer_at(self, offset: int) -> int:
-        """Nummer (ab 1) der Schicht, in der die Byte-Position liegt."""
+        """Number (from 1) of the layer the byte position is in."""
         if not len(self):
             return 0
         lo, hi = 0, len(self) - 1
-        while lo < hi:                       # erste Strecke, die nach der Position endet
+        while lo < hi:                       # first segment that ends after the position
             mid = (lo + hi) // 2
             if self.offset[mid] < offset:
                 lo = mid + 1
@@ -235,19 +235,19 @@ class GcodeModel:
 GEOM_MAGIC = b"KSG1"
 GEOM_VERSION = 2
 DEFAULT_WIDTH_MM = 0.45
-MAX_GEOMETRY = 1_500_000         # mehr Strecken schickt die Bridge nicht an Browser/App (ausgeduennt)
+MAX_GEOMETRY = 1_500_000         # the bridge sends no more segments to browser/app (thinned out)
 
 
-SIMPLIFY_TOLERANCES = (0.02, 0.05, 0.1, 0.2)      # mm Abweichung beim Zusammenfassen (Bogenhoehe)
-MAX_TURN = math.radians(35)                       # staerkere Knicke werden nie zusammengefasst
+SIMPLIFY_TOLERANCES = (0.02, 0.05, 0.1, 0.2)      # mm deviation when merging (arc height)
+MAX_TURN = math.radians(35)                       # sharper bends are never merged
 
 
 def simplify(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> array:
-    """Strecken fuer die 3D-Ansicht zusammenfassen statt weglassen: aufeinanderfolgende, verbundene Stuecke derselben
-    Bahn (gleiches Werkzeug, gleiche Hoehe) werden eine Strecke, solange die Bogenhoehe (Sehne * Drehwinkel / 8)
-    unter der Toleranz bleibt - Rundungen aus vielen kleinen Stuecken werden so stark reduziert, ohne Loecher.
-    Ergebnis: Index der letzten Original-Strecke je zusammengefasster Strecke. Reicht auch die groesste Toleranz
-    nicht, wird gleichmaessig weggelassen (nur bei riesigen Dateien)."""
+    """Merge segments for the 3D view instead of dropping them: consecutive, connected pieces of the same path (same
+    tool, same height) become one segment while the arc height (chord * turn angle / 8) stays below the tolerance -
+    curves made of many small pieces are reduced a lot this way, without holes.
+    Result: index of the last original segment per merged segment. If even the largest tolerance is not enough,
+    segments are dropped evenly (only for huge files)."""
     n = len(model)
     x0, y0, x1, y1, z, tool = model.x0, model.y0, model.x1, model.y1, model.z, model.tool
     ends = array("I")
@@ -284,15 +284,14 @@ def simplify(model: GcodeModel, max_segments: int = MAX_GEOMETRY) -> array:
 
 
 def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY, ends: Optional[array] = None) -> bytes:
-    """Strecken fuer die 3D-Ansicht im Browser - kompakt, little-endian:
+    """Segments for the 3D view in the browser - compact, little-endian:
 
-    Kopf: "KSG1", u16 Version 2, u16 frei, u32 Strecken, u32 Schichten, u32 Schritt (immer 1: "done" in
-          /api/print/info zaehlt schon die zusammengefassten Strecken), f32 Bett-mm, f32 Z-Hoechstwert,
-          dann f32[Schichten] (Z je Schicht)
-    Spalten je Strecke: u16 x0, y0, x1, y1 (0..65535 = 0..Bett-mm), u16 z (0..65535 = 0..Z-max), u16 Schicht,
-          u8 Werkzeug, u8 Strangbreite (1/100 mm; 0 = unbekannt).  14 Byte je Strecke - 1,5 Mio. ~ 21 MB,
-          gepackt ~ 10 MB. Version 1 hatte keine Breite.
-    Strecken sind zusammengefasst (simplify); ends = Index der letzten Original-Strecke je Strecke.
+    header: "KSG1", u16 version 2, u16 free, u32 segments, u32 layers, u32 step (always 1: "done" in /api/print/info
+          already counts merged segments), f32 bed mm, f32 Z maximum, then f32[layers] (Z per layer)
+    columns per segment: u16 x0, y0, x1, y1 (0..65535 = 0..bed mm), u16 z (0..65535 = 0..Z max), u16 layer,
+          u8 tool, u8 line width (1/100 mm; 0 = unknown).  14 bytes per segment - 1.5 million ~ 21 MB, compressed
+          ~ 10 MB. Version 1 had no width.
+    Segments are merged (simplify); ends = index of the last original segment per segment.
     """
     import bisect
     import struct
@@ -324,12 +323,12 @@ def geometry_bin(model: GcodeModel, max_segments: int = MAX_GEOMETRY, ends: Opti
 
 
 def strand_width(model: GcodeModel, i: int, heights: List[float], layers: List[float], last: Optional[int] = None) -> int:
-    """Strangbreite (1/100 mm) aus Filamentmenge, Laenge und Schichthoehe - Querschnitt wie in Slic3r/Orca:
-    Rechteck mit halbrunden Seiten, also Flaeche = (w - h) * h + pi * (h/2)^2."""
+    """Line width (1/100 mm) from filament amount, length and layer height - cross section like in Slic3r/Orca:
+    a rectangle with half-round sides, so area = (w - h) * h + pi * (h/2)^2."""
     import bisect
     last = i if last is None else last
     length = ext = 0.0
-    for k in range(i, last + 1):                 # zusammengefasste Strecke: Laenge und Filament aufsummieren
+    for k in range(i, last + 1):                 # merged segment: add up length and filament
         length += math.hypot(model.x1[k] - model.x0[k], model.y1[k] - model.y0[k])
         ext += model.ext[k]
     k = min(len(heights) - 1, bisect.bisect_left(layers, model.z[i] - 1e-4))
@@ -342,7 +341,7 @@ def strand_width(model: GcodeModel, i: int, heights: List[float], layers: List[f
 
 
 def parse_bytes(data: bytes) -> GcodeModel:
-    """Ganze Datei auf einmal (Tests, kleine Dateien)."""
+    """The whole file at once (tests, small files)."""
     m = GcodeModel()
     pos = 0
     for raw in data.splitlines(keepends=True):
@@ -361,8 +360,8 @@ def _rgb(hexcol: Optional[str]) -> Tuple[int, int, int]:
 
 
 def display_rgb(hexcol: Optional[str]) -> Tuple[int, int, int]:
-    """Filamentfarbe fuer den dunklen Hintergrund: dunkle Farben (Schwarz, Dunkelgrau) aufhellen, damit das
-    Modell sichtbar bleibt; helle Farben bleiben wie sie sind."""
+    """Filament colour for the dark background: lighten dark colours (black, dark grey) so the model stays visible;
+    light colours stay as they are."""
     r, g, b = _rgb(hexcol)
     lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
     if lum < 0.32:
@@ -376,10 +375,10 @@ GHOST = (44, 48, 56)
 
 def render_png(model: GcodeModel, position: Optional[int], colours: List[Optional[str]],
                width: int = 900, height: int = 700, angle_deg: float = 32.0) -> bytes:
-    """3D-Bild (leicht schraeg von vorn) als PNG. position = Byte-Position des Druckers (None = alles gedruckt)."""
+    """3D image (slightly angled from the front) as PNG. position = byte position of the printer (None = all printed)."""
     from PIL import Image, ImageDraw
 
-    ss = 2                                         # doppelt so gross zeichnen, dann glatt verkleinern
+    ss = 2                                         # draw twice as large, then scale down smoothly
     W, H = width * ss, height * ss
     img = Image.new("RGB", (W, H), BACKGROUND)
     draw = ImageDraw.Draw(img)
@@ -391,7 +390,7 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
     def proj(x: float, y: float, z: float) -> Tuple[float, float, float]:
         xr = (x - BED_MM / 2) * ca - (y - BED_MM / 2) * sa
         yr = (x - BED_MM / 2) * sa + (y - BED_MM / 2) * ca
-        return xr, -(yr * TILT + z * ZK), yr          # Bildkoordinaten (vor Skalierung) und Tiefe
+        return xr, -(yr * TILT + z * ZK), yr          # image coordinates (before scaling) and depth
 
     if n == 0:
         img = img.resize((width, height))
@@ -404,8 +403,8 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
     pts = []
     minx = miny = math.inf
     maxx = maxy = -math.inf
-    # Ausschnitt nach dem Objekt ab der zweiten Schicht - die Anfangslinie am Bettrand (nur erste Schicht)
-    # wuerde das Bild sonst klein machen. Einschichtige Drucke nehmen alles.
+    # crop to the object from the second layer on - the prime line at the bed edge (first layer only)
+    # would make the image small otherwise. Single-layer prints take everything.
     first = model.layers[0] if len(model.layers) > 1 else None
     for i in idx:
         z = model.z[i]
@@ -415,7 +414,7 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
         if first is None or z > first + 1e-4:
             minx, maxx = min(minx, ax, bx), max(maxx, ax, bx)
             miny, maxy = min(miny, ay, by), max(maxy, ay, by)
-    if first is not None:       # Fuss des Objekts (erste Schicht) gehoert in den Ausschnitt
+    if first is not None:       # the object's foot (first layer) belongs into the crop
         maxy += 2.0
     margin = 0.08
     span = max(maxx - minx, (maxy - miny) * W / H, 1e-6)
@@ -429,7 +428,7 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
     poly = [(c[0] * scale + ox, c[1] * scale + oy) for c in corners]
     draw.polygon(poly, outline=(46, 51, 58), width=ss * 2)
 
-    pts.sort(key=lambda p: (p[0], p[1]))        # unten zuerst, innerhalb der Schicht hinten zuerst
+    pts.sort(key=lambda p: (p[0], p[1]))        # bottom first, within the layer back first
     light = math.radians(35)
     lw = max(1, int(round(ss * 1.6)))
     ghost_mix = 0.20
@@ -446,7 +445,7 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
             base = display_rgb(colours[t] if t < len(colours) else None)
             f = shade / 20
             c = tuple(min(255, int(v * f)) for v in base)
-            if not printed:       # noch nicht gedruckt: heller, leicht eingefaerbter Schatten
+            if not printed:       # not printed yet: light, slightly tinted shadow
                 c = tuple(int(v * ghost_mix + g * (1 - ghost_mix) * f) for v, g in zip(c, GHOST, strict=True))
             col = cache[key] = c  # type: ignore[assignment]
         draw.line((ax * scale + ox, ay * scale + oy, bx * scale + ox, by * scale + oy), fill=col, width=lw)
@@ -462,16 +461,16 @@ def render_png(model: GcodeModel, position: Optional[int], colours: List[Optiona
     return out.getvalue()
 
 
-# ====================================================================== Ablauf in der Bridge
+# ====================================================================== flow in the bridge
 class PrintPreview:
-    """Laedt die Datei des laufenden Drucks, haelt das Modell und ein aktuelles Bild."""
+    """Loads the file of the running print, keeps the model and a current image."""
 
     def __init__(self, cfg: "Config", moon: "Moonraker", session: aiohttp.ClientSession):
         self.cfg = cfg
         self.moon = moon
         self.session = session
         self.file: Optional[str] = None
-        self.on_ready: Optional[Callable[[str, Dict[int, float]], None]] = None   # Datei gelesen -> Sollwerte
+        self.on_ready: Optional[Callable[[str, Dict[int, float]], None]] = None   # file read -> expected values
         self.status = "idle"            # idle | loading | ready | too_big | error | off
         self.error: Optional[str] = None
         self.model: Optional[GcodeModel] = None
@@ -485,7 +484,7 @@ class PrintPreview:
 
     # ------------------------------------------------------------ Laden
     def watch(self, status: Dict[str, Dict[str, Any]]) -> None:
-        """Bei jedem Status: neuer Druck -> Datei laden."""
+        """On every status: new print -> load the file."""
         if not self.cfg.render:
             self.status = "off"
             return
@@ -511,7 +510,7 @@ class PrintPreview:
                 self.size = int(r.headers.get("Content-Length") or 0)
                 if self.size and self.size > self.cfg.render_max_mb * 1e6:
                     self.status = "too_big"
-                    log.info("Vorschau: %s ist %.0f MB - nur das Vorschaubild", name, self.size / 1e6)
+                    log.info("Preview: %s is %.0f MB - thumbnail only", name, self.size / 1e6)
                     await self._thumbnail_only(r)
                     return
                 model = GcodeModel()
@@ -523,7 +522,7 @@ class PrintPreview:
                         pos += len(raw) + 1
                         model.feed_line(raw.decode("utf-8", "ignore"), pos)
                     self.loaded_bytes = pos
-                    await asyncio.sleep(0.02)      # Drosselung (~10 MB/s): der Drucker soll nichts merken
+                    await asyncio.sleep(0.02)      # throttling (~10 MB/s): the printer should notice nothing
                 if rest:
                     pos += len(rest)
                     model.feed_line(rest.decode("utf-8", "ignore"), pos)
@@ -533,16 +532,16 @@ class PrintPreview:
             self.model, self.status = model, "ready"
             if self.on_ready:
                 self.on_ready(name, dict(model.e_total))
-            log.info("Vorschau: %s geladen (%d Strecken, %d Schichten, 3D: %d Strecken)", name, len(model),
+            log.info("Preview: %s loaded (%d segments, %d layers, 3D: %d segments)", name, len(model),
                      len(model.layers), len(ends))
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001
             self.status, self.error = "error", str(e)
-            log.warning("Vorschau: %s nicht ladbar: %s", name, e)
+            log.warning("Preview: %s cannot be loaded: %s", name, e)
 
     async def geometry(self) -> Optional[bytes]:
-        """Strecken fuer die 3D-Ansicht - einmal pro Druck gerechnet (im Hintergrund-Thread)."""
+        """Segments for the 3D view - calculated once per print (in a background thread)."""
         m = self.model
         if not m or not len(m) or self.status != "ready":
             return None
@@ -554,7 +553,7 @@ class PrintPreview:
         return self._geom
 
     async def _simplified(self) -> array:
-        """Zusammengefasste Strecken (simplify) - neu, wenn sich die Grenze in den Einstellungen geaendert hat."""
+        """Merged segments (simplify) - again when the limit in the settings changed."""
         m = self.model
         limit = getattr(self.cfg, "geometry_max_segments", MAX_GEOMETRY)
         if getattr(self, "_ends_key", None) != (len(m), limit):
@@ -563,7 +562,7 @@ class PrintPreview:
         return self._ends
 
     def _done_runs(self, pos: Optional[int]) -> int:
-        """Fortschritt in zusammengefassten Strecken: fertig ist eine Strecke, wenn ihr letztes Stueck gedruckt ist."""
+        """Progress in merged segments: a segment is done when its last piece is printed."""
         import bisect
         m = self.model
         ends = getattr(self, "_ends", None)
@@ -584,7 +583,7 @@ class PrintPreview:
 
     # ------------------------------------------------------------ Zeichnen
     def colours(self, status: Dict[str, Dict[str, Any]]) -> List[Optional[str]]:
-        """Farbe pro Werkzeug: ACE-Farbe des Slots (ACEPRO: Werkzeug T<n> = Slot n), sonst aus dem G-Code."""
+        """Colour per tool: ACE colour of the slot (ACEPRO: tool T<n> = slot n+1), else from the G-code."""
         out: List[Optional[str]] = []
         m = self.model
         for t in range(max(acemodel.num_slots(status), len(m.colours) if m else 0, 1)):
@@ -617,7 +616,7 @@ class PrintPreview:
                 "done": self._done_runs(pos) if m and len(m) else 0,
                 "geometry": f"{self.file}:{len(m)}:{len(getattr(self, '_ends', []) or [])}"
                 if m and len(m) and self.status == "ready" else None,
-                # Farbe je Werkzeug fuer die 3D-Ansicht, wie im Bild der Bridge aufgehellt (dunkles Filament sichtbar)
+                # colour per tool for the 3D view, lightened like in the bridge image (dark filament visible)
                 "colours": ["%02x%02x%02x" % display_rgb(c) for c in self.colours(status)] if m else [],
                 "filament_colours": ["%02x%02x%02x" % _rgb(c) for c in self.colours(status)] if m else [],
                 "layer": m.layer_at(pos) if m and pos and len(m) else None,

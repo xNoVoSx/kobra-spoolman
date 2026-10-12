@@ -71,8 +71,8 @@ def test_phase_follows_the_print(cfg):
         if not seen or seen[-1] != text:
             seen.append(text)
     replay(cfg, watch)
-    assert "Wechsel auf Slot 4" in seen
-    assert "Druckt" in seen
+    assert "Change to slot 4" in seen
+    assert "Printing" in seen
     assert seen[-1] is None                                  # nach dem Druck: nur der Status ("Fertig")
 
 
@@ -87,5 +87,5 @@ def test_print_log_renders(cfg):
     from acebridge import printlog
     raw = [json.dumps(r) for r in load_recording(REC)]
     text = printlog.render(raw)
-    assert "Druckstatus" in text and "complete" in text
-    assert "geladen T" in text and "Auto-PA" in text
+    assert "Print state" in text and "complete" in text
+    assert "loaded T" in text and "Auto PA" in text

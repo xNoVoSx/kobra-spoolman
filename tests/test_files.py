@@ -68,8 +68,8 @@ def test_thumbnail_picks_fitting_size(env):
 def test_check_hints(env):
     f, _ = env
     c = asyncio.run(f.check("a.gcode"))
-    assert c["tools"][0]["hints"] == [] and "Datei PETG, Slot PLA" in c["tools"][1]["hints"]
-    assert "Farbe weicht ab" in c["tools"][1]["hints"] and c["ok"] is False
+    assert c["tools"][0]["hints"] == [] and "file PETG, slot PLA" in c["tools"][1]["hints"]
+    assert "colour differs" in c["tools"][1]["hints"] and c["ok"] is False
 
 
 def test_start_needs_confirm_and_idle(env):

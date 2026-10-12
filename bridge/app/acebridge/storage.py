@@ -1,7 +1,7 @@
-"""Dateien im Datenordner sicher schreiben: erst in eine temporaere Datei, auf die Platte bringen, dann umbenennen.
+"""Write files in the data folder safely: first to a temporary file, flush it to disk, then rename.
 
-Bricht der Strom oder der Container mitten im Schreiben ab, bleibt die alte Datei ganz - nie eine halbe oder leere.
-Alle Module der Bridge, die Zustand in `DATA_DIR` halten, schreiben ueber diese Funktionen.
+If power or the container dies in the middle of writing, the old file stays whole - never half or empty.
+Every bridge module that keeps state in `DATA_DIR` writes through these functions.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any, Iterable, Optional
 
 
 def save_json(path: str, data: Any, indent: Optional[int] = None) -> None:
-    """JSON atomar schreiben (UTF-8, Umlaute unveraendert)."""
+    """Write JSON atomically (UTF-8, non-ASCII characters kept as they are)."""
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=indent)
@@ -22,7 +22,7 @@ def save_json(path: str, data: Any, indent: Optional[int] = None) -> None:
 
 
 def save_lines(path: str, lines: Iterable[str]) -> None:
-    """Textzeilen (mit Zeilenende) atomar schreiben, z. B. gekuerzte JSONL-Protokolle."""
+    """Write text lines (with line endings) atomically, e.g. trimmed JSONL logs."""
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
