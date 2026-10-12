@@ -1,7 +1,7 @@
 // Dialogs. Which one is open is in S.dialog ({kind, ...}).
 
 import { html, useEffect, useMemo, useState } from "../vendor/preact-htm.module.js";
-import { get, post } from "./api.js";
+import { directBase, get, post } from "./api.js";
 import { Dialog, Field, Swatch } from "./components.js";
 import { lang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
@@ -233,7 +233,7 @@ function AddDevice() {
     const timer = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(timer);
   }, [code]);
-  const link = code ? `kobraspoolman://pair?b=${encodeURIComponent(location.origin)}&c=${code}` : "";
+  const link = code ? `kobraspoolman://pair?b=${encodeURIComponent(directBase())}&c=${code}` : "";
   const svg = useMemo(() => (link ? qrSvg(link) : null), [link]);
   const pretty = code ? code.slice(0, 3) + " " + code.slice(3) : "…";
   return html`<${Dialog} title=${t("Add device")} footer=${html`<button class="btn" onClick=${fetchCode}><${Icon} name="refresh" small />${t("New code")}</button><button class="btn acc" onClick=${closeDialog}>${t("Done")}</button>`}>

@@ -31,6 +31,7 @@ log = logging.getLogger("camera")
 
 IDLE_CLOSE_S = 20.0          # the stream stays open this long after the last viewer
 FIRST_FRAME_TIMEOUT_S = 6.0
+NEXT_FRAME_TIMEOUT_S = 10.0  # frame.jpg waits at most this long for a newer image
 RETRY_S = 5.0                # reconnect no sooner after a failure
 START_FPS = 2.0              # Rinkhals: start rate, then by the printer CPU
 ADJUST_S = 5.0               # control step
@@ -297,6 +298,27 @@ class Camera:
             return data, self.taken_wall
 
     # ------------------------------------------------------------ re-distributing
+    async def next_frame(self, after: int, timeout: float = NEXT_FRAME_TIMEOUT_S) -> Tuple[bytes, int]:
+        """The first image newer than frame number `after` - for viewers that cannot hold an MJPEG stream (Home
+        Assistant ingress): they ask again as soon as an image is there, which keeps the reader running like a stream
+        viewer and gives them its full frame rate."""
+        if not self.cfg.camera:
+            raise CameraError(tr("Camera is switched off (CAMERA=false)"))
+        self._want()
+        if not self.streaming:                       # reader cannot run right now (after errors): a single image
+            data, _ = await self.snapshot()
+            return data, self.frame_no
+        if self.image is None or self.frame_no <= after:
+            async with self._new:
+                try:
+                    await asyncio.wait_for(
+                        self._new.wait_for(lambda: self.image is not None and self.frame_no > after), timeout)
+                except asyncio.TimeoutError:
+                    pass
+        if self.image is None:
+            raise CameraError(self.error or tr("No camera image yet"))
+        return self.image, self.frame_no
+
     async def frames(self, max_fps: Optional[float] = None) -> AsyncIterator[bytes]:
         """Images for one viewer: always the newest; slow viewers miss images instead of piling them up."""
         if not self.cfg.camera:

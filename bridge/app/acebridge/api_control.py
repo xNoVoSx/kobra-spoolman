@@ -33,7 +33,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     async def print_tune(request: web.Request):
         """Speed, flow, fans, temperatures (paired)."""
         try:
-            dev = bridge.devices.require(request.headers.get("Authorization"))
+            dev = bridge.devices.require_request(request)
         except AuthError as e:
             return _err(e.status, msg_of(e))
         body = await _body(request)
@@ -54,7 +54,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         """pause, resume, cancel (confirm), emergency_stop (confirm), firmware_restart (confirm, not while printing -
         the way back after an emergency stop or shutdown)."""
         try:
-            dev = bridge.devices.require(request.headers.get("Authorization"))
+            dev = bridge.devices.require_request(request)
         except AuthError as e:
             return _err(e.status, msg_of(e))
         body = await _body(request)
@@ -103,7 +103,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     async def console_send(request: web.Request):
         """Send G-code (paired). Risky commands and moves during a print only with confirm=true."""
         try:
-            dev = bridge.devices.require(request.headers.get("Authorization"))
+            dev = bridge.devices.require_request(request)
         except AuthError as e:
             return _err(e.status, msg_of(e))
         try:

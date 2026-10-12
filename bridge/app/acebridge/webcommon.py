@@ -52,7 +52,7 @@ class Ctx:
         """Decorator: paired devices only (web UI, app, plugin, display)."""
         async def wrapped(request: web.Request):
             try:
-                self.bridge.devices.require(request.headers.get("Authorization"))
+                self.bridge.devices.require_request(request)
             except AuthError as e:
                 return _err(e.status, msg_of(e))
             return await fn(request)
@@ -61,7 +61,7 @@ class Ctx:
     def paired(self, request: web.Request) -> Optional[web.Response]:
         """None when paired, else the error response."""
         try:
-            self.bridge.devices.require(request.headers.get("Authorization"))
+            self.bridge.devices.require_request(request)
         except AuthError as e:
             return _err(e.status, msg_of(e))
         return None
@@ -69,7 +69,7 @@ class Ctx:
     def camera_allowed(self, request: web.Request) -> bool:
         """Camera: a paired device (header) or the camera key in the URL (Mainsail, <img>)."""
         return (self.bridge.camera_key.check(request.query.get("key"))
-                or self.bridge.devices.identify(request.headers.get("Authorization")) is not None)
+                or self.bridge.devices.identify_request(request) is not None)
 
     @staticmethod
     def camera_denied() -> web.Response:

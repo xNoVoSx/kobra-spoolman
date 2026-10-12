@@ -398,10 +398,10 @@ class AppApi:
 
     # ------------------------------------------------------------ helpers
     def _device(self, request: web.Request) -> Optional[Dict[str, Any]]:
-        return self.bridge.devices.identify(request.headers.get("Authorization"))
+        return self.bridge.devices.identify_request(request)
 
     def _check_token(self, request: web.Request) -> None:
-        self.bridge.devices.require(request.headers.get("Authorization"))
+        self.bridge.devices.require_request(request)
 
     async def _json(self, request: web.Request) -> Dict[str, Any]:
         try:

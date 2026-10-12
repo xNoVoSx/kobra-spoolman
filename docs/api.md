@@ -10,6 +10,10 @@ header `X-Lang: de` (web UI, app and plugin send it), else the browser's `Accept
 `UI_LANGUAGE`. Supported: `en`, `de`. Stable codes (states,
 sources, keys) never change with the language.
 
+**Base path:** the web UI and the API work under any base path (Home Assistant ingress serves them under
+`/api/hassio_ingress/<token>/`). With `HA_INGRESS_TRUST=true` a request from HA's ingress proxy counts as the paired
+device `ha_ingress` (see [configuration](configuration.md)).
+
 **Keys:** reading is open. Everything that writes (Spoolman, slot assignment, open items) or makes
 the printer do something (dryer) needs the key of a [paired device](#pairing-devices) in
 `Authorization: Bearer <key>` — marked *(paired)* below. Without one: 401 (unknown key) or 403
@@ -299,6 +303,7 @@ the filament moves normally again or the print is paused/ended.
 |---|---|---|
 | GET | `/api/camera` | camera state: `mode` (`snapshots`, `stream`, `idle`), `source`, `viewers`, `fps` (measured), `target_fps`, `throttled` (always `false` since 3.0), last image time, error |
 | GET | `/api/camera/stream.mjpg` | *(paired or camera key)* live MJPEG restream. Optional `?fps=5` caps the rate for this viewer |
+| GET | `/api/camera/frame.jpg?after=<n>` | *(paired or camera key)* the next image newer than frame number `n` (answer header `X-Frame`); waits up to 10 s. The live view where an MJPEG stream does not get through (HA ingress): ask again with the last `X-Frame`. Keeps the camera running like a stream viewer |
 | GET | `/api/camera/snapshot.jpg` | *(paired or camera key)* the current camera image, taken from the running stream if there is one |
 | GET | `/api/camera/link` | *(paired)* `{"key": "…"}` — the camera key for links |
 | POST | `/api/camera/link` | *(paired)* create a new camera key; old camera links stop working |

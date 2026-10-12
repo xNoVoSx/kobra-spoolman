@@ -32,7 +32,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     @r.post("/api/machine/{action}")
     async def machine_action(request: web.Request):
         try:
-            dev = bridge.devices.require(request.headers.get("Authorization"))
+            dev = bridge.devices.require_request(request)
         except AuthError as e:
             return _err(e.status, msg_of(e))
         body = await _body(request)
@@ -47,7 +47,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     async def _paired(request: web.Request):
         """Paired device, or the error response (second value)."""
         try:
-            return bridge.devices.require(request.headers.get("Authorization")), None
+            return bridge.devices.require_request(request), None
         except AuthError as e:
             return None, _err(e.status, msg_of(e))
 

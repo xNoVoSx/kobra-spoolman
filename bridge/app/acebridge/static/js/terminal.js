@@ -2,7 +2,7 @@
 // Output comes from the bridge's buffer - no client of its own at the printer.
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
-import { ApiError, get, post } from "./api.js";
+import { ApiError, get, post, rel } from "./api.js";
 import { locale, t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { S, openDialog, set, toast } from "./store.js";
@@ -145,7 +145,7 @@ function PrinterLogs() {
   const load = async (name, k = kb) => {
     setOpen(name); setKb(k); setLoading(true);
     try {
-      const r = await fetch(`/api/logs/printer/${encodeURIComponent(name)}?kb=${k}`, { cache: "no-store" });
+      const r = await fetch(rel(`/api/logs/printer/${encodeURIComponent(name)}?kb=${k}`), { cache: "no-store" });
       setText(r.ok ? await r.text() : (await r.json().catch(() => ({}))).error || t("Error {status}", { status: r.status }));
     } catch { setText(t("Bridge not reachable")); }
     setLoading(false);

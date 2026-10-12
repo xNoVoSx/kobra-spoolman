@@ -118,7 +118,8 @@ Du brauchst **einen** der beiden Drucker-Aufbauten:
 Für beide:
 
 - **Spoolman** 0.26 oder neuer.
-- Ein **Docker**-Host im selben Netz (Portainer, Compose, …).
+- Ein **Docker**-Host im selben Netz (Portainer, Compose, …) – oder Home Assistant mit dem Community-
+  [Add-on](https://github.com/MineTech13/ha-addons) (Weboberfläche in der HA-Seitenleiste).
 - **OrcaSlicer** mit Plugin-System (2.5.0-dev nightly). Die automatische Profilwahl braucht den
   `orca-kobra`-Build (Linux-AppImage), bis PR #14423 in Orca übernommen ist.
 - Optional: ein Android-Handy (ab Android 10) mit NFC für die App.
@@ -259,7 +260,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | 5 | Home Assistant über MQTT (Drucker, Slots, Restgewicht, Feuchte, Meldungen), Raumsensor | ✅ fertig |
 | – | Englisch als Hauptsprache, Deutsch je Nutzer und Gerät umschaltbar | ✅ fertig (3.12) |
 | – | Rinkhals und Klipper in einer Bridge (Rinkhals: ACE-Karte mit Spül-Multiplikator, Spülen der Firmware in der Orca-Vorschau) | ✅ fertig (3.12) |
-| – | Home-Assistant-Add-on mit Ingress (Bridge in HA) | 🔜 als Nächstes |
+| – | Weboberfläche hinter Home-Assistant-Ingress ohne Patches (Community-Add-on) | ✅ fertig (3.13) |
 
 ## KI-Hinweis
 

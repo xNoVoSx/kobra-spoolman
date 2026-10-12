@@ -158,6 +158,6 @@ def build_app(bridge: "Bridge") -> web.Application:
     for mod in (api_modules, api_display, api_camera, api_data, api_vision, api_orca, api_control):
         mod.add_routes(r, bridge, ctx)
     app.add_routes(r)
-    assets.add_routes(app)
+    assets.add_routes(app, bridge.cfg)
     app.add_routes(AppApi(bridge).routes())   # Android app (docs/android-app.md)
     return app

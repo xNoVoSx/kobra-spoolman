@@ -3,7 +3,7 @@
 // collection (label, delete, ZIP).
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
-import { auth, del, get, post } from "./api.js";
+import { auth, del, get, post, rel } from "./api.js";
 import { Toggle } from "./ace.js";
 import { locale, t } from "./i18n.js";
 import { Icon } from "./icons.js";
@@ -99,7 +99,7 @@ async function upload(file) {
   c.width = bmp.width; c.height = bmp.height;
   c.getContext("2d").drawImage(bmp, 0, 0);
   const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
-  const resp = await fetch("/api/vision/test", { method: "POST", body: blob, headers: { "Content-Type": "image/jpeg", Authorization: "Bearer " + auth.key } });
+  const resp = await fetch(rel("/api/vision/test"), { method: "POST", body: blob, headers: { "Content-Type": "image/jpeg", Authorization: "Bearer " + auth.key } });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.error || t("Error {status}", { status: resp.status }));
   return { ...data, src: URL.createObjectURL(blob) };

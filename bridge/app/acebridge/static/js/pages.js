@@ -12,7 +12,7 @@ import { FilamentEditor, FilamentList } from "./filaments.js";
 import { LANGS, chosen, lang, setLang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { capability, quality, setQuality } from "./viewer3d.js";
-import { cameraKey, cameraUrl } from "./media.js";
+import { cameraKey, cameraLink } from "./media.js";
 import { SpoolDetail, SpoolList } from "./spools.js";
 import { S, guard, loadCatalog, loadHealth, loadJobs, openDialog, set, toast } from "./store.js";
 import { ago, cls, grams, num, when } from "./util.js";
@@ -208,7 +208,7 @@ function CameraLinkCard() {
   return html`<section class="card pad col">
     <div class="row"><h2 class="h2 grow">${t("Camera link")}</h2><button class="btn sm" disabled=${!key} onClick=${rotate}>${t("Create new")}</button></div>
     <div class="small muted">${t("For Mainsail (Settings → Webcams, service “MJPEG-Streamer”) and other programs without pairing. All viewers go through the bridge, the printer delivers the stream only once. The link shows only the camera.")}</div>
-    ${key ? html`<div class="kv"><${Line} label=${t("Stream")} url=${cameraUrl(key)} /><${Line} label=${t("Snapshot")} url=${cameraUrl(key, "snapshot.jpg")} /></div>`
+    ${key ? html`<div class="kv"><${Line} label=${t("Stream")} url=${cameraLink(key)} /><${Line} label=${t("Snapshot")} url=${cameraLink(key, "snapshot.jpg")} /></div>`
           : html`<div class="small muted">${t("loading …")}</div>`}
   </section>`;
 }

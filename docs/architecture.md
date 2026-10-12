@@ -69,6 +69,16 @@ come from GoKlipper's configuration; offset and first load are fitted (least squ
 "measured − G-code target" per slot is exactly the firmware's purge. The ACE card shows the result per colour pair
 (`/api/ace`), the Orca plugin adds it to its usage preview (`/api/orca/state` → `purge.model`).
 
+## Home Assistant ingress (`ingress.py`)
+
+The web UI only uses relative paths (a test checks it), so it works under HA's ingress base path
+`/api/hassio_ingress/<token>/` unchanged. When a request really comes through the ingress proxy (header `X-Ingress-Path`
+and source address `172.30.32.2`, as HA's add-on docs prescribe), the start page carries `<meta name="ingress">`: the
+camera then asks for one image after the other (`frame.jpg?after=n`, a long poll on the camera's newest frame) because
+the MJPEG stream does not pass every proxy chain, and links for other programs (camera links, app pairing) point at the
+bridge's direct address. Optionally (`HA_INGRESS_TRUST`) such requests count as a paired device; the header alone never
+does, anyone in the network could send it to the direct port.
+
 ## Languages
 
 - **Source text is English** everywhere; German lives in catalogs: bridge `locale/de.json` (`tr()` in `i18n.py`), web

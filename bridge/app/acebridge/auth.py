@@ -21,6 +21,7 @@ import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional
 
+from . import ingress
 from .i18n import tr
 from .storage import save_json
 
@@ -47,8 +48,10 @@ class AuthError(Exception):
 
 
 class Devices:
-    def __init__(self, data_dir: str, legacy_token: str = "", clock: Callable[[], float] = time.time):
+    def __init__(self, data_dir: str, legacy_token: str = "", clock: Callable[[], float] = time.time,
+                 trust_ingress: bool = False):
         self.path = os.path.join(data_dir, "devices.json")
+        self.trust_ingress = trust_ingress
         self.legacy = legacy_token
         self.clock = clock
         self.devices: List[Dict[str, Any]] = []
@@ -98,6 +101,18 @@ class Devices:
                     self._save()
                 return d
         return None
+
+    def identify_request(self, request: Any) -> Optional[Dict[str, Any]]:
+        """Device of a request: its key, or - with HA_INGRESS_TRUST - Home Assistant's ingress proxy (ingress.py)."""
+        dev = self.identify(request.headers.get("Authorization"))
+        if dev is None and self.trust_ingress and ingress.via_ingress(request):
+            return dict(ingress.DEVICE)
+        return dev
+
+    def require_request(self, request: Any) -> Dict[str, Any]:
+        """Like require, for a request (see identify_request)."""
+        dev = self.identify_request(request)
+        return dev if dev is not None else self.require(None)
 
     def require(self, authorization: Optional[str]) -> Dict[str, Any]:
         """Like identify, but AuthError without a paired device (for everything that writes)."""

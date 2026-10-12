@@ -70,6 +70,10 @@ class Config:
 
     # legacy key for writing calls (before pairing existed); empty = pairing only
     app_token: str = field(default_factory=lambda: os.environ.get("APP_TOKEN", ""))
+    # Home Assistant ingress (ingress.py): requests from the ingress proxy count as a paired device
+    ha_ingress_trust: bool = field(default_factory=lambda: _bool("HA_INGRESS_TRUST", False))
+    # direct address of the bridge for copyable links under ingress (empty: the HA host on HTTP_PORT)
+    bridge_public_url: str = field(default_factory=lambda: os.environ.get("BRIDGE_PUBLIC_URL", ""))
     # tag numbers for self-written NFC tags (SKU "<prefix>-<number>"), see docs/findings.md
     tag_nr_min: int = field(default_factory=lambda: _int("TAG_NR_MIN", 1000))
     tag_nr_max: int = field(default_factory=lambda: _int("TAG_NR_MAX", 99999))
@@ -119,6 +123,8 @@ class Config:
     # URLs empty = from Moonraker's webcam list.
     camera: bool = field(default_factory=lambda: _bool("CAMERA", True))
     camera_stream: bool = field(default_factory=lambda: _bool("CAMERA_STREAM", False))
+    # under HA ingress the browser fetches single images (the proxy chain does not pass the MJPEG stream reliably)
+    camera_ingress_snapshots: bool = field(default_factory=lambda: _bool("CAMERA_INGRESS_SNAPSHOTS", True))
     camera_fps_min: float = field(default_factory=lambda: _float("CAMERA_FPS_MIN", 1.0))
     camera_fps_max: float = field(default_factory=lambda: _float("CAMERA_FPS_MAX", 10.0))
     # Rinkhals: the frame rate follows the printer CPU (GoKlipper and the camera share it); not under Klipper on a Pi

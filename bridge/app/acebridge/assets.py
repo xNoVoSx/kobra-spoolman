@@ -13,10 +13,12 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+from html import escape
+from typing import Any, Dict, Optional
 
 from aiohttp import web
 
-from . import i18n
+from . import i18n, ingress
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 IMMUTABLE = "public, max-age=31536000, immutable"
@@ -38,28 +40,23 @@ def fingerprint(root: str = STATIC) -> str:
 TAG = fingerprint()
 
 
-def index_html(tag: str = TAG, page: str = "index.html") -> str:
+def index_html(tag: str = TAG, page: str = "index.html", extra: Optional[Dict[str, str]] = None) -> str:
+    """The page with its assets under assets/<tag>/. extra: further <meta> tags (name -> content), e.g. ingress."""
     with open(os.path.join(STATIC, page), encoding="utf-8") as fh:
         html = fh.read()
     html = html.replace('"static/', f'"assets/{tag}/')
     # the bridge default language; a device's own choice (localStorage) wins in static/js/i18n.js
     html = re.sub(r'<html lang="[a-z]+">', f'<html lang="{i18n.default_lang()}">', html, count=1)
-    return html.replace("<head>", f'<head>\n<meta name="ui-tag" content="{tag}">', 1)
+    metas = [f'<meta name="ui-tag" content="{tag}">'] + [
+        f'<meta name="{name}" content="{escape(value, quote=True)}">' for name, value in (extra or {}).items()]
+    return html.replace("<head>", "<head>\n" + "\n".join(metas), 1)
 
 
-async def index(_: web.Request) -> web.Response:
-    return web.Response(text=index_html(), content_type="text/html", headers={"Cache-Control": NO_CACHE})
-
-
-async def viewer(_: web.Request) -> web.Response:
-    """Only the 3D view of the print file (app, sharing in the home network)."""
-    return web.Response(text=index_html(page="viewer.html"), content_type="text/html", headers={"Cache-Control": NO_CACHE})
-
-
-async def display(_: web.Request) -> web.Response:
-    """Printer display (800x480, kiosk browser on the Klipper Pi)."""
-    return web.Response(text=index_html(page="display.html"), content_type="text/html",
-                        headers={"Cache-Control": NO_CACHE})
+def _page(page: str, cfg: Any = None):
+    async def handler(request: web.Request) -> web.Response:
+        return web.Response(text=index_html(page=page, extra=ingress.meta(request, cfg)), content_type="text/html",
+                            headers={"Cache-Control": NO_CACHE})
+    return handler
 
 
 async def asset(request: web.Request) -> web.StreamResponse:
@@ -72,10 +69,10 @@ async def asset(request: web.Request) -> web.StreamResponse:
     return web.FileResponse(path, headers={"Cache-Control": cache})
 
 
-def add_routes(app: web.Application) -> None:
-    app.router.add_get("/", index)
-    app.router.add_get("/viewer", viewer)
-    app.router.add_get("/display", display)
+def add_routes(app: web.Application, cfg: Any = None) -> None:
+    app.router.add_get("/", _page("index.html", cfg))
+    app.router.add_get("/viewer", _page("viewer.html", cfg))      # only the 3D view of the print file
+    app.router.add_get("/display", _page("display.html", cfg))    # printer display (800x480, kiosk on the Klipper Pi)
     app.router.add_get("/assets/{tag}/{path:.+}", asset)
     # old URLs (licenses, links): still reachable, but always revalidated
     app.router.add_static("/static", STATIC, append_version=False)

@@ -114,7 +114,17 @@ Das Image läuft als Benutzer 1000. Gehört der Datenordner root (bei Portainer 
 `/docker/...` üblich), entweder den Ordner für 1000 beschreibbar machen oder den Container mit
 `user: "0:0"` im Dienst als root laufen lassen.
 
-### Variante B – direkt aus dem Quellcode
+### Variante B – Home-Assistant-Add-on
+
+Läuft Home Assistant OS oder Supervised? Das Community-Add-on
+[MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) (Ordner `ace-lane-bridge`) verpackt dasselbe Image: Die
+Weboberfläche öffnet sich in der HA-Seitenleiste (Ingress), der direkte Port 7913 bleibt für App und Orca-Plugin, die
+Daten liegen im Config-Ordner des Add-ons (in HA-Backups enthalten). Seit Bridge 3.13 läuft die Weboberfläche hinter
+Ingress ohne Patch – relative Pfade, Kamera als Einzelbilder, Links auf den direkten Port. Sinnvolle Einstellungen im
+Add-on: `HA_INGRESS_TRUST: true` (die HA-Seitenleiste braucht keine Kopplung) und `BRIDGE_PUBLIC_URL`. Das Add-on pflegt
+sein Autor; welche Bridge-Version es mitbringt, steht in seiner README.
+
+### Variante C – direkt aus dem Quellcode
 
 Praktisch beim Entwickeln. `bridge/app/` auf den Docker-Host kopieren (z.B. nach
 `/docker/ace-lane-bridge/app`) und so einbinden:

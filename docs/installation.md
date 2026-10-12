@@ -112,7 +112,17 @@ The image runs as user 1000. If your data folder belongs to root (common with Po
 `/docker/...` paths), either make it writable for 1000 or run the container as root by adding
 `user: "0:0"` to the service.
 
-### Option B — run from source
+### Option B — Home Assistant add-on
+
+Running Home Assistant OS or Supervised? The community add-on
+[MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) (folder `ace-lane-bridge`) wraps the same image: the
+web UI opens in the HA sidebar (ingress), the direct port 7913 stays available for the app and the Orca plugin, and the
+data lives in the add-on's config folder (part of HA backups). Since bridge 3.13 the web UI works under ingress without
+any patch — relative paths, the camera as single images, links that point at the direct port. Useful settings for the
+add-on: `HA_INGRESS_TRUST: true` (the HA sidebar needs no pairing) and `BRIDGE_PUBLIC_URL`. The add-on is maintained by
+its author; check its README for the bridge version it ships.
+
+### Option C — run from source
 
 Useful while developing. Copy `bridge/app/` to the Docker host (e.g. `/docker/ace-lane-bridge/app`) and use:
 

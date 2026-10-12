@@ -404,7 +404,7 @@ function Resume({ st, busy, confirm }) {
     <section class="disp-dialog danger" style="height:100%">
       <div class="disp-split">
         <div class="disp-thumb" style="width:210px">
-          <div class="img" style="height:210px"><img src=${`/api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt=${t("Preview image")}
+          <div class="img" style="height:210px"><img src=${`api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt=${t("Preview image")}
             onError=${(e) => { e.target.style.display = "none"; }} /></div>
           <div class="file">${fileName(file)}</div>
           <div class="disp-note m">${p.layers ? t("Layer {layer} / {layers}", { layer: p.layer ?? "?", layers: p.layers }) : t("Layer {layer}", { layer: p.layer ?? "?" })} · ${pct(p.progress)} %</div>
@@ -582,7 +582,7 @@ function Done({ st, busy, setDlg }) {
   const used = (st.uses || []).filter((u) => u.total_g);
   return html`<div class="disp-print">
     <section class="disp-thumb" aria-label=${t("Preview")}>
-      <div class="img"><img src=${`/api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt=${t("Preview image")}
+      <div class="img"><img src=${`api/print/thumbnail.png?f=${encodeURIComponent(file)}`} alt=${t("Preview image")}
         onError=${(e) => { e.target.style.display = "none"; }} /></div>
       <div class="file">${fileName(file)}</div>
     </section>
@@ -617,7 +617,7 @@ function Files({ busy, setDlg }) {
   return html`<div class="disp-files">
     <div class="disp-flist">${shown.map((f) => html`<button type="button" class="disp-file" disabled=${busy}
       onClick=${() => setDlg({ kind: "start", path: f.path })}>
-      <span class="th">${f.thumb && html`<img src=${`/api/files/thumb?path=${encodeURIComponent(f.path)}`} alt="" />`}</span>
+      <span class="th">${f.thumb && html`<img src=${`api/files/thumb?path=${encodeURIComponent(f.path)}`} alt="" />`}</span>
       <span class="t"><b>${fileName(f.path)}</b><span>${[f.est_s ? hm(f.est_s) + " h" : null, f.weight_g ? Math.round(f.weight_g) + " g" : null,
         f.modified ? new Date(f.modified * 1000).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }) : null].filter(Boolean).join(" · ")}</span></span>
       <span class="dots">${f.tools.map((tool) => html`<span class="disp-dot" style=${`width:18px;height:18px;background:${hex(tool.color) || "var(--surface2)"}`}></span>`)}</span>
@@ -638,7 +638,7 @@ function StartPrint({ path, close, act }) {
     <section class="disp-dialog" style="height:100%">
       <div class="disp-split">
         <div class="disp-thumb" style="width:200px">
-          <div class="img" style="height:200px"><img src=${`/api/files/thumb?path=${encodeURIComponent(path)}`} alt=${t("Preview image")}
+          <div class="img" style="height:200px"><img src=${`api/files/thumb?path=${encodeURIComponent(path)}`} alt=${t("Preview image")}
             onError=${(e) => { e.target.style.display = "none"; }} /></div>
           <div class="file">${fileName(path)}</div>
           ${c && html`<div class="disp-note m">${[c.est_s ? hm(c.est_s) + " h" : null, c.weight_g ? Math.round(c.weight_g) + " g" : null].filter(Boolean).join(" · ")}</div>`}

@@ -54,6 +54,23 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         return web.Response(body=data, content_type="image/jpeg",
                             headers={"Cache-Control": "no-store", "X-Taken-At": str(int(taken))})
 
+    @r.get("/api/camera/frame.jpg")
+    async def camera_frame(request: web.Request):
+        """The next image after ?after=<frame number> (header X-Frame) - the live view where an MJPEG stream does not get
+        through (Home Assistant ingress): ask again with the X-Frame of the last answer."""
+        if not camera_allowed(request):
+            return camera_denied()
+        try:
+            after = int(request.query.get("after") or -1)
+        except ValueError:
+            return _err(400, tr("after must be a number"))
+        try:
+            data, no = await bridge.camera.next_frame(after)
+        except CameraError as e:
+            return _err(503, msg_of(e))
+        return web.Response(body=data, content_type="image/jpeg",
+                            headers={"Cache-Control": "no-store", "X-Frame": str(no)})
+
     @r.get("/api/camera/stream.mjpg")
     async def camera_stream(request: web.Request):
         """Re-distributed MJPEG stream: however many watch, there is one connection to the printer.

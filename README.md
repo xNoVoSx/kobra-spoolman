@@ -116,7 +116,8 @@ You need **one** of the two printer setups:
 Both need:
 
 - **Spoolman** 0.26 or newer.
-- A **Docker** host in the same network (Portainer, Compose, …).
+- A **Docker** host in the same network (Portainer, Compose, …) — or Home Assistant with the community
+  [add-on](https://github.com/MineTech13/ha-addons) (web UI in the HA sidebar).
 - **OrcaSlicer** with the plugin system (2.5.0-dev nightly). Automatic profile selection needs the
   `orca-kobra` build (Linux AppImage) until PR #14423 is merged upstream.
 - Optional: an Android phone (Android 10+) with NFC for the app.
@@ -255,7 +256,7 @@ Keep the bridge inside your home network; it has no TLS.
 | 5 | Home Assistant via MQTT (printer, slots, remaining weight, moisture, messages), room humidity sensor | ✅ done |
 | — | English as main language, German switchable per user and device | ✅ done (3.12) |
 | — | Rinkhals and Klipper in one bridge (Rinkhals: ACE card with purge multiplier, firmware purge in the Orca preview) | ✅ done (3.12) |
-| — | Home Assistant add-on with ingress (bridge inside HA) | 🔜 next |
+| — | Web UI behind Home Assistant ingress without patches (community add-on) | ✅ done (3.13) |
 
 ## AI notice
 

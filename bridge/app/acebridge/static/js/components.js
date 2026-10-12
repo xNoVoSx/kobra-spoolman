@@ -78,7 +78,8 @@ export function SlotCard({ slot }) {
     title: t("Empty slot {slot}?", { slot: slot.slot }), text: t("{name} goes back to the shelf.", { name: sp.display_name }), ok: t("Empty"),
     action: () => import("./actions.js").then((a) => a.assignSlot(slot.slot, null)),
   }));
-  const open = () => sp && set({ sel: sp.spool_id });
+  // the overview has no spool detail: open the spool on Filament → Spools (idea: MineTech13's HA add-on)
+  const open = () => { if (!sp) return; set({ sel: sp.spool_id }); if (!location.hash.startsWith("#/filament")) location.hash = "#/filament/spools"; };
   return html`
   <article class=${cls("card slot", active && "active")} aria-label=${t("Slot {slot}", { slot: slot.slot })}>
     <div class="head" style=${{ background: sp ? tint(sp.color) : "var(--sunken)" }}>

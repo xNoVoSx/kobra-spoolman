@@ -6,6 +6,28 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.13.0] – 2026-10-12
+
+The web UI runs behind **Home Assistant ingress** as it is — the community add-on
+[MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) no longer needs to patch it.
+
+### Added
+- `ingress.py`: a request through HA's ingress proxy (`X-Ingress-Path` from `172.30.32.2`) gets a start page with
+  `<meta name="ingress">`; the camera then asks for one image after the other and copyable links point at the direct
+  address.
+- `GET /api/camera/frame.jpg?after=<n>`: the next camera image (long poll, header `X-Frame`) — live view where an MJPEG
+  stream does not get through. Rides on the one connection to the printer like a stream viewer.
+- `HA_INGRESS_TRUST` (default `false`): requests from HA's ingress proxy count as the paired device *Home Assistant
+  (ingress)*; the header alone is never trusted.
+- `BRIDGE_PUBLIC_URL`: the direct address for camera links and the app's pairing QR code under ingress (default: the HA
+  host on `HTTP_PORT`). `CAMERA_INGRESS_SNAPSHOTS` (default `true`) switches the single-image camera off.
+- Docs: Home Assistant add-on as installation option B.
+
+### Changed
+- The web UI uses relative paths only (API calls, printer log, AI test image, display thumbnails); a test keeps it so.
+- Slot card: the spool name opens the spool under *Filament → Spools* (on the overview the click showed nothing). Idea
+  from MineTech13's add-on.
+
 ## [3.12.0] – 2026-10-12
 
 **Rinkhals is back.** One bridge for both setups: the stock firmware with

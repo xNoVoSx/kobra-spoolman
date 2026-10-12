@@ -80,7 +80,7 @@ class Bridge:
         self.print_guard = PrintGuard(self)
         self.mqtt = MqttBridge(self)
         self.moisture.room_rh_measured = self.mqtt.room_rh
-        self.devices = Devices(cfg.data_dir, cfg.app_token)
+        self.devices = Devices(cfg.data_dir, cfg.app_token, trust_ingress=cfg.ha_ingress_trust)
         self.camera_key = CameraKey(cfg.data_dir)
         self.console = Console()
         self.moon.console = self.console

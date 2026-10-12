@@ -28,6 +28,8 @@
 | `GATE_DEBOUNCE_S` | `3` | an RFID tag must stay in the slot this long before the bridge assigns its spool; on Rinkhals also how long the active slot must stay the same before consumption moves to it (Rinkhals' gate flickers during a change) |
 | `USAGE_TOLERANCE` | `0.03` | hint if a slot used less than the G-code model minus 3 % |
 | `JOB_HISTORY` | `50` | prints kept in the history |
+| `HA_INGRESS_TRUST` | `false` | Home Assistant add-on: requests that come through HA's ingress proxy (header `X-Ingress-Path` **and** source address `172.30.32.2`) count as a paired device *Home Assistant (ingress)* — HA has already logged the user in, so the sidebar needs no pairing. The header alone is never trusted. Leave it off outside an add-on |
+| `BRIDGE_PUBLIC_URL` | – | the bridge's direct address (e.g. `http://192.168.1.10:7913`) for links other programs open — camera links for Mainsail, the app's pairing QR code — when the web UI runs under HA ingress (an ingress link needs a HA login). Empty: the host the browser opened HA with, on `HTTP_PORT` |
 | `APP_TOKEN` | *(empty)* | **optional, transition only** — devices are now [paired](api.md#pairing-devices) and get their own keys. A set value still works as a key and as a pairing code |
 | `TAG_SKU_PREFIX` / `TAG_NR_MIN` / `TAG_NR_MAX` | `AHPEBK` / `1000` / `99999` | tag numbers for self-written NFC tags (SKU `<prefix>-<number>`); provisional until the tag test |
 | `TELEMETRY` / `TELEMETRY_KEEP` | `true` / `30` | raw recordings of the last prints |
@@ -35,6 +37,7 @@
 | `SPOOLMAN_PUBLIC_URL` | – | Spoolman link in the web UI; empty = same host, port 7912 |
 | `PRINTER_UI_URL` | – | Mainsail link (*Open Mainsail*); empty = the Moonraker host on port 80 |
 | `CAMERA` | `true` | camera through the bridge (web UI, app, Mainsail via camera link) |
+| `CAMERA_INGRESS_SNAPSHOTS` | `true` | under HA ingress the browser asks for one image after the other (`/api/camera/frame.jpg`) instead of the MJPEG stream, which does not get through every proxy chain. `false` tries the stream |
 | `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer) |
 | `CAMERA_FPS_MIN` / `CAMERA_FPS_MAX` | `1` / `10` | range of the snapshot rate |
 | `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | Rinkhals only: the printer's CPU (%) below which the rate goes up by 1 fps every 5 s, above which it goes down — the stock firmware needs its CPU for printing. Ignored under Klipper on a Pi |

@@ -2,7 +2,7 @@
 // connection to the printer for all viewers, paired only). Images only run while they are visible.
 
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
-import { auth, get } from "./api.js";
+import { auth, directBase, get, ingress } from "./api.js";
 import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { S, openDialog, set } from "./store.js";
@@ -32,6 +32,11 @@ export async function cameraKey(force = false) {
   return camKey;
 }
 export const cameraUrl = (key, what = "stream.mjpg") => new URL(`api/camera/${what}?key=${encodeURIComponent(key)}`, location.href).href;
+/** Camera URL for other programs (Mainsail …): under Home Assistant ingress the bridge's direct address. */
+export const cameraLink = (key, what = "stream.mjpg") => ingress
+  ? `${directBase()}/api/camera/${what}?key=${encodeURIComponent(key)}` : cameraUrl(key, what);
+/** Under ingress the proxy chain does not pass the MJPEG stream reliably: single images one after the other. */
+const SNAPSHOTS = ingress === "snapshots";
 
 /** Page in the foreground? In the background the stream is dropped so the bridge can close it. */
 function usePageVisible() {
@@ -44,7 +49,7 @@ function usePageVisible() {
   return vis;
 }
 
-/** Live image via the bridge restream (MJPEG in the <img>). Returns [src, error, onError, fps]. */
+/** Live image via the bridge restream (MJPEG in the <img>, under ingress single images). Returns [src, error, onError, fps]. */
 export function useCamera(active) {
   const page = usePageVisible();
   const on = active && page;
@@ -66,8 +71,30 @@ export function useCamera(active) {
     timer = setTimeout(tick, 1500);
     return () => { stop = true; clearTimeout(timer); setFps(null); };
   }, [on]);
+  const [snap, setSnap] = useState(null);
+  useEffect(() => {          // ingress: ask for the next image as soon as the last one is there
+    if (!SNAPSHOTS || !on || !key) return;
+    let stop = false, timer = null, prev = null, after = -1;
+    const loop = async () => {
+      let wait = 0;
+      try {          // frame.jpg waits on the bridge until there is an image newer than `after`
+        const r = await fetch(cameraUrl(key, "frame.jpg") + `&after=${after}`, { cache: "no-store" });
+        if (!r.ok) throw new Error(String(r.status));
+        after = Number(r.headers.get("X-Frame") || after);
+        const u = URL.createObjectURL(await r.blob());
+        if (stop) URL.revokeObjectURL(u);
+        else { setSnap(u); setErr(null); if (prev) URL.revokeObjectURL(prev); prev = u; }
+      } catch {
+        if (!stop) setErr(t("Camera not reachable – trying again …"));
+        wait = 3000;
+      }
+      if (!stop) timer = setTimeout(loop, wait);
+    };
+    loop();
+    return () => { stop = true; clearTimeout(timer); if (prev) URL.revokeObjectURL(prev); setSnap(null); };
+  }, [on, key]);
   const onError = () => { setErr(t("Camera not reachable – trying again …")); setTimeout(() => setRetry((r) => r + 1), 5000); };
-  const src = on && key ? cameraUrl(key) + `&v=${retry}` : null;
+  const src = on && key ? (SNAPSHOTS ? snap : cameraUrl(key) + `&v=${retry}`) : null;
   return [src, err, onError, fps];
 }
 
