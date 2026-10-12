@@ -160,3 +160,51 @@ def test_panel_html_in_german(ks):
 def test_without_patch_there_is_no_preview(ks):
     assert not hasattr(ks.orca.host, "slice_statistics")
     assert ks.read_slice_statistics() is None
+
+
+RINKHALS = {"model": {"model": "colour", "flush_multiplier": 1.0, "flush_volume_min": 107.0, "flush_volume_max": 800.0,
+                      "offset_mm": -3.0, "first_load_mm": 95.0}}
+
+
+def test_rinkhals_adds_the_firmware_purge_per_change(ks):
+    # blade print on Rinkhals: Orca's matrix does not apply (flush 0), the firmware purges by itself
+    stats = {"plate_index": 0, "filaments": [fil(0, 4830), fil(1, 2660)],
+             "transitions": [{"from": None, "to": 0, "count": 1}, {"from": 0, "to": 1, "count": 1}]}
+    sl = slots(500, 800)
+    sl[0].update(present=True, ace_material="PLA", ace_color="52D2BC")
+    sl[1].update(present=True, ace_material="PLA", ace_color="FFFFFF")
+    fc = ks.build_forecast(stats, sl, purge=RINKHALS)
+    r1, r2 = fc["rows"]
+    change = ks.purge_change_mm("52D2BC", "FFFFFF", ks.DEFAULT_FLUSH, -3.0)
+    assert r1["purge_g"] == pytest.approx(grams(95), abs=0.01)
+    assert r2["purge_g"] == pytest.approx(grams(change), abs=0.01) and change > 50
+    assert r2["need_g"] == pytest.approx(grams(2660 + change), abs=0.1)
+    assert fc["firmware_purge"] and not fc["purge_missing"]
+    html = ks.forecast_html(fc)
+    assert "Firmware purge" in html and "make-profile" not in html
+
+
+def test_rinkhals_matches_the_bridge_model(ks):
+    from acebridge.purge import change_mm
+    for a, b in (("52D2BC", "FFFFFF"), ("000000", "FFFFFF"), ("FFFFFF", "000000"), ("FF0000", "0000FF")):
+        assert ks.purge_change_mm(a, b, ks.DEFAULT_FLUSH, -3.0) == pytest.approx(change_mm(a, b, ks.DEFAULT_FLUSH, -3.0))
+
+
+def test_rinkhals_without_transitions_and_empty_material(ks):
+    stats = {"plate_index": 0, "filaments": [fil(0, 1000, loads=3), fil(1, 1000, loads=2)],
+             "total_filament_changes": 4}
+    sl = slots(500, 800)
+    sl[0].update(present=True, ace_material="", ace_color="000000")
+    sl[1].update(present=True, ace_material="PLA", ace_color="FFFFFF")
+    fc = ks.build_forecast(stats, sl, purge=RINKHALS)
+    r1, r2 = fc["rows"]
+    assert r1["status"] == "nomaterial" and r2["status"] == "ok"
+    assert r1["purge_g"] > grams(95) / 2 and r2["purge_g"] > 0
+    assert any("gets cancelled" in w for w in ks.forecast_warnings(fc))
+    assert not fc["purge_missing"]
+
+
+def test_klipper_ignores_the_purge_model(ks):
+    stats = {"plate_index": 0, "filaments": [fil(0, 1000), fil(1, 1000)], "total_filament_changes": 1}
+    fc = ks.build_forecast(stats, slots(500, 800), purge=None)
+    assert all(r["purge_g"] == 0 for r in fc["rows"]) and fc["purge_missing"] and not fc["firmware_purge"]

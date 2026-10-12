@@ -372,16 +372,105 @@ def active_variant_index(profile):
 
 
 # ====================================================================== usage forecast
+# Rinkhals: the Anycubic firmware purges by itself at every load and ignores Orca's matrix. The bridge sends its purge
+# model (bridge purge.py, docs/findings.md); the colour formula is Orca's FlushVolCalculator::calc_flush_vol.
+DEFAULT_FLUSH = {"flush_multiplier": 1.0, "flush_volume_min": 107.0, "flush_volume_max": 800.0}
+AREA_175 = 3.141592653589793 * (1.75 / 2) ** 2
+
+
+def _hex_rgb(color):
+    h = str(color or "").strip().lstrip("#")[:6]
+    if len(h) != 6:
+        return None
+    try:
+        return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return None
+
+
+def _hsv(r, g, b):
+    import math
+    cmax, cmin = max(r, g, b), min(r, g, b)
+    d = cmax - cmin
+    if abs(d) < 0.001:
+        h = 0.0
+    elif cmax == r:
+        h = 60.0 * math.fmod((g - b) / d, 6.0)
+    elif cmax == g:
+        h = 60.0 * ((b - r) / d + 2)
+    else:
+        h = 60.0 * ((r - g) / d + 4)
+    return h, (0.0 if abs(cmax) < 0.001 else d / cmax), cmax
+
+
+def purge_change_mm(src, dst, flush, offset_mm):
+    """Firmware purge in mm (1.75 mm) for the change src -> dst (colours RRGGBB), None for an unknown colour.
+    Same as the bridge's purge.change_mm."""
+    import math
+    a, b = _hex_rgb(src), _hex_rgb(dst)
+    if a is None or b is None:
+        return None
+    h1, s1, v1 = _hsv(*a)
+    h2, s2, v2 = _hsv(*b)
+    dx = math.cos(math.radians(h1)) * s1 * v1 - math.cos(math.radians(h2)) * s2 * v2
+    dy = math.sin(math.radians(h1)) * s1 * v1 - math.sin(math.radians(h2)) * s2 * v2
+    hs_dist = min(1.2, math.hypot(dx, dy))
+    from_lumi = a[0] * 0.3 + a[1] * 0.59 + a[2] * 0.11
+    to_lumi = b[0] * 0.3 + b[1] * 0.59 + b[2] * 0.11
+    if to_lumi >= from_lumi:
+        lumi_flush = (to_lumi - from_lumi) ** 0.7 * 560.0
+    else:
+        lumi_flush = (from_lumi - to_lumi) * 80.0
+        hs_dist = min(0.67 * v2 + 0.33 * v1, hs_dist)
+    hs_flush = 230.0 * hs_dist
+    vol = max(math.sqrt(hs_flush ** 2 + lumi_flush ** 2 + hs_flush * lumi_flush), 60.0)
+    lo, hi = float(flush["flush_volume_min"]), float(flush["flush_volume_max"])
+    vol = min(max(float(int(vol + lo)), lo), hi)
+    return max(0.0, vol * float(flush["flush_multiplier"]) / AREA_175 + offset_mm)
+
+
+def _firmware_purge(used, stats, slots, model):
+    """mm of firmware purge per filament index: from Orca's transitions (patch 0003) or, without them, from the colours
+    of the used filaments (first load shared, then the mean of the changes from the others)."""
+    flush = {k: float(model.get(k, v)) for k, v in DEFAULT_FLUSH.items()}
+    offset = float(model.get("offset_mm", -3.0))
+    first = float(model.get("first_load_mm", 95.0))
+    colours = {int(s["slot"]) - 1: (s.get("ace_color") or s.get("color")) for s in slots or [] if s.get("slot")}
+    ids = [f["index"] for f in used]
+
+    def change(i, j):
+        mm = purge_change_mm(colours.get(i), colours.get(j), flush, offset)
+        return first if mm is None else mm
+
+    transitions = (stats or {}).get("transitions")
+    if transitions:
+        out = {i: 0.0 for i in ids}
+        for t in transitions:
+            to, n = int(t["to"]), int(t.get("count") or 1)
+            out[to] = out.get(to, 0.0) + n * (first if t.get("from") is None else change(int(t["from"]), to))
+        return out
+    loads = {f["index"]: max(1, int(f.get("loads") or 1)) for f in used}
+    share = 1.0 / len(ids) if ids else 0.0
+    out = {}
+    for j in ids:
+        others = [change(i, j) for i in ids if i != j]
+        per = sum(others) / len(others) if others else first
+        out[j] = share * first + max(0.0, loads[j] - share) * per
+    return out
+
+
 def _mm_to_g(mm, diameter, density):
     r = (diameter or 1.75) / 2
     return mm * 3.141592653589793 * r * r * (density or 1.24) / 1000
 
 
-def build_forecast(stats, slots, reserve_g=5.0):
+def build_forecast(stats, slots, reserve_g=5.0, purge=None):
     """Need per slot for the sliced print.
 
     stats  - result of orca.host.slice_statistics() (volumes in mm3, filament index from 0)
     slots  - slots from /api/orca/state (slot, name, spool_id, remaining_weight)
+    purge  - /api/orca/state "purge" of a Rinkhals bridge ({"model": ...}): the firmware purges by itself, the
+             forecast adds it per colour change (purge_g); None under Klipper + ACEPRO (Orca's matrix is the purge)
 
     Filament N in Orca belongs to slot N (that is how the sync button sets it). The values are the same as in Orca's
     legend: model, support, flushed, tower, total = their sum (not total_volumes_per_extruder - that distributes
@@ -405,6 +494,8 @@ def build_forecast(stats, slots, reserve_g=5.0):
         loads = {f["index"]: int(f.get("loads") or 0) for f in used}
         changes = int((stats or {}).get("total_filament_changes") or 0)
     purged = sum((f.get("flush_mm3") or 0) + (f.get("tower_mm3") or 0) for f in used)
+    model = purge.get("model") if isinstance(purge, dict) else None
+    firmware = _firmware_purge(used, stats, slots, model) if isinstance(model, dict) and used else None
 
     rows, short, tight = [], [], []
     for f in sorted(used, key=lambda x: x["index"]):
@@ -423,10 +514,13 @@ def build_forecast(stats, slots, reserve_g=5.0):
             "orca_g": round(g(orca_mm3(f)), 2),
             "loads": loads.get(f["index"], 0),
         }
-        row["need_g"] = round(row["orca_g"], 1)
+        row["purge_g"] = round(firmware.get(f["index"], 0.0) * AREA_175 * dens / 1000, 2) if firmware else 0.0
+        row["need_g"] = round(row["orca_g"] + row["purge_g"], 1)
         s = by_slot.get(slot_no)
         if s is None:
             row["status"] = "noslot"
+        elif firmware is not None and s.get("present") and not s.get("ace_material"):
+            row["status"] = "nomaterial"          # Rinkhals: GoKlipper cancels a print with an empty slot material
         elif not s.get("spool_id"):
             row["status"] = "nospool"
         else:
@@ -451,7 +545,8 @@ def build_forecast(stats, slots, reserve_g=5.0):
         "tight": tight,
         "changes": changes,
         "loads_exact": bool(transitions),
-        "purge_missing": changes > 0 and purged <= 0,
+        "firmware_purge": firmware is not None,
+        "purge_missing": firmware is None and changes > 0 and purged <= 0,
         "total_g": round(sum(r["need_g"] for r in rows), 1),
     }
 
@@ -470,6 +565,8 @@ def forecast_warnings(fc):
             out.append(tr("Slot {slot} is used but has no spool assigned", slot=r["slot"]))
         elif r["status"] == "noslot":
             out.append(tr("Filament {slot} has no ACE slot", slot=r["slot"]))
+        elif r["status"] == "nomaterial":
+            out.append(tr("Slot {slot}: no material is set at the printer – the print gets cancelled", slot=r["slot"]))
     if fc.get("purge_missing"):
         out.append(tr("The ACE purge is missing in Orca's numbers – create the printer profile again (make-profile.py)"))
     return out
@@ -877,7 +974,7 @@ class Core:
         st = self.bridge_state
         if not st or not self.slice or self.slice["stale"]:
             return None
-        return build_forecast(self.slice["stats"], st.get("slots"), self.cfg("reserve_g"))
+        return build_forecast(self.slice["stats"], st.get("slots"), self.cfg("reserve_g"), st.get("purge"))
 
     def accept_saved(self, oid, entry):
         """The file Orca saved is now our state (after back sync)."""
@@ -1066,7 +1163,7 @@ def _esc(s):
 # symbol, CSS class, English label
 FC_STATUS = {"ok": ("✓", "ok", "enough"), "tight": ("⚠", "warn", "tight"), "short": ("✗", "bad", "not enough"),
              "unknown": ("?", "muted", "rest unknown"), "nospool": ("✗", "bad", "no spool assigned"),
-             "noslot": ("✗", "bad", "no ACE slot")}
+             "noslot": ("✗", "bad", "no ACE slot"), "nomaterial": ("✗", "bad", "no material at the printer")}
 
 
 def forecast_html(fc):
@@ -1090,18 +1187,24 @@ def forecast_html(fc):
         if r["status"] not in ("ok", "unknown"):
             lines.append(f"<div class='{cls} fcw'>{_esc(label)}</div>")
 
-    cols = [(tr("Model"), "model_g"), (tr("Support"), "support_g"), (tr("Flushed"), "flush_g"), (tr("Tower"), "tower_g")]
+    cols = [(tr("Model"), "model_g"), (tr("Support"), "support_g"), (tr("Flushed"), "flush_g"), (tr("Tower"), "tower_g"),
+            (tr("Firmware purge"), "purge_g")]
     cols = [c for c in cols if c[1] == "model_g" or any(r[c[1]] for r in fc["rows"])]
     head = "".join(f"<td class='r'>{t}</td>" for t, _ in cols)
     body = "".join(
         f"<tr><td>{r['slot']}</td>" + "".join(f"<td class='r'>{g(r[k], 2)}</td>" for _, k in cols)
-        + f"<td class='r'><b>{g(r['orca_g'], 2)}</b></td><td class='r'>{g(r.get('remaining_g'))}</td></tr>"
+        + f"<td class='r'><b>{g(r['need_g'], 2)}</b></td><td class='r'>{g(r.get('remaining_g'))}</td></tr>"
         for r in fc["rows"])
     orca_tab = (f"<table><tr class='h'><td>{tr('Filament')}</td>{head}<td class='r'>{tr('Total')}</td>"
                 f"<td class='r'>{tr('Rest')}</td></tr>{body}"
                 f"<tr class='s'><td>{tr('Sum')}</td>{'<td></td>' * len(cols)}<td class='r'>{g(fc['total_g'], 2)}</td>"
                 "<td></td></tr></table>")
-    if fc.get("purge_missing"):
+    if fc.get("firmware_purge"):
+        how = tr("counted by Orca") if fc.get("loads_exact") else tr("total without order")
+        purge_text = tr("{n} colour changes ({how}). “Firmware purge” is what the printer purges by itself at every "
+                        "load (Rinkhals: Orca's matrix does not apply) – computed from the slot colours with the "
+                        "bridge's model.", n=fc["changes"], how=how)
+    elif fc.get("purge_missing"):
         purge_text = ("<span class='warn'>" + tr("The ACE purge is missing in these numbers: the printer profile's "
                       "change-filament G-code does not report it to Orca (EXTERNAL_PURGE). Create the profile again "
                       "with make-profile.py.") + "</span>")
@@ -1165,7 +1268,7 @@ def build_panel_message(core: Core):
     fc = core.forecast()
     if fc:
         for r in fc["rows"]:
-            if r["status"] in ("short", "nospool", "noslot"):
+            if r["status"] in ("short", "nospool", "noslot", "nomaterial"):
                 boxes.append({"error": True, "html": "<b>" + tr("Not enough:") + "</b> "
                               + _esc(forecast_warnings({"rows": [r]})[0])})
 
@@ -1334,7 +1437,7 @@ class KobraPanel(orca.script.ScriptPluginCapabilityBase):
         fc = core.on_slice_complete()
         if fc and core.cfg("warn_after_slice"):
             bad = forecast_warnings({"rows": [r for r in fc["rows"]
-                                              if r["status"] in ("short", "nospool", "noslot")]})
+                                              if r["status"] in ("short", "nospool", "noslot", "nomaterial")]})
             if bad and bad != core.slice_warned:
                 notify("Kobra Spoolman: " + " · ".join(bad), "WarningNotificationLevel")
             core.slice_warned = bad
@@ -1369,6 +1472,14 @@ DE = {
     "Slot {slot}: tight – needs about {need} g, {rest} g left": "Slot {slot}: knapp – braucht ca. {need} g, noch {rest} g",
     "Slot {slot} is used but has no spool assigned": "Slot {slot} wird benutzt, hat aber keine Spule zugeordnet",
     "Filament {slot} has no ACE slot": "Filament {slot} hat keinen ACE-Slot",
+    "Slot {slot}: no material is set at the printer – the print gets cancelled":
+        "Slot {slot}: Am Drucker ist kein Material eingetragen – der Druck bricht ab",
+    "no material at the printer": "kein Material am Drucker",
+    "Firmware purge": "Spülen Firmware",
+    "{n} colour changes ({how}). “Firmware purge” is what the printer purges by itself at every load (Rinkhals: Orca's "
+    "matrix does not apply) – computed from the slot colours with the bridge's model.":
+        "{n} Farbwechsel ({how}). „Spülen Firmware“ ist, was der Drucker bei jedem Laden selbst spült (Rinkhals: Orcas "
+        "Matrix gilt nicht) – aus den Slot-Farben mit dem Modell der Bridge gerechnet.",
     "The ACE purge is missing in Orca's numbers – create the printer profile again (make-profile.py)":
         "Spülen der ACE fehlt in Orcas Zahlen – Drucker-Profil neu anlegen (make-profile.py)",
     "Bridge not reachable ({error})": "Bridge nicht erreichbar ({error})",
