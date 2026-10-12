@@ -144,3 +144,69 @@ def test_base_profile_names_skip_abstract_parents(ks, system, monkeypatch):
     names = ks.SystemProfiles(system / "system").names()
     assert "Test PLA @Printer" in names and "Generic PETG @System" in names
     assert not any(n.startswith("fdm_") for n in names)
+
+
+def test_diff_self_compare_with_differing_variant_lists(ks):
+    """Issue #2 (MineTech13): Listen mit verschiedenen Werten je Variante - beide Seiten auf die aktive Variante
+    reduzieren, sonst meldet sogar der Vergleich einer Datei mit sich selbst Aenderungen (Sync schreibt jedes Mal)."""
+    prof = {"name": "Bambu PLA Basic", "filament_extruder_variant": ["Direct Drive Standard", "Direct Drive High Flow",
+                                                                    "Bowden Standard"],
+            "filament_max_volumetric_speed": ["12", "21", "40"], "filament_flow_ratio": ["0.98", "0.985", "0.985"]}
+    assert ks.diff_profiles(prof, prof) == {}
+    edited = dict(prof, filament_flow_ratio=["0.95", "0.985", "0.985"])       # aktive Variante geaendert
+    assert ks.diff_profiles(prof, edited) == {"filament_flow_ratio": "0.95"}
+    other = dict(prof, filament_flow_ratio=["0.98", "0.9", "0.985"])          # andere Variante: zaehlt nicht
+    assert ks.diff_profiles(prof, other) == {}
+
+
+def test_resolve_ignores_case_and_optional_system_suffix(ks, system, monkeypatch):
+    """Issue #1: "eSun PLA+" / "generic petg" finden "eSUN PLA+ @System" / "Generic PETG @System"."""
+    monkeypatch.setenv("APPDIR", str(system / "appdir"))
+    lib = system / "appdir" / "resources" / "profiles" / "OrcaFilamentLibrary" / "filament"
+    write(lib / "eSUN PLA+ @System.json", {"name": "eSUN PLA+ @System", "inherits": "fdm_filament_pet"})
+    sp = ks.SystemProfiles(system / "system")
+    for name in ("Generic PETG", "generic petg @system", "Generic  PETG @System"):
+        assert sp.resolve(name)["name"] == "Generic PETG @System", name
+    assert sp.resolve("eSun PLA+")["name"] == "eSUN PLA+ @System"
+    assert sp.resolve("Generic PETG @base") is None
+
+
+def test_fallback_base(ks):
+    assert ks.fallback_base({"values": {"filament_type": "PETG"}, "material": "PETG+"}) == "Generic PETG @System"
+    assert ks.fallback_base({"values": {}, "material": "PLA"}) == "Generic PLA @System"
+    assert ks.fallback_base({"values": {}, "material": ""}) is None
+
+
+@pytest.fixture
+def core(ks, system, tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDIR", str(system / "appdir"))
+    monkeypatch.setattr(ks, "DEVICE_FILE", tmp_path / "kobra_device.json")
+    monkeypatch.setattr(ks, "STATE_FILE", tmp_path / "kobra_state.json")
+    monkeypatch.setattr(ks, "WRITTEN_DIR", tmp_path / "written")
+    c = ks.Core(lambda: json.dumps({"bridge_url": "http://bridge.invalid/"}))
+    c.system = ks.SystemProfiles(system / "system")
+    monkeypatch.setattr(c, "user_filament_dir", lambda: tmp_path / "user" / "filament")
+    monkeypatch.setattr(c, "_report_bases", lambda: None)
+    return c
+
+
+def profile(oid, base, material, ftype=None):
+    return {"orca_id": oid, "filament_id": int(oid[-1]), "display_name": f"Test {material or '?'}", "name": "x",
+            "material": material, "base": base, "hash": oid,
+            "values": {"filament_type": ftype} if ftype else {}}
+
+
+def test_sync_falls_back_to_generic_and_explains_missing_base(ks, core, monkeypatch):
+    """Issue #1: ohne Basisprofil in Spoolman (alte Bridge 2.x liefert base leer) -> Generic <Typ> @System; ohne
+    Material eine klare Meldung statt „–“ nicht gefunden."""
+    profs = [profile("SM000001", None, "PETG", "PETG"), profile("SM000002", None, ""),
+             profile("SM000003", "Gibt es nicht", "PLA")]
+    monkeypatch.setattr(core, "http", lambda *a, **k: {"profiles": profs, "hash": "h"})
+    res = core.sync_profiles()
+    assert len(res["written"]) == 1
+    errs = " | ".join(res["errors"])
+    assert "kein Orca-Basisprofil in Spoolman" in errs and "„Gibt es nicht“ nicht in Orca gefunden" in errs
+    assert "„–“" not in errs
+    assert core.missing_bases == {"Gibt es nicht"}
+    # zweiter Sync: nichts neu geschrieben (Issue #2: kein Neuschreiben bei jedem Start)
+    assert core.sync_profiles()["written"] == []

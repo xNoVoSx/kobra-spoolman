@@ -4,7 +4,21 @@ All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
 **plugin** = Orca plugin "Kobra Spoolman". Plugin-only releases have no repo tag.
 Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com/xNoVoSx/orca-kobra/blob/main/CHANGELOG.md). Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+
 ## [Unreleased]
+
+## plugin 0.5.3 – 2026-10-12
+
+Maintenance release for the 2.x line (bridge 2.21.1, Rinkhals / GoKlipper), branch `maint/2.x`.
+Same fixes as plugin 0.6.1:
+
+### Fixed
+- No base profile in Spoolman: falls back to `Generic <material> @System`; if impossible, says *no Orca
+  base profile in Spoolman* instead of „–“ nicht gefunden (#1).
+- Base profile names match ignoring case and an optional `@System` (#1).
+- Profiles whose base has different values per extruder variant were rewritten on every sync and
+  offered as back-sync changes; both sides are now reduced to the active variant. Found and patched by
+  @MineTech13 (#2).
 
 ## [2.21.1] – 2026-10-06
 

@@ -53,7 +53,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.5.2"
+PLUGIN_VERSION = "0.5.3"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # in den Plugin-Einstellungen anpassen
@@ -142,6 +142,20 @@ def safe_name(name, orca_id, material):
     return f"{name} ({orca_id})"
 
 
+def base_key(name):
+    """Vergleichsform eines Basisprofil-Namens: ohne Gross/Klein, Leerraum und Endung " @System"."""
+    n = " ".join(str(name).split()).casefold()
+    return n[:-len(" @system")] if n.endswith(" @system") else n
+
+
+def fallback_base(prof):
+    """Ersatz, wenn Spoolman kein Orca-Basisprofil nennt (weder Filament noch Vorlage): "Generic <Typ> @System".
+    Bridge ab 3.11.2 setzt das selbst; aeltere Bridges (2.x auf Rinkhals) liefern base leer."""
+    ftype = (prof.get("values") or {}).get("filament_type") or prof.get("material") or ""
+    ftype = str(ftype[0] if isinstance(ftype, list) and ftype else ftype).strip()
+    return f"Generic {ftype} @System" if ftype else None
+
+
 class SystemProfiles:
     """Index der Orca-System-Filamentprofile (JSON).
 
@@ -199,9 +213,14 @@ class SystemProfiles:
         return sorted(out)
 
     def _lookup(self, index, name):
+        """Exakt, sonst ohne Gross/Klein und mit/ohne " @System" ("eSun PLA+" -> "eSUN PLA+ @System")."""
         p = index.get(name)
         if p is not None:
             return p
+        want = base_key(name)
+        for n, p in index.items():
+            if base_key(n) == want:
+                return p
         return None
 
     def _find(self, name, prefer=None):
@@ -221,7 +240,7 @@ class SystemProfiles:
             for p in self.by_vendor[k].values():
                 try:
                     with open(p, encoding="utf-8") as fh:
-                        if json.load(fh).get("name") == name:
+                        if base_key(json.load(fh).get("name") or "") == base_key(name):
                             return k, p
                 except Exception:
                     continue
@@ -292,6 +311,14 @@ def build_profile_json(base, prof, name):
     return out
 
 
+def _variant_value(v, idx):
+    """Wert der aktiven Extruder-Variante, wenn v eine Liste je Variante ist; sonst v unveraendert."""
+    lst = as_list(v)
+    if lst is not None and len(lst) > 1:
+        return lst[idx] if idx < len(lst) else lst[0]
+    return v
+
+
 def diff_profiles(written, saved):
     """Schluessel, deren Wert der Nutzer in Orca geaendert hat: {key: neuer Wert (Text)}.
 
@@ -299,18 +326,19 @@ def diff_profiles(written, saved):
     fuegt Orca beim Speichern als eigenen Standardwert hinzu (Orca 2.5: ~80 Schluessel, viele je Extruder-Variante)
     - das ist keine Aenderung des Nutzers."""
     changes = {}
-    idx = active_variant_index(saved)
+    idx_a, idx_b = active_variant_index(written), active_variant_index(saved)
     for key in written:
         if key in META_KEYS:
             continue
         a, b = written.get(key), saved.get(key)
         if b is None:
             continue
-        lst = as_list(b)
-        if lst is not None and len(lst) > 1:
-            # Orca aendert in der Oberflaeche nur die aktive Variante ("Direct Drive Standard" beim S1) - in
-            # Spoolman steht ein Wert pro Feld, also zaehlt genau dieser (eine Liste als Text loescht sonst das Feld)
-            b = lst[idx] if idx < len(lst) else lst[0]
+        # Orca aendert in der Oberflaeche nur die aktive Variante ("Direct Drive Standard" beim S1) - in
+        # Spoolman steht ein Wert pro Feld, also zaehlt genau dieser (eine Liste als Text loescht sonst das Feld).
+        # Beide Seiten gleich behandeln: sonst ist eine Liste mit verschiedenen Werten je Variante
+        # (z.B. filament_max_volumetric_speed) nie gleich und jeder Sync schreibt das Profil neu
+        # (gefunden von MineTech13, Issue #2).
+        a, b = _variant_value(a, idx_a), _variant_value(b, idx_b)
         if normalize(a) != normalize(b):
             v = as_list(b)
             v = v[0] if v else b
@@ -791,12 +819,21 @@ class Core:
             for prof in data.get("profiles", []):
                 oid = prof["orca_id"]
                 wanted.add(oid)
-                base_name = prof.get("base")
+                base_name = prof.get("base") or fallback_base(prof)
                 base = self.system.resolve(base_name) if base_name else None
                 if base is None:
+                    if not base_name:
+                        errors.append(f"{prof['display_name']}: kein Orca-Basisprofil in Spoolman und kein Material – "
+                                      "am Filament „Orca base profile“ setzen oder eine Vorlage anlegen "
+                                      "(spoolman_setup.py)")
+                        continue
                     missing.add(base_name)
-                    errors.append(f"{prof['display_name']}: Orca-Basisprofil „{base_name or '–'}“ nicht gefunden")
+                    hint = "" if prof.get("base") else " (Ersatz, weil in Spoolman keins gesetzt ist)"
+                    errors.append(f"{prof['display_name']}: Orca-Basisprofil „{base_name}“{hint} nicht in Orca "
+                                  "gefunden")
                     continue
+                if not prof.get("base"):
+                    log(f"{prof['display_name']}: kein Orca-Basisprofil in Spoolman - nutze {base_name}")
                 name = safe_name(prof["display_name"], oid, prof.get("material"))
                 profile = build_profile_json(base, prof, name)
                 old = managed.get(oid)
