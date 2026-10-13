@@ -49,6 +49,7 @@ def test_states_from_the_existing_switches(cfg, monkeypatch):
     assert v["powerloss"]["available"] is False                       # module not installed
     assert v["mqtt"]["on"] is False and "MQTT" in v["mqtt"]["why"]
     assert v["vision"]["on"] is True and v["vision"]["switchable"] is False   # set by the installation
+    assert v["vision"]["experimental"] is True and v["camera"]["experimental"] is False
     assert v["app"]["on"] is True and v["app"]["paired"] == 2 and v["display"]["on"] is False
     assert all(g["key"] in {i["group"] for i in features.view(b)["items"]} for g in features.view(b)["groups"])
 

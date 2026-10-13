@@ -41,6 +41,7 @@ class Feature:
     keys: Tuple[str, ...] = ()        # setting keys / printer switch keys / config attribute / device kind
     needs: str = ""                   # what it needs, for the user
     klipper_only: bool = False
+    experimental: bool = False        # works, but not proven on real prints yet - shown as such
 
 
 FEATURES: List[Feature] = [
@@ -71,7 +72,7 @@ FEATURES: List[Feature] = [
             "install", ("mqtt_host",), tr("An MQTT broker (MQTT_HOST and login)")),
     Feature("vision", "integration", tr("AI print-failure detection"),
             tr("Watches the camera for spaghetti and failed prints, warns or pauses"),
-            "install", ("vision_url",), tr("The kobra-vision container and the camera")),
+            "install", ("vision_url",), tr("The kobra-vision container and the camera"), experimental=True),
     Feature("auto_pa", "printer", tr("Auto PA"),
             tr("Pressure advance per speed from Spoolman, measured by the printer when missing"),
             "printer", ("pa",), tr("Klipper setup, module kobra_pa"), klipper_only=True),
@@ -175,7 +176,7 @@ def view(bridge: "Bridge") -> Dict[str, Any]:
     for f in FEATURES:
         st = state(bridge, f, switches, devices)
         items.append({"key": f.key, "group": f.group, "title": f.title, "text": f.text, "needs": f.needs or None,
-                      "doc": doc_url(f), **st})
+                      "doc": doc_url(f), "experimental": f.experimental, **st})
     used = {i["group"] for i in items}
     return {"groups": [{"key": k, "title": t} for k, t in GROUPS if k in used], "items": items,
             "platform": getattr(bridge.moon, "platform", "klipper")}

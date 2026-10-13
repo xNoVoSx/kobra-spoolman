@@ -684,6 +684,7 @@ data class FeatureItem(
     val source: String = "",
     val why: String? = null,
     val paired: Int? = null,
+    val experimental: Boolean = false,
 )
 
 @Serializable

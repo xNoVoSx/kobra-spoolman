@@ -44,7 +44,7 @@ RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die A
 | Automatisch trocknen | feuchte Spulen werden beim Einlegen getrocknet | ACE mit Trockner | *Funktionen* | keine | ja | ja |
 | Druckaufzeichnungen | Rohdaten jedes Drucks, um die Buchungen später nachzuprüfen | – | *Funktionen* | keine | ja | ja |
 | Home Assistant / MQTT | Drucker, Slots und Spulen als Home-Assistant-Geräte | ein MQTT-Broker | `MQTT_HOST` und Zugangsdaten ([Konfiguration](../configuration.md)) oder das [HA-Add-on](installation.md#variante-b--home-assistant-add-on) | keine | ja | ja |
-| KI-Fehldruck-Erkennung | warnt oder pausiert bei Spaghetti und Fehldrucken | der Container kobra-vision und die Kamera | `VISION_URL` ([KI-Erkennung](../vision.md)) | keine – die Bridge schaut sich die Kamerabilder an | ja | ja |
+| KI-Fehldruck-Erkennung | **experimentell** – warnt oder pausiert bei Spaghetti und Fehldrucken | der Container kobra-vision und die Kamera | `VISION_URL` ([KI-Erkennung](../vision.md)) | keine – die Bridge schaut sich die Kamerabilder an | ja | ja |
 | Auto-PA | Pressure Advance je Geschwindigkeit aus Spoolman, gemessen, wenn es fehlt | Klipper-Weg mit unseren Drucker-Modulen | an, wenn das Modul installiert ist; *Funktionen* | etwa 2 Minuten Messung pro neuem Filament | – | ja |
 | Z-Versatz pro Filament | Z-Versatz der ersten Schicht vom Filament in Spoolman | Klipper-Weg, Makro `KOBRA_START` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Fortsetzen nach Stromausfall | setzt einen unterbrochenen Druck in der richtigen Höhe fort | Klipper-Weg, Modul `kobra_resume` | an, wenn installiert; *Funktionen* | schreibt regelmäßig die Druckposition | – | ja |

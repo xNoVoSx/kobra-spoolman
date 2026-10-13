@@ -6,6 +6,14 @@ The bridge watches running prints with a small AI service and raises an alarm wi
 when a print turns into spaghetti. It replaces Obico/OctoApp's failure detection without any extra
 load on the printer.
 
+> [!WARNING]
+> **Experimental.** The detection model is Obico's, which has been in use for years. What is not proven yet is our
+> part around it: it has not seen a real failed print on a Kobra yet, the thresholds (*suspicious*, *failure*,
+> learning time) are estimated from little data, and switching the nozzle off after an AI pause is untested. Start
+> with *notify only*, check its alarms against the camera, and report false alarms or missed failures
+> ([bug report](https://github.com/xNoVoSx/kobra-spoolman/issues/new?template=bug_report.yml)) — the *Fehlalarm* /
+> *Stimmt* buttons also collect them for the next stages.
+
 <p align="center"><img src="images/web-ai.png" width="760" alt="AI alarm in the web UI"></p>
 
 ## How it is built

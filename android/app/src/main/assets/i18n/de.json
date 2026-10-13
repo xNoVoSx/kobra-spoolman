@@ -608,5 +608,6 @@
  "Allow notifications": "Benachrichtigungen erlauben",
  "Printer messages on the phone": "Meldungen vom Drucker aufs Handy",
  "Print finished, paused, errors, spool empty – every kind can be switched off later": "Druck fertig, pausiert, Fehler, Spule leer – jede Art lässt sich später einzeln abschalten",
- "Everything the system can do – on, off, what it needs": "Alles, was das System kann – an, aus, was es braucht"
+ "Everything the system can do – on, off, what it needs": "Alles, was das System kann – an, aus, was es braucht",
+ "experimental": "experimentell"
 }

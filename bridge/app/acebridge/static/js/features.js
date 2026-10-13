@@ -37,7 +37,7 @@ export function FeaturesPage() {
       <h2 class="h2">${g.title}</h2>
       ${v.items.filter((it) => it.group === g.key).map((it) => html`<div class="set-row" key=${it.key}>
         <div class="grow">
-          <div>${it.title}</div>
+          <div>${it.title}${it.experimental && html` <span class="chip warn">${t("experimental")}</span>`}</div>
           <div class="small muted">${it.text}</div>
           ${(it.why || it.needs) && html`<div class="small faint">${it.why || t("Needs: {needs}", { needs: it.needs })}</div>`}
           ${it.doc && html`<a class="small" href=${it.doc} target="_blank" rel="noopener">${t("How it works")}</a>`}
@@ -108,7 +108,7 @@ export function SetupPage() {
     ${step === 2 && html`${v.features.groups.filter((g) => g.key !== "core").map((g) => html`<section class="card pad col">
       <h2 class="h2">${g.title}</h2>
       ${items.filter((it) => it.group === g.key).map((it) => html`<div class="set-row" key=${it.key}>
-        <div class="grow"><div>${it.title}</div><div class="small muted">${it.text}</div>
+        <div class="grow"><div>${it.title}${it.experimental && html` <span class="chip warn">${t("experimental")}</span>`}</div><div class="small muted">${it.text}</div>
           ${!it.switchable && html`<div class="small faint">${it.why}</div>`}
           ${it.doc && html`<a class="small" href=${it.doc} target="_blank" rel="noopener">${t("How it works")}</a>`}</div>
         ${it.switchable ? html`<label class="toggle"><input type="checkbox" role="switch" checked=${!!want[it.key]}

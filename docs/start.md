@@ -44,7 +44,7 @@ of our RFID tags are assigned by themselves when you insert them — the tags ar
 | Drying automatically | damp spools are dried when they are inserted | ACE with dryer | *Features* | none | yes | yes |
 | Print recordings | raw data of every print to check the bookings later | – | *Features* | none | yes | yes |
 | Home Assistant / MQTT | printer, slots and spools as Home Assistant devices | an MQTT broker | `MQTT_HOST` and login ([configuration](configuration.md)), or the [HA add-on](installation.md#option-b--home-assistant-add-on) | none | yes | yes |
-| AI print-failure detection | warns or pauses on spaghetti and failed prints | the kobra-vision container and the camera | `VISION_URL` ([AI detection](vision.md)) | none – the bridge looks at the camera images | yes | yes |
+| AI print-failure detection | **experimental** – warns or pauses on spaghetti and failed prints | the kobra-vision container and the camera | `VISION_URL` ([AI detection](vision.md)) | none – the bridge looks at the camera images | yes | yes |
 | Auto PA | pressure advance per speed from Spoolman, measured when missing | Klipper setup with our printer modules | on when the module is installed; *Features* | a ~2 minute measurement per new filament | – | yes |
 | Z offset per filament | first-layer Z offset from the filament in Spoolman | Klipper setup, macro `KOBRA_START` | on when installed; *Features* | none | – | yes |
 | Resume after a power loss | continues an interrupted print at the right height | Klipper setup, module `kobra_resume` | on when installed; *Features* | writes the print position regularly | – | yes |

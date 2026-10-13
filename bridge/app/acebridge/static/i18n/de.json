@@ -941,5 +941,6 @@
  "Switched off: {names} –": "Ausgeschaltet: {names} –",
  "switch on under Features": "einschalten unter Funktionen",
  "Resume after a power loss": "Fortsetzen nach Stromausfall",
- "Clog detection": "Verstopfung erkennen"
+ "Clog detection": "Verstopfung erkennen",
+ "experimental": "experimentell"
 }

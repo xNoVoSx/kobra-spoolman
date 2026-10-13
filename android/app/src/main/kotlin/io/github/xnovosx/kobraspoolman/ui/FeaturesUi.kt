@@ -58,6 +58,7 @@ private fun FeatureRow(it: FeatureItem, checked: Boolean, enabled: Boolean, onCh
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(it.title, style = MaterialTheme.typography.bodyLarge)
+            if (it.experimental) Text(tr("experimental"), style = MaterialTheme.typography.labelSmall, color = K.Accent)
             Text(it.text, style = MaterialTheme.typography.bodySmall, color = K.Muted)
             (it.why ?: it.needs?.let { n -> tr("Needs: {needs}", "needs" to n) })?.let { w ->
                 Text(w, style = MaterialTheme.typography.bodySmall, color = K.Faint)

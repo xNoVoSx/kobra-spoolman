@@ -6,6 +6,18 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.16.1] – 2026-10-13
+
+### Changed
+- AI print-failure detection is marked *experimental*: on the Features page (web and app), on *Start here* and in
+  `docs/vision.md`, which says what is proven (Obico's model) and what is not yet (no real failed print on a Kobra seen
+  yet, thresholds from little data, nozzle off after an AI pause untested).
+
+## app 1.16.1 – 2026-10-13
+
+### Changed
+- *Features*: the AI print-failure detection shows *experimental*.
+
 ## [3.16.0] – 2026-10-13
 
 A simpler start: new installations start with the core and a setup page, existing ones keep everything, and one page
