@@ -28,6 +28,10 @@ From the Rinkhals test print: the lid of the ACE was open while it dried, and af
 - A dryer fault reported by the ACE (`PTC_err`, heater) was taken for "stopped early": the bridge restarted the run
   three times. Now it stops — no restart, no automation, no planned start — and shows a red message; `error` in
   `/api/dryer`. Starting by hand still works.
+- Rinkhals: at every unload GoKlipper's counter drops by 53 mm (retract and cut) and comes back +50 before the next
+  slot. An interim booking in that moment gave the spool −53 mm in Spoolman. Interim bookings now only go forward;
+  at a change and at the end a correction takes back at most what the print booked on that spool, and a net retract
+  never becomes an open item. Replay test of the real print (56 changes, `tests/test_replay_rinkhals.py`).
 
 ## app 1.17.0 – 2026-10-13
 

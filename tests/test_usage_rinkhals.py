@@ -59,3 +59,22 @@ def test_replay_books_each_slot_exactly(cfg, debounce_s):
     assert sm.booked(4) == pytest.approx(EXPECTED[2], abs=1)
     assert job["changes"] == 1 and job["loads"] == 2
     assert tracker.job is None and tracker.open == []
+
+
+def test_unload_at_start_books_nothing_negative(cfg):
+    """13.10.: slot 3 loaded at the print start, GoKlipper unloads it first (-3 retract, -50 cut, '' and +50 back),
+    then slot 1 prints. Slot 3 used nothing - no negative booking, no open item with -3 mm."""
+    cfg.book_interval_s, cfg.book_min_mm = 0, 1
+    moon, sm, tracker = make(cfg, [spool(1, 1), spool(5, 3)])
+
+    def st(cur, used, state="printing"):
+        return {"print_stats": {"state": state, "filename": "duck.gcode", "filament_used": used},
+                "filament_hub": {"current_filament": cur}}
+    steps = [st("0-2", 0), st("0-2", -3), st("0-2", -53), st("", -53), st("", -3), st("0-0", -3), st("0-0", 497),
+             st("0-0", 497, "complete")]
+    rows = [{"type": "start", "status": steps[0]}] + [{"type": "delta", "d": s} for s in steps[1:]]
+    feed(moon, tracker, rows)
+
+    assert [b for b in sm.bookings if b[0] == 5] == []
+    assert sm.booked(1) == pytest.approx(500)
+    assert tracker.open == [] and tracker.job is None

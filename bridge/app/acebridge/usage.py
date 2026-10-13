@@ -474,11 +474,15 @@ class UsageTracker:
         for b in list(job["buckets"].values()):
             spool_id = b.get("spool_id")
             todo = b["mm"] - b["booked_mm"]
-            if spool_id is None or abs(todo) < 0.05:
+            if spool_id is None:
                 continue
             if final or b["gate"] == due_gate:
-                pass
-            elif abs(todo) < self.cfg.book_min_mm or now - b.get("last_book", 0) < self.cfg.book_interval_s:
+                # GoKlipper retracts and cuts at every unload (-53 mm, mostly counted back before the next slot):
+                # a correction may only take back what this print booked on the spool, never more
+                todo = max(todo, -b["booked_mm"])
+            elif todo < self.cfg.book_min_mm or now - b.get("last_book", 0) < self.cfg.book_interval_s:
+                continue  # interim bookings only forward - a retract in progress waits for the change or the end
+            if abs(todo) < 0.05:
                 continue
             res = await self._use(spool_id, todo)
             if res == "ok":
@@ -550,7 +554,9 @@ class UsageTracker:
         # what is not booked by now becomes an open item
         for b in job["buckets"].values():
             rest = b["mm"] - b["booked_mm"]
-            if abs(rest) < 0.5:
+            if rest < 0.5:
+                if rest <= -0.5:
+                    log.info("Slot %d: %.1f mm net retract not booked back", b["gate"] + 1, -rest)
                 continue
             reason = "no_spool" if b.get("spool_id") is None else "retry"
             self._add_open(job, b, rest, reason)

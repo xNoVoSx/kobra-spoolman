@@ -14,6 +14,7 @@ CHANGELOG = [
         tr("Moisture estimate: drying approaches the humidity the ACE measures – a run with the lid open hardly counts"),
         tr("Dryer fault of the ACE (e.g. PTC_err): no automatic restart any more, red message"),
         tr("Print card: “x of y still to print” and what is left on the spool, instead of “~y, x left”"),
+        tr("Rinkhals: no negative interim booking when a slot is unloaded (retract and cut)"),
     ]),
     ("3.17.0", "2026-10-13", [
         tr("Original Anycubic tags: the one fitting spool on the shelf (material, colour, vendor) is assigned automatically; with several a message asks"),

@@ -237,15 +237,20 @@ live in `webcommon.Ctx`. Every state file in `DATA_DIR` is written through `stor
   and purge at a tool change (ACEPRO patch: `gcode_move.reset_last_position()` after its direct
   extruder moves, so they show up at once).
 - Consumption = **signed** delta of `filament_used`; retracts cancel out.
-- Each delta belongs to the slot the ACE reports as loaded (ACEPRO `ace.current_index`, Rinkhals `mmu.gate` once it
-  stayed the same for `GATE_DEBOUNCE_S`); during a tool change after the unload (`current_index = -1`) to the incoming
+- Each delta belongs to the slot the ACE reports as loaded (ACEPRO `ace.current_index`, Rinkhals
+  `filament_hub.current_filament` once it stayed the same for `GATE_DEBOUNCE_S`; while it is empty, to the slot
+  before); during a tool change after the unload (`current_index = -1`) to the incoming
   slot (`ace.target_index`). So the unload
   retract goes to the old filament, load and purge to the **newly loaded** one — which is physically right.
   Consumption before the first loaded slot goes to the first one.
 - Buckets are *(slot, spool)*: if the spool in a slot changes mid-print, both get their share; with
   endless spool the consumption simply follows the new slot.
 - Bookings: `PUT /api/v1/spool/{id}/use` with `use_length` (Spoolman converts using density and
-  diameter). At every slot change, every `BOOK_INTERVAL_S` and at the end.
+  diameter). At every slot change, every `BOOK_INTERVAL_S` and at the end. Interim bookings only go forward:
+  GoKlipper drops its counter by 53 mm at every unload (retract and cut) and counts 50 mm back before the next slot,
+  so a negative amount waits. At a change and at the end a correction takes back at most what the print booked on
+  that spool; a net retract on a slot that hardly printed is dropped, not an open item (replay
+  `tests/test_replay_rinkhals.py`, 56 changes).
 - State (`data/usage/state.json`) is written atomically right after every successful booking, so a
   crash cannot book twice; on restart the bridge continues from the saved counter.
 - Target comparison: once the bridge has parsed the print file (`render.py`) it stores the extrusion per

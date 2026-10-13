@@ -689,5 +689,6 @@
  "Dryer: “lid open?” when the ACE stays more than 10 °C below its target (web, app notification); a drying run can be discarded – its spools go back to the moisture from before": "Trockner: „Deckel offen?“, wenn die ACE mehr als 10 °C unter dem Soll bleibt (Web, App-Benachrichtigung); eine Trocknung lässt sich verwerfen – ihre Spulen gehen auf die Feuchte von davor zurück",
  "Moisture estimate: drying approaches the humidity the ACE measures – a run with the lid open hardly counts": "Feuchte-Schätzung: Trocknen nähert sich der Feuchte an, die die ACE misst – eine Trocknung mit offenem Deckel zählt kaum",
  "Dryer fault of the ACE (e.g. PTC_err): no automatic restart any more, red message": "Trocknerfehler der ACE (z. B. PTC_err): kein automatischer Neustart mehr, rote Meldung",
- "Print card: “x of y still to print” and what is left on the spool, instead of “~y, x left”": "Druckkarte: „noch x von y zu drucken“ und der Rest auf der Spule statt „~y, noch x“"
+ "Print card: “x of y still to print” and what is left on the spool, instead of “~y, x left”": "Druckkarte: „noch x von y zu drucken“ und der Rest auf der Spule statt „~y, noch x“",
+ "Rinkhals: no negative interim booking when a slot is unloaded (retract and cut)": "Rinkhals: keine negative Zwischenbuchung mehr beim Entladen eines Slots (Rückzug und Schnitt)"
 }
