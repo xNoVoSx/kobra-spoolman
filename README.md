@@ -11,7 +11,7 @@ Works on the **stock firmware with [Rinkhals](https://github.com/rinkhals-commun
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![OrcaSlicer build](https://img.shields.io/badge/OrcaSlicer-orca--kobra-2ea44f)](https://github.com/xNoVoSx/orca-kobra)
 
-[Deutsch](README.de.md) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [Troubleshooting](docs/troubleshooting.md) · [API](docs/api.md) · [AI notice](#ai-notice)
+[Deutsch](README.de.md) · [Start here](docs/start.md) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [Troubleshooting](docs/troubleshooting.md) · [API](docs/api.md) · [AI notice](#ai-notice)
 
 </div>
 
@@ -144,6 +144,9 @@ tested here — reports are welcome.
 
 ## Quick start
 
+**New here?** [docs/start.md](docs/start.md) starts with the core (Spoolman bookings in about 5 minutes) and lists
+every extension with what it needs and what it costs the printer. The full workflow:
+
 1. **Spoolman fields and templates** — once:
    `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
 2. **Bridge** — add it to your Spoolman stack ([compose example](bridge/compose.yaml)) with
@@ -226,6 +229,7 @@ Keep the bridge inside your home network; it has no TLS.
 
 | | |
 |---|---|
+| [Start here](docs/start.md) | By goal: the core in 5 minutes, then every extension with what it needs and how to switch it on |
 | [Installation](docs/installation.md) | Spoolman, bridge (Docker/Portainer), pairing, Orca build, plugin, app |
 | [Daily use](docs/usage.md) | Web UI and app, filaments, slots, printing, dryer, open items, back-sync |
 | [Troubleshooting](docs/troubleshooting.md) | Common problems and how to solve them |

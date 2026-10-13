@@ -2,7 +2,8 @@
 
 [Deutsch](de/installation.md) · [Back to README](../README.md)
 
-This guide takes you from zero to the full workflow. Allow about an hour — most of it is the
+Only want the core first? [start.md](start.md) gets Spoolman bookings running in about 5 minutes. This guide takes
+you from zero to the full workflow. Allow about an hour — most of it is the
 first OrcaSlicer build, which GitHub does for you.
 
 **Overview**

@@ -2,7 +2,8 @@
 
 [English](../installation.md) · [Zurück zur README](../../README.de.md)
 
-Diese Anleitung führt von null bis zum fertigen Ablauf. Rechne mit etwa einer Stunde – das meiste
+Erst nur den Kern? [start.md](start.md) bringt die Spoolman-Buchung in etwa 5 Minuten zum Laufen. Diese Anleitung
+führt von null bis zum fertigen Ablauf. Rechne mit etwa einer Stunde – das meiste
 davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 
 **Überblick**

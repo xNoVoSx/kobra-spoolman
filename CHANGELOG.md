@@ -24,6 +24,8 @@ shows and switches every feature.
   overview shows a one-time hint on the Features page. What the installation sets always wins.
 - ACE page: a printer module that is switched off (resume after power loss, clog detection, Auto PA) disappears, with a
   link to switch it on under *Features*.
+- Docs: *Start here* (`docs/start.md`, `docs/de/start.md`) by goal — the core in about 5 minutes, then every extension
+  with what it gives, what it needs, how to switch it on, what it costs the printer and which setup it runs on.
 
 ## app 1.16.0 – 2026-10-13
 

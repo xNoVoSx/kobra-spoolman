@@ -11,7 +11,7 @@ Läuft auf der **Original-Firmware mit [Rinkhals](https://github.com/rinkhals-co
 [![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
 [![OrcaSlicer-Build](https://img.shields.io/badge/OrcaSlicer-orca--kobra-2ea44f)](https://github.com/xNoVoSx/orca-kobra)
 
-[English](README.md) · [Installation](docs/de/installation.md) · [Alltag](docs/de/usage.md) · [Fehlersuche](docs/de/troubleshooting.md) · [API (englisch)](docs/api.md) · [KI-Hinweis](#ki-hinweis)
+[English](README.md) · [Hier anfangen](docs/de/start.md) · [Installation](docs/de/installation.md) · [Alltag](docs/de/usage.md) · [Fehlersuche](docs/de/troubleshooting.md) · [API (englisch)](docs/api.md) · [KI-Hinweis](#ki-hinweis)
 
 </div>
 
@@ -146,6 +146,9 @@ aber nicht getestet – Rückmeldungen sind willkommen.
 
 ## Schnellstart
 
+**Neu hier?** [docs/de/start.md](docs/de/start.md) fängt mit dem Kern an (Spoolman-Buchung in etwa 5 Minuten) und
+listet jede Erweiterung mit dem, was sie braucht und was sie den Drucker kostet. Der ganze Ablauf:
+
 1. **Spoolman-Felder und Vorlagen** – einmalig:
    `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
 2. **Bridge** – in den Spoolman-Stack aufnehmen ([Compose-Beispiel](bridge/compose.yaml)) mit
@@ -230,6 +233,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 
 | | |
 |---|---|
+| [Hier anfangen](docs/de/start.md) | Nach Zielen: der Kern in 5 Minuten, dann jede Erweiterung mit dem, was sie braucht, und wie man sie einschaltet |
 | [Installation](docs/de/installation.md) | Spoolman, Bridge (Docker/Portainer), Koppeln, Orca-Build, Plugin, App |
 | [Im Alltag](docs/de/usage.md) | Weboberfläche und App, Filamente, Slots, Drucken, Trockner, offene Posten, Rücksync |
 | [Fehlersuche](docs/de/troubleshooting.md) | Häufige Probleme und Lösungen |
