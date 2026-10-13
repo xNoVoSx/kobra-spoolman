@@ -122,8 +122,9 @@ Both need:
   `orca-kobra` build (Linux AppImage) until PR #14423 is merged upstream.
 - Optional: an Android phone (Android 10+) with NFC for the app.
 
-Other Rinkhals printers with an ACE (Kobra 3 and friends) use the same Rinkhals interface and should work, but are not
-tested here — reports are welcome.
+Other Rinkhals printers with an ACE use the same Rinkhals interface. A **Kobra 3 with ACE Pro** is confirmed by a
+user's print (consumption per spool, colour changes and the firmware purge, kept as a replay test); others should work
+too — reports are welcome.
 
 ### What works on which setup
 

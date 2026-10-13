@@ -6,6 +6,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Tests
+- Replay of a real print on a **Kobra 3 with ACE Pro** under Rinkhals (shared by MineTech13, 9 h, 94.4 m, 6 colour
+  changes): every spool booked like the printer's counter, never below zero, and the firmware purge model within 10 %
+  of the measured extra use. Switching the printer off and on moves no spool to the shelf.
+
 ## [3.18.2] – 2026-10-13
 
 ### Fixed

@@ -124,8 +124,9 @@ Für beide:
   `orca-kobra`-Build (Linux-AppImage), bis PR #14423 in Orca übernommen ist.
 - Optional: ein Android-Handy (ab Android 10) mit NFC für die App.
 
-Andere Rinkhals-Drucker mit ACE (Kobra 3 und Co.) nutzen dieselbe Rinkhals-Schnittstelle und sollten laufen, sind hier
-aber nicht getestet – Rückmeldungen sind willkommen.
+Andere Rinkhals-Drucker mit ACE nutzen dieselbe Rinkhals-Schnittstelle. Ein **Kobra 3 mit ACE Pro** ist durch den Druck
+eines Nutzers bestätigt (Verbrauch je Spule, Farbwechsel und Firmware-Spülung, als Replay-Test im Repo); andere sollten
+ebenso laufen – Rückmeldungen sind willkommen.
 
 ### Was auf welchem Aufbau geht
 
