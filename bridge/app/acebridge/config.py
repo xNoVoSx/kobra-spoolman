@@ -162,6 +162,8 @@ class Config:
     # language for devices that do not say which one they want, and for MQTT / Home Assistant: en | de
     # (not LANGUAGE - that one belongs to gettext and may be set by the system)
     language: str = field(default_factory=lambda: os.environ.get("UI_LANGUAGE", "en").strip().lower()[:2] or "en")
+    # printer name in web, app, display and Home Assistant; empty = from the last print file (printer_model)
+    printer_name: str = field(default_factory=lambda: os.environ.get("PRINTER_NAME", "").strip())
 
     # links for the web UI (reachable from the browser). Empty = automatic.
     spoolman_public_url: str = field(default_factory=lambda: os.environ.get("SPOOLMAN_PUBLIC_URL", "").rstrip("/"))

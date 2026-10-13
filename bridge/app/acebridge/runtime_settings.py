@@ -42,6 +42,9 @@ SPECS: List[Spec] = [
          options=(("en", "English"), ("de", "Deutsch")),
          help=tr("For devices without their own language setting, and for Home Assistant (MQTT). Every browser and "
                  "the app can switch on their own")),
+    Spec("printer_name", tr("General"), tr("Printer name"), "text",
+         help=tr("Shown in web, app, display and Home Assistant. Empty: taken from the last print file (the slicer's "
+                 "printer model)")),
     # camera
     Spec("camera", tr("Camera"), tr("Camera through the bridge"), "bool",
          help=tr("Web, app and the Mainsail link fetch their images through the bridge")),

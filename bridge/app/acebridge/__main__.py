@@ -16,6 +16,7 @@ from .config import Config
 from .ace import AceSettings
 from .camera import Camera
 from .moonraker import Moonraker
+from .printerinfo import PrinterInfo
 from .render import PrintPreview
 from .slots import SlotManager
 from .spoolman import Spoolman
@@ -72,6 +73,7 @@ class Bridge:
         self.camera = Camera(cfg, self.moon, session)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
+        self.printer = PrinterInfo(cfg, self.moon, session)       # printer/ACE model for the UIs (printerinfo.py)
         self.preview.on_ready = self.usage.set_targets
         self.dryer = Dryer(cfg, self.moon, self.slots)
         self.humidity = HumidityLog(cfg, self.moon)
@@ -111,6 +113,10 @@ class Bridge:
             self.preview.watch(self.moon.status)        # new print -> load the file for the preview
         except Exception:  # noqa: BLE001
             log.exception("Preview error")
+        try:
+            self.printer.watch(self.moon.status)        # new print -> printer model from the file's tail
+        except Exception:  # noqa: BLE001
+            log.exception("Printer model error")
         new_state = (self.moon.status.get("print_stats", {}) or {}).get("state", "") or ""
         old_state, self._print_state = self._print_state, new_state
         if new_state != old_state:

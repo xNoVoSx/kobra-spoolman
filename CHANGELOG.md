@@ -12,6 +12,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 - Slot cards while the printer or the ACE is off: they keep the spool Spoolman has in the slot and show it dimmed
   with *Offline – last known* (web, app, display), until the ACE reports again. `live` per slot in `/api/slots` and
   `/api/app/state`. (Since 3.18.1 switching off moves no spool to the shelf any more.)
+- Printer and ACE name instead of a fixed *Kobra S1* / *ACE 2 Pro* (web header, display, app, widget, status bar,
+  Home Assistant device): `PRINTER_NAME` (setting *Printer name*), else the model Orca writes into the print file
+  (`printerinfo.py` reads only the file's last 128 KB at a print start, `data/printer.json`), else *Printer*. The ACE
+  comes from the driver (ACEPRO `model`, Rinkhals `filament_model`). `printer_name` and `ace_model` in `/api/health`
+  and `/api/app/state`.
 
 ### Tests
 - Replay of a real print on a **Kobra 3 with ACE Pro** under Rinkhals (shared by MineTech13, 9 h, 94.4 m, 6 colour
@@ -47,6 +52,7 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 
 ### Added
 - Slots while the printer or the ACE is off: the card keeps its spool, dimmed with *Offline – last known*.
+- The printer's name from the bridge (e.g. *Kobra 3*) in the header, widget and status bar instead of *Kobra S1*.
 
 ## app 1.17.1 – 2026-10-13
 

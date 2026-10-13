@@ -84,7 +84,7 @@ function TopBar({ page, ultra }) {
   return html`<header class="top">
     <h1 class="h1">${ultra && page === "" ? "Kobra Spoolman" : (PAGES[page] || { title: t("More") }).title}</h1>
     <div class="status-chips hide-phone">
-      <span class=${cls("chip", look.cls)}><span class="dot" style=${{ background: look.dot, width: "8px", height: "8px" }}></span>Kobra S1 · ${look.label}</span>
+      <span class=${cls("chip", look.cls)}><span class="dot" style=${{ background: look.dot, width: "8px", height: "8px" }}></span>${S.st?.printer_name || t("Printer")} · ${look.label}</span>
       ${S.st && !S.st.spoolman && html`<span class="chip bad">${t("Spoolman disconnected")}</span>`}
       ${S.stErr && html`<span class="chip bad">${S.stErr}</span>`}
       ${!S.me && html`<button class="chip warn" onClick=${() => set({ pairing: true })}>${t("view only – pair")}</button>`}

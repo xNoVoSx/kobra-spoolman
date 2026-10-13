@@ -12,6 +12,7 @@ import android.widget.RemoteViews
 import io.github.xnovosx.kobraspoolman.MainActivity
 import io.github.xnovosx.kobraspoolman.R
 import io.github.xnovosx.kobraspoolman.data.Printer
+import io.github.xnovosx.kobraspoolman.data.PrinterLabel
 import io.github.xnovosx.kobraspoolman.ui.Format
 import io.github.xnovosx.kobraspoolman.data.tr
 
@@ -56,12 +57,12 @@ class PrintWidget : AppWidgetProvider() {
             val pct = ((p?.progress ?: 0.0) * 100).toInt()
             val file = p?.file?.substringAfterLast('/')?.removeSuffix(".gcode")
             val title = when {
-                monitorOff -> "Kobra S1"
-                !reachable -> "Kobra S1 · " + tr("Bridge not reachable")
-                p == null -> "Kobra S1"
+                monitorOff -> PrinterLabel.get()
+                !reachable -> PrinterLabel.get() + " · " + tr("Bridge not reachable")
+                p == null -> PrinterLabel.get()
                 running && p.state == "paused" -> tr("Paused · {pct} %", "pct" to pct)
                 running -> "$pct % · ${file ?: tr("Print")}"
-                else -> "Kobra S1 · ${Format.stateLabel(p)}"
+                else -> "${PrinterLabel.get()} · ${Format.stateLabel(p)}"
             }
             val sub = when {
                 monitorOff -> tr("Monitoring off – switch it on in the app under Settings")

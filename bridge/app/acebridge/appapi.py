@@ -575,6 +575,7 @@ class AppApi:
             shelf.sort(key=lambda s: (s.get("remaining_weight") is None, -(s.get("remaining_weight") or 0)))
             return json_response({
                 "version": __version__,
+                **(b.printer.view(b.moon.status) if getattr(b, "printer", None) else {}),
                 "ui": UI_TAG,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active,
                                          getattr(b, "phase_steps", None), getattr(b.moon, "platform", "klipper"),

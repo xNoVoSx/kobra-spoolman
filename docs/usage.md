@@ -451,7 +451,7 @@ At the bottom, *New in the bridge* lists the changes of the last ten versions (a
 ## Home Assistant
 
 With `MQTT_HOST` set, the bridge sends printer, slots, ACE, messages and AI to your MQTT broker and
-Home Assistant creates the device *Kobra S1 (ace-lane-bridge)* by itself — the printer gets no extra
+Home Assistant creates the device *<printer name> (ace-lane-bridge)* (e.g. *Kobra S1 (ace-lane-bridge)*) by itself — the printer gets no extra
 client. Details in [configuration](configuration.md#home-assistant-mqtt).
 
 ## AI print-failure detection

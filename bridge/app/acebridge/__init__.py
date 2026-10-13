@@ -11,6 +11,7 @@ __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 CHANGELOG = [
     ("3.19.0", "2026-10-14", [
         tr("Printer or ACE switched off: the slot cards keep their spools and show them dimmed with “Offline – last known” (web, app, display)"),
+        tr("The printer's name comes from the print file (e.g. Kobra 3) or the setting “Printer name”, the ACE's from the driver – no fixed “Kobra S1” and “ACE 2 Pro” any more"),
     ]),
     ("3.18.2", "2026-10-13", [
         tr("Purge log: every colour change says where its purge comes from – set by Orca, the firmware's own purge on Rinkhals (now with its length), or nothing set (print start, endless spool, by hand)"),

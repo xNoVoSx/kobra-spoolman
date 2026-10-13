@@ -458,7 +458,7 @@ der letzten zehn Versionen (alle: [Changelog](../../CHANGELOG.md), englisch).
 ## Home Assistant
 
 Mit `MQTT_HOST` schickt die Bridge Drucker, Slots, ACE, Meldungen und KI an deinen MQTT-Broker, und Home
-Assistant legt das Gerät *Kobra S1 (ace-lane-bridge)* von selbst an – der Drucker bekommt keinen weiteren
+Assistant legt das Gerät *<Druckername> (ace-lane-bridge)* (z. B. *Kobra S1 (ace-lane-bridge)*) von selbst an – der Drucker bekommt keinen weiteren
 Client. Details in der [Konfiguration](../configuration.md#home-assistant-mqtt).
 
 ## KI-Fehldruck-Erkennung

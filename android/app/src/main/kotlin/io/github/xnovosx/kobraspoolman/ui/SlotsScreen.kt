@@ -66,7 +66,7 @@ fun SlotsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            ScreenHeader("Kobra S1", action = { RoundIconButton(KIcons.Refresh, tr("Refresh"), onRefresh) })
+            ScreenHeader(state?.printerName?.takeIf { it.isNotBlank() } ?: tr("Printer"), action = { RoundIconButton(KIcons.Refresh, tr("Refresh"), onRefresh) })
         }
         if (lanMissing) item { LanMissing(onGrantLan) }
         if (error != null) item { Hint(error, danger = true) }

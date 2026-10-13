@@ -7,6 +7,7 @@
 | Variable | Default | Meaning |
 |---|---|---|
 | `MOONRAKER_URL` | **required** | Moonraker — on the printer with Rinkhals or on the Klipper Pi, e.g. `http://192.168.1.50:7125`. The bridge detects Rinkhals or Klipper + ACEPRO by itself |
+| `PRINTER_NAME` | *(empty)* | printer name in web, app, display and Home Assistant. Empty: taken from the last print file (Orca writes `; printer_model = Anycubic Kobra 3` at the end; the bridge reads only the file's last 128 KB), *Printer* until then. Changeable at runtime |
 | `UI_LANGUAGE` | `en` | default language (`en` or `de`) of the texts the bridge sends: to devices without their own choice, Home Assistant (MQTT), notifications. Every browser and the app can switch for itself; changeable at runtime. The log is always English |
 | `MOONRAKER_API_KEY` | – | only if Moonraker requires one |
 | `SPOOLMAN_URL` | `http://spoolman:8000` | inside the same stack via the service name |
@@ -98,7 +99,7 @@ With `MQTT_HOST` set, the bridge publishes what it knows anyway — the printer 
 | `<prefix>/vision` | AI level and score (only with `VISION_URL`) |
 
 Values are sent on change, at most every 5 s. With `MQTT_DISCOVERY` Home Assistant creates the device
-*Kobra S1 (ace-lane-bridge)* with all sensors by itself.
+*<printer name> (ace-lane-bridge)* with all sensors by itself.
 
 **Room sensor:** `ROOM_SENSOR_TOPIC` is subscribed; a JSON payload with `humidity` (and `temperature`),
 as Zigbee2MQTT sends it, or a plain number. While the last value is younger than 2 h it replaces

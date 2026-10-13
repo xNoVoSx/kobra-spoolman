@@ -85,6 +85,7 @@ def build_app(bridge: "Bridge") -> web.Application:
             "app": __app_name__,
             "description": __description__,
             "version": __version__,
+            **(bridge.printer.view(bridge.moon.status) if getattr(bridge, "printer", None) else {}),
             "started": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(STARTED)),
             "uptime_s": int(time.time() - STARTED),
             "python": platform.python_version(),

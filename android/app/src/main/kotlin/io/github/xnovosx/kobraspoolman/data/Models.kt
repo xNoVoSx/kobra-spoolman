@@ -12,6 +12,10 @@ import kotlinx.serialization.json.JsonElement
 @Serializable
 data class AppState(
     val version: String = "",
+    /** Printer name from the bridge (setting or the last print file) - null: say "Printer" (older bridges too) */
+    @SerialName("printer_name") val printerName: String? = null,
+    /** ACE model from the driver ("ACE 2 Pro", "ACE Pro") - null when it does not say */
+    @SerialName("ace_model") val aceModel: String? = null,
     val printer: Printer = Printer(),
     val spoolman: Boolean = false,
     @SerialName("can_write") val canWrite: Boolean = false,
@@ -728,3 +732,9 @@ data class SetupInfo(
     val found: SetupFound = SetupFound(),
     val features: Features = Features(),
 )
+
+/** Printer name for places without the app state at hand (widget, status bar), set by whoever loads the state. */
+object PrinterLabel {
+    @Volatile var name: String? = null
+    fun get(): String = name?.takeIf { it.isNotBlank() } ?: tr("Printer")
+}

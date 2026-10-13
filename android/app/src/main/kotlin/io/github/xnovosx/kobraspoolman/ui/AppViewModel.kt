@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.xnovosx.kobraspoolman.BuildConfig
+import io.github.xnovosx.kobraspoolman.data.PrinterLabel
 import io.github.xnovosx.kobraspoolman.data.SpoolMoistureFull
 import io.github.xnovosx.kobraspoolman.data.AcePurge
 import io.github.xnovosx.kobraspoolman.data.HumidityData
@@ -128,6 +129,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val c = client() ?: return
         try {
             _state.value = c.state()
+            PrinterLabel.name = _state.value?.printerName
             _error.value = null
         } catch (e: BridgeException) {
             _error.value = e.message

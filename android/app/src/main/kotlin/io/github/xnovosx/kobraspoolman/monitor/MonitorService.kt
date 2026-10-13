@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.os.IBinder
 import io.github.xnovosx.kobraspoolman.data.BridgeClient
+import io.github.xnovosx.kobraspoolman.data.PrinterLabel
 import io.github.xnovosx.kobraspoolman.data.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ class MonitorService : Service() {
             val state = runCatching { client.state() }.getOrNull()
             val now = System.currentTimeMillis()
             val p = state?.printer
+            if (state != null) PrinterLabel.name = state.printerName
             val running = p != null && (p.state == "printing" || p.state == "paused")
             val events = detector.update(state, now)
             // alarm with a fresh camera image: you see at once what is going on

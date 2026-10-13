@@ -35,7 +35,7 @@ export function Overview() {
       ${open && html`<div class="o-open"><${OpenItemsCard} /></div>`}
     </div>
     <div class="ov2-slots col" style="gap:14px">
-      <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span>
+      <div class="sec-head"><span class="lbl">${S.st?.ace_model || "ACE"} · Slots</span>
         <span class="small muted">${t("Assigning also gives material, colour and temperature to the ACE (spools without a tag)")}</span></div>
       <${Slots} />
     </div>
@@ -49,7 +49,7 @@ export function Ultra() {
   <div class="ultra">
     <div class="ucol"><${PrinterCard} tall /></div>
     <div class="ucol">
-      <div class="sec-head"><span class="lbl">ACE 2 Pro · Slots</span><span class="small muted">${t("Assigning also gives the values to the ACE")}</span></div>
+      <div class="sec-head"><span class="lbl">${S.st?.ace_model || "ACE"} · Slots</span><span class="small muted">${t("Assigning also gives the values to the ACE")}</span></div>
       <${Slots} />
       <div class="ugrid2"><${DryerCard} /><${AceCard} compact /></div>
     </div>

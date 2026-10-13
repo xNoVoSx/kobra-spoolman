@@ -4,7 +4,7 @@ The printer notices nothing: everything comes from the bridge's Moonraker subscr
 - States as JSON (retained) under <MQTT_PREFIX>/printer, /ace, /slot/<n>, /notices, /vision;
   <MQTT_PREFIX>/status = online/offline (last will).
 - Home Assistant finds the sensors by itself (MQTT discovery under <MQTT_DISCOVERY>/...), all on one device
-  "Kobra S1 (ace-lane-bridge)". MQTT_DISCOVERY empty = no discovery.
+  "<printer name> (ace-lane-bridge)". MQTT_DISCOVERY empty = no discovery.
 - Room sensor (e.g. Zigbee2MQTT): subscribe ROOM_SENSOR_TOPIC; JSON with "humidity" (and "temperature") or a number.
   The measured humidity then replaces the configured room humidity of the moisture estimate (moisture.py).
 Texts (sensor names, messages, phase) are in the bridge's default language (setting "language").
@@ -121,8 +121,11 @@ class MqttBridge:
         if not base:
             return []
         from . import __version__
-        dev = {"identifiers": [f"{self.prefix}"], "name": "Kobra S1 (ace-lane-bridge)", "manufacturer": "kobra-spoolman",
-               "model": "Kobra S1 + ACE 2 Pro", "sw_version": __version__}
+        info = getattr(self.b, "printer", None)
+        printer = info.name() if info is not None else "Printer"
+        ace = (info.view(self.b.moon.status).get("ace_model") if info is not None else None) or "ACE"
+        dev = {"identifiers": [f"{self.prefix}"], "name": f"{printer} (ace-lane-bridge)", "manufacturer": "kobra-spoolman",
+               "model": f"{printer} + {ace}", "sw_version": __version__}
         avail = {"availability_topic": f"{self.prefix}/status", "payload_available": "online", "payload_not_available": "offline"}
         out: List[Tuple[str, Dict[str, Any]]] = []
 

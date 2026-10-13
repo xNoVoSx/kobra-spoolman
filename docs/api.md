@@ -29,7 +29,7 @@ the printer do something (dryer) needs the key of a [paired device](#pairing-dev
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/` | web UI (phone, desktop, ultrawide); files under `/static/` |
-| GET | `/api/health` | version, uptime, connections, settings, safety warnings, changelog |
+| GET | `/api/health` | version, uptime, connections, settings, safety warnings, changelog; `printer_name` (setting or from the last print file, `null` = unknown — say *Printer*) and `ace_model` (`"ACE 2 Pro"`, `"ACE Pro"` or `null`), both also in `/api/app/state` |
 
 ```json
 {

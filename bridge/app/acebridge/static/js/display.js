@@ -96,7 +96,7 @@ function Display() {
     </nav>
     <main class="disp-main">
       <header class="disp-head">
-        <h1>${["start", "print"].includes(page) ? "Kobra S1" : PAGES.find((x) => x[0] === page)[2]}</h1>
+        <h1>${["start", "print"].includes(page) ? (st.printer_name || t("Printer")) : PAGES.find((x) => x[0] === page)[2]}</h1>
         <span class="disp-chip disp-chip-phase" style=${`color:${look.fg};background:${look.bg};border-color:${look.line}`}>${p.phase || look.label}</span>
         ${down && html`<span class="disp-chip" style="color:var(--danger-text);border-color:var(--danger-line)">${t("Bridge gone")}</span>`}
         <div class="grow"></div>

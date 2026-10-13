@@ -16,6 +16,7 @@ import android.os.Bundle
 import io.github.xnovosx.kobraspoolman.MainActivity
 import io.github.xnovosx.kobraspoolman.R
 import io.github.xnovosx.kobraspoolman.data.Printer
+import io.github.xnovosx.kobraspoolman.data.PrinterLabel
 import io.github.xnovosx.kobraspoolman.data.tr
 import io.github.xnovosx.kobraspoolman.ui.Format
 
@@ -112,7 +113,7 @@ object Notifier {
             .setCategory(if (running) Notification.CATEGORY_PROGRESS else Notification.CATEGORY_SERVICE)
         if (!running || p == null) {
             val what = if (!reachable) tr("Bridge not reachable") else p?.let { Format.stateLabel(it) } ?: "–"
-            return b.setContentTitle("Kobra S1 · $what").setContentText(tr("Monitoring active")).build()
+            return b.setContentTitle("${PrinterLabel.get()} · $what").setContentText(tr("Monitoring active")).build()
         }
         val pct = ((p.progress ?: 0.0) * 100).toInt()
         val file = p.file?.substringAfterLast('/')?.removeSuffix(".gcode") ?: tr("Print")
