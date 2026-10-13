@@ -27,7 +27,8 @@ The bridge works with either setup and finds out by itself which one it talks to
 
 ### A — stock firmware with Rinkhals (easiest)
 
-- Install [Rinkhals](https://github.com/rinkhals-community/Rinkhals) on the Kobra S1 (its own guide). Rinkhals
+- Install [Rinkhals](https://github.com/rinkhals-community/Rinkhals) on the printer — Kobra S1, Kobra 3 and the
+  [others it supports](../README.md#supported-printers) (its own guide). Rinkhals
   brings Moonraker along; it must be reachable at `http://<printer-ip>:7125` (try
   `http://<printer-ip>:7125/server/info` in a browser).
 - **Moonraker's own Spoolman integration must stay off** (no `[spoolman]` section in Rinkhals'
@@ -199,7 +200,7 @@ Updates, fallback and uninstall: [orca-kobra installation guide](https://github.
 
 ### Orca printer profile
 
-- Add the printer as usual (Anycubic Kobra S1 0.4 nozzle) and connect it to `http://<printer-ip>` (Rinkhals)
+- Add the printer as usual (e.g. *Anycubic Kobra S1 0.4 nozzle* or *Anycubic Kobra 3 0.4 nozzle*) and connect it to `http://<printer-ip>` (Rinkhals)
   or `http://<pi-ip>` (Klipper; G-code flavour **Klipper**).
 - **Printer settings → Basic information → Advanced** (advanced mode): **Printer agent = Moonraker**.
 

@@ -23,7 +23,9 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Cause / solution |
 |---|---|
-| Web UI: *Kobra S1 · Offline* | Moonraker not reachable or Klipper not ready. Check `MOONRAKER_URL`, open `http://<printer-or-pi-ip>:7125/server/info`; on Klipper use *Reload Klipper* after an emergency stop or error, on Rinkhals switch the printer off and on. |
+| Web UI: *<printer name> · Offline*, slot cards dimmed with *Offline – last known* | Moonraker not reachable or Klipper not ready. Check `MOONRAKER_URL`, open `http://<printer-or-pi-ip>:7125/server/info`; on Klipper use *Reload Klipper* after an emergency stop or error, on Rinkhals switch the printer off and on. |
+| All spools were moved to the shelf after switching the printer or the ACE off | Bridge older than 3.18.1: switched off, every slot looks empty and the spools went to the shelf (tags put them back later). Update — since 3.18.1 nothing is moved when every slot is empty at once; the cards keep their spools, dimmed. |
+| Header says *Printer* instead of the model | The name comes from the last print file (Orca writes `; printer_model = …`) — it appears after the next print. Or set it under *Settings → Printer name* (`PRINTER_NAME`). |
 | Web UI: *Spoolman disconnected* | Check `SPOOLMAN_URL`. Inside the same stack use the service name (`http://spoolman:8000`). |
 | Bridge does not start, `PermissionError` on `/data` | The image runs as user 1000. Make the data folder writable for it or add `user: "0:0"` to the service. |
 | Orca panel: *Bridge not reachable* | Set the bridge address under Plugins → Kobra Spoolman → Configuration. |
@@ -68,7 +70,7 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | No *Planned usage* in the panel | The Orca build lacks patch 0003 (footer says so) — update via the orca-kobra launcher. Otherwise slice again; the preview hides when the slice result is outdated. |
 | Preview says *not enough* but the spool is full | Remaining weight in Spoolman is wrong. Weigh the spool and correct *Remaining weight* in the shelf. |
 | Status *MQTT / HA* yellow | The broker is unreachable or refuses the login — the line shows the reason; check `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`/`MQTT_PASSWORD`. The bridge retries every 15 s. |
-| Home Assistant shows no *Kobra S1* device | MQTT integration in Home Assistant set up, discovery prefix `homeassistant` (or the same as `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` must not be empty. |
+| Home Assistant shows no *<printer name> (ace-lane-bridge)* device | MQTT integration in Home Assistant set up, discovery prefix `homeassistant` (or the same as `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` must not be empty. |
 | Status *Room sensor* yellow | No value for 2 h on `ROOM_SENSOR_TOPIC` — check the topic name (e.g. in Zigbee2MQTT) and that the payload has `humidity`. Until then the bridge uses `ROOM_RH`. |
 | A spool says *drying recommended* but it is dry | The estimate cannot know how the spool was stored before. Dry it once (or *Dried elsewhere …* on the spool card); new spools count as wet only if *Dry new spools first* is on. |
 

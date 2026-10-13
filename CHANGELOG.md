@@ -6,6 +6,35 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.0.0] – 2026-10-14
+
+The first release meant for everyone, not only for the author's printer. No breaking change: an update from 3.x keeps
+every setting, device and booking — the major number marks that the project is now documented and tested for others.
+
+### What kobra-spoolman is (for newcomers)
+- **Spoolman as the single source** for an Anycubic printer with an ACE: Orca filament profiles made from Spoolman,
+  consumption booked per spool to the millimetre (also for multi-colour prints), a web UI, an Android app with NFC tags,
+  ACE dryer automation with a moisture estimate per spool, a printer monitor with camera and notifications, Home
+  Assistant over MQTT.
+- **Supported printers:** Kobra S1 + ACE 2 Pro (Rinkhals and Klipper + ACEPRO, tested), Kobra 3 + ACE Pro (Rinkhals,
+  confirmed with a user's prints), other Rinkhals printers with an ACE should work — see
+  [Supported printers](README.md#supported-printers).
+- **Install:** Docker next to Spoolman, or on Home Assistant OS the community add-on
+  [MineTech13/ha-addons](https://github.com/MineTech13/ha-addons). Start with [docs/start.md](docs/start.md).
+
+### Added
+- Documentation for newcomers: supported printers with what is tested, the Home Assistant add-on in the quick start,
+  a check list *Is it working?*, a table *What works without what*, troubleshooting for spools moved to the shelf and
+  for the printer name (EN + DE).
+- Diagnostics (*Logs → Report a bug*) name the printer and the ACE model.
+
+### Upgrading from 3.x
+- Pull the new image (Portainer: *Re-pull image* and redeploy; the add-on updates in Home Assistant). Nothing to change.
+- Image pinned to a version (`ghcr.io/xnovosx/ace-lane-bridge:3.19` or `:3.19.0`)? Change it to `4.0`, `4.0.0` or
+  `latest` — a pinned 3.x tag does not move to 4.
+- Older than 3.18.1? Switching the printer or the ACE off moved all spools to the shelf — fixed; their slots stay.
+- The app 1.18.0 comes through the app's update card; the Orca plugin 0.7.2 is in the release assets.
+
 ## [3.19.0] – 2026-10-14
 
 ### Added

@@ -96,8 +96,8 @@ does, anyone in the network could send it to the direct port.
 
 ## Clients and pairing (`bridge/app/acebridge/auth.py`)
 
-The bridge is the only component of this project that talks to the printer — the Kobra S1 handles
-only a few Moonraker clients. Browser, Android app and Orca plugin are clients of the bridge.
+The bridge is the only component of this project that talks to the printer — the printer (Rinkhals on
+the Kobra's small CPU, or the Pi) should serve only a few Moonraker clients. Browser, Android app and Orca plugin are clients of the bridge.
 
 - **Reading is open**, like Moonraker and Spoolman in a home network.
 - **Writing needs a paired device:** Spoolman changes, slot assignment, open items, the dryer and

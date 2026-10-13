@@ -27,7 +27,8 @@ Die Bridge läuft mit beiden Aufbauten und erkennt selbst, mit welchem sie spric
 
 ### A – Original-Firmware mit Rinkhals (am einfachsten)
 
-- [Rinkhals](https://github.com/rinkhals-community/Rinkhals) auf dem Kobra S1 installieren (eigene Anleitung).
+- [Rinkhals](https://github.com/rinkhals-community/Rinkhals) auf dem Drucker installieren – Kobra S1, Kobra 3 und die
+  [anderen, die es unterstützt](../../README.de.md#unterstützte-drucker) (eigene Anleitung).
   Rinkhals bringt Moonraker mit; es muss unter `http://<drucker-ip>:7125` erreichbar sein (im Browser
   `http://<drucker-ip>:7125/server/info` testen).
 - **Moonrakers eigene Spoolman-Anbindung bleibt aus** (kein Abschnitt `[spoolman]` in der `moonraker.conf` von
@@ -203,7 +204,7 @@ Updates, Rückfall und Entfernen: [Installationsanleitung von orca-kobra](https:
 
 ### Orca-Druckerprofil
 
-- Den Drucker wie gewohnt anlegen (Anycubic Kobra S1 0.4 nozzle) und mit `http://<drucker-ip>` (Rinkhals) bzw.
+- Den Drucker wie gewohnt anlegen (z. B. *Anycubic Kobra S1 0.4 nozzle* oder *Anycubic Kobra 3 0.4 nozzle*) und mit `http://<drucker-ip>` (Rinkhals) bzw.
   `http://<pi-ip>` (Klipper; G-Code-Variante **Klipper**) verbinden.
 - **Druckereinstellungen → Grundlegende Informationen → Erweitert** (Expertenmodus):
   **Printer Agent = Moonraker**.

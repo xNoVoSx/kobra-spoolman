@@ -71,6 +71,10 @@ def settings(cfg: Any) -> Dict[str, Any]:
 async def _moonraker(bridge: "Bridge") -> List[str]:
     lines = [f"- connected: {bridge.moon.connected}, klippy ready: {bridge.moon.klippy_ready}, "
              f"setup: {bridge.moon.platform} (ACE driver: {acemodel.variant(bridge.moon.status) or 'not found'})"]
+    info = getattr(bridge, "printer", None)
+    if info is not None:
+        view = info.view(bridge.moon.status)
+        lines.append(f"- printer: {view.get('printer_name') or 'unknown'}, ACE: {view.get('ace_model') or 'unknown'}")
     for path, keys in (("/server/info", ("moonraker_version", "api_version_string", "klippy_state")),
                        ("/printer/info", ("software_version", "app", "state"))):
         try:

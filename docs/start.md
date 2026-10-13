@@ -8,9 +8,12 @@ Start with the core and add what you want, when you want it. Every feature can b
 
 ## Goal 1 — Spoolman knows what is in the ACE and what each print used (about 5 minutes)
 
-You need a Kobra S1 with an ACE that Moonraker can reach — either the stock firmware with
-[Rinkhals](https://github.com/rinkhals-community/Rinkhals), or Klipper with ACEPRO on a Raspberry Pi — and a running
-[Spoolman](https://github.com/Donkie/Spoolman).
+You need an Anycubic printer with an ACE that Moonraker can reach — a Kobra S1 or Kobra 3 on the stock firmware with
+[Rinkhals](https://github.com/rinkhals-community/Rinkhals), or a Kobra S1 with Klipper and ACEPRO on a Raspberry Pi
+([supported printers](../README.md#supported-printers)) — and a running [Spoolman](https://github.com/Donkie/Spoolman).
+Running **Home Assistant OS**? Install the community add-on
+[MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) instead of step 1 (its own guide; same bridge) and
+continue with step 2 in the HA sidebar.
 
 1. **Add the bridge** to the stack that runs Spoolman ([example](../bridge/compose.yaml)):
    ```yaml
@@ -32,6 +35,14 @@ You need a Kobra S1 with an ACE that Moonraker can reach — either the stock fi
 print booked per spool, the camera and the print preview, and the data Orca's sync button reads. Spools that carry one
 of our RFID tags are assigned by themselves when you insert them — the tags are written with the app (goal 2).
 
+**Is it working?** Within a minute of the start:
+
+- [ ] The overview's *Status* list (or `/api/health`) shows the printer and Spoolman as connected, and the header shows your printer's
+      name after the first print (or *Printer* until then; set it under *Settings → Printer name*).
+- [ ] The four slot cards show what the ACE reports (material, colour) — assign your spools to them.
+- [ ] After a print, *Prints* lists it with the millimetres per slot, and the spools' used weight in Spoolman went up by
+      the same amount. No card *Open bookings* on the overview.
+
 ## Goal 2 and more — add what you want
 
 | Feature | What you get | Needs | Switch it on | Load on the printer | Rinkhals | Klipper |
@@ -49,11 +60,23 @@ of our RFID tags are assigned by themselves when you insert them — the tags ar
 | Z offset per filament | first-layer Z offset from the filament in Spoolman | Klipper setup, macro `KOBRA_START` | on when installed; *Features* | none | – | yes |
 | Resume after a power loss | continues an interrupted print at the right height | Klipper setup, module `kobra_resume` | on when installed; *Features* | writes the print position regularly | – | yes |
 | Clog detection | compares the extruder with the filament encoder, warns or pauses | Klipper setup, module `kobra_clog` | on when installed; *Features* | none | – | yes |
-| Endless spool | when a spool runs out, the ACE loads a matching other one | Klipper setup, ACEPRO | on when installed; *Features* | none | – | yes |
+| Endless spool | when a spool runs out, the ACE loads a matching other one | ACEPRO (Klipper) or the firmware (Rinkhals) | Klipper: *Features*; Rinkhals: the ACE card | none | yes | yes |
 | Light and sounds | printer light and beeper on events, quiet at night | Klipper setup, kobra-io app on the printer | on when installed; *Features* | none | – | yes |
 
 What the installation sets (environment variables of the container, options of the Home Assistant add-on) is shown on
 the *Features* page and changed there — never on the page itself.
+
+## What works without what
+
+| Without … | What still works | What you miss |
+|---|---|---|
+| the Orca plugin | everything in the bridge: bookings, slots, dryer, app, camera; Orca's sync button still reads the slots' material and colour | Orca profiles made from Spoolman (and so the matching profile per slot), the side panel, back-sync |
+| the orca-kobra build (official Orca) | the plugin: profiles, side panel, back-sync | the usage preview after slicing, the automatic profile on Orca's sync button (until Orca merges the patches) |
+| the app | the web UI on the phone does the same, apart from NFC | writing RFID tags, notifications in the background, the widget |
+| NFC tags | assign spools by hand in web or app (matching spools come first) | spools that assign themselves when inserted |
+| a camera | everything else | the picture in web, app and display, the AI detection |
+| MQTT / Home Assistant | everything else | the devices in Home Assistant |
+| our Klipper modules (setup B) | everything of setup A | Auto PA, Z offset per filament, resume after power loss, clog detection |
 
 ## Already running an older version?
 

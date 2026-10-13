@@ -23,7 +23,9 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 
 | Problem | Ursache / Lösung |
 |---|---|
-| Weboberfläche: *Kobra S1 · Offline* | Moonraker nicht erreichbar oder Klipper nicht bereit. `MOONRAKER_URL` prüfen, `http://<drucker-oder-pi-ip>:7125/server/info` öffnen; unter Klipper nach Not-Aus/Fehler *Klipper neu laden*, unter Rinkhals den Drucker aus- und einschalten. |
+| Weboberfläche: *<Druckername> · Offline*, Slot-Karten blass mit *Offline – letzter Stand* | Moonraker nicht erreichbar oder Klipper nicht bereit. `MOONRAKER_URL` prüfen, `http://<drucker-oder-pi-ip>:7125/server/info` öffnen; unter Klipper nach Not-Aus/Fehler *Klipper neu laden*, unter Rinkhals den Drucker aus- und einschalten. |
+| Nach dem Ausschalten von Drucker oder ACE standen alle Spulen im Regal | Bridge älter als 3.18.1: Ausgeschaltet sehen alle Slots leer aus, die Spulen kamen ins Regal (die Tags holten sie später zurück). Aktualisieren – seit 3.18.1 wird nichts verschoben, wenn alle Slots auf einmal leer sind; die Karten behalten ihre Spulen, blass. |
+| Im Kopf steht *Drucker* statt des Modells | Der Name kommt aus der letzten Druckdatei (Orca schreibt `; printer_model = …` hinein) – er erscheint nach dem nächsten Druck. Oder unter *Einstellungen → Druckername* setzen (`PRINTER_NAME`). |
 | Weboberfläche: *Spoolman getrennt* | `SPOOLMAN_URL` prüfen. Im selben Stack den Servicenamen nehmen (`http://spoolman:8000`). |
 | Bridge startet nicht, `PermissionError` bei `/data` | Das Image läuft als Benutzer 1000. Den Datenordner für ihn beschreibbar machen oder `user: "0:0"` im Dienst ergänzen. |
 | Orca-Panel: *Bridge nicht erreichbar* | Bridge-Adresse unter Plugins → Kobra Spoolman → Konfiguration eintragen. |
@@ -68,7 +70,7 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | Kein *Geplanter Verbrauch* im Panel | Dem Orca-Build fehlt Patch 0003 (steht in der Fußzeile) – über den orca-kobra-Starter aktualisieren. Sonst neu slicen; die Vorschau verschwindet, wenn das Slice-Ergebnis veraltet ist. |
 | Vorschau sagt *reicht nicht*, die Spule ist aber voll | Restgewicht in Spoolman stimmt nicht. Spule wiegen und *Restgewicht* im Regal korrigieren. |
 | Status *MQTT / HA* gelb | Broker nicht erreichbar oder Anmeldung abgelehnt – die Zeile nennt den Grund; `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`/`MQTT_PASSWORD` prüfen. Die Bridge versucht es alle 15 s neu. |
-| Home Assistant zeigt kein Gerät *Kobra S1* | MQTT-Integration in Home Assistant eingerichtet, Discovery-Präfix `homeassistant` (bzw. gleich `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` darf nicht leer sein. |
+| Home Assistant zeigt kein Gerät *<Druckername> (ace-lane-bridge)* | MQTT-Integration in Home Assistant eingerichtet, Discovery-Präfix `homeassistant` (bzw. gleich `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` darf nicht leer sein. |
 | Status *Raumsensor* gelb | Seit 2 h kein Wert auf `ROOM_SENSOR_TOPIC` – Themenname (z. B. in Zigbee2MQTT) prüfen und ob die Nachricht `humidity` enthält. Bis dahin rechnet die Bridge mit `ROOM_RH`. |
 | Spule sagt *trocknen empfohlen*, ist aber trocken | Die Schätzung weiß nicht, wie die Spule vorher gelagert war. Einmal trocknen (oder *Außerhalb getrocknet …* auf der Spulenkarte); neue Spulen gelten nur als feucht, wenn *Neue Spulen zuerst trocknen* an ist. |
 

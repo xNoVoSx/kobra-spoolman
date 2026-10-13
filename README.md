@@ -2,7 +2,7 @@
 
 # kobra-spoolman
 
-**Spoolman as the single source of truth for an Anycubic Kobra S1 with ACE 2 Pro — in OrcaSlicer, in the browser, on your phone and on the printer.**
+**Spoolman as the single source of truth for Anycubic printers with an ACE — Kobra S1 with ACE 2 Pro, Kobra 3 with ACE Pro — in OrcaSlicer, in the browser, on your phone and on the printer.**
 
 Works on the **stock firmware with [Rinkhals](https://github.com/rinkhals-community/Rinkhals)** and on **Klipper on a Raspberry Pi** with ACEPRO — one bridge, it detects which one it talks to.
 
@@ -11,7 +11,7 @@ Works on the **stock firmware with [Rinkhals](https://github.com/rinkhals-commun
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![OrcaSlicer build](https://img.shields.io/badge/OrcaSlicer-orca--kobra-2ea44f)](https://github.com/xNoVoSx/orca-kobra)
 
-[Deutsch](README.de.md) · [Start here](docs/start.md) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [Troubleshooting](docs/troubleshooting.md) · [API](docs/api.md) · [AI notice](#ai-notice)
+[Deutsch](README.de.md) · [Start here](docs/start.md) · [Supported printers](#supported-printers) · [Installation](docs/installation.md) · [Daily use](docs/usage.md) · [Troubleshooting](docs/troubleshooting.md) · [API](docs/api.md) · [AI notice](#ai-notice)
 
 </div>
 
@@ -67,7 +67,7 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 
 ```mermaid
 flowchart LR
-    subgraph Printer["Kobra S1 + ACE 2 Pro · Rinkhals or Klipper on a Pi"]
+    subgraph Printer["Kobra S1 / Kobra 3 + ACE · Rinkhals or Klipper on a Pi"]
         MR[Moonraker<br/>ACE · print_stats · lane_data]
     end
     SM[(Spoolman)]
@@ -102,13 +102,25 @@ app, the Orca plugin and Home Assistant all talk to the bridge. It reads which f
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with four small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), read-only slice statistics for plugins, a minimum size for docked plugin panels and the real first-layer temperatures in the G-code header. Updates itself. |
 
+## Supported printers
+
+| Printer | ACE | Setup | Status |
+|---|---|---|---|
+| Kobra S1 | ACE 2 Pro | A — Rinkhals | ✅ **tested** on the author's printer: prints with more than 50 colour changes, pause/resume/cancel, bridge restart mid-print, dryer, RFID |
+| Kobra S1 | ACE 2 Pro | B — Klipper + ACEPRO | ✅ **tested**, the author's everyday setup |
+| Kobra 3 | ACE Pro (first generation) | A — Rinkhals | ✅ **confirmed** by a user's prints (9 h, 94 m of filament, 6 colour changes): consumption per spool matches the printer's counter to the millimetre, the firmware purge model within 10 % — kept as a [replay test](tests/test_replay_kobra3.py) |
+| other Rinkhals printers with an ACE (Kobra 3 Max, Kobra 3 V2, …) | ACE Pro / ACE 2 Pro | A — Rinkhals | should work (same Rinkhals interface), not tested — [reports welcome](https://github.com/xNoVoSx/kobra-spoolman/issues) |
+
+The web UI, the app and Home Assistant show the printer's name from the print file (Orca writes the printer model into
+it) and the ACE model the printer reports — or the name you set (*Settings → Printer name*).
+
 ## Requirements
 
 You need **one** of the two printer setups:
 
 | | **A — stock firmware + Rinkhals** (easiest) | **B — Klipper on a Raspberry Pi** |
 |---|---|---|
-| Printer | Kobra S1 + ACE 2 Pro, Anycubic firmware rooted with [Rinkhals](https://github.com/rinkhals-community/Rinkhals) | Kobra S1 + ACE 2 Pro, controllers tunnelled to a Pi ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), ACE on the Pi with [ACEPRO](https://github.com/Kobra-S1/ACEPRO) |
+| Printer | Kobra S1 + ACE 2 Pro or Kobra 3 + ACE Pro ([list](#supported-printers)), Anycubic firmware rooted with [Rinkhals](https://github.com/rinkhals-community/Rinkhals) | Kobra S1 + ACE 2 Pro, controllers tunnelled to a Pi ([vanilla-klipper-swu](https://github.com/Kobra-S1/vanilla-klipper-swu), [klipper-kobra-s1](https://github.com/Kobra-S1/klipper-kobra-s1)), ACE on the Pi with [ACEPRO](https://github.com/Kobra-S1/ACEPRO) |
 | Moonraker | Rinkhals' Moonraker on the printer, port 7125 | Moonraker on the Pi, port 7125 |
 | Extra hardware | none | Raspberry Pi, USB cables |
 | Effort | install Rinkhals, done | a weekend |
@@ -116,15 +128,12 @@ You need **one** of the two printer setups:
 Both need:
 
 - **Spoolman** 0.26 or newer.
-- A **Docker** host in the same network (Portainer, Compose, …) — or Home Assistant with the community
-  [add-on](https://github.com/MineTech13/ha-addons) (web UI in the HA sidebar).
+- A **Docker** host in the same network (Portainer, Compose, …) — or **Home Assistant OS** with the community
+  add-on [MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) (same image, web UI in the HA sidebar,
+  maintained by its author).
 - **OrcaSlicer** with the plugin system (2.5.0-dev nightly). Automatic profile selection needs the
   `orca-kobra` build (Linux AppImage) until PR #14423 is merged upstream.
 - Optional: an Android phone (Android 10+) with NFC for the app.
-
-Other Rinkhals printers with an ACE use the same Rinkhals interface. A **Kobra 3 with ACE Pro** is confirmed by a
-user's print (consumption per spool, colour changes and the firmware purge, kept as a replay test); others should work
-too — reports are welcome.
 
 ### What works on which setup
 
@@ -151,7 +160,9 @@ every extension with what it needs and what it costs the printer. The full workf
 1. **Spoolman fields and templates** — once:
    `python3 spoolman/spoolman_setup.py --url http://<spoolman-host>:7912`
 2. **Bridge** — add it to your Spoolman stack ([compose example](bridge/compose.yaml)) with
-   `MOONRAKER_URL=http://<printer-ip>:7125` (Rinkhals) or `http://<pi-ip>:7125` (Klipper).
+   `MOONRAKER_URL=http://<printer-ip>:7125` (Rinkhals) or `http://<pi-ip>:7125` (Klipper). On Home Assistant OS
+   install the [community add-on](https://github.com/MineTech13/ha-addons) instead
+   ([installation, option B](docs/installation.md#option-b--home-assistant-add-on)).
 3. **Pair your browser** — open `http://<docker-host>:7913` and enter the setup code from the
    bridge log (`Setup code: …`). Further devices get a code under *Devices → Add device*.
 4. **OrcaSlicer** — install the self-updating build from [orca-kobra](https://github.com/xNoVoSx/orca-kobra) (`tools/install.sh`).
@@ -219,6 +230,10 @@ bridge ([test](tests/test_usage_rinkhals.py)). Under Klipper the bridge books
 `print_stats.filament_used` to the slot ACEPRO reports as loaded — during a change the incoming slot gets
 the load to the nozzle and the purge ([test](tests/test_usage_acepro.py)). More in [docs/findings.md](docs/findings.md).
 
+A **Kobra 3 with ACE Pro** (a user's print, 9 h, white with three white ↔ black change pairs): the bridge booked
+93 753 mm and 619 mm, together exactly the printer's 94 372 mm. Orca had planned 92 699 mm and 418 mm; the difference
+is the firmware's own purge, which the bridge's model predicts within 9 % ([test](tests/test_replay_kobra3.py)).
+
 ## Security
 
 Reading is open in your network. Everything that changes something — Spoolman, slot assignment,
@@ -255,18 +270,21 @@ Keep the bridge inside your home network; it has no TLS.
 | — | Printer monitor (replaces OctoApp): camera restream, print control, terminal, logs, phone notifications | ✅ done (incl. home-screen widget, print start check, 3D view) |
 | — | Filament automation: Auto-PA per filament (load cell, per speed), Z offset per filament | ✅ done (3.1, 3.2) |
 | — | Monitoring: resume after a power loss, clog detection, USB tunnel watchdog | ✅ done (3.3, 3.4, 3.10) |
-| — | Purge volumes per colour pair: log every change (3.10), then learn the volume without colour residue | ✅ log · 🔜 learning (needs feedback per print) |
+| — | Purge volumes per colour pair: log every change with its source (3.10, 3.18.2) | ✅ log · learning parked (small gain; a calibration print per pair would come first) |
 | — | AI print-failure detection: spaghetti (stage 1), plate check (2), knocked-over parts (3) | ✅ stage 1 · 🔜 2 and 3 from the collected pictures |
 | — | Spool moisture: ACE humidity history, drying log, estimate per spool, automatic drying when loaded, room sensor | ✅ done |
 | 5 | Home Assistant via MQTT (printer, slots, remaining weight, moisture, messages), room humidity sensor | ✅ done |
 | — | English as main language, German switchable per user and device | ✅ done (3.12) |
 | — | Rinkhals and Klipper in one bridge (Rinkhals: ACE card with purge multiplier, firmware purge in the Orca preview) | ✅ done (3.12) |
 | — | Web UI behind Home Assistant ingress without patches (community add-on) | ✅ done (3.13) |
+| — | Kobra 3 with ACE Pro confirmed, printer and ACE name from the printer, slots keep their spools while the printer is off | ✅ done (3.18–3.19) |
+| — | First stable release for everyone: supported printers, quick start per setup, documentation for newcomers | ✅ 4.0.0 |
 
 ## AI notice
 
 kobra-spoolman is my project ([@xNoVoSx](https://github.com/xNoVoSx)): the idea, what it does, how it works and every
-decision come from me, and I test each change on my own Kobra S1 with ACE 2 Pro before it is released. I write the
+decision come from me, and I test each change on my own Kobra S1 with ACE 2 Pro before it is released (Kobra 3 support
+is confirmed with a user's data). I write the
 code together with an AI coding assistant (Anthropic's Claude), which does most of the typing — code, tests and
 documentation — while I steer, review and try it out on the printer.
 

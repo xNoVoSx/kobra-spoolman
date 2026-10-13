@@ -446,6 +446,10 @@ spool moisture, notices, consumption, data — no restart and no Portainer. The 
 only gives the start values; *reset* goes back to them. See [configuration](configuration.md#changing-settings-at-runtime).
 At the bottom, *New in the bridge* lists the changes of the last ten versions (all of them: [changelog](../CHANGELOG.md)).
 
+*General → Printer name* sets the name in the web UI, the app, the display and Home Assistant. Left empty, the bridge
+takes the printer model from the last print file (Orca writes it at the end, e.g. *Kobra 3*); the ACE's model
+(*ACE 2 Pro*, *ACE Pro*) comes from the printer by itself.
+
 <p align="center"><img src="images/web-settings.png" width="760" alt="Bridge settings"></p>
 
 ## Home Assistant

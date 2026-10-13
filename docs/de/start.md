@@ -8,9 +8,12 @@ Schritt für Schritt ist [installation.md](installation.md).
 
 ## Ziel 1 – Spoolman weiß, was in der ACE steckt und was jeder Druck verbraucht hat (etwa 5 Minuten)
 
-Du brauchst einen Kobra S1 mit ACE, den Moonraker erreicht – entweder die Original-Firmware mit
-[Rinkhals](https://github.com/rinkhals-community/Rinkhals) oder Klipper mit ACEPRO auf einem Raspberry Pi – und ein
-laufendes [Spoolman](https://github.com/Donkie/Spoolman).
+Du brauchst einen Anycubic-Drucker mit ACE, den Moonraker erreicht – einen Kobra S1 oder Kobra 3 mit Original-Firmware
+und [Rinkhals](https://github.com/rinkhals-community/Rinkhals) oder einen Kobra S1 mit Klipper und ACEPRO auf einem
+Raspberry Pi ([unterstützte Drucker](../../README.de.md#unterstützte-drucker)) – und ein laufendes
+[Spoolman](https://github.com/Donkie/Spoolman). Läuft **Home Assistant OS**? Dann statt Schritt 1 das Community-Add-on
+[MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) installieren (eigene Anleitung, dieselbe Bridge) und mit
+Schritt 2 in der HA-Seitenleiste weitermachen.
 
 1. **Bridge hinzufügen** – in den Stack, in dem Spoolman läuft ([Beispiel](../../bridge/compose.yaml)):
    ```yaml
@@ -32,6 +35,14 @@ laufendes [Spoolman](https://github.com/Donkie/Spoolman).
 pro Spule gebucht, Kamera und Druckvorschau und die Daten, die Orcas Sync-Knopf liest. Spulen mit einem unserer
 RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die App (Ziel 2).
 
+**Läuft es?** Eine Minute nach dem Start:
+
+- [ ] Die Liste *Status* in der Übersicht (oder `/api/health`) zeigt Drucker und Spoolman als verbunden; im Kopf steht nach dem ersten Druck
+      der Name deines Druckers (bis dahin *Drucker*; einstellbar unter *Einstellungen → Druckername*).
+- [ ] Die vier Slot-Karten zeigen, was die ACE meldet (Material, Farbe) – ordne ihnen deine Spulen zu.
+- [ ] Nach einem Druck steht er unter *Drucke* mit den Millimetern je Slot, und das Verbrauchsgewicht der Spulen in
+      Spoolman ist um genau so viel gestiegen. In der Übersicht steht keine Karte *Offene Buchungen*.
+
 ## Ziel 2 und mehr – dazunehmen, was du willst
 
 | Funktion | Was du bekommst | Braucht | Einschalten | Last am Drucker | Rinkhals | Klipper |
@@ -49,11 +60,23 @@ RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die A
 | Z-Versatz pro Filament | Z-Versatz der ersten Schicht vom Filament in Spoolman | Klipper-Weg, Makro `KOBRA_START` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Fortsetzen nach Stromausfall | setzt einen unterbrochenen Druck in der richtigen Höhe fort | Klipper-Weg, Modul `kobra_resume` | an, wenn installiert; *Funktionen* | schreibt regelmäßig die Druckposition | – | ja |
 | Verstopfung | vergleicht Extruder und Filament-Encoder, warnt oder pausiert | Klipper-Weg, Modul `kobra_clog` | an, wenn installiert; *Funktionen* | keine | – | ja |
-| Endlosspule | wird eine Spule leer, lädt die ACE eine passende andere | Klipper-Weg, ACEPRO | an, wenn installiert; *Funktionen* | keine | – | ja |
+| Endlosspule | wird eine Spule leer, lädt die ACE eine passende andere | ACEPRO (Klipper) oder die Firmware (Rinkhals) | Klipper: *Funktionen*; Rinkhals: die ACE-Karte | keine | ja | ja |
 | Licht und Töne | Licht im Drucker und Piepser bei Ereignissen, nachts leise | Klipper-Weg, App kobra-io auf dem Drucker | an, wenn installiert; *Funktionen* | keine | – | ja |
 
 Was die Installation festlegt (Umgebungsvariablen des Containers, Optionen des Home-Assistant-Add-ons), zeigt die Seite
 *Funktionen* an und wird dort geändert – nie auf der Seite selbst.
+
+## Was ohne was geht
+
+| Ohne … | Was trotzdem geht | Was fehlt |
+|---|---|---|
+| das Orca-Plugin | alles in der Bridge: Buchungen, Slots, Trockner, App, Kamera; Orcas Sync-Knopf liest weiterhin Material und Farbe der Slots | Orca-Profile aus Spoolman (und damit das passende Profil je Slot), Seitenpanel, Rückabgleich |
+| den orca-kobra-Build (offizielles Orca) | das Plugin: Profile, Seitenpanel, Rückabgleich | die Verbrauchsvorschau nach dem Slicen, das automatische Profil beim Sync-Knopf (bis Orca die Patches übernimmt) |
+| die App | die Weboberfläche am Handy kann dasselbe, bis auf NFC | RFID-Tags schreiben, Meldungen im Hintergrund, das Widget |
+| NFC-Tags | Spulen von Hand in Web oder App zuordnen (passende Spulen stehen oben) | Spulen, die sich beim Einlegen selbst zuordnen |
+| eine Kamera | alles andere | das Bild in Web, App und Display, die KI-Erkennung |
+| MQTT / Home Assistant | alles andere | die Geräte in Home Assistant |
+| unsere Klipper-Module (Aufbau B) | alles von Aufbau A | Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung |
 
 ## Schon eine ältere Version im Einsatz?
 

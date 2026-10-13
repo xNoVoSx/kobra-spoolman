@@ -453,6 +453,10 @@ des Stacks gibt nur die Startwerte; *zurücksetzen* stellt sie wieder her. Siehe
 [Konfiguration](../configuration.md#changing-settings-at-runtime). Unten listet *Neu in der Bridge* die Änderungen
 der letzten zehn Versionen (alle: [Changelog](../../CHANGELOG.md), englisch).
 
+*Allgemein → Druckername* legt den Namen in Weboberfläche, App, Display und Home Assistant fest. Bleibt er leer, nimmt
+die Bridge das Druckermodell aus der letzten Druckdatei (Orca schreibt es ans Ende, z. B. *Kobra 3*); das ACE-Modell
+(*ACE 2 Pro*, *ACE Pro*) kommt von selbst vom Drucker.
+
 <p align="center"><img src="../images/web-settings.png" width="760" alt="Einstellungen der Bridge"></p>
 
 ## Home Assistant
