@@ -6,6 +6,16 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.18.2] – 2026-10-13
+
+### Fixed
+- Purge log (`/api/purge`, `/api/jobs` → `transitions`): `purge_mm` stayed empty for every change so far. Capturing
+  works, but no Klipper print had a colour change from Orca's change G-code yet – the changes logged were the load of
+  the print start – and under Rinkhals the firmware purges by itself without reporting a length. Every change now
+  carries `purge_source`: `orca` (the change G-code set it), `firmware` (Rinkhals, the length from the firmware's
+  formula in `purge.py`) or `other` (nothing set: print start, endless spool, by hand). `/api/purge` counts them per
+  pair in `sources`; older entries count as `orca` with a length, else `unknown`.
+
 ## [3.18.1] – 2026-10-13
 
 From the second Rinkhals test print (pause, resume, cancel, bridge restart).

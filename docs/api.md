@@ -65,8 +65,8 @@ A slot entry:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/usage` | running print per slot (`live`), last print per slot, open items |
-| GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets (from the bridge's own parse of the print file), overhead, warnings; `transitions` (from/to slot and colour, `purge_mm` set by Orca for that change, `count`) |
-| GET | `/api/purge` | purge log per colour pair across prints (`data/usage/purge.jsonl`, last 2000 changes): `from_color`, `from_material`, `to_color`, `to_material`, `count`, `purge_mm` (last 10 values Orca set — `ACE: Purge settings updated` on the console; `0` with *Purge in prime tower*), `last_at`, `last_file`. Groundwork for learning purge volumes per pair |
+| GET | `/api/jobs?limit=20` | print history: per slot mm/g, spools, G-code targets (from the bridge's own parse of the print file), overhead, warnings; `transitions` (from/to slot and colour, `purge_mm` and `purge_source` of that change – see `/api/purge` –, `count`) |
+| GET | `/api/purge` | purge log per colour pair across prints (`data/usage/purge.jsonl`, last 2000 changes): `from_color`, `from_material`, `to_color`, `to_material`, `count`, `purge_mm` (last 10 values Orca set — `ACE: Purge settings updated` on the console; `0` with *Purge in prime tower*), `last_at`, `last_file`, `sources` (changes per source: `orca` = set by the change G-code, `firmware` = Rinkhals purges by itself, `purge_mm` from the firmware's formula, `other` = nothing set – print start, endless spool, by hand –, `unknown` = logged before 3.18.2 without a length). Groundwork for learning purge volumes per pair |
 | GET | `/api/open` | open items |
 | POST | `/api/open/{id}` | *(paired)* `{"spool_id": 5}` book an open item onto a spool |
 | DELETE | `/api/open/{id}` | *(paired)* discard an open item |

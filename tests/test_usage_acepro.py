@@ -10,6 +10,7 @@ Moves at the change (ACEPRO, with patch 0003 at once in print_stats.filament_use
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 from conftest import FakeMoonraker, FakeSlots, FakeSpoolman, ace_status, grams, spool
@@ -200,14 +201,27 @@ def test_purge_log_per_colour_pair(cfg):
     tracker.on_console({"text": "// ACE: Purge settings updated - Length: 64.2mm, Speed: 300mm/min"})
     feed(moon, tracker, rows[change_at:])
     job = tracker.history[0]
-    assert [(t["from_slot"], t["to_slot"], t["purge_mm"]) for t in job["transitions"]] == [(None, 2, None), (2, 1, 64.2)]
+    assert [(t["from_slot"], t["to_slot"], t["purge_mm"], t["purge_source"]) for t in job["transitions"]] == \
+        [(None, 2, None, None), (2, 1, 64.2, "orca")]
     pairs = tracker.purge_pairs()
     assert len(pairs) == 1
     p = pairs[0]
     assert (p["from_color"], p["from_material"], p["to_color"], p["to_material"]) == ("C52E79", "PETG", "685BC7", "PETG")
     assert p["count"] == 1 and p["purge_mm"] == [64.2] and p["last_file"] == "zwei.gcode"
-    # second print with the same change: counts on, without an amount set (e.g. purge in the prime tower) -> no number
+    assert p["sources"] == {"orca": 1}
+    # second print with the same change but nothing set (print start, endless spool, by hand): counts on as "other",
+    # without a number
     moon2, sm2, tracker2 = make(cfg, [spool(3, 1), spool(4, 2)])
     feed(moon2, tracker2, print_rows())
     p = tracker2.purge_pairs()[0]
     assert p["count"] == 2 and p["purge_mm"] == [64.2]
+    assert p["sources"] == {"orca": 1, "other": 1}
+
+
+def test_purge_log_reads_entries_without_source(cfg):
+    """Entries written before 3.18.2 have no purge_source: with a length they came from Orca, without one unknown."""
+    moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
+    row = {"from_color": "C52E79", "from_material": "PETG", "to_color": "685BC7", "to_material": "PETG"}
+    with open(tracker.purge_path, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({**row, "purge_mm": 64.2}) + "\n" + json.dumps({**row, "purge_mm": None}) + "\n")
+    assert tracker.purge_pairs()[0]["sources"] == {"orca": 1, "unknown": 1}

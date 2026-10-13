@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from . import acemodel
 from .config import Config
+from .purge import change_mm
 from .i18n import tr
 from .storage import save_json, save_lines
 
@@ -132,6 +133,17 @@ class UsageTracker:
         if m:
             self._purge_set = float(m.group(1))
 
+    def _purge_of_change(self, src: Dict[str, Any], dst: Dict[str, Any]) -> Tuple[Optional[float], str]:
+        """Purge length of a colour change and where it comes from: "orca" (the change G-code set it, ACEPRO),
+        "firmware" (Rinkhals purges by itself - the firmware's formula, purge.py) or "other" (nothing set: the load
+        of the print start, endless spool, a change by hand)."""
+        if self._purge_set is not None:
+            return self._purge_set, "orca"
+        if acemodel.variant(self.moon.status) == acemodel.RINKHALS:
+            mm = change_mm(src.get("color"), dst.get("color"), self.purge.flush, 0.0) if self.purge else None
+            return (round(mm, 1) if mm is not None else None), "firmware"
+        return None, "other"
+
     def _log_purge(self, rec: Dict[str, Any]) -> None:
         try:
             with open(self.purge_path, "a", encoding="utf-8") as fh:
@@ -158,8 +170,11 @@ class UsageTracker:
             key = (r.get("from_color"), r.get("from_material"), r.get("to_color"), r.get("to_material"))
             p = pairs.setdefault(key, {"from_color": key[0], "from_material": key[1], "to_color": key[2],
                                        "to_material": key[3], "count": 0, "purge_mm": [], "last_at": None,
-                                       "last_file": None})
+                                       "last_file": None, "sources": {}})
             p["count"] += 1
+            # entries from before 3.18.2 carry no source: a length could only come from Orca
+            source = r.get("purge_source") or ("orca" if r.get("purge_mm") is not None else "unknown")
+            p["sources"][source] = p["sources"].get(source, 0) + 1
             if r.get("purge_mm") is not None:
                 p["purge_mm"] = (p["purge_mm"] + [r["purge_mm"]])[-10:]
             p["last_at"], p["last_file"] = r.get("at"), r.get("file")
@@ -285,16 +300,17 @@ class UsageTracker:
         src = self.slots.ace_gate(old) if old is not None else {}
         dst = self.slots.ace_gate(gate)
         # purge length only for a real change (the first load at print start purges by G9111, not by Orca)
-        purge, self._purge_set = (self._purge_set if old is not None else None), None
+        purge, source = self._purge_of_change(src, dst) if old is not None else (None, None)
+        self._purge_set = None
         job.setdefault("transitions", []).append({
             "from_slot": old + 1 if old is not None else None, "to_slot": gate + 1,
             "from_color": src.get("color") if old is not None else None,
-            "to_color": dst.get("color"), "purge_mm": purge})
+            "to_color": dst.get("color"), "purge_mm": purge, "purge_source": source})
         if old is not None:
             self._log_purge({"at": _now_iso(), "file": job.get("file"), "from_slot": old + 1, "to_slot": gate + 1,
                              "from_color": src.get("color"), "to_color": dst.get("color"),
                              "from_material": src.get("material"), "to_material": dst.get("material"),
-                             "purge_mm": purge})
+                             "purge_mm": purge, "purge_source": source})
         if job["pre_mm"]:
             self._add(gate, job["pre_mm"])
             job["pre_mm"] = 0.0

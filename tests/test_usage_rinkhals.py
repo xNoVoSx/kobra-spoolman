@@ -78,3 +78,20 @@ def test_unload_at_start_books_nothing_negative(cfg):
     assert [b for b in sm.bookings if b[0] == 5] == []
     assert sm.booked(1) == pytest.approx(500)
     assert tracker.open == [] and tracker.job is None
+
+
+def test_purge_log_takes_the_firmware_purge(cfg):
+    """Rinkhals purges by itself, Orca sets nothing: the purge log carries the firmware's purge for the change
+    (purge.py's formula with the printer's flush setting), marked "firmware"."""
+    from acebridge.purge import PurgeModel, change_mm
+    moon, sm, tracker = make(cfg, [spool(3, 1), spool(4, 2)])
+    tracker.purge = PurgeModel()
+    feed(moon, tracker, load_recording())
+
+    first, change = tracker.history[0]["transitions"]
+    assert (first["from_slot"], first["purge_mm"], first["purge_source"]) == (None, None, None)   # first load
+    expected = change_mm(change["from_color"], change["to_color"], tracker.purge.flush, 0.0)
+    assert (change["from_slot"], change["to_slot"], change["purge_source"]) == (2, 1, "firmware")
+    assert change["purge_mm"] == pytest.approx(expected, abs=0.05) and change["purge_mm"] > 0
+    pair = tracker.purge_pairs()[0]
+    assert pair["sources"] == {"firmware": 1} and pair["purge_mm"] == [change["purge_mm"]]
