@@ -6,7 +6,7 @@
 # description = "Spoolman as the filament source: creates an Orca profile for every Spoolman filament, shows the ACE slots in a side panel and writes profile changes back to Spoolman after asking. Needs the ace-lane-bridge."
 # author = "xNoVoSx"
 # url = "https://github.com/xNoVoSx/kobra-spoolman"
-# version = "0.7.0"
+# version = "0.7.1"
 # ///
 """Kobra Spoolman - Orca plugin for the ace-lane-bridge.
 
@@ -53,7 +53,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.7.0"
+PLUGIN_VERSION = "0.7.1"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # change in the plugin settings
@@ -1061,13 +1061,14 @@ PAGE = r"""
   td.r { text-align:right; }
   .fc { border:1px solid var(--orca-border); border-radius:8px; padding:8px; margin-bottom:8px; }
   .fc td { font-size:12px; } .fc tr.h td { font-weight:600; } .fc tr.s td { border-top:1px solid var(--orca-border); }
+  .fc td + td { padding-left:5px; } .fc table td { font-size:11.5px; } .fc tr.h td { vertical-align:bottom; line-height:1.2; }
   .fch { display:flex; justify-content:space-between; gap:6px; margin-bottom:4px; }
   .fcl { display:flex; justify-content:space-between; gap:8px; padding:2px 0; }
   .fcn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .fca { flex:none; font-variant-numeric:tabular-nums; }
   .fcw { font-size:12px; margin:0 0 2px 8px; }
   .fc details { margin-top:6px; } .fc summary { cursor:pointer; color:var(--orca-muted); font-size:12px; }
-  .fct { margin:6px 0 2px; }
+  .fct { margin:6px 0 2px; } .fcx { overflow-x:auto; }
 </style>
 <h3>Kobra Spoolman</h3>
 <div id="status" class="muted" data-t="loading …">loading …</div>
@@ -1193,12 +1194,12 @@ def forecast_html(fc):
     head = "".join(f"<td class='r'>{t}</td>" for t, _ in cols)
     body = "".join(
         f"<tr><td>{r['slot']}</td>" + "".join(f"<td class='r'>{g(r[k], 2)}</td>" for _, k in cols)
-        + f"<td class='r'><b>{g(r['need_g'], 2)}</b></td><td class='r'>{g(r.get('remaining_g'))}</td></tr>"
+        + f"<td class='r'><b>{g(r['need_g'], 2)}</b></td><td class='r'>{g(r.get('remaining_g'), 0)}</td></tr>"
         for r in fc["rows"])
-    orca_tab = (f"<table><tr class='h'><td>{tr('Filament')}</td>{head}<td class='r'>{tr('Total')}</td>"
+    orca_tab = (f"<div class='fcx'><table><tr class='h'><td>{tr('Filament')}</td>{head}<td class='r'>{tr('Total')}</td>"
                 f"<td class='r'>{tr('Rest')}</td></tr>{body}"
                 f"<tr class='s'><td>{tr('Sum')}</td>{'<td></td>' * len(cols)}<td class='r'>{g(fc['total_g'], 2)}</td>"
-                "<td></td></tr></table>")
+                "<td></td></tr></table></div>")
     if fc.get("firmware_purge"):
         how = tr("counted by Orca") if fc.get("loads_exact") else tr("total without order")
         purge_text = tr("{n} colour changes ({how}). “Firmware purge” is what the printer purges by itself at every "

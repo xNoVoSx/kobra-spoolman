@@ -6,6 +6,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## plugin 0.7.1 – 2026-10-13
+
+### Fixed
+- Usage details (*Details (like Orca's legend)*): the columns had no gap in Orca's narrow side panel and the numbers
+  ran together (*12.0516.90422.8*). Columns are spaced now, *Rest* in whole grams, and the table scrolls sideways
+  when the panel is narrower still.
+
 ## [3.18.0] – 2026-10-13
 
 From the Rinkhals test print: the lid of the ACE was open while it dried, and afterwards its heater reported a fault.
