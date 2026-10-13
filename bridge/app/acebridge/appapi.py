@@ -310,8 +310,9 @@ def tag_content(spool: Dict[str, Any], templates: List[Dict[str, Any]], tag_nr: 
 # ====================================================================== printer state
 def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_ready: bool,
                   active_slot: Optional[int], steps: Optional[phase.ChangeSteps] = None,
-                  platform: str = "klipper") -> Dict[str, Any]:
-    """State for the app from the bridge's Moonraker subscription (no extra load on the printer)."""
+                  platform: str = "klipper", cpu: Optional[float] = None) -> Dict[str, Any]:
+    """State for the app from the bridge's Moonraker subscription (no extra load on the printer).
+    cpu: the printer's own CPU in % (Rinkhals: Moonraker runs on the printer; elsewhere None)."""
     ps = status.get("print_stats") or {}
     vsd = status.get("virtual_sdcard") or {}
     if not connected or not klippy_ready:
@@ -351,6 +352,8 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         # web/app offer "reload Klipper" only where that works (Rinkhals blocks it: switch the printer off and on)
         "platform": platform,
         "can_restart": platform != "rinkhals",
+        # Rinkhals: printer CPU (mean over 10 s, Moonraker's own proc_stat - no extra query), else None
+        "printer_cpu": round(cpu) if cpu is not None and platform == "rinkhals" else None,
         "active_slot": active_slot,
         "mmu_action": action or None,
         "changing_filament": bool(action),
@@ -568,7 +571,8 @@ class AppApi:
                 "version": __version__,
                 "ui": UI_TAG,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active,
-                                         getattr(b, "phase_steps", None), getattr(b.moon, "platform", "klipper")),
+                                         getattr(b, "phase_steps", None), getattr(b.moon, "platform", "klipper"),
+                                         b.moon.cpu(10.0) if hasattr(b.moon, "cpu") else None),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"], "by_tag": s.get("by_tag", False),

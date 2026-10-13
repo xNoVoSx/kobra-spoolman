@@ -46,8 +46,9 @@ SPECS: List[Spec] = [
     Spec("camera", tr("Camera"), tr("Camera through the bridge"), "bool",
          help=tr("Web, app and the Mainsail link fetch their images through the bridge")),
     Spec("camera_stream", tr("Camera"), tr("Continuous stream instead of snapshots"), "bool",
-         help=tr("Full frame rate from the printer's MJPEG stream – on the stock firmware it used the whole printer "
-                 "CPU, with Klipper on a separate computer it is free. Default: off")),
+         help=tr("Full frame rate from the printer's MJPEG stream – only with Klipper on a separate computer. Under "
+                 "Rinkhals it used the whole printer CPU, there the bridge always fetches snapshots by the printer CPU. "
+                 "Takes effect at once. Default: off")),
     Spec("camera_fps_min", tr("Camera"), tr("Frame rate at least"), "float", 0.5, 15, "fps"),
     Spec("camera_fps_max", tr("Camera"), tr("Frame rate at most"), "float", 1, 15, "fps"),
     Spec("camera_cpu_low", tr("Camera"), tr("Faster below printer CPU (Rinkhals)"), "float", 30, 100, "%",
@@ -66,6 +67,9 @@ SPECS: List[Spec] = [
          "", tr("More paths are thinned out. 1.5 million ≈ 20 MB transfer, maybe less for phones")),
     # slots and RFID
     Spec("auto_assign_by_tag", tr("Slots and RFID"), tr("Assign spools with our tag automatically"), "bool"),
+    Spec("auto_assign_by_kind", tr("Slots and RFID"), tr("Assign spools with an Anycubic tag automatically"), "bool",
+         help=tr("The Anycubic tag only names material and colour - if exactly one spool on the shelf fits, it is "
+                 "assigned; with several the choice stays with you")),
     Spec("auto_unassign_on_empty", tr("Slots and RFID"), tr("Move an empty slot's spool to the shelf"), "bool",
          help=tr("When the ACE reports a slot empty, the spool goes to the shelf (during a print only afterwards)")),
     Spec("empty_debounce_s", tr("Slots and RFID"), tr("… when the slot is empty this long"), "float", 0, 600, "s"),

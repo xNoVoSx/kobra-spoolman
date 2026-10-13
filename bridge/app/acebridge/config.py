@@ -57,6 +57,8 @@ class Config:
     auto_unassign_on_empty: bool = field(default_factory=lambda: _bool("AUTO_UNASSIGN_ON_EMPTY", True))
     # RFID: spool with our own tag (number >= TAG_NR_MIN) in the slot -> assign automatically
     auto_assign_by_tag: bool = field(default_factory=lambda: _bool("AUTO_ASSIGN_BY_TAG", True))
+    # original Anycubic tag (names only the kind): assign the one fitting spool on the shelf
+    auto_assign_by_kind: bool = field(default_factory=lambda: _bool("AUTO_ASSIGN_BY_KIND", True))
     empty_debounce_s: float = field(default_factory=lambda: _float("EMPTY_DEBOUNCE_S", 15.0))
 
     # lane_data for Orca/Mainsail/Fluidd

@@ -101,6 +101,8 @@ def ace_status(slots: List[Optional[Dict[str, Any]]], current: int = -1, humidit
                  "temp": sp.get("temp", 0), "rfid": bool(sp.get("sku"))}
         if sp.get("sku"):
             entry["sku"] = sp["sku"]
+        if sp.get("brand"):
+            entry["brand"] = sp["brand"]
         raw.append(entry)
     ds = {"status": "stop", "target_temp": 0, "duration": 0, "remain_time": 0}
     ds.update(dryer or {})

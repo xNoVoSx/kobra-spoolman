@@ -17,6 +17,7 @@
 | `TEMPLATE_VENDOR` | *(auto)* | vendor name of the material templates. Empty: `Template`, or `Vorlage` if that vendor already exists |
 | `AUTO_UNASSIGN_ON_EMPTY` | `true` | move the spool to the shelf when the ACE reports its slot empty |
 | `AUTO_ASSIGN_BY_TAG` | `true` | a spool with one of our tags (number ≥ `TAG_NR_MIN`) in a slot is assigned to it automatically |
+| `AUTO_ASSIGN_BY_KIND` | `true` | an original Anycubic tag (names only material and colour): the one spool on the shelf with the same material, colour and vendor is assigned; with several, a message asks |
 | `EMPTY_DEBOUNCE_S` | `15` | …after the slot stayed empty this long (during a print: after it ends) |
 | `WRITE_LANE_DATA` | `true` | write Moonraker `lane_data` for Orca/Mainsail/Fluidd (switch ACEPRO's own sync off, see [installation](installation.md#b--klipper-on-a-raspberry-pi-with-acepro)) |
 | `LANE_NAMESPACE` | `lane_data` | Moonraker database namespace |
@@ -38,7 +39,7 @@
 | `PRINTER_UI_URL` | – | Mainsail link (*Open Mainsail*); empty = the Moonraker host on port 80 |
 | `CAMERA` | `true` | camera through the bridge (web UI, app, Mainsail via camera link) |
 | `CAMERA_INGRESS_SNAPSHOTS` | `true` | under HA ingress the browser asks for one image after the other (`/api/camera/frame.jpg`) instead of the MJPEG stream, which does not get through every proxy chain. `false` tries the stream |
-| `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer) |
+| `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer). Ignored under Rinkhals (one stream took the whole printer CPU); takes effect at once |
 | `CAMERA_FPS_MIN` / `CAMERA_FPS_MAX` | `1` / `10` | range of the snapshot rate |
 | `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | Rinkhals only: the printer's CPU (%) below which the rate goes up by 1 fps every 5 s, above which it goes down — the stock firmware needs its CPU for printing. Ignored under Klipper on a Pi |
 | `CAMERA_STREAM_URL` | – | stream URL; empty = from Moonraker's webcam list (`/webcam/?action=stream` on the printer) |

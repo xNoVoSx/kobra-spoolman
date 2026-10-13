@@ -323,7 +323,9 @@ The rate starts at 2 fps and follows the printer's CPU, which Moonraker pushes a
 (`notify_proc_stat_update`, no extra request; mean over 10 s): below `CAMERA_CPU_LOW` +1 fps every 5 s up
 to `CAMERA_FPS_MAX`, above `CAMERA_CPU_HIGH` −1 fps every 5 s down to `CAMERA_FPS_MIN`. With
 `CAMERA_STREAM=true` the bridge holds the printer's MJPEG stream instead (one connection, falls back
-to snapshots if the printer has none).
+to snapshots if the printer has none; switching ends the running reader at once). Under Rinkhals the stream setting is
+ignored (`/api/camera` → `stream_ignored: true`), and `printer_cpu` (also in `/api/app/state` → `printer.printer_cpu`)
+is the printer's CPU in % (null elsewhere).
 
 **Camera key.** Mainsail and an `<img>` tag cannot send an `Authorization` header, so camera URLs
 also accept `?key=<camera key>`. The key only shows camera images; it is stored in `camera.json`

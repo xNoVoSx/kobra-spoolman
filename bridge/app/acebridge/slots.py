@@ -134,6 +134,8 @@ class SlotManager:
         # automatic RFID: last handled tag number per gate, waiting (number, since), unknown numbers,
         # gates whose assignment came from the tag, and events for the messages
         self._tag_seen: Dict[int, int] = {}
+        self._kind_seen: Dict[int, str] = {}                 # original Anycubic tag: kind handled per insertion
+        self._kind_pending: Dict[int, Tuple[str, float]] = {}
         self._tag_pending: Dict[int, Tuple[int, float]] = {}
         self._auto_lock = asyncio.Lock()
         self.unknown_tags: Dict[int, int] = {}
@@ -268,7 +270,7 @@ class SlotManager:
     async def auto_by_tag(self, now: Optional[float] = None) -> None:
         """Spool with our tag in the slot -> assign automatically. Reacts when the number in the gate changes (also at
         start: then every number is new) - a deliberate manual assignment is not overwritten all the time."""
-        if not self.cfg.auto_assign_by_tag or not self.ace_connected:
+        if not (self.cfg.auto_assign_by_tag or self.cfg.auto_assign_by_kind) or not self.ace_connected:
             return
         # only with the spool list from Spoolman - otherwise every number would be "unknown" at start
         if not getattr(self.sm, "connected", True) or not self.sm.spools:
@@ -280,13 +282,14 @@ class SlotManager:
             for gate in range(self.num_gates()):
                 slot = gate + 1
                 ace = self.ace_gate(gate)
-                nr = self.tag_of_gate(gate) if ace["present"] else None
+                nr = self.tag_of_gate(gate) if ace["present"] and self.cfg.auto_assign_by_tag else None
                 if nr is None:
                     self._tag_pending.pop(gate, None)
                     self.unknown_tags.pop(gate, None)
                     if not ace["present"]:
                         self._tag_seen.pop(gate, None)     # inserted again = new
                         self.by_tag.pop(gate, None)
+                    await self._auto_by_kind(gate, ace, now)
                     continue
                 if self._tag_seen.get(gate) == nr:
                     # unknown number: look again every time (a spool may have the number by now)
@@ -321,6 +324,64 @@ class SlotManager:
                 except Exception as e:  # noqa: BLE001
                     self._tag_seen.pop(gate, None)           # the next run tries again
                     log.warning("Slot %d: RFID assignment failed: %s", slot, e)
+
+    def spools_of_kind(self, ace: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Spools on the shelf (in no slot) that fit an original Anycubic tag: same material, colour within the
+        tolerance and - when both are known - the same vendor."""
+        vendor = (ace.get("vendor") or "").strip().lower()
+        out = []
+        for s in self.sm.spools:
+            fil = s.get("filament") or {}
+            if not fil.get("id") or self.sm.is_template(fil) or self.cfg.slot_from_location(s.get("location")):
+                continue
+            info = self.spool_info(s)
+            m = ace_match(ace, info)
+            v = (info.get("vendor") or "").strip().lower()
+            if m["material"] is True and m["color"] is True and not (vendor and v and v != vendor):
+                out.append(s)
+        return out
+
+    async def _auto_by_kind(self, gate: int, ace: Dict[str, Any], now: float) -> None:
+        """Original Anycubic tag (no number of ours): it only names the kind (SKU, material, colour), not the spool. If
+        exactly one spool on the shelf fits, it is the one - assign it once per insertion; several or none: a note,
+        the choice stays with the user. Switch: AUTO_ASSIGN_BY_KIND."""
+        own = self.tag_of_gate(gate) is not None              # our tags: auto_by_tag, also when that is off
+        if not ace["present"] or not gate_has_tag(ace) or own or not self.cfg.auto_assign_by_kind:
+            self._kind_pending.pop(gate, None)
+            if not ace["present"]:
+                self._kind_seen.pop(gate, None)
+            return
+        kind = f"{ace.get('sku') or ace.get('tag_id') or ''}|{ace['material']}|{ace['color']}"
+        if self._kind_seen.get(gate) == kind:
+            return
+        pending = self._kind_pending.get(gate)
+        if pending is None or pending[0] != kind:
+            self._kind_pending[gate] = (kind, now)          # the tag is read while loading: only after debouncing
+            return
+        if now - pending[1] < self.cfg.gate_debounce_s:
+            return
+        self._kind_pending.pop(gate, None)
+        self._kind_seen[gate] = kind
+        slot = gate + 1
+        assigned, _ = self.assignments()
+        current = assigned.get(slot)
+        if current and ace_match(ace, self.spool_info(current))["full"]:
+            return                                           # already a fitting spool in the slot
+        found = self.spools_of_kind(ace)
+        what = f"{ace['material']} #{ace['color']}"
+        if len(found) != 1:
+            self._event(tr("Slot {slot}: Anycubic tag {what} – {n} spools on the shelf fit, please assign one",
+                           slot=slot, what=what, n=len(found)), now)
+            return
+        spool = found[0]
+        name = (spool.get("filament") or {}).get("name") or f"#{spool['id']}"
+        try:
+            await self.assign(slot, spool["id"], learn=False)
+            self._event(tr("Slot {slot}: {name} recognised by the Anycubic tag (the only fitting spool)",
+                           slot=slot, name=name), now)
+        except Exception as e:  # noqa: BLE001
+            self._kind_seen.pop(gate, None)
+            log.warning("Slot %d: assignment by Anycubic tag failed: %s", slot, e)
 
     async def _learn_tag(self, slot: int, spool_id: int) -> None:
         """Manual assignment into a slot with an unknown tag: remember the number on the spool (if it has none yet)."""

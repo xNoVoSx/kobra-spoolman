@@ -6,6 +6,25 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.17.0] – 2026-10-13
+
+From the Rinkhals test on the real printer.
+
+### Added
+- Original Anycubic tags (product code like `AHPEBK-102`, which names a filament type, not a spool): if exactly one
+  spool on the shelf has the same material, colour and vendor, it is assigned automatically, once per insertion; with
+  several (or none) a message asks. Switch: *Settings → Slots and RFID*, `AUTO_ASSIGN_BY_KIND` (default on).
+- Rinkhals: the printer card (web) shows the printer's CPU all the time; `printer.printer_cpu` in `/api/app/state`,
+  `printer_cpu` and `stream_ignored` in `/api/camera`.
+
+### Fixed
+- Rinkhals: the loaded slot is read from GoKlipper's `filament_hub.current_filament` (`"0-2"` = slot 3). Before, a slot
+  with `gate_status -1` counted as loaded — but that only means *busy* (rolling back, feeding), and after loading all
+  slots report `1`, so the loaded slot was not recognised at all.
+- Camera: switching *continuous stream* off did not take effect while someone was watching — the old stream stayed
+  open (printer CPU 100 % under Rinkhals). The reader now ends on every change. Under Rinkhals the stream setting is
+  ignored altogether: the bridge only fetches snapshots by the printer's CPU.
+
 ## [3.16.1] – 2026-10-13
 
 ### Changed

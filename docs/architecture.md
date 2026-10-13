@@ -152,7 +152,10 @@ someone watches, closed 20 s after the last viewer — and fans each frame out: 
 instead of queueing. With Klipper on the Pi the printer has plenty of headroom, so the rate is simply
 `CAMERA_FPS_MAX`. On Rinkhals the bridge starts at 2 fps and follows the printer's CPU (Moonraker's `proc_stats`, averaged over 10 s): below
 `CAMERA_CPU_LOW` it adds 1 fps every 5 s, above `CAMERA_CPU_HIGH` it takes one away (`/api/camera` → `throttled`, the
-web UI shows *throttled*). *Status* shows the CPU of the printer or the Klipper host (the Pi).
+web UI shows *throttled*). *Status* shows the CPU of the printer or the Klipper host (the Pi); under Rinkhals the
+printer card shows it all the time (`printer.printer_cpu`). `CAMERA_STREAM` is ignored under Rinkhals — on 13.10. a
+stream left on from older settings kept the printer CPU at 100 % — and every change of it ends the running reader, so
+it takes effect while people watch.
 
 ## AI print-failure detection (`vision.py`, `vision/`)
 

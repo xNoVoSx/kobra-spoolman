@@ -2,13 +2,18 @@
 
 from .i18n import tr
 
-__version__ = "3.16.1"
+__version__ = "3.17.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("3.17.0", "2026-10-13", [
+        tr("Original Anycubic tags: the one fitting spool on the shelf (material, colour, vendor) is assigned automatically; with several a message asks"),
+        tr("Rinkhals: the loaded slot comes from the hub (current_filament) – slots that are only busy no longer count as loaded"),
+        tr("Rinkhals: never a continuous camera stream (it took the whole printer CPU), the printer CPU is shown on the printer card; switching the stream setting takes effect at once"),
+    ]),
     ("3.16.1", "2026-10-13", [
         tr("AI print-failure detection marked as experimental on the Features page and in the docs (what is tested and what is not)"),
     ]),

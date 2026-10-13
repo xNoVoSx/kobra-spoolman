@@ -100,3 +100,28 @@ def test_dryer_commands():
     st = {"ace_instance_0": {}}
     assert acemodel.dryer_start_command(st, 55, 360) == "ACE_START_DRYING TEMP=55 DURATION=360"
     assert acemodel.dryer_stop_command(st) == "ACE_STOP_DRYING"
+
+
+def with_current(st, cur):
+    st["filament_hub"]["current_filament"] = cur
+    return st
+
+
+def test_active_slot_from_current_filament():
+    """Recorded on the printer 13.10. (load slot 3): GoKlipper rolls every slot back (gate_status -1 one after the
+    other), feeds slot 3, then all slots are 'ready' (gate_status 1, gate -1) and only current_filament says '0-2'."""
+    idle = with_current(rinkhals_status(gate_status=[1, 1, 1, 1], gate=-1, tool=-1), "0-2")
+    assert acemodel.active_slot(idle) == 2
+    assert [acemodel.slot(idle, i)["active"] for i in range(4)] == [False, False, True, False]
+    rollback = with_current(rinkhals_status(gate_status=[-1, 1, 1, 1], gate=-1), "")
+    assert acemodel.active_slot(rollback) is None and not acemodel.slot(rollback, 0)["active"]
+    assert acemodel.slot(rollback, 0)["present"]                     # busy, but the spool is still there
+    feeding = with_current(rinkhals_status(gate_status=[1, 1, -1, 1], gate=-1), "")
+    assert acemodel.active_slot(feeding) is None
+    flicker = with_current(rinkhals_status(gate_status=[1, 1, -1, 1], gate=-1), "0-2")   # assisting after load
+    assert acemodel.active_slot(flicker) == 2
+
+
+def test_current_filament_parsing():
+    for cur, want in (("0-0", 0), ("0-3", 3), ("1-1", 5), ("", None), ("0-4", None), ("x-1", None), ("2", None)):
+        assert acemodel._hub_slot(cur) == want, cur

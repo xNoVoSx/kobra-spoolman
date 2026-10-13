@@ -942,5 +942,7 @@
  "switch on under Features": "einschalten unter Funktionen",
  "Resume after a power loss": "Fortsetzen nach Stromausfall",
  "Clog detection": "Verstopfung erkennen",
- "experimental": "experimentell"
+ "experimental": "experimentell",
+ "CPU of the printer (Rinkhals) – the bridge keeps its own load on the printer low": "CPU des Druckers (Rinkhals) – die Bridge hält ihre eigene Last auf dem Drucker klein",
+ "CPU {n} %": "CPU {n} %"
 }

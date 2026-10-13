@@ -95,7 +95,9 @@ previous spool goes to the shelf, also during a print (consumption continues on 
 spool already loaded when the bridge starts is recognised too. The slot card then says *RFID*.
 An unknown number shows up under *Messages*; assign the spool by hand once and the bridge remembers
 the number on it (if it has none yet). Original Anycubic tags (102, 107, …) name a filament type, not a
-spool — those stay manual. A manual assignment is not overridden until the tag in the slot changes.
+spool: the bridge assigns the spool on the shelf with the same material, colour and vendor — but only if
+exactly one fits; with several it asks under *Messages* (switch: *Settings → Slots and RFID*,
+`AUTO_ASSIGN_BY_KIND`). A manual assignment is not overridden until the tag in the slot changes.
 
 ## Spools and filament types
 
@@ -194,7 +196,10 @@ finish time (*~17:35*, *tomorrow ~02:10*), estimated from the progress so far.
 
 The bridge **restreams** the camera: however many browsers and phones watch, it fetches single images
 from the printer only once — and only while someone is watching. The rate (up to 10 fps) adapts to the
-printer's CPU; *throttled* in the corner means the bridge is holding back so the print comes first. Point Mainsail at the bridge too, so it does not open
+printer's CPU; *throttled* in the corner means the bridge is holding back so the print comes first. Under
+Rinkhals the printer card shows the printer's CPU all the time, and the bridge never opens the printer's
+continuous stream (it took the whole CPU) — the *continuous stream* setting only applies with Klipper on a
+separate computer, and switching it takes effect at once. Point Mainsail at the bridge too, so it does not open
 a second stream: **Devices → Camera link** shows a stream and a snapshot URL. In Mainsail open
 *Settings → Webcams*, edit the webcam, choose the service *MJPEG-Streamer* and paste the two URLs.
 The link only shows the camera; *Create new* replaces it (the old one stops working).

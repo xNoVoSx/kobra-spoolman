@@ -71,8 +71,9 @@ def test_already_loaded_tag_is_assigned_at_start_after_debounce(make):
     assert loc(sm, 1) == "Shelf"                                  # debounce first
     run(sm.auto_by_tag(now=104))
     assert loc(sm, 1) == "ACE Slot 1" and sm.by_tag == {0: 34532}
-    assert "Lavendel recognised by RFID" in sm.tag_events[-1]["text"]
-    assert 2 not in sm.by_tag                                    # Anycubic product code 102 stays manual
+    assert any("Lavendel recognised by RFID" in e["text"] for e in sm.tag_events)
+    assert 2 not in sm.by_tag                                    # Anycubic product code 102 is no number of ours
+    assert loc(sm, 2) == "ACE Slot 3"                            # ... but the only fitting spool (by kind)
 
 
 def test_new_spool_replaces_old_and_manual_choice_is_kept(make):
@@ -133,3 +134,45 @@ def test_waits_for_spoolman_and_rechecks_unknown_numbers(make):
     sm.sm.spools.append(lav)                                      # now a spool has the number
     run(sm.auto_by_tag(now=20))
     assert loc(sm, 1) == "ACE Slot 1" and sm.unknown_tags == {}
+
+
+def kind_spool(sid, name, color, loc="Shelf", vendor="Anycubic", material="PETG"):
+    return {"id": sid, "location": loc, "extra": {},
+            "filament": {"id": sid, "name": name, "material": material, "color_hex": color, "vendor": {"name": vendor}}}
+
+
+def anycubic(color="212721", present=True):
+    """Slot 1 with an original Anycubic tag (product code 102 = PETG black), as seen on the printer 13.10."""
+    return ace_status([{"material": "PETG", "color": color, "sku": "AHPEBK-102", "brand": "Anycubic"} if present else None])
+
+
+def test_anycubic_tag_assigns_the_only_fitting_spool(make):
+    sm, moon = make(anycubic(), [kind_spool(5, "Anycubic PETG Schwarz", "212721"),
+                                 kind_spool(6, "Anycubic PETG Weiss", "F2F2F2"),
+                                 kind_spool(7, "Sunlu PETG Schwarz", "212721", vendor="Sunlu"),
+                                 kind_spool(8, "Anycubic PLA Schwarz", "212721", material="PLA")])
+    settle(sm, 10)
+    assert loc(sm, 5) == "ACE Slot 1" and "Anycubic tag" in sm.tag_events[-1]["text"]
+    run(sm.assign(1, 6))                                          # changed by hand: stays
+    settle(sm, 30)
+    assert loc(sm, 6) == "ACE Slot 1"
+    moon.merge(anycubic(present=False))                            # taken out and inserted again
+    run(sm.auto_by_tag(now=50))
+    moon.merge(anycubic())
+    settle(sm, 60)
+    assert loc(sm, 5) == "ACE Slot 1" and loc(sm, 6) == "Shelf"
+
+
+def test_anycubic_tag_with_several_fitting_spools_only_notes(make):
+    sm, _ = make(anycubic(), [kind_spool(5, "Anycubic PETG Schwarz", "212721"),
+                              kind_spool(9, "Anycubic PETG Schwarz", "202620")])
+    settle(sm, 10)
+    assert loc(sm, 5) == "Shelf" and loc(sm, 9) == "Shelf"
+    assert "2 spools" in sm.tag_events[-1]["text"]
+
+
+def test_anycubic_tag_switch(make, cfg):
+    sm, _ = make(anycubic(), [kind_spool(5, "Anycubic PETG Schwarz", "212721")])
+    cfg.auto_assign_by_kind = False
+    settle(sm, 10)
+    assert loc(sm, 5) == "Shelf"

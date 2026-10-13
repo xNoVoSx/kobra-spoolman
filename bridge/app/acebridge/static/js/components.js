@@ -40,6 +40,7 @@ export function PrinterCard({ compact, tall }) {
       <span class="state" style=${{ color: look.fg }} title=${p?.phase ? look.label : ""}>${p?.phase || look.label}</span>
       <span class="m small muted ell grow" title=${p?.file || ""}>${p?.file ? fileName(p.file) : ""}</span>
       ${pct != null && html`<span class="m pct" style=${{ color: look.fg }}>${pct} %</span>`}
+      ${p?.printer_cpu != null && html`<span class="m small" style=${{ color: p.printer_cpu >= 90 ? "var(--danger)" : look.fg }} title=${t("CPU of the printer (Rinkhals) – the bridge keeps its own load on the printer low")}>${t("CPU {n} %", { n: p.printer_cpu })}</span>`}
       ${ui && html`<a class="btn sm ghost" href=${ui} target="_blank" rel="noopener" title=${t("Open Mainsail")} style=${{ borderColor: look.line, color: look.fg }}><${Icon} name="link" small />Mainsail</a>`}
     </div>
     ${running && html`<span class="bar" style=${{ background: look.line }}><i style=${{ width: (p.progress || 0) * 100 + "%", background: look.dot }}></i></span>`}

@@ -169,7 +169,6 @@
  "Frame rate at least": "Bildrate mindestens",
  "Frame rate at most": "Bildrate höchstens",
  "Frame rate: at least must not be above at most": "Bildrate: mindestens darf nicht über höchstens liegen",
- "Full frame rate from the printer's MJPEG stream – on the stock firmware it used the whole printer CPU, with Klipper on a separate computer it is free. Default: off": "Volle Bildrate über den MJPEG-Stream des Druckers – unter der Original-Firmware kostete er die ganze Drucker-CPU, mit Klipper auf einem eigenen Rechner ist sie frei. Standard: aus",
  "General": "Allgemein",
  "Give orca_id (SM000010) or filament_id": "orca_id (SM000010) oder filament_id angeben",
  "Give the field “Z offset” of the filament (or its template) to the printer – the print start adds the start filament's value to the first layer (+ = further from the bed)": "Feld „Z-Versatz“ am Filament (oder seiner Vorlage) an den Drucker geben – der Druckstart rechnet den Wert des Startfilaments zur ersten Schicht dazu (+ = weiter weg vom Bett)",
@@ -669,5 +668,13 @@
  "Expected JSON {\"on\": true}": "Erwartet JSON {\"on\": true}",
  "Features page: everything the system can do in one place – what it does, what it needs, on/off, one switch per feature (bridge or printer), link to the docs": "Seite Funktionen: alles, was das System kann, an einer Stelle – was es tut, was es braucht, an/aus, ein Schalter je Funktion (Bridge oder Drucker), Link zur Doku",
  "New installations start with the core and a setup page (found, choose, what is left to do); existing ones keep every switch and get a hint": "Neue Installationen starten mit dem Kern und einer Einrichtungsseite (erkannt, auswählen, was noch zu tun ist); bestehende behalten jeden Schalter und bekommen einen Hinweis",
- "AI print-failure detection marked as experimental on the Features page and in the docs (what is tested and what is not)": "KI-Fehldruck-Erkennung auf der Seite Funktionen und in der Doku als experimentell gekennzeichnet (was getestet ist und was nicht)"
+ "AI print-failure detection marked as experimental on the Features page and in the docs (what is tested and what is not)": "KI-Fehldruck-Erkennung auf der Seite Funktionen und in der Doku als experimentell gekennzeichnet (was getestet ist und was nicht)",
+ "Assign spools with an Anycubic tag automatically": "Spulen mit Anycubic-Tag automatisch zuordnen",
+ "The Anycubic tag only names material and colour - if exactly one spool on the shelf fits, it is assigned; with several the choice stays with you": "Der Anycubic-Tag nennt nur Material und Farbe – passt genau eine Spule im Regal, wird sie zugeordnet; bei mehreren entscheidest du",
+ "Slot {slot}: Anycubic tag {what} – {n} spools on the shelf fit, please assign one": "Slot {slot}: Anycubic-Tag {what} – {n} Spulen im Regal passen, bitte eine zuordnen",
+ "Slot {slot}: {name} recognised by the Anycubic tag (the only fitting spool)": "Slot {slot}: {name} am Anycubic-Tag erkannt (einzige passende Spule)",
+ "Full frame rate from the printer's MJPEG stream – only with Klipper on a separate computer. Under Rinkhals it used the whole printer CPU, there the bridge always fetches snapshots by the printer CPU. Takes effect at once. Default: off": "Volle Bildrate aus dem MJPEG-Stream des Druckers – nur mit Klipper auf einem eigenen Rechner. Unter Rinkhals lastete er die Drucker-CPU voll aus, dort holt die Bridge immer Einzelbilder nach der Drucker-CPU. Wirkt sofort. Standard: aus",
+ "Original Anycubic tags: the one fitting spool on the shelf (material, colour, vendor) is assigned automatically; with several a message asks": "Original-Anycubic-Tags: die eine passende Spule im Regal (Material, Farbe, Hersteller) wird automatisch zugeordnet; bei mehreren fragt eine Meldung",
+ "Rinkhals: the loaded slot comes from the hub (current_filament) – slots that are only busy no longer count as loaded": "Rinkhals: der geladene Slot kommt vom Hub (current_filament) – Slots, die nur beschäftigt sind, gelten nicht mehr als geladen",
+ "Rinkhals: never a continuous camera stream (it took the whole printer CPU), the printer CPU is shown on the printer card; switching the stream setting takes effect at once": "Rinkhals: nie ein Kamera-Dauerstream (er lastete die Drucker-CPU voll aus), die Drucker-CPU steht auf der Druckerkarte; Umschalten des Streams wirkt sofort"
 }

@@ -96,8 +96,10 @@ zu – die bisherige kommt ins Regal, auch während eines Drucks (der Verbrauch 
 Spule weiter). Auch eine Spule, die beim Start der Bridge schon steckt, wird erkannt. Die Slot-Karte
 zeigt dann *RFID*. Eine unbekannte Nummer erscheint unter *Meldungen*; einmal von Hand zuordnen, und
 die Bridge merkt sich die Nummer an der Spule (wenn sie noch keine hat). Original-Anycubic-Tags (102,
-107, …) stehen für eine Sorte, nicht für eine Spule – die bleiben manuell. Eine Handzuordnung wird erst
-überschrieben, wenn sich der Tag im Slot ändert.
+107, …) stehen für eine Sorte, nicht für eine Spule: Die Bridge ordnet die Spule im Regal mit gleichem
+Material, gleicher Farbe und gleichem Hersteller zu – aber nur, wenn genau eine passt; bei mehreren fragt
+sie unter *Meldungen* (Schalter: *Einstellungen → Slots und RFID*, `AUTO_ASSIGN_BY_KIND`). Eine
+Handzuordnung wird erst überschrieben, wenn sich der Tag im Slot ändert.
 
 ## Spulen und Sorten
 
@@ -198,7 +200,9 @@ etwa fertig ist (*~17:35*, *morgen ~02:10*), geschätzt aus dem bisherigen Forts
 Die Bridge **verteilt die Kamera weiter** (Restream): Egal wie viele Browser und Handys zuschauen, sie
 holt die Bilder nur einmal vom Drucker – und nur solange jemand zuschaut. Die Bildrate (bis 10 fps)
 richtet sich nach der Drucker-CPU; *gedrosselt* in der Ecke heißt, die Bridge hält sich zurück, damit
-der Druck Vorrang hat. Damit Mainsail keinen zweiten
+der Druck Vorrang hat. Unter Rinkhals zeigt die Druckerkarte ständig die Drucker-CPU, und die Bridge öffnet
+nie den Dauerstream des Druckers (er lastete die CPU voll aus) – die Einstellung *Dauerstream* gilt nur mit
+Klipper auf einem eigenen Rechner und wirkt sofort. Damit Mainsail keinen zweiten
 Stream öffnet, trag dort auch die Bridge ein: **Geräte → Kamera-Link** zeigt eine Stream- und eine
 Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeiten, Dienst
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*

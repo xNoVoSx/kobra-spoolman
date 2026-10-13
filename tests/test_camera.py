@@ -260,3 +260,44 @@ def test_rate_follows_printer_cpu_on_rinkhals():
     for _ in range(9):
         cam.adjust(60.0)
     assert cam.target_fps == 10.0 and not cam.throttled
+
+
+def test_switching_the_setting_takes_effect_while_someone_watches(printer):
+    """13.10.: stream switched off in the settings, but the viewer kept the old stream open (printer CPU 100 %).
+    The reader now ends on the change and the next viewer request starts snapshots."""
+    app, hits = printer
+
+    async def go():
+        async with TestServer(app) as srv, aiohttp.ClientSession() as s:
+            cfg = make_cfg(srv, stream=True, interval=0)
+            cam = Camera(cfg, SimpleNamespace(), s)
+            got = 0
+            async for _ in cam.frames():
+                got += 1
+                if got == 3:
+                    assert cam.state()["mode"] == "stream" and hits["open"] == 1
+                    cfg.camera_stream = False                 # switched off in the settings
+                if got == 12:
+                    break
+            assert hits["open"] == 0 and hits["snapshot"] >= 1 and cam.state()["source"] == "snapshots"
+    asyncio.run(go())
+
+
+def test_rinkhals_never_opens_the_stream(printer):
+    """Under Rinkhals one stream used the whole printer CPU: the stream setting is ignored there."""
+    app, hits = printer
+
+    async def go():
+        async with TestServer(app) as srv, aiohttp.ClientSession() as s:
+            cfg = make_cfg(srv, stream=True, interval=0)
+            cfg.camera_cpu_low, cfg.camera_cpu_high = 90.0, 97.0
+            cam = Camera(cfg, SimpleNamespace(platform="rinkhals", cpu=lambda w: 55.0), s)
+            got = 0
+            async for _ in cam.frames():
+                got += 1
+                if got == 3:
+                    break
+            st = cam.state()
+            assert hits["stream"] == 0 and st["source"] == "snapshots" and st["stream_ignored"] is True
+            assert st["printer_cpu"] == 55
+    asyncio.run(go())

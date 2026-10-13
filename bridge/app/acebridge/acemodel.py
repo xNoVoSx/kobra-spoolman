@@ -88,6 +88,15 @@ def _idx(container: Any, i: int, default: Any = None) -> Any:
     return default
 
 
+def _hub_slot(cur: str) -> Optional[int]:
+    """'0-2' -> 2, '1-0' -> 4 (four slots per hub), '' or garbage -> None."""
+    hub, sep, slot = cur.partition("-")
+    h, s = _int(hub), _int(slot)
+    if not sep or h is None or s is None or h < 0 or not 0 <= s < 4:
+        return None
+    return h * 4 + s
+
+
 def _int(v: Any) -> Optional[int]:
     try:
         return int(v)
@@ -136,9 +145,13 @@ def num_slots(status: Dict[str, Any]) -> int:
 def active_slot(status: Dict[str, Any]) -> Optional[int]:
     """Loaded tool (0-based) according to the driver, None = none.
 
-    ACEPRO: current_index, no flicker. Rinkhals: the gate with gate_status -1 (the field 'gate' flickers and only
-    counts when there is no gate_status)."""
+    ACEPRO: current_index, no flicker. Rinkhals: GoKlipper's filament_hub.current_filament ("<hub>-<slot>", empty =
+    none). gate_status -1 only means "busy" (feeding, rollback) and 'gate' flickers, so both are only a fallback for
+    a status without current_filament."""
     if variant(status) == RINKHALS:
+        cur = (status.get("filament_hub") or {}).get("current_filament")
+        if isinstance(cur, str):
+            return _hub_slot(cur)
         m = _mmu(status)
         st = m.get("gate_status")
         if isinstance(st, list):
@@ -235,7 +248,7 @@ def _slot_rinkhals(status: Dict[str, Any], index: int, ready: bool) -> Dict[str,
     return {
         "status": str(gs) if gs is not None else "",
         "present": present,
-        "active": present and gs == -1,
+        "active": present and active_slot(status) == index,
         "material": material if present else "",
         "color": color_hex(_idx(m.get("gate_color"), index)) if present else "",
         "name": (name if name.lower() != "unknown" else "") or material if present else "",
