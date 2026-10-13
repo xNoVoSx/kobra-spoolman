@@ -663,3 +663,53 @@ data class AppUpdate(
     val changes: List<String> = emptyList(),
     val url: String = "",
 )
+
+// ------------------------------------------------------------ features and setup (/api/features, /api/setup)
+
+@Serializable
+data class FeatureGroup(val key: String = "", val title: String = "")
+
+/** One feature of the system (bridge features.py): source core | setting | printer | install | client. */
+@Serializable
+data class FeatureItem(
+    val key: String = "",
+    val group: String = "",
+    val title: String = "",
+    val text: String = "",
+    val needs: String? = null,
+    val doc: String? = null,
+    val available: Boolean = true,
+    val on: Boolean? = null,
+    val switchable: Boolean = false,
+    val source: String = "",
+    val why: String? = null,
+    val paired: Int? = null,
+)
+
+@Serializable
+data class Features(
+    val groups: List<FeatureGroup> = emptyList(),
+    val items: List<FeatureItem> = emptyList(),
+    val platform: String = "klipper",
+)
+
+@Serializable
+data class SetupFound(
+    val platform: String = "klipper",
+    val printer: Boolean = false,
+    val ace: String? = null,
+    val spoolman: Boolean = false,
+    @SerialName("spoolman_version") val spoolmanVersion: String? = null,
+    val camera: Boolean? = null,
+    @SerialName("printer_modules") val printerModules: List<String> = emptyList(),
+)
+
+/** First start of the bridge (setup.py): state new | done | existing, what it found, all features. */
+@Serializable
+data class SetupInfo(
+    val state: String = "existing",
+    @SerialName("open_setup") val openSetup: Boolean = false,
+    val hint: Boolean = false,
+    val found: SetupFound = SetupFound(),
+    val features: Features = Features(),
+)

@@ -25,6 +25,15 @@ shows and switches every feature.
 - ACE page: a printer module that is switched off (resume after power loss, clog detection, Auto PA) disappears, with a
   link to switch it on under *Features*.
 
+## app 1.16.0 – 2026-10-13
+
+### Added
+- *More → Features*: every feature of the system with what it does, what it needs and one switch each – the same as
+  the web UI's page.
+- Setup after pairing: a freshly paired app opens it right away – what the bridge found, NFC and notifications on this
+  phone, the printer's messages on, then choose the features and see what is left to set up on another device.
+- An app that was paired before shows a one-time hint on the new Features page instead; nothing changes.
+
 ## [3.15.0] – 2026-10-13
 
 Pause and cancel work during the print start. Until now the start sequence (`G9111`, up to half an hour with the heat

@@ -418,7 +418,9 @@ its explanation here. One switch per feature, no matter where it lives — a set
 printer (Klipper setup). What the installation sets (environment variables of the container, options of the Home
 Assistant add-on) is shown as *set by the installation* and changed there, never on this page. Clients (app, display,
 Orca plugin) show how many are paired; they are set up on the device itself. *Start setup* runs the setup page again
-(see installation). A printer module that is switched off also disappears from the ACE page.
+(see installation). A printer module that is switched off also disappears from the ACE page. The app has the same
+page under *More → Features*; a freshly paired app opens the setup right after pairing (with NFC and notifications of
+the phone), an app that was paired before only shows a one-time hint.
 
 ## Settings
 

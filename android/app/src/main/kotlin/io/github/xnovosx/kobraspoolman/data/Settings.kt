@@ -20,6 +20,15 @@ class Settings(private val context: Context) {
     private val tokenKey = stringPreferencesKey("app_token")
     private val monitorKey = booleanPreferencesKey("monitor")
     private val render3dKey = stringPreferencesKey("render3d")
+    private val appSetupKey = stringPreferencesKey("app_setup")
+
+    /** Setup in the app: "" not decided yet, "pending" = freshly paired (open the setup), "hint" = paired before this
+     *  version (show the hint on the Features page once), "seen" = done. */
+    val appSetup: Flow<String> = context.store.data.map { it[appSetupKey].orEmpty() }
+
+    suspend fun setAppSetup(v: String) {
+        context.store.edit { it[appSetupKey] = v }
+    }
 
     /** 3D model: auto | volume | lines | image (image of the bridge). */
     val render3d: Flow<String> = context.store.data.map { it[render3dKey] ?: "auto" }

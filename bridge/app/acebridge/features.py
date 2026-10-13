@@ -144,7 +144,7 @@ def state(bridge: "Bridge", f: Feature, switches: List[Dict[str, Any]],
     if f.klipper_only and platform == "rinkhals":
         return dict(out, available=False, why=tr("Only with the Klipper setup"))
     if f.source == "core":
-        return dict(out, on=True, why=tr("Always on"))
+        return dict(out, on=True)
     if f.source == "setting":
         on = all(bool(getattr(bridge.cfg, k)) for k in f.keys)
         if any(_env_set(k) for k in f.keys):

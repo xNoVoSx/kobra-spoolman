@@ -171,6 +171,7 @@ fun MoreScreen(
     onProtocol: () -> Unit,
     onAi: () -> Unit,
     onDevices: () -> Unit,
+    onFeatures: () -> Unit,
     onSettings: () -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize().background(K.Ground), contentPadding = listPadding(padding),
@@ -181,6 +182,7 @@ fun MoreScreen(
         item { MoreRow(KIcons.Eye, tr("AI"), tr("Failure detection: state, settings, events"), onAi) }
         item { MoreRow(KIcons.Clock, tr("Prints"), tr("Usage per print and spool"), onJobs) }
         item { MoreRow(KIcons.Terminal, tr("Log"), tr("Sent commands, replies, what the bridge does"), onProtocol) }
+        item { MoreRow(KIcons.Check, tr("Features"), tr("Everything the system can do – on, off, what it needs"), onFeatures) }
         item { MoreRow(KIcons.Phone, tr("Devices"), tr("Paired devices, add a device"), onDevices) }
         item { MoreRow(KIcons.Settings, tr("Settings"), tr("Pairing, notifications, sounds, language"), onSettings) }
         item {

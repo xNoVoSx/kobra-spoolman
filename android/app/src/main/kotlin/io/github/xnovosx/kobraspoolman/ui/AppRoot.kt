@@ -71,6 +71,9 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     val meChecked by vm.meChecked.collectAsState()
     val devices by vm.devices.collectAsState()
     val pairingCode by vm.pairingCode.collectAsState()
+    val appSetup by vm.appSetup.collectAsState()
+    val features by vm.features.collectAsState()
+    val setupInfo by vm.setup.collectAsState()
     val nav = rememberNavController()
     val snackbar = remember { SnackbarHostState() }
     var scanOpen by remember { mutableStateOf(false) }
@@ -91,7 +94,9 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     val lanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { lanGranted = it }
     LaunchedEffect(Unit) { if (!lanGranted) lanLauncher.launch(LocalNetwork.PERMISSION) }
     // notifications (print monitoring) need a permission from Android 13 - ask after the one for the home network
-    val notifyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.ensureMonitor() }
+    fun notifyGranted() = context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    var notifyOk by remember { mutableStateOf(notifyGranted()) }
+    val notifyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notifyOk = it; vm.ensureMonitor() }
     LaunchedEffect(lanGranted, connection?.configured) {
         if (connection?.configured != true || !lanGranted) return@LaunchedEffect
         if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
@@ -130,6 +135,11 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
         }
     }
     val c = connection ?: return   // settings not loaded yet
+    // setup: an app paired before this version only gets the hint; a freshly paired one opens the setup
+    LaunchedEffect(c.token) { vm.decideAppSetup() }
+    LaunchedEffect(appSetup, c.configured) {
+        if (appSetup == "pending" && c.configured && route != "setup") nav.navigate("setup") { launchSingleTop = true }
+    }
 
     Scaffold(
         containerColor = K.Ground,
@@ -178,7 +188,26 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onProtocol = { nav.navigate("protocol") },
                     onAi = { nav.navigate("ai") },
                     onDevices = { nav.navigate("devices") },
+                    onFeatures = { nav.navigate("features") },
                     onSettings = { nav.navigate("settings") })
+            }
+            composable("features") {
+                FeaturesScreen(padding, features, canWrite, busy,
+                    onLoad = { vm.loadFeatures() },
+                    onSwitch = { k, on -> vm.switchFeature(k, on) },
+                    onSetup = { nav.navigate("setup") },
+                    onBack = { nav.popBackStack() })
+            }
+            composable("setup") {
+                val monitorOn by vm.monitor.collectAsState()
+                SetupScreen(padding, setupInfo,
+                    PhoneChecks(nfc = if (!scanner.nfcAvailable) null else scanner.nfcEnabled, notifications = notifyOk, monitor = monitorOn),
+                    busy,
+                    onLoad = { vm.loadSetup() },
+                    onAllowNotifications = { notifyLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) },
+                    onMonitor = { vm.setMonitor(it) },
+                    onApply = { choice, done -> vm.applySetup(choice, done) },
+                    onFinish = { vm.finishSetup { nav.navigate("slots") { popUpTo(0); launchSingleTop = true } } })
             }
             composable("ai") { AiScreen(padding, vm, onBack = { nav.popBackStack() }) }
             composable("jobs") { JobsScreen(padding, load = { vm.jobs() }, onBack = { nav.popBackStack() }) }
@@ -235,7 +264,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     canGoBack = c.configured, onBack = { nav.popBackStack() },
                     onLoadMe = { vm.loadMe() },
                     onPair = { url, code, name ->
-                        vm.pair(url, code, name) { nav.navigate("slots") { popUpTo(0); launchSingleTop = true } }
+                        vm.pair(url, code, name) { nav.navigate("setup") { popUpTo(0); launchSingleTop = true } }
                     },
                     onForget = { vm.forgetPairing() },
                     onDevices = { nav.navigate("devices") })
@@ -249,6 +278,12 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onRemove = { vm.removeDevice(it.id) })
             }
         }
+    }
+
+    if (appSetup == "hint" && route in TABS) {
+        FeaturesHintDialog(
+            onLook = { vm.setAppSetup("seen"); nav.navigate("features") },
+            onDismiss = { vm.setAppSetup("seen") })
     }
 
     val dryer = state?.dryer

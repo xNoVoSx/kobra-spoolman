@@ -9,6 +9,8 @@ import io.github.xnovosx.kobraspoolman.data.AcePurge
 import io.github.xnovosx.kobraspoolman.data.HumidityData
 import io.github.xnovosx.kobraspoolman.data.VisionFull
 import io.github.xnovosx.kobraspoolman.data.AppState
+import io.github.xnovosx.kobraspoolman.data.Features
+import io.github.xnovosx.kobraspoolman.data.SetupInfo
 import io.github.xnovosx.kobraspoolman.data.AppUpdate
 import io.github.xnovosx.kobraspoolman.monitor.MonitorService
 import io.github.xnovosx.kobraspoolman.update.Installer
@@ -367,6 +369,49 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (settings.monitor.first() && settings.connection.first().configured) MonitorService.start(getApplication())
     }
 
+    // ------------------------------------------------ features and setup (bridge features.py / setup.py)
+    /** "" undecided, "pending" freshly paired -> open the setup, "hint" paired before -> hint once, "seen". */
+    val appSetup: StateFlow<String?> = settings.appSetup.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    private val _features = MutableStateFlow<Features?>(null)
+    val features: StateFlow<Features?> = _features
+    private val _setup = MutableStateFlow<SetupInfo?>(null)
+    val setup: StateFlow<SetupInfo?> = _setup
+
+    /** At app start: an app that was paired before this version gets only the hint, never the setup. */
+    fun decideAppSetup() = viewModelScope.launch {
+        if (settings.appSetup.first().isEmpty() && settings.connection.first().token.isNotBlank()) settings.setAppSetup("hint")
+    }
+
+    fun setAppSetup(v: String) = viewModelScope.launch { settings.setAppSetup(v) }
+
+    fun loadFeatures() = launchSafe(showBusy = false) { _features.value = it.features() }
+
+    fun switchFeature(key: String, on: Boolean) = launchSafe {
+        it.switchFeature(key, on)
+        _features.value = it.features()
+    }
+
+    fun loadSetup() = launchSafe(showBusy = false) { _setup.value = it.setup() }
+
+    /** Setup: switch what the user chose (only what changed), then show step 3. */
+    fun applySetup(choice: Map<String, Boolean>, done: () -> Unit) = launchSafe {
+        val current = it.features().items.associateBy { f -> f.key }
+        for ((key, on) in choice) {
+            val f = current[key] ?: continue
+            if (!f.switchable || (f.on == true) == on) continue
+            try { it.switchFeature(key, on) } catch (e: BridgeException) { _messages.send("${f.title}: ${e.message}") }
+        }
+        _features.value = it.features()
+        done()
+    }
+
+    /** Setup finished in the app: never again by itself here, and the bridge (web UI) counts it as done too. */
+    fun finishSetup(done: () -> Unit) = viewModelScope.launch {
+        settings.setAppSetup("seen")
+        client()?.let { c -> runCatching { c.setupDone() } }
+        done()
+    }
+
     // ------------------------------------------------ app update from the bridge
     private val _appUpdate = MutableStateFlow<AppUpdate?>(null)
     /** Newer app the bridge brings along (release build only; the debug app has its own package ID). */
@@ -426,6 +471,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val res = BridgeClient(url, "").pair(code.trim(), name.trim())
             settings.save(Connection(url, res.token))
+            settings.setAppSetup("pending")              // freshly paired: the setup opens next
             _me.value = res.device
             _meChecked.value = true
             _messages.send(tr("Paired as “{name}”", "name" to res.device.name))

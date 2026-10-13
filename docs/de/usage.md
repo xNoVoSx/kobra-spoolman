@@ -424,7 +424,9 @@ Drucker (Klipper-Weg). Was die Installation festlegt (Umgebungsvariablen des Con
 Home-Assistant-Add-ons), steht als *von der Installation festgelegt* da und wird dort geändert, nie auf dieser Seite.
 Geräte (App, Display, Orca-Plugin) zeigen, wie viele gekoppelt sind; eingerichtet werden sie am Gerät selbst.
 *Einrichtung starten* lässt die Einrichtungsseite erneut laufen (siehe Installation). Ein ausgeschaltetes Drucker-Modul
-verschwindet auch von der ACE-Seite.
+verschwindet auch von der ACE-Seite. Die App hat dieselbe Seite unter *Mehr → Funktionen*; eine frisch gekoppelte App
+öffnet gleich nach dem Koppeln die Einrichtung (mit NFC und Benachrichtigungen des Handys), eine schon vorher gekoppelte
+zeigt nur einmal einen Hinweis.
 
 ## Einstellungen
 

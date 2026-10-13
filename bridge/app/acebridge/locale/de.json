@@ -659,7 +659,6 @@
  "Printer light and beeper on events (quiet at night)": "Licht im Drucker und Piepser bei Ereignissen (nachts leise)",
  "Klipper setup, kobra-io app on the printer": "Klipper-Weg, App kobra-io auf dem Drucker",
  "Only with the Klipper setup": "Nur mit dem Klipper-Weg",
- "Always on": "Immer an",
  "Set by the installation ({env})": "Von der Installation festgelegt ({env})",
  "Not installed on the printer": "Am Drucker nicht installiert",
  "Not set up: {needs}": "Nicht eingerichtet: {needs}",

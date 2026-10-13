@@ -289,6 +289,21 @@ class BridgeClient(
         call("POST", "/api/clog/switch", parts.joinToString(",", "{", "}"), ApiError.serializer())
     }
 
+    /** All features of the system (one page, one switch each - bridge features.py). */
+    suspend fun features(): Features = call("GET", "/api/features", null, Features.serializer())
+
+    suspend fun switchFeature(key: String, on: Boolean) {
+        call("POST", "/api/features/$key", "{\"on\":$on}", ApiError.serializer())
+    }
+
+    /** First start: what the bridge found and the features (setup page). */
+    suspend fun setup(): SetupInfo = call("GET", "/api/setup", null, SetupInfo.serializer())
+
+    /** The setup was gone through - the bridge does not open it by itself any more (also not in the web UI). */
+    suspend fun setupDone() {
+        call("POST", "/api/setup/done", "{}", ApiError.serializer())
+    }
+
     /** Set a switch from /api/switches (e.g. usb_watch). */
     suspend fun setSwitch(key: String, value: Boolean) {
         call("POST", "/api/switch", "{\"key\":\"$key\",\"value\":$value}", ApiError.serializer())
