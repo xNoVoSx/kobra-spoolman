@@ -64,6 +64,13 @@ def ace_max_temp(model: Optional[str]) -> int:
     return 65 if ("ace2" in m or "2.0" in m) else 55
 
 
+def dryer_error(status: Any) -> Optional[str]:
+    """The ACE reports a dryer fault (13.10. on the real ACE 2 Pro: "PTC_err" - heater, right after the lid was
+    closed on a run that had been open for 80 min). Any status with "err" in it counts; None = no fault."""
+    s = str(status or "")
+    return s if "err" in s.lower() else None
+
+
 def hub_state(status: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """ACE dryer for display (acemodel.dryer). present=False without a connected ACE."""
     d = acemodel.dryer(status)
@@ -75,6 +82,7 @@ def hub_state(status: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         "humidity": d.get("humidity"),
         "temp": d.get("temp"),
         "status": d["status"],
+        "error": dryer_error(d["status"]),          # dryer fault reported by the ACE, else None
         "drying": d["drying"],
         "target_temp": d.get("target_temp") or None,
         "duration_min": round(duration) if duration else None,
@@ -133,6 +141,7 @@ class Dryer:
         self.run: Optional[Dict[str, Any]] = None
         self._above_since: Optional[float] = None         # since when the humidity is above start_above in a row
         self._busy = False
+        self._error_told: Optional[str] = None        # dryer fault already reported
         self._last_cmd_at = -1e12
         self._load()
 
@@ -318,6 +327,18 @@ class Dryer:
         if now - self._last_cmd_at < settle:
             return          # the driver has not confirmed the last command yet
         req = self.required_temp()
+        if hub["error"] and not hub["drying"]:
+            # dryer fault: never start again by itself (no restart, no automation, no schedule) - a person has to
+            # look at the ACE first; a start by hand is still possible
+            if self.run is not None:
+                self.run = None
+                self._save()
+            if self._error_told != hub["error"]:
+                self._error_told = hub["error"]
+                self._event(tr("The ACE reports a dryer fault ({code}) – drying stopped, no automatic restart. "
+                               "Check the ACE (lid closed, fan free), then start again by hand", code=hub["error"]))
+            return
+        self._error_told = None
         if hub["drying"]:
             if self.schedule and now >= self.schedule["at"]:
                 self.schedule = None

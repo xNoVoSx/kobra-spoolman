@@ -8,7 +8,8 @@ import json
 import pytest
 from conftest import FakeMoonraker, ace_status
 
-from acebridge.dryer import COMMAND_SETTLE_S, MAX_RESTARTS, Dryer, ace_max_temp, hub_state
+from acebridge.dryer import COMMAND_SETTLE_S, MAX_RESTARTS, Dryer, ace_max_temp, dryer_error, hub_state
+from acebridge.humidity import HumidityLog
 from acebridge.slots import SlotManager
 
 
@@ -231,3 +232,73 @@ def test_automation_waits_until_humidity_stays_high(make):
     clock.t += 61
     run(d.evaluate())
     assert moon.sent == ["ACE_START_DRYING TEMP=60 DURATION=360"] and d.auto_run
+
+
+def fault(status="PTC_err"):
+    st = hub(humidity=25)
+    st["ace_instance_0"]["dryer_status"]["status"] = status
+    return st
+
+
+def test_dryer_fault_stops_and_never_restarts(make, cfg):
+    """13.10. on the real ACE 2 Pro: PTC_err (heater) - the bridge restarted the run three times. Now: no restart,
+    no automation, a red message; starting by hand stays possible."""
+    d, moon, clock = make([spool(1, 1, "PETG")], hub(humidity=8))
+    cfg.auto_dry_on_insert = False
+    run(d.start(60, 4))
+    clock.t += 3600
+    moon.merge(fault())
+    run(d.evaluate())
+    assert d.run is None and len(moon.sent) == 1 and "PTC_err" in d.last_event["text"]
+    d.config.enabled, d.config.start_above = True, 20.0                # automation would start at 25 %
+    for _ in range(5):
+        clock.t += 600
+        run(d.evaluate())
+    assert len(moon.sent) == 1
+    assert d.state()["error"] == "PTC_err" and dryer_error("stop") is None and dryer_error(None) is None
+
+
+def test_humidity_log_marks_a_run_that_stays_cold(cfg):
+    """Lid open (13.10.): 44 °C instead of 60 for over an hour. Closed (10.10.): 57 °C after 28 min - no mark."""
+    moon = GMoon()
+    clock = Clock()
+    log = HumidityLog(cfg, moon, clock=clock)
+    log.spools_in_ace = lambda: [{"slot": 1, "spool_id": 7, "score": 120}]
+
+    def at(minute, temp, drying=True):
+        st = hub(humidity=41, drying=drying, target=60 if drying else 0, remain=6 * 3600)
+        st["ace_instance_0"]["temp"] = temp
+        moon.merge(st)
+        clock.t = 1_000_000.0 + minute * 60
+        log.tick()
+
+    for minute, temp in ((0, 26), (9, 42), (18, 43), (27, 44)):
+        at(minute, temp)
+    assert log.lid_open() is None                                      # heating up: not before 30 min
+    at(31, 44)
+    assert log.lid_open() == {"since": 1_000_000 + 9 * 60, "temp": 44, "target": 60}
+    at(80, 52)                                                         # lid closed
+    assert log.lid_open() is None
+    at(83, 33, drying=False)
+    s = log.recent_sessions()[-1]
+    assert s["lid_minutes"] == 71 and "lid_open_now" not in s
+    with pytest.raises(KeyError):
+        log.discard("nope")
+    assert log.discard(s["id"])["discarded"]
+    cfg.dryer_lid_check = False                                        # switch: no check
+    for minute, temp in ((100, 26), (140, 30), (150, 30)):
+        at(minute, temp)
+    assert log.lid_open() is None
+
+
+def test_closed_lid_heating_is_not_a_lid_warning(cfg):
+    moon = GMoon()
+    clock = Clock()
+    log = HumidityLog(cfg, moon, clock=clock)
+    for minute, temp in ((0, 27), (9, 45), (18, 52), (28, 57), (37, 59), (60, 60)):
+        st = hub(humidity=5, drying=True, target=60, remain=6 * 3600)
+        st["ace_instance_0"]["temp"] = temp
+        moon.merge(st)
+        clock.t = 1_000_000.0 + minute * 60
+        log.tick()
+        assert log.lid_open() is None

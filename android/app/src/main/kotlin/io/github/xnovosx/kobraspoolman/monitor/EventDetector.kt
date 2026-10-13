@@ -163,13 +163,15 @@ class EventDetector(
             coldAlarmed = false
         }
 
-        // ---- bridge messages: only what you can act on. Red and "not enough" -> alarm; unknown tag and
-        // Spoolman gone for longer -> hint; everything else (almost empty, open booking, moisture ...) stays in the app.
+        // ---- bridge messages: only what you can act on. Red and "not enough" -> alarm; unknown tag, dryer too cold
+        // and Spoolman gone for longer -> hint; everything else (almost empty, open booking, moisture ...) stays in the app.
         // Same message = same key (the text changes, e.g. "needs 12 g more" -> "11 g").
         val messages = state.notices?.messages.orEmpty()
         spoolmanSince = if (messages.any { it.key == "spoolman" }) spoolmanSince ?: now else null
         val current = messages.filter { m ->
+            // dryer_lid: the ACE does not get warm while drying (lid open?) - worth a hint, it wastes hours
             m.key !in ownKeys && (m.level == "error" || m.key.startsWith("reach") || m.key.startsWith("tag") ||
+                m.key == "dryer_lid" ||
                 (m.key == "spoolman" && now - (spoolmanSince ?: now) >= spoolmanMs))
         }
         noticeKeys.retainAll(current.map { it.key }.toSet())

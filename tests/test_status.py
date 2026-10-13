@@ -74,6 +74,8 @@ def test_file_usage_lists_used_slots(bridge):
     assert set(uses) == {1, 2}                                         # the file does not use slot 3/4
     assert uses[1]["total_mm"] >= 130 and uses[1]["total_g"] > 0 and uses[1]["color"]
     assert uses[1]["rest_mm"] == uses[1]["total_mm"]                   # position 0: everything still open
+    bridge.sm.spools[0]["remaining_weight"] = 488.49
+    assert {u["slot"]: u for u in file_usage(bridge)}[1]["spool_g"] == 488.5   # left on the spool, next to it
     bridge.moon.merge({"virtual_sdcard": {"file_position": 10 ** 6}})
     assert file_usage(bridge)[0]["rest_mm"] < uses[1]["total_mm"]     # further on less open (support points)
     bridge.moon.merge({"print_stats": {"state": "complete"}})

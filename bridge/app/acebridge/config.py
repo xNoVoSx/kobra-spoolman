@@ -103,6 +103,10 @@ class Config:
     # Z offset per filament (Spoolman field z_offset) to KOBRA_START
     filament_z_sync: bool = field(default_factory=lambda: _bool("FILAMENT_Z_SYNC", True))
     new_spools_dry: bool = field(default_factory=lambda: _bool("NEW_SPOOLS_DRY", True))
+    # drying in the model approaches the humidity measured in the ACE (lid open: hardly any drying is credited)
+    moisture_ace_rh: bool = field(default_factory=lambda: _bool("MOISTURE_ACE_RH", True))
+    # the ACE stays far below its target while drying -> message "lid open?"
+    dryer_lid_check: bool = field(default_factory=lambda: _bool("DRYER_LID_CHECK", True))
     wet_print_action: str = field(default_factory=lambda: os.environ.get("WET_PRINT_ACTION", "warn").strip().lower())
 
     # Home Assistant over MQTT (mqtt.py). MQTT_HOST empty = off. MQTT_DISCOVERY empty = no HA discovery.

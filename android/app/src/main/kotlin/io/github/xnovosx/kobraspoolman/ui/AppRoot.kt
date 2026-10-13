@@ -297,7 +297,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                 onClearPlan = { vm.clearDryerSchedule() },
                 onOption = { k, v, c -> vm.setAceOption(k, v, c) },
                 purgePreview = { m -> vm.acePurge(m) },
-                humidity = { HumiditySection { h -> vm.humidity(h) } },
+                humidity = { HumiditySection({ h -> vm.humidity(h) }, if (canWrite) { id, done -> vm.discardDrying(id, done) } else null) },
                 pa = {
                     state?.pa?.let { p ->
                         PaSection(p, state?.printer?.state in setOf("printing", "paused"), rinkhals = state?.ace?.variant == "rinkhals",

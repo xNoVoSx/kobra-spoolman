@@ -204,6 +204,11 @@ class BridgeClient(
     suspend fun spoolMoisture(id: Int): SpoolMoistureFull =
         call("GET", "/api/spool/$id/moisture", null, SpoolMoistureFull.serializer())
 
+    /** A drying run that did not dry: its spools go back to the moisture before it. */
+    suspend fun discardDrying(id: String) {
+        call("POST", "/api/humidity/sessions/$id/discard", "{}", ApiError.serializer())
+    }
+
     /** Dried outside the ACE (own dryer). */
     suspend fun spoolDried(id: Int, temp: Int, minutes: Double) {
         call("POST", "/api/spool/$id/dried", buildJsonObject { put("temp", temp); put("minutes", minutes) }.toString(),

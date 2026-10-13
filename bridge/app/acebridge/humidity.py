@@ -31,6 +31,12 @@ log = logging.getLogger("humidity")
 POINT_EVERY_S = 60
 SESSIONS_KEPT = 300
 NOTE_VALID_S = 180            # a "the bridge started/stopped it" note is valid this long
+# lid check: closed, the ACE 2 Pro reaches 52 °C after 18 min and 57 °C after 28 min (10.10.); with the lid open it
+# stayed at 44 °C for over an hour (13.10.). Suspect after LID_GRACE_S at least LID_BELOW_C under the target for
+# LID_WINDOW_S in a row.
+LID_GRACE_S = 30 * 60
+LID_WINDOW_S = 5 * 60
+LID_BELOW_C = 10.0
 
 
 class HumidityLog:
@@ -126,6 +132,49 @@ class HumidityLog:
             if hub["target_temp"] and hub["target_temp"] != o["temps"][-1][1]:
                 o["temps"].append([round(now), hub["target_temp"]])
                 self._save()
+            if getattr(self.cfg, "dryer_lid_check", True):
+                self._lid(now, hub)
+
+    def _lid(self, now: float, hub: Dict[str, Any]) -> None:
+        """Does the ACE reach its drying temperature? If not (lid open, ...): mark the run, the message comes from
+        lid_open(); the minutes stay in the entry (lid_minutes) - such a run is a candidate for "discard"."""
+        o = self.open
+        temp, target = hub.get("temp"), hub.get("target_temp")
+        low = temp is not None and bool(target) and temp < target - LID_BELOW_C
+        if low:
+            o.setdefault("low_since", round(now))
+            if (now - o["start"] >= LID_GRACE_S and now - o["low_since"] >= LID_WINDOW_S
+                    and not o.get("lid_open_now")):
+                o["lid_open_now"] = True
+                o.setdefault("lid_since", o["low_since"])
+                log.warning("Dryer: %s °C instead of %s °C for %d min - lid open?", temp, target,
+                            (now - o["low_since"]) / 60)
+                self._save()
+        elif "low_since" in o:
+            since = o.pop("low_since")
+            if o.pop("lid_open_now", False):
+                o["lid_minutes"] = round(o.get("lid_minutes", 0) + (now - since) / 60)
+                log.info("Dryer: temperature reached again (%s °C)", temp)
+            self._save()
+
+    def lid_open(self) -> Optional[Dict[str, Any]]:
+        """Running run that does not reach its temperature right now: {since, temp, target}, else None."""
+        o = self.open
+        if not o or not o.get("lid_open_now"):
+            return None
+        hub = hub_state(self.moon.status)
+        return {"since": o.get("low_since"), "temp": hub.get("temp"), "target": hub.get("target_temp")}
+
+    def discard(self, sid: str) -> Dict[str, Any]:
+        """Mark an ended run as "did not dry"; the moisture model goes back for its spools (done by the caller)."""
+        s = next((x for x in self.sessions if x.get("id") == sid), None)
+        if s is None:
+            if self.open and self.open.get("id") == sid:
+                raise ValueError(tr("The drying run is still running – stop it first"))
+            raise KeyError(tr("Drying run not found"))
+        s["discarded"] = round(self.clock())
+        self._save()
+        return s
 
     def _begin(self, now: float, hub: Dict[str, Any], already: bool = False) -> None:
         note = self._fresh(self._pending_start)
@@ -152,6 +201,9 @@ class HumidityLog:
             end = tr("time is up")
         else:
             end = tr("ended (display, restart or error)")
+        if o.pop("lid_open_now", False) and "low_since" in o:
+            o["lid_minutes"] = round(o.get("lid_minutes", 0) + (now - o["low_since"]) / 60)
+        o.pop("low_since", None)
         o.update({"end": round(now), "minutes": round(dur_min), "humidity_end": hub["humidity"], "end_reason": end})
         self.sessions.append(o)
         self.sessions = self.sessions[-SESSIONS_KEPT:]

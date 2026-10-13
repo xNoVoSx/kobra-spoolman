@@ -58,6 +58,22 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             return _err(404, tr("Unknown spool"))
         return json_response({**bridge.moisture.view(sp), "history": bridge.moisture.history(sid)})
 
+    @r.post("/api/humidity/sessions/{session}/discard")
+    async def humidity_discard(request: web.Request):
+        """A drying run that did not dry (lid open, heater fault): its spools go back to the moisture before it."""
+        if (denied := paired(request)) is not None:
+            return denied
+        try:
+            s = bridge.humidity.discard(request.match_info["session"])
+        except KeyError as e:
+            return _err(404, msg_of(e))
+        except ValueError as e:
+            return _err(409, msg_of(e))
+        ids = [p["spool_id"] for p in s.get("spools") or [] if p.get("spool_id") is not None]
+        reset = bridge.moisture.discard_drying(ids, s["start"], s.get("end") or s["start"])
+        log.info("Drying run %s discarded, spools reset: %s", s["id"], reset or "none")
+        return json_response({"ok": True, "spools": reset})
+
     @r.post("/api/spool/{spool_id}/dried")
     async def spool_dried(request: web.Request):
         """Dried outside the ACE (own dryer): {"temp": 55, "minutes": 360}."""

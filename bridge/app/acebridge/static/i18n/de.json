@@ -810,7 +810,6 @@
  "today {time}": "heute {time}",
  "tomorrow {time}": "morgen {time}",
  "Top": "Oben",
- "total {total} mm incl. purging, {rest} mm left": "gesamt {total} mm inkl. Spülen, noch {rest} mm",
  "Trigger the emergency stop?": "Not-Aus auslösen?",
  "Tune": "Nachjustieren",
  "Turn the nozzle off after an AI pause": "Nach einer KI-Pause die Düse ausschalten",
@@ -896,7 +895,6 @@
  "{warning} – press again to send it anyway.": "{warning} – noch einmal drücken, um es trotzdem zu senden.",
  "{when} · {g} · 1 load": "{when} · {g} · 1 Ladevorgang",
  "{when} · {g} · {n} loads": "{when} · {g} · {n} Ladevorgänge",
- "~{total}, {rest} left": "~{total}, noch {rest}",
  "… and {n} more (web/app)": "… und {n} weitere (Web/App)",
  "↑ ↓ select · right click for a slot": "↑ ↓ wählen · Rechtsklick für Slot",
  "Settings → Scan QR code": "Einstellungen → QR-Code scannen",
@@ -944,5 +942,15 @@
  "Clog detection": "Verstopfung erkennen",
  "experimental": "experimentell",
  "CPU of the printer (Rinkhals) – the bridge keeps its own load on the printer low": "CPU des Druckers (Rinkhals) – die Bridge hält ihre eigene Last auf dem Drucker klein",
- "CPU {n} %": "CPU {n} %"
+ "CPU {n} %": "CPU {n} %",
+ "{rest} of {total} still to print": "noch {rest} von {total} zu drucken",
+ "{g} on the spool": "{g} auf der Spule",
+ "total {total} mm incl. purging, {rest} mm still to print": "gesamt {total} mm inkl. Spülen, noch {rest} mm zu drucken",
+ "Discard this drying run?": "Diese Trocknung verwerfen?",
+ "The spools of this run go back to the moisture estimate from before it (also in Spoolman). Use it when the run did not really dry, e.g. with the lid open.": "Die Spulen dieser Trocknung gehen auf die Feuchte-Schätzung von davor zurück (auch in Spoolman). Für Trocknungen, die nicht wirklich getrocknet haben, z. B. mit offenem Deckel.",
+ "Discarded – {n} spools reset": "Verworfen – {n} Spulen zurückgesetzt",
+ "lid open?": "Deckel offen?",
+ "The ACE stayed more than 10 °C below its target – lid open?": "Die ACE blieb mehr als 10 °C unter dem Soll – Deckel offen?",
+ "{min} min too cold": "{min} min zu kalt",
+ "discarded": "verworfen"
 }

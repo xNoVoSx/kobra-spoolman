@@ -62,8 +62,8 @@ export function PrinterCard({ compact, tall }) {
     ${running && S.st?.uses?.length > 0 && html`
     <div class="row wrap small" style="gap:6px 18px" aria-label=${t("Used slots")}>
       <span class="muted">${t("Used")}</span>
-      ${S.st.uses.map((u) => html`<span class="muted row" style="gap:6px" title=${t("total {total} mm incl. purging, {rest} mm left", { total: u.total_mm, rest: u.rest_mm })}>
-        <${Swatch} color=${u.color} size=${12} /><b style="color:var(--text)">${t("Slot {slot}", { slot: u.slot })}</b>${u.name ? ` ${u.name}` : ""}${" · "}${t("~{total}, {rest} left", { total: grams(u.total_g), rest: grams(u.rest_g) })}</span>`)}
+      ${S.st.uses.map((u) => html`<span class="muted row" style="gap:6px" title=${t("total {total} mm incl. purging, {rest} mm still to print", { total: u.total_mm, rest: u.rest_mm })}>
+        <${Swatch} color=${u.color} size=${12} /><b style="color:var(--text)">${t("Slot {slot}", { slot: u.slot })}</b>${u.name ? ` ${u.name}` : ""}${" · "}${t("{rest} of {total} still to print", { total: grams(u.total_g), rest: grams(u.rest_g) })}${u.spool_g != null ? html` · <span style=${u.spool_g < u.rest_g ? "color:var(--danger)" : ""}>${t("{g} on the spool", { g: grams(u.spool_g) })}</span>` : ""}</span>`)}
     </div>`}
   </section>`;
 }

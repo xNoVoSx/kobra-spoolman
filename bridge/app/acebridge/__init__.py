@@ -2,13 +2,19 @@
 
 from .i18n import tr
 
-__version__ = "3.17.0"
+__version__ = "3.18.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("3.18.0", "2026-10-13", [
+        tr("Dryer: “lid open?” when the ACE stays more than 10 °C below its target (web, app notification); a drying run can be discarded – its spools go back to the moisture from before"),
+        tr("Moisture estimate: drying approaches the humidity the ACE measures – a run with the lid open hardly counts"),
+        tr("Dryer fault of the ACE (e.g. PTC_err): no automatic restart any more, red message"),
+        tr("Print card: “x of y still to print” and what is left on the spool, instead of “~y, x left”"),
+    ]),
     ("3.17.0", "2026-10-13", [
         tr("Original Anycubic tags: the one fitting spool on the shelf (material, colour, vendor) is assigned automatically; with several a message asks"),
         tr("Rinkhals: the loaded slot comes from the hub (current_filament) – slots that are only busy no longer count as loaded"),

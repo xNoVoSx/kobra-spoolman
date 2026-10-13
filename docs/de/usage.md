@@ -127,6 +127,13 @@ Pause; wahlweise auch während eines Drucks. Ein Durchgang **von Hand, geplant o
 Spule** läuft immer die volle Zeit, egal wie trocken die ACE meldet; hört die ACE vorher auf, startet die
 Bridge sie mit der Restzeit neu. Nur die Automatik stoppt bei niedriger Feuchte.
 
+**Deckel offen, Heizungsfehler.** Geschlossen hat die ACE 2 Pro nach 18 Minuten ~52 °C; mit offenem Deckel
+bleibt sie weit darunter (bei unserem Test 44 statt 60 °C). Liegt die ACE 30 Minuten nach dem Start noch mehr als
+10 °C unter dem Soll, zeigen Web und App *Deckel offen?* (die App als Benachrichtigung), und die Trocknung merkt sich
+die Minuten, in denen sie zu kalt war. Meldet die ACE einen **Trocknerfehler** (z. B. `PTC_err`, Heizung), hört die
+Bridge auf: kein Neustart, keine Automatik, kein geplanter Start – eine rote Meldung bittet, nach der ACE zu sehen;
+von Hand starten geht weiter. Schalter: *Einstellungen → Feuchte der Spulen* (`DRYER_LID_CHECK`).
+
 Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament verträgt** – Feld
 *Trocknen max.* am Filament, sonst an der Vorlage, sonst ein vorsichtiger Wert pro Material
 (PLA 55 °C, PETG 60 °C, TPU 55 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C).
@@ -137,6 +144,8 @@ behält die Restzeit. Die Seite **ACE** listet die Grenze jedes Slots.
 30 Tage, die ACE-Temperatur, beim Trocknen das Soll, die Schwellen der Automatik gestrichelt und jeden
 Druck und jede Trocknung als Fläche. Darunter jede Trocknung: wer sie gestartet hat (Automatik, von Hand,
 geplant, Spule eingelegt, Display/Mainsail) und warum, ihre Temperaturen und die Feuchte vorher und nachher.
+Eine Trocknung, die nicht wirklich getrocknet hat (Deckel offen, Fehler), lässt sich dort **verwerfen**: Ihre
+Spulen gehen auf die Feuchte-Schätzung von davor zurück, auch in Spoolman.
 
 <p align="center"><img src="../images/web-humidity.png" width="760" alt="Feuchte-Verlauf mit Trocknungen"></p>
 
@@ -144,7 +153,9 @@ geplant, Spule eingelegt, Display/Mainsail) und warum, ihre Temperaturen und die
 
 Wie feucht eine Spule wirklich ist, kann niemand messen – aber die Bridge weiß, wo sie war. Jede Spule
 bekommt eine **Feuchte-Schätzung**: Sie steigt mit der Luftfeuchte um die Spule (ACE-Sensor, solange sie
-eingelegt ist, sonst der Lagerraum) und sinkt beim Trocknen. 100 % heißt *trocknen empfohlen*. Wie schnell
+eingelegt ist, sonst der Lagerraum) und sinkt beim Trocknen – Richtung der Feuchte, die die ACE beim Trocknen misst;
+eine Trocknung mit offenem Deckel (ACE bei 40 %) zählt so kaum (Schalter `MOISTURE_ACE_RH`). 100 % heißt
+*trocknen empfohlen*. Wie schnell
 ein Material Wasser zieht und wie lange es trocknen muss, kommt vom Material (offen bei 50 % rF: PLA ~14 Tage,
 PETG ~5, ABS/ASA ~21, TPU ~2, PA/PVA weniger) und lässt sich pro Filament einstellen (*Offen bis Trocknen*,
 *Trocknen Dauer*).

@@ -134,7 +134,7 @@ Nothing is written to Spoolman; the commands go to the printer, so they need a p
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/dryer` | humidity, ACE temperature, dryer state, highest allowed temperature with reasons, automation settings, last event |
+| GET | `/api/dryer` | humidity, ACE temperature, dryer state, `error` (dryer fault the ACE reports, e.g. `PTC_err`, else null — the bridge then never restarts by itself), highest allowed temperature with reasons, automation settings, last event |
 | POST | `/api/dryer/start` | *(paired)* `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
 | POST | `/api/dryer/stop` | *(paired)* stop drying |
 | POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing`, `start_delay_minutes` (humidity must stay above `start_above` this long, default 15) |
@@ -152,7 +152,8 @@ remaining time (at most 3 times). Only the automation stops when the humidity fa
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/humidity?hours=24` | ACE history (at most `HUMIDITY_DAYS`): `points` (`[time, humidity, temp, target, drying]`, one per minute, thinned to ≤ 1500), `sessions` (every drying: start/end, target temperatures, `source` (`auto`, `hand`, `plan`, `spule`, `drucker`, `unbekannt`), `reason`, `end_reason`, humidity before/after, loaded spools), `prints` (bands from the history), `automation` thresholds |
+| GET | `/api/humidity?hours=24` | ACE history (at most `HUMIDITY_DAYS`): `points` (`[time, humidity, temp, target, drying]`, one per minute, thinned to ≤ 1500), `sessions` (every drying: start/end, target temperatures, `source` (`auto`, `hand`, `plan`, `spule`, `drucker`, `unbekannt`), `reason`, `end_reason`, humidity before/after, loaded spools with their moisture score at the start, `lid_open_now` / `lid_minutes` (the ACE stayed > 10 °C below its target), `discarded`), `prints` (bands from the history), `automation` thresholds |
+| POST | `/api/humidity/sessions/{id}/discard` | *(paired)* the drying run did not dry (lid open, fault): its spools go back to the moisture estimate from before it (also in Spoolman); only ended runs (409 while running) |
 | GET | `/api/spool/{id}/moisture` | moisture estimate of a spool: `score` (100 = drying recommended), `state` (`ok`, `soon`, `wet`, `unknown`), `needs_drying`, `where`, `last_dried`, `params` (material, `dry_temp`, `dry_hours`, `open_days`), `hours_needed`, `history` (inserted, removed, dried) |
 | POST | `/api/spool/{id}/dried` | *(paired)* dried outside the ACE: `{"temp": 55, "minutes": 360}` |
 
@@ -333,7 +334,7 @@ in the data folder and can be replaced by any paired device.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail`, `done` (printed segments of the 3D data), `geometry` (key of the current 3D data, `null` = none), `colours` (per tool, lightened for dark backgrounds), `filament_colours` (per tool, unchanged — used by the 3D view), `uses` (slots the file uses: `slot`, `spool_id`, `name`, `material`, `color`, `total_mm`/`total_g` for the whole file and `rest_mm`/`rest_g` still to print, purge included; also in `/api/app/state`) |
+| GET | `/api/print/info` | preview of the running print: `status` (`loading`, `ready`, `too_big`, `error`, `idle`), `layer`/`layers`, `thumbnail`, `done` (printed segments of the 3D data), `geometry` (key of the current 3D data, `null` = none), `colours` (per tool, lightened for dark backgrounds), `filament_colours` (per tool, unchanged — used by the 3D view), `uses` (slots the file uses: `slot`, `spool_id`, `name`, `material`, `color`, `total_mm`/`total_g` for the whole file and `rest_mm`/`rest_g` still to print, purge included, `spool_g` left on the spool in Spoolman; also in `/api/app/state`) |
 | GET | `/api/print/geometry.bin` | toolpaths for the 3D view, binary (gzip): header `KSG1`, version, segment count, layers, step, bed size, max. Z, layer heights, then per segment `x0 y0 x1 y1 z layer` (uint16), the tool (uint8) and — from version 2 — the strand width in 1/100 mm (uint8, from extrusion, length and layer height). Above `GEOMETRY_MAX_SEGMENTS`, connected pieces of a line are merged with the smallest deviation that fits (0.02–0.2 mm); only beyond that are segments left out. The step field is always 1 |
 | GET | `/api/print/preview.png` | the print file drawn by the bridge in the ACE colours; printed part solid, the rest as a shadow, nozzle marked; refreshed at most every `RENDER_INTERVAL_S` |
 | GET | `/api/print/thumbnail.png` | the thumbnail the slicer embedded in the file |

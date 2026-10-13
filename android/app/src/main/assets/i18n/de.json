@@ -562,7 +562,6 @@
  "{n} spools": "{n} Spulen",
  "{temp} °C instead of {target} °C": "{temp} °C statt {target} °C",
  "{time} left": "noch {time}",
- "~{total}, {rest} left": "~{total}, noch {rest}",
  "“Forget” deletes the key only on this phone. To remove it completely: under “Manage devices”.": "„Vergessen“ löscht den Schlüssel nur auf diesem Handy. Ganz entfernen: unter „Geräte verwalten“.",
  "“Listen” plays the sound directly. “Test” sends a real notification – that is how you check the volume, “Do not disturb” and the channel's Android settings.": "„Anhören“ spielt den Ton direkt. „Probe“ schickt eine echte Benachrichtigung – so prüfst du Lautstärke, „Nicht stören“ und die Android-Einstellungen des Kanals.",
  "“{text}” is too long (max. {max} characters)": "„{text}“ ist zu lang (max. {max} Zeichen)",
@@ -609,5 +608,14 @@
  "Printer messages on the phone": "Meldungen vom Drucker aufs Handy",
  "Print finished, paused, errors, spool empty – every kind can be switched off later": "Druck fertig, pausiert, Fehler, Spule leer – jede Art lässt sich später einzeln abschalten",
  "Everything the system can do – on, off, what it needs": "Alles, was das System kann – an, aus, was es braucht",
- "experimental": "experimentell"
+ "experimental": "experimentell",
+ "{rest} of {total} still to print": "noch {rest} von {total} zu drucken",
+ "{g} on the spool": "{g} auf der Spule",
+ "Discard this drying run?": "Diese Trocknung verwerfen?",
+ "The spools of this run go back to the moisture estimate from before it (also in Spoolman). Use it when the run did not really dry, e.g. with the lid open.": "Die Spulen dieser Trocknung gehen auf die Feuchte-Schätzung von davor zurück (auch in Spoolman). Für Trocknungen, die nicht wirklich getrocknet haben, z. B. mit offenem Deckel.",
+ "lid open?": "Deckel offen?",
+ "{min} min too cold": "{min} min zu kalt",
+ "discarded": "verworfen",
+ "Drying run discarded": "Trocknung verworfen",
+ "CPU {n} %": "CPU {n} %"
 }

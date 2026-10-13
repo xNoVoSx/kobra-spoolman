@@ -118,6 +118,10 @@ fun StatusCard(p: Printer, activeName: String?, uses: List<SlotUse> = emptyList(
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (p.progress != null) Text(Format.percent(p.progress), fontFamily = PlexMono, color = K.Text,
                 style = MaterialTheme.typography.bodyMedium)
+            p.printerCpu?.let { cpu ->
+                Text(tr("CPU {n} %", "n" to cpu), fontFamily = PlexMono, style = MaterialTheme.typography.labelMedium,
+                    color = if (cpu >= 90) K.Danger else K.Muted)
+            }
         }
         if (p.progress != null) FillBar(p.progress.toFloat(), color = c.dot, track = K.Ground)
         val left = when {
@@ -132,7 +136,8 @@ fun StatusCard(p: Printer, activeName: String?, uses: List<SlotUse> = emptyList(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(Modifier.size(10.dp).clip(CircleShape).background(spoolColor(u.color)).border(1.dp, K.LineStrong, CircleShape))
                 Text(tr("Used: slot {slot}", "slot" to u.slot) + (u.name?.let { " · $it" } ?: "") +
-                    " · " + tr("~{total}, {rest} left", "total" to Format.grams(u.totalG), "rest" to Format.grams(u.restG)),
+                    " · " + tr("{rest} of {total} still to print", "total" to Format.grams(u.totalG), "rest" to Format.grams(u.restG)) +
+                    (u.spoolG?.let { " · " + tr("{g} on the spool", "g" to Format.grams(it)) } ?: ""),
                     style = MaterialTheme.typography.bodySmall, color = K.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }

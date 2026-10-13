@@ -125,6 +125,13 @@ then a pause; optionally also while printing. A run started **by hand, by plan o
 loaded** always lasts its full time, however dry the ACE reports; if the ACE stops early, the bridge
 starts it again with the remaining time. Only the automation stops on low humidity.
 
+**Lid open, heater fault.** Closed, the ACE 2 Pro is at ~52 °C after 18 minutes; with the lid open it
+stays far below (44 instead of 60 °C on our test). If the ACE is still more than 10 °C below its target 30 minutes
+into a run, web and app say *lid open?* (the app as a notification) and the run keeps the minutes it was too
+cold. If the ACE reports a **dryer fault** (e.g. `PTC_err`, heater), the bridge stops: no restart, no automation,
+no planned start — a red message asks you to look at the ACE; starting by hand still works. Switch:
+*Settings → Spool moisture* (`DRYER_LID_CHECK`).
+
 The temperature is **never higher than the most sensitive loaded filament allows** — the field
 *Dry max.* on the filament, else on its template, else a cautious default per material
 (PLA 55 °C, PETG 60 °C, TPU 55 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C).
@@ -135,6 +142,8 @@ the remaining time. The **ACE** page lists the limit of every slot.
 30 days, the ACE temperature, the set point while drying, the automation thresholds as dashed lines
 and every print and drying as a band. Below it every drying with who started it (automation, by hand,
 planned, spool loaded, printer display/Mainsail) and why, its temperatures and the humidity before and after.
+A run that did not really dry (lid open, fault) can be **discarded** there: its spools go back to the moisture
+estimate from before it, also in Spoolman.
 
 <p align="center"><img src="images/web-humidity.png" width="760" alt="Humidity history with dryings"></p>
 
@@ -142,7 +151,8 @@ planned, spool loaded, printer display/Mainsail) and why, its temperatures and t
 
 Nobody can measure how wet a spool is — but the bridge can follow where it was. Every spool gets a
 **moisture estimate**: it rises with the humidity around the spool (ACE sensor while loaded, the
-storage room on the shelf) and falls while drying. 100 % means *drying recommended*. How fast a
+storage room on the shelf) and falls while drying — towards the humidity the ACE measures while drying, so a
+run with the lid open (ACE at 40 %) hardly counts (switch `MOISTURE_ACE_RH`). 100 % means *drying recommended*. How fast a
 material takes up water and how long it needs to dry come from the material (open at 50 % RH: PLA ~14 days,
 PETG ~5, ABS/ASA ~21, TPU ~2, PA/PVA less) and can be set per filament (*Open until drying*,
 *Dry duration*).

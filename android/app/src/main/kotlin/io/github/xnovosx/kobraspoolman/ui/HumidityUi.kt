@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +22,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -52,11 +56,20 @@ private fun dur(min: Double): String = if (min >= 90) Format.decimal(min / 60, 1
 
 /** Humidity history of the ACE with drying runs (in the dryer sheet). */
 @Composable
-fun HumiditySection(load: suspend (Int) -> HumidityData?) {
+fun HumiditySection(load: suspend (Int) -> HumidityData?, discard: ((String, () -> Unit) -> Unit)? = null) {
     var hours by remember { mutableIntStateOf(24) }
+    var rev by remember { mutableIntStateOf(0) }
     var d by remember { mutableStateOf<HumidityData?>(null) }
-    LaunchedEffect(hours) {
+    var ask by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(hours, rev) {
         while (isActive) { d = load(hours) ?: d; delay(60_000) }
+    }
+    ask?.let { id ->
+        AlertDialog(onDismissRequest = { ask = null }, containerColor = K.Surface,
+            title = { Text(tr("Discard this drying run?")) },
+            text = { Text(tr("The spools of this run go back to the moisture estimate from before it (also in Spoolman). Use it when the run did not really dry, e.g. with the lid open.")) },
+            confirmButton = { TextButton(onClick = { ask = null; discard?.invoke(id) { rev++ } }) { Text(tr("Discard"), color = K.Danger) } },
+            dismissButton = { TextButton(onClick = { ask = null }) { Text(tr("Back")) } })
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel(tr("Humidity history"), Modifier.padding(top = 12.dp))
@@ -80,6 +93,20 @@ fun HumiditySection(load: suspend (Int) -> HumidityData?) {
                 Text(s.reason + (s.endReason?.let { " → $it" } ?: ""), style = MaterialTheme.typography.bodySmall, color = K.Muted)
                 Text(tr("Humidity {h} %", "h" to (s.humidityStart?.toInt() ?: "?")) + if (s.running) "" else " → ${s.humidityEnd?.toInt() ?: "?"} %",
                     style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                val lid = when {
+                    s.lidOpenNow -> tr("lid open?")
+                    (s.lidMinutes ?: 0) > 0 -> tr("{min} min too cold", "min" to s.lidMinutes!!)
+                    else -> null
+                }
+                if (lid != null || s.discarded != null || (discard != null && !s.running)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        lid?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = K.Accent) }
+                        if (s.discarded != null) Text(tr("discarded"), style = MaterialTheme.typography.bodySmall, color = K.Muted)
+                        Spacer(Modifier.weight(1f))
+                        if (discard != null && !s.running && s.discarded == null)
+                            TextButton(onClick = { ask = s.id }) { Text(tr("Discard"), color = K.Muted) }
+                    }
+                }
             }
         }
     }

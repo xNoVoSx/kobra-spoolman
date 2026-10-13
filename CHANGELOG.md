@@ -6,6 +6,36 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.18.0] – 2026-10-13
+
+From the Rinkhals test print: the lid of the ACE was open while it dried, and afterwards its heater reported a fault.
+
+### Added
+- Dryer: when the ACE is still more than 10 °C below its target 30 minutes into a run, web and app say *lid open?*
+  (the app as a notification), and the run keeps the minutes it was too cold (`lid_open_now`, `lid_minutes` in
+  `/api/humidity`). Switch: `DRYER_LID_CHECK`.
+- *Discard* on every ended drying run (web: humidity history, app: dryer sheet,
+  `POST /api/humidity/sessions/{id}/discard`): its spools go back to the moisture estimate from before it, also in
+  Spoolman (an emptied *last dried* is removed there).
+- Print card: *x of y still to print* plus what is left on the spool (`spool_g` in `uses`); before it read
+  *~y, x left*, which looked like the spool's rest. The app shows the printer's CPU under Rinkhals too.
+
+### Changed
+- Moisture estimate: while drying, a spool approaches the humidity the ACE measures instead of always drying — with
+  the lid open (44 °C, 41 %) hardly anything counts, closed and hot (~5 %) it is as before. Switch: `MOISTURE_ACE_RH`.
+
+### Fixed
+- A dryer fault reported by the ACE (`PTC_err`, heater) was taken for "stopped early": the bridge restarted the run
+  three times. Now it stops — no restart, no automation, no planned start — and shows a red message; `error` in
+  `/api/dryer`. Starting by hand still works.
+
+## app 1.17.0 – 2026-10-13
+
+### Added
+- Dryer sheet: *lid open?* / *x min too cold* on a drying run, *Discard* for an ended run; *lid open?* comes as a
+  notification.
+- Printer card: *x of y still to print* and what is left on the spool; the printer's CPU under Rinkhals.
+
 ## [3.17.0] – 2026-10-13
 
 From the Rinkhals test on the real printer.

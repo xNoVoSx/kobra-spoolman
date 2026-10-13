@@ -56,6 +56,8 @@
 | `FILAMENT_Z_SYNC` | `true` | give each slot's *Z offset* (filament field `z_offset`, else its template) to the printer macro `KOBRA_START` (variable `slot_z`), which adds the start filament's value to the first layer |
 | `AUTO_DRY_ON_INSERT` | `true` | start the ACE dryer when a spool that needs drying is loaded (temperature of the most sensitive loaded spool, time of the wettest) |
 | `NEW_SPOOLS_DRY` | `true` | spools without history count as *needs drying* when first loaded |
+| `MOISTURE_ACE_RH` | `true` | while drying, the moisture estimate approaches the humidity the ACE measures (lid open: hardly any drying counts); `false` = every drying run counts towards dry |
+| `DRYER_LID_CHECK` | `true` | from 30 min into a drying run, more than 10 °C below the target for 5 min → message *lid open?* (web, app notification) |
 | `WET_PRINT_ACTION` | `warn` | print start with a spool that needs drying: `warn` or `pause` (pauses once, within the first 10 min) |
 | `LOW_SPOOL_G` | `100` | notice *… almost empty* below this |
 | `REACH_RESERVE_PCT` | `5` | reserve for the notice *… probably not enough for this print* |

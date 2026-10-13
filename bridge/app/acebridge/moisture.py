@@ -82,11 +82,15 @@ def absorb(u: float, rh: float, hours: float, open_days: float) -> float:
     return u_eq + (u - u_eq) * math.exp(-hours / tau)
 
 
-def dry(u: float, hours: float, dry_hours: float, temp: float, rec_temp: float) -> float:
-    """Drying: after dry_hours at rec_temp down to ~10 %; twice as long per 10 °C cooler."""
+def dry(u: float, hours: float, dry_hours: float, temp: float, rec_temp: float, u_eq: float = 0.0) -> float:
+    """Drying: after dry_hours at rec_temp down to ~10 %; twice as long per 10 °C cooler.
+
+    u_eq: equilibrium of the air in the ACE (its humidity / 100). The spool approaches it at drying speed - closed and
+    hot the ACE measures < 10 %, so this is nearly "dry"; with the lid open (13.10.: 44 °C, 41 %) it stays where it is
+    or even takes up moisture. 0 = the old behaviour (every drying run counts towards dry)."""
     factor = 2 ** (max(0.0, rec_temp - temp) / 10)
     tau = dry_hours * factor / math.log(10)
-    return u * math.exp(-hours / tau)
+    return u_eq + (u - u_eq) * math.exp(-hours / tau)
 
 
 def hours_needed(u: Optional[float], dry_hours: float, temp: float, rec_temp: float) -> float:
@@ -193,7 +197,7 @@ class MoistureModel:
         s = self.score(e.get("u"))
         new_dry = getattr(self.cfg, "new_spools_dry", True)
         wet = (s is not None and s >= 100) or (s is None and new_dry)
-        last_dry = next((h for h in reversed(e["history"]) if h["kind"] == "dried"), None)
+        last_dry = next((h for h in reversed(e["history"]) if h["kind"] == "dried" and not h.get("discarded")), None)
         return {"score": s, "state": "unknown" if s is None else "wet" if s >= 100 else "ok" if s < 70 else "soon",
                 "needs_drying": wet, "where": e.get("where"), "out_since": e.get("out_since"),
                 "last_dried": last_dry, "params": p,
@@ -244,7 +248,11 @@ class MoistureModel:
             if temp:                                   # in the ACE, which is drying right now
                 if e["u"] is None:
                     e["u"] = REF_RH / 100              # unknown: like an open spool at 50 % RH
-                e["u"] = dry(e["u"], dt, p["dry_hours"], temp, p["dry_temp"])
+                if "drying_since" not in e:
+                    # state before this drying run - "discard drying run" goes back to it
+                    e["before_drying"] = {"u": e["u"], "dried_at": e.get("dried_at")}
+                u_eq = rh / 100 if getattr(self.cfg, "moisture_ace_rh", True) else 0.0
+                e["u"] = dry(e["u"], dt, p["dry_hours"], temp, p["dry_temp"], u_eq)
                 e.setdefault("drying_since", self.clock() - dt * 3600)
                 e["drying_temp"] = hub.get("target_temp") or temp
             else:
@@ -281,6 +289,26 @@ class MoistureModel:
         self._save()
         await self._write(sid, {"last_in_ace": self._iso(self.clock())})
 
+    def discard_drying(self, sids: List[int], start: float, end: float) -> List[int]:
+        """A drying run did not really dry (lid open, ...): back to the state before it for these spools. Only for
+        the run that ended last on the spool (an older one has been built upon since). Returns the spools reset."""
+        done = []
+        for sid in sids:
+            e = self.state.get(str(sid))
+            before = (e or {}).get("before_drying")
+            dried = next((h for h in reversed((e or {}).get("history", [])) if h["kind"] == "dried"), None)
+            if not e or before is None or not dried or not start - 60 <= dried["at"] - 60 * (dried.get("minutes") or 0) \
+                    or dried["at"] > end + 600:
+                continue
+            e["u"], e["dried_at"] = before["u"], before["dried_at"]
+            e.pop("before_drying", None)
+            dried["discarded"] = True
+            self._hist(e, "discarded", score=self.score(e["u"]))
+            e["synced_at"] = 0                     # write to Spoolman at the next round
+            done.append(sid)
+        self._save()
+        return done
+
     def note_dried(self, sid: int, temp: float, minutes: float) -> None:
         """A drying run known from outside (e.g. own dryer) - sets the spool to dry."""
         e = self._entry(sid)
@@ -303,7 +331,8 @@ class MoistureModel:
         if self.cfg.dry_run:
             return
         have = await self._fields()
-        extra = {k: json.dumps(v) for k, v in values.items() if k in have}
+        # None = remove the field (Spoolman deletes an extra field on a JSON null, a "null" string is rejected)
+        extra = {k: None if v is None else json.dumps(v) for k, v in values.items() if k in have}
         if not extra:
             return
         try:
@@ -321,11 +350,12 @@ class MoistureModel:
             if not due:
                 continue
             values: Dict[str, Any] = {"moisture": s}
-            if e.get("dried_at") and e.get("dried_at") != e.get("synced_dried"):
-                last = next((h for h in reversed(e["history"]) if h["kind"] == "dried"), {})
-                values["last_dried"] = self._iso(e["dried_at"])
-                values["last_dried_info"] = f"{last.get('temp') or '?'} °C"
-                e["synced_dried"] = e["dried_at"]
+            if e.get("dried_at") != e.get("synced_dried") and (e.get("dried_at") or e.get("synced_dried")):
+                # also back to an older run (or to nothing) after "discard drying run"
+                last = next((h for h in reversed(e["history"]) if h["kind"] == "dried" and not h.get("discarded")), {})
+                values["last_dried"] = self._iso(e["dried_at"]) if e.get("dried_at") else None
+                values["last_dried_info"] = f"{last.get('temp') or '?'} °C" if e.get("dried_at") else None
+                e["synced_dried"] = e.get("dried_at")
             await self._write(int(sid_s), values)
             e["synced_at"], e["synced_score"] = now, s
 

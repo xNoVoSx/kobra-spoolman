@@ -3,7 +3,7 @@
 import { html, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { get, post } from "./api.js";
 import { locale, t } from "./i18n.js";
-import { S, guard, toast } from "./store.js";
+import { S, guard, openDialog, toast } from "./store.js";
 import { cls, num, parseNum } from "./util.js";
 
 // keys are stable API codes of the bridge (dryer.py)
@@ -12,7 +12,7 @@ const RANGES = [[6, "6 h"], [24, "24 h"], [168, t("7 days")], [720, t("30 days")
 const fmtTime = (ts, long) => new Date(ts * 1000).toLocaleString(locale, long ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
 const dur = (min) => (min >= 90 ? `${num(min / 60, 1)} h` : `${Math.round(min)} min`);
 
-function useHumidity(hours) {
+function useHumidity(hours, rev = 0) {
   const [d, setD] = useState(null);
   useEffect(() => {
     let stop = false, timer = null;
@@ -22,7 +22,7 @@ function useHumidity(hours) {
     };
     tick();
     return () => { stop = true; clearTimeout(timer); };
-  }, [hours]);
+  }, [hours, rev]);
   return d;
 }
 
@@ -77,8 +77,20 @@ function Chart({ d, hours }) {
 /** Card on the ACE page: history and drying runs. */
 export function HumidityCard() {
   const [hours, setHours] = useState(24);
-  const d = useHumidity(hours);
+  const [rev, setRev] = useState(0);
+  const d = useHumidity(hours, rev);
   const sessions = d?.sessions || [];
+  // a run that did not dry (lid open, heater fault): its spools go back to the moisture before it
+  const discard = (s) => openDialog("confirm", {
+    title: t("Discard this drying run?"),
+    text: t("The spools of this run go back to the moisture estimate from before it (also in Spoolman). Use it when the run did not really dry, e.g. with the lid open."),
+    ok: t("Discard"), danger: true,
+    action: async () => {
+      const r = await post(`/api/humidity/sessions/${s.id}/discard`, {});
+      toast(r.spools?.length ? t("Discarded – {n} spools reset", { n: r.spools.length }) : t("Discarded"), "ok");
+      setRev((x) => x + 1);
+    },
+  });
   return html`<section class="card pad col">
     <div class="row wrap"><h2 class="h2 grow">${t("Humidity history")}</h2>
       <div class="seg">${RANGES.map(([h, l]) => html`<button class=${cls("seg-btn", hours === h && "on")} onClick=${() => setHours(h)}>${l}</button>`)}</div></div>
@@ -92,9 +104,13 @@ export function HumidityCard() {
         <span class=${cls("chip", s.running && "warn")}>${s.running ? t("running") : dur(s.minutes)}</span>
         <span class="chip">${(s.temps || []).map((x) => x[1]).join(" → ")} °C</span>
         <span class="small muted">${SOURCE[s.source] || s.source}</span>
+        ${s.lid_open_now && html`<span class="chip warn">${t("lid open?")}</span>`}
+        ${!s.lid_open_now && s.lid_minutes > 0 && html`<span class="chip warn" title=${t("The ACE stayed more than 10 °C below its target – lid open?")}>${t("{min} min too cold", { min: s.lid_minutes })}</span>`}
+        ${s.discarded && html`<span class="chip">${t("discarded")}</span>`}
         <span class="grow"></span>
         <span class="m small">${s.humidity_start ?? "?"} %${s.running ? "" : ` → ${s.humidity_end ?? "?"} %`}</span></div>
-      <div class="small">${s.reason}${s.end_reason ? html` <span class="muted">→ ${s.end_reason}</span>` : ""}</div>
+      <div class="row wrap" style="gap:8px"><span class="small grow">${s.reason}${s.end_reason ? html` <span class="muted">→ ${s.end_reason}</span>` : ""}</span>
+        ${!s.running && !s.discarded && html`<button class="btn sm ghost" onClick=${guard(() => discard(s))}>${t("Discard")}</button>`}</div>
       ${(s.spools || []).length > 0 && html`<div class="small faint">${s.spools.map((p) => `${t("Slot {slot}", { slot: p.slot })}: ${p.name}${p.score != null ? ` (${p.score} %)` : ""}`).join(" · ")}</div>`}
     </div>`)}</div>
   </section>`;

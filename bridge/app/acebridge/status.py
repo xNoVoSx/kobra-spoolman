@@ -137,7 +137,10 @@ def file_usage(bridge: "Bridge") -> List[Dict[str, Any]]:
                     "material": fil.get("material") or ace.get("material") or None,
                     "color": (fil.get("color_hex") or ace.get("color") or "")[:6] or None,
                     "total_mm": round(mm), "total_g": round(_spool_grams(bridge, spool, mm), 1),
-                    "rest_mm": round(rest.get(g, 0.0)), "rest_g": round(_spool_grams(bridge, spool, rest.get(g, 0.0)), 1)})
+                    "rest_mm": round(rest.get(g, 0.0)), "rest_g": round(_spool_grams(bridge, spool, rest.get(g, 0.0)), 1),
+                    # what is left on the spool (Spoolman), None without an assigned spool
+                    "spool_g": round(spool["remaining_weight"], 1) if spool and spool.get("remaining_weight") is not None
+                    else None})
     return out
 
 
@@ -221,6 +224,14 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     if (hum is not None and not cfg.get("enabled") and cfg.get("start_above") is not None
             and hum >= cfg["start_above"] and not dry.get("drying")):
         out.append(_msg("info", tr("Humidity in the ACE {rh} % – drying recommended", rh=hum), "humidity"))
+    if dry.get("error"):
+        # red: the app pushes it - a heater fault needs a look at the ACE
+        out.append(_msg("error", tr("ACE dryer fault: {code} – drying stopped, check the ACE", code=dry["error"]),
+                        "dryer_error"))
+    lid = bridge.humidity.lid_open() if getattr(bridge, "humidity", None) is not None else None
+    if lid and not dry.get("error"):
+        out.append(_msg("warn", tr("ACE dryer only at {temp} °C instead of {target} °C – lid open?",
+                                   temp=lid["temp"], target=lid["target"]), "dryer_lid"))
     ev = dry.get("last_event") or {}
     age = _iso_age(ev.get("at"), now)
     if age is not None and age < RECENT_S:

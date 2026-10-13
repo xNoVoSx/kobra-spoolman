@@ -43,6 +43,7 @@ data class SlotUse(
     val color: String? = null,
     @SerialName("total_g") val totalG: Double? = null,
     @SerialName("rest_g") val restG: Double? = null,
+    @SerialName("spool_g") val spoolG: Double? = null,
 )
 
 /** Moisture estimate of a spool in /api/app/state (short form). state: unknown | ok | soon | wet */
@@ -100,6 +101,10 @@ data class DrySession(
     @SerialName("humidity_start") val humidityStart: Double? = null,
     @SerialName("humidity_end") val humidityEnd: Double? = null,
     val running: Boolean = false,
+    // the ACE stayed > 10 °C below its target (lid open?): right now / minutes in total
+    @SerialName("lid_open_now") val lidOpenNow: Boolean = false,
+    @SerialName("lid_minutes") val lidMinutes: Int? = null,
+    val discarded: Double? = null,
 )
 
 @Serializable
@@ -437,6 +442,8 @@ data class Printer(
     /** "klipper" or "rinkhals" (bridge 3.12+); Rinkhals blocks reloading Klipper - switch the printer off and on */
     val platform: String = "klipper",
     @SerialName("can_restart") val canRestart: Boolean = true,
+    // Rinkhals: the printer's own CPU in % (bridge 3.17.0+), else null
+    @SerialName("printer_cpu") val printerCpu: Int? = null,
     /** What is happening now ("Preheating 5/15 min", "Change to slot 2 · loading", "Printing · layer 3/80"); bridge 3.9.0+. */
     val phase: String? = null,
     @SerialName("phase_key") val phaseKey: String? = null,

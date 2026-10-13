@@ -126,7 +126,8 @@ def test_insert_calls_back_and_drying_in_the_ace_dries(world):
     clock.t += 10
     run(m.tick())
     assert seen and seen[0][0] == 1 and seen[0][1]["needs_drying"] and seen[0][1]["slot"] == 2
-    moon.merge(hub(humidity=20, drying=True, target=60, remain=6 * 3600))
+    # closed and hot the ACE measures ~5 % (10.10. on the real ACE 2 Pro)
+    moon.merge(hub(humidity=5, drying=True, target=60, remain=6 * 3600))
     moon.status["ace_instance_0"]["temp"] = 60                        # the measured air temperature counts
     advance(m, clock, 6)
     assert m.view(sm.spool(1))["score"] < 30
@@ -218,3 +219,42 @@ def test_spoolman_values_are_json_encoded(world):
     m, moon, clock, sm = world
     run(m._write(1, {"moisture": 42, "unknown": 1}))
     assert sm.patched == [(1, {"extra": {"moisture": json.dumps(42)}})]
+
+
+def test_lid_open_hardly_dries_and_the_run_can_be_discarded(world, cfg):
+    """13.10.: lid open - the ACE stayed at 44 °C and 41 %. The spool approaches the ACE's humidity instead of
+    "dry"; afterwards "discard drying run" goes back to the state before the run (also in Spoolman)."""
+    m, moon, clock, sm = world
+    run(m.tick())
+    m.state["1"]["u"] = 0.36                                            # score 120
+    m.state["1"]["dried_at"] = 1000
+    sm.spool(1)["location"] = "ACE Slot 1"
+    clock.t += 10
+    run(m.tick())
+    start = clock.t
+    moon.merge(hub(humidity=41, drying=True, target=60, remain=6 * 3600))
+    moon.status["ace_instance_0"]["temp"] = 44
+    advance(m, clock, 1.5)
+    assert m.view(sm.spool(1))["score"] >= 120                          # nothing credited (rather a bit wetter)
+    moon.merge(hub(humidity=30, drying=False))
+    advance(m, clock, 0.1, 0.1)
+    assert m.history(1)[0]["kind"] == "dried"
+    assert m.discard_drying([1, 2], start, clock.t) == [1]             # spool 2 was not in this run
+    v = m.view(sm.spool(1))
+    assert v["score"] == 120 and v["last_dried"] is None and m.state["1"]["dried_at"] == 1000
+    assert m.history(1)[0]["kind"] == "discarded"
+    assert m.discard_drying([1], start, clock.t) == []                 # only once
+
+
+def test_old_model_without_ace_humidity(world, cfg):
+    m, moon, clock, sm = world
+    cfg.moisture_ace_rh = False
+    run(m.tick())
+    m.state["1"]["u"] = 0.36
+    sm.spool(1)["location"] = "ACE Slot 1"
+    clock.t += 10
+    run(m.tick())
+    moon.merge(hub(humidity=41, drying=True, target=60, remain=6 * 3600))
+    moon.status["ace_instance_0"]["temp"] = 60
+    advance(m, clock, 6)
+    assert m.view(sm.spool(1))["score"] < 30                            # counts towards dry like before

@@ -92,6 +92,12 @@ SPECS: List[Spec] = [
                  "the start filament's value to the first layer (+ = further from the bed)")),
     Spec("auto_dry_on_insert", tr("Spool moisture"), tr("Dry damp spools automatically when inserted"), "bool",
          help=tr("Temperature by the most sensitive loaded spool, duration by the dampest")),
+    Spec("moisture_ace_rh", tr("Spool moisture"), tr("Drying counts with the humidity in the ACE"), "bool",
+         help=tr("While drying, the estimate approaches the humidity the ACE measures – with the lid open hardly any "
+                 "drying is credited. Off: every drying run counts towards dry")),
+    Spec("dryer_lid_check", tr("Spool moisture"), tr("Warn when the ACE does not reach its drying temperature"), "bool",
+         help=tr("From 30 minutes into a drying run, more than 10 °C below the target for 5 minutes: message “lid "
+                 "open?” in web and app")),
     Spec("new_spools_dry", tr("Spool moisture"), tr("Dry new spools first"), "bool",
          help=tr("Spools without history count as needing drying when first inserted")),
     Spec("wet_print_action", tr("Spool moisture"), tr("Print start with a damp spool"), "choice",

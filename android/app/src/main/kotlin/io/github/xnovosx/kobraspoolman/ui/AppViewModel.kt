@@ -322,6 +322,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun humidity(hours: Int): HumidityData? = runCatching { client()?.humidity(hours) }.getOrNull()
     suspend fun spoolMoisture(id: Int): SpoolMoistureFull? = runCatching { client()?.spoolMoisture(id) }.getOrNull()
 
+    fun discardDrying(id: String, done: () -> Unit) = launchSafe {
+        it.discardDrying(id)
+        _messages.send(tr("Drying run discarded"))
+        done()
+    }
+
     fun spoolDried(id: Int, temp: Int, hours: Double, done: () -> Unit) = launchSafe {
         it.spoolDried(id, temp, hours * 60)
         _messages.send(tr("Marked as dried"))
