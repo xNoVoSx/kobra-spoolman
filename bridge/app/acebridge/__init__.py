@@ -11,6 +11,7 @@ __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 CHANGELOG = [
     ("3.16.0", "2026-10-13", [
         tr("Features page: everything the system can do in one place – what it does, what it needs, on/off, one switch per feature (bridge or printer), link to the docs"),
+        tr("New installations start with the core and a setup page (found, choose, what is left to do); existing ones keep every switch and get a hint"),
     ]),
     ("3.15.0", "2026-10-13", [
         tr("Pause and cancel during the print start (Klipper + ACEPRO with kobra_seq): holds at the next safe point, lifts the nozzle, resume continues there; cancel ends the print as cancelled"),

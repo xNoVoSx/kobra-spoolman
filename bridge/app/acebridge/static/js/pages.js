@@ -8,6 +8,7 @@ import { PaCard } from "./pa.js";
 import { ClogCard, PowerlossCard, ResumeCard, UsbCard } from "./resume.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
 import { NoticesCard } from "./notices.js";
+import { FeaturesHint } from "./features.js";
 import { FilamentEditor, FilamentList } from "./filaments.js";
 import { LANGS, chosen, lang, setLang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
@@ -27,6 +28,7 @@ export function Overview() {
     <div class="ov2-printer"><${PrinterCard} /></div>
     <div class="ov2-side">
       <${ResumeCard} />
+      <${FeaturesHint} />
       <div class="o-notices"><${NoticesCard} /></div>
       <div class="o-dryer"><${DryerCard} /></div>
       <div class="o-ace"><${AceCard} compact /></div>
@@ -135,12 +137,17 @@ export function JobsPage() {
 export function AcePage() {
   const d = S.st?.dryer;
   const req = d?.required || {};
+  // switched-off printer modules disappear here; they are switched on again on the Features page
+  const off = (x) => !!x && x.present !== false && x.enabled === false;
+  const hidden = [off(S.st?.resume) && t("Resume after a power loss"), off(S.st?.clog) && t("Clog detection"),
+    off(S.st?.pa) && t("Auto PA")].filter(Boolean);
   return html`<div class="col" style="max-width:1100px">
     <h1 class="h1">ACE</h1>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
-      <div class="col" style="gap:20px"><${DryerCard} big /><${PowerlossCard} /><${ClogCard} /><${UsbCard} /></div>
-      <div class="col" style="gap:20px"><${AceCard} /><${PaCard} /></div>
+      <div class="col" style="gap:20px"><${DryerCard} big />${!off(S.st?.resume) && html`<${PowerlossCard} />`}${!off(S.st?.clog) && html`<${ClogCard} />`}<${UsbCard} /></div>
+      <div class="col" style="gap:20px"><${AceCard} />${!off(S.st?.pa) && html`<${PaCard} />`}</div>
     </div>
+    ${hidden.length > 0 && html`<div class="small muted">${t("Switched off: {names} –", { names: hidden.join(", ") })} <a href="#/features">${t("switch on under Features")}</a></div>`}
     ${d?.present && html`<section class="card pad col">
       <h2 class="h2">${t("Temperature limit")}</h2>
       <div class="kv">${(req.slots || []).map((p) => html`<span>${t("Slot {slot}", { slot: p.slot })} · ${p.name} <span class="faint">(${{ filament: t("on the filament"), vorlage: t("from the template"), standard: t("material value") }[p.source] || p.source})</span></span>

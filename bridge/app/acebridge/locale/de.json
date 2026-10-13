@@ -668,5 +668,6 @@
  "Unknown feature": "Unbekannte Funktion",
  "Not switchable here": "Hier nicht schaltbar",
  "Expected JSON {\"on\": true}": "Erwartet JSON {\"on\": true}",
- "Features page: everything the system can do in one place – what it does, what it needs, on/off, one switch per feature (bridge or printer), link to the docs": "Seite Funktionen: alles, was das System kann, an einer Stelle – was es tut, was es braucht, an/aus, ein Schalter je Funktion (Bridge oder Drucker), Link zur Doku"
+ "Features page: everything the system can do in one place – what it does, what it needs, on/off, one switch per feature (bridge or printer), link to the docs": "Seite Funktionen: alles, was das System kann, an einer Stelle – was es tut, was es braucht, an/aus, ein Schalter je Funktion (Bridge oder Drucker), Link zur Doku",
+ "New installations start with the core and a setup page (found, choose, what is left to do); existing ones keep every switch and get a hint": "Neue Installationen starten mit dem Kern und einer Einrichtungsseite (erkannt, auswählen, was noch zu tun ist); bestehende behalten jeden Schalter und bekommen einen Hinweis"
 }

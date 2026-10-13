@@ -8,7 +8,7 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [3.16.0] – 2026-10-13
 
-First step towards a simpler start (concept: core on, everything else switched on where it is wanted): one page that
+A simpler start: new installations start with the core and a setup page, existing ones keep everything, and one page
 shows and switches every feature.
 
 ### Added
@@ -17,6 +17,13 @@ shows and switches every feature.
   (bridge settings, printer modules), nothing is switched twice. What the installation sets (environment variables, HA
   add-on options) is shown and never changed there.
 - Web UI page *Features* (side bar, *More* on the phone, *Settings → More settings*).
+- `setup.py`, `GET /api/setup`, `POST /api/setup/done`: at the first start the bridge decides once whether it is a new
+  or an existing installation. New: the core is on (spools, slots, bookings, RFID, camera, print preview, the printer
+  modules that are installed), automatic drying, drying new spools and print recordings start off, and the web UI
+  opens the setup page after pairing — found / choose / what is left to set up by hand. Existing: nothing changes, the
+  overview shows a one-time hint on the Features page. What the installation sets always wins.
+- ACE page: a printer module that is switched off (resume after power loss, clog detection, Auto PA) disappears, with a
+  link to switch it on under *Features*.
 
 ## [3.15.0] – 2026-10-13
 

@@ -423,6 +423,8 @@ einen Link zur Erklärung hier. Ein Schalter pro Funktion, egal wo sie lebt – 
 Drucker (Klipper-Weg). Was die Installation festlegt (Umgebungsvariablen des Containers, Optionen des
 Home-Assistant-Add-ons), steht als *von der Installation festgelegt* da und wird dort geändert, nie auf dieser Seite.
 Geräte (App, Display, Orca-Plugin) zeigen, wie viele gekoppelt sind; eingerichtet werden sie am Gerät selbst.
+*Einrichtung starten* lässt die Einrichtungsseite erneut laufen (siehe Installation). Ein ausgeschaltetes Drucker-Modul
+verschwindet auch von der ACE-Seite.
 
 ## Einstellungen
 

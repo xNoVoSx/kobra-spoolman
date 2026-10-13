@@ -122,6 +122,14 @@ on, switchable, source, why), `switch()` sends the change where the switch lives
 is set explicitly counts as set by the installation, so the HA add-on keeps control over its options. Every feature
 links to its heading in `docs/usage.md` / `docs/de/usage.md` (a test checks the anchors).
 
+## First start (`bridge/app/acebridge/setup.py`)
+
+Decided once, at the first start of a version that has it, before any other part writes to DATA_DIR: a DATA_DIR with
+paired devices, bookings or saved settings is an existing installation — every switch stays, web and app show a
+one-time hint on the Features page. An empty one is new: the comfort features that act on their own
+(`NEW_DEFAULTS`: automatic drying, drying new spools, print recordings) start off unless the installation sets them,
+and the web UI opens the setup page after pairing until it is done. Stored in `DATA_DIR/setup.json`.
+
 ## Messages and status (`bridge/app/acebridge/status.py`)
 
 Computed on every `/api/app/state` from what the bridge already holds — no extra request to the

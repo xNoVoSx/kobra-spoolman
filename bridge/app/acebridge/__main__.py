@@ -40,6 +40,7 @@ from .machine import Machine
 from .switches import Switches
 from .resume import Resume
 from .runtime_settings import RuntimeSettings
+from .setup import Setup
 from .vision import Vision
 from .web import build_app
 
@@ -50,6 +51,7 @@ class Bridge:
     def __init__(self, cfg: Config, session: aiohttp.ClientSession):
         self.cfg = cfg
         self.settings = RuntimeSettings(cfg)      # apply saved settings before all parts
+        self.setup = Setup(cfg, self.settings)    # new or existing installation - before any part writes to DATA_DIR
         self.session = session
         self.moon = Moonraker(cfg, session, self._on_status)
         self.sm = Spoolman(cfg, session)

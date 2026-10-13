@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 
-from . import features
+from . import acemodel, features
 from .ace import AceError
 from .clog import ClogError
 from .i18n import tr
@@ -217,6 +217,28 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             return json_response(await features.switch(bridge, request.match_info["key"], on))
         except features.FeatureError as e:
             return _err(e.status, msg_of(e))
+
+    # ---------------------------------------------------------------- setup page (setup.py)
+    @r.get("/api/setup")
+    async def setup_view(_):
+        """State of the first start and what the bridge found: setup, platform, ACE, Spoolman, printer modules."""
+        fv = features.view(bridge)
+        found = {
+            "platform": getattr(bridge.moon, "platform", "klipper"),
+            "printer": bool(bridge.moon.connected and bridge.moon.klippy_ready),
+            "ace": acemodel.variant(bridge.moon.status),
+            "spoolman": bool(bridge.sm.connected), "spoolman_version": bridge.sm.version,
+            # camera: True = an image came, False = it failed, None = not asked yet (it runs only while someone watches)
+            "camera": True if getattr(bridge.camera, "taken_wall", None) else (False if bridge.camera.error else None),
+            "printer_modules": [i["key"] for i in fv["items"] if i["group"] == "printer" and i["available"]],
+        }
+        return json_response({**bridge.setup.view(), "found": found, "features": fv})
+
+    @r.post("/api/setup/done")
+    @need_device
+    async def setup_done(_):
+        bridge.setup.done()
+        return json_response(bridge.setup.view())
 
     @r.get("/api/purge")
     async def purge_pairs(_):

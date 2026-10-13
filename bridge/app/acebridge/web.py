@@ -101,6 +101,8 @@ def build_app(bridge: "Bridge") -> web.Application:
                 "language": i18n.default_lang(),
             },
             "dry_run": bridge.cfg.dry_run,
+            # first start: new installation -> the web UI opens the setup page; existing -> hint on the Features page
+            "setup": bridge.setup.view(),
             "moonraker": {"url": bridge.cfg.moonraker_url, "connected": bridge.moon.connected,
                           "klippy_ready": bridge.moon.klippy_ready},
             "spoolman": {"url": bridge.cfg.spoolman_url, "connected": bridge.sm.connected,

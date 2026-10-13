@@ -165,6 +165,13 @@ device**. The bridge issues the keys itself — you never invent a password.
 3. Every further device (another browser, the phone, the Orca plugin) gets a fresh code from a paired
    one: web UI → **Devices → Add device** shows a 6-digit code and a QR code (valid 5 minutes,
    single use). Devices can be removed there at any time.
+4. **Setup:** on a new installation the web UI opens the setup page right after pairing. It shows what the bridge
+   found (printer and setup, ACE, Spoolman, camera, printer modules), lets you choose what else the system should do,
+   and lists what is set up on the device or in the installation (app, display, Orca plugin, Home Assistant, AI) with a
+   link to each. A new installation starts with the core on — spools, slots, bookings, RFID, camera, print preview and
+   the printer modules that are installed; automatic drying and print recordings start off. Everything can be changed
+   later on the *Features* page, and the setup can be run again from there. An existing installation keeps every
+   switch after an update and only shows a hint on the new *Features* page.
 
 > [!NOTE]
 > Coming from a version with `APP_TOKEN`? The old token still works as a key and can be typed in as

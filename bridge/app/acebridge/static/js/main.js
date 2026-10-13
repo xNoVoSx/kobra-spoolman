@@ -9,7 +9,7 @@ import { Icon } from "./icons.js";
 import { AcePage, DevicesPage, FilamentHub, JobsPage, Overview, PairPage, SettingsPage, Ultra, filamentView } from "./pages.js";
 import { useFilteredSpools } from "./spools.js";
 import { AiPage } from "./ai.js";
-import { FeaturesPage } from "./features.js";
+import { FeaturesPage, SetupPage } from "./features.js";
 import { LogsPage, TerminalPage } from "./terminal.js";
 import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set, useStore } from "./store.js";
 import { cls, printerLook } from "./util.js";
@@ -23,9 +23,11 @@ const PAGES = {
   terminal: { title: t("Terminal"), icon: "terminal", C: TerminalPage, fill: true },
   logs: { title: t("Logs"), icon: "log", C: LogsPage, fill: true },
   features: { title: t("Features"), icon: "check", C: FeaturesPage, bottom: true },
+  setup: { title: t("Setup"), icon: "check", C: SetupPage, hidden: true },
   devices: { title: t("Devices"), icon: "phone", C: DevicesPage, bottom: true },
   settings: { title: t("Settings"), icon: "sliders", C: SettingsPage, bottom: true },
 };
+let openedSetup = false;      // the setup page opened by itself once in this browser session
 const PHONE_TABS = [["", t("Overview"), "overview"], ["filament", t("Filament"), "spool"], ["prints", t("Prints"), "clock"],
   ["more", t("More"), "more"]];
 
@@ -66,9 +68,9 @@ function Rail({ page }) {
     <${Icon} name=${PAGES[k].icon} /><span>${PAGES[k].title}</span>${k === "prints" && open > 0 && html`<b class="badge">${open}</b>`}</a>`;
   return html`<nav class="rail" aria-label=${t("Main menu")}>
     <div class="brand"><span class="logo"><${Icon} name="spool" /></span><span class="g" style="font-weight:700;font-size:18px">Kobra Spoolman</span></div>
-    ${Object.keys(PAGES).filter((k) => !PAGES[k].bottom).map(link)}
+    ${Object.keys(PAGES).filter((k) => !PAGES[k].bottom && !PAGES[k].hidden).map(link)}
     <span class="grow"></span>
-    ${Object.keys(PAGES).filter((k) => PAGES[k].bottom).map(link)}
+    ${Object.keys(PAGES).filter((k) => PAGES[k].bottom && !PAGES[k].hidden).map(link)}
     <div class="foot">Bridge ${S.st?.version || "–"}</div>
   </nav>`;
 }
@@ -157,6 +159,8 @@ function App() {
     return html`<${PairPage} reason=${S.pairReason} /><${Toasts} />`;
   }
 
+  // new installation: the setup page opens by itself once (after pairing), until it is done
+  if (S.me && S.health?.setup?.open_setup && page !== "setup" && !openedSetup) { openedSetup = true; location.hash = "#/setup"; }
   const P = page === "more" ? { C: MorePage } : PAGES[page] || PAGES[""];
   const isUltraOverview = ultra && page === "";
   const C = isUltraOverview ? Ultra : P.C;

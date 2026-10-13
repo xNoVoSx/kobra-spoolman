@@ -253,6 +253,8 @@ no entries. The bridge only ever sends the command listed for a key — never fr
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/api/setup` | first start (`setup.py`): `state` (`new` / `done` / `existing`), `open_setup`, `hint`, `found` (`platform`, `printer`, `ace`, `spoolman`, `spoolman_version`, `camera` true/false/null, `printer_modules`), `features` (as `/api/features`); `/api/health` carries `setup` too |
+| POST | `/api/setup/done` | *(paired)* the setup page was gone through — it no longer opens by itself |
 | GET | `/api/features` | every feature in one list (`features.py`): `groups`, `items`: `key`, `group`, `title`, `text`, `needs`, `doc` (link into usage.md), `available`, `on`, `switchable`, `source` (`core`, `setting`, `printer`, `install`, `client`), `why`, `paired` (clients) |
 | POST | `/api/features/<key>` | *(paired)* `{"on": true}` — switches where the switch lives (bridge setting or printer module); `409` for what is not switchable here (set by the installation, a client, the core, not installed) |
 | GET | `/api/switches` | `groups` (`print`, `watch`, `io`, `system` — groups without items are left out), `items`: `key`, `group`, `kind` (`switch` with `on`, `choice` with `options` and `current`), `title`, `hint`, `sensitive` |

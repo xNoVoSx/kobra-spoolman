@@ -168,6 +168,14 @@ Schlüssel vergibt die Bridge selbst – du denkst dir kein Passwort aus.
 3. Jedes weitere Gerät (anderer Browser, Handy, Orca-Plugin) bekommt einen frischen Code von einem
    gekoppelten: Weboberfläche → **Geräte → Gerät hinzufügen** zeigt einen 6-stelligen Code und einen
    QR-Code (5 Minuten gültig, einmal verwendbar). Dort lassen sich Geräte jederzeit entfernen.
+4. **Einrichtung:** Bei einer neuen Installation öffnet die Weboberfläche gleich nach dem Koppeln die Einrichtungsseite.
+   Sie zeigt, was die Bridge gefunden hat (Drucker und Aufbau, ACE, Spoolman, Kamera, Drucker-Module), lässt dich
+   wählen, was das System sonst noch tun soll, und listet, was am Gerät oder in der Installation eingerichtet wird (App,
+   Display, Orca-Plugin, Home Assistant, KI), jeweils mit Link. Eine neue Installation startet mit dem Kern – Spulen,
+   Slots, Buchungen, RFID, Kamera, Druckvorschau und die installierten Drucker-Module; automatisches Trocknen und
+   Druckaufzeichnungen sind aus. Alles lässt sich später auf der Seite *Funktionen* ändern, und die Einrichtung kann von
+   dort aus erneut laufen. Eine bestehende Installation behält nach einem Update jeden Schalter und zeigt nur einen
+   Hinweis auf die neue Seite *Funktionen*.
 
 > [!NOTE]
 > Kommst du von einer Version mit `APP_TOKEN`? Der alte Wert gilt weiter als Schlüssel und lässt sich

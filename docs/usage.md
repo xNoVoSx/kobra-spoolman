@@ -417,7 +417,8 @@ picture, progress, remaining and finish time; tapping it opens the app.
 its explanation here. One switch per feature, no matter where it lives — a setting of the bridge or a module on the
 printer (Klipper setup). What the installation sets (environment variables of the container, options of the Home
 Assistant add-on) is shown as *set by the installation* and changed there, never on this page. Clients (app, display,
-Orca plugin) show how many are paired; they are set up on the device itself.
+Orca plugin) show how many are paired; they are set up on the device itself. *Start setup* runs the setup page again
+(see installation). A printer module that is switched off also disappears from the ACE page.
 
 ## Settings
 
