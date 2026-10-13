@@ -21,8 +21,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -131,7 +131,7 @@ fun SetupScreen(padding: PaddingValues, info: SetupInfo?, phone: PhoneChecks, bu
                 onLoad: () -> Unit, onAllowNotifications: () -> Unit, onMonitor: (Boolean) -> Unit,
                 onApply: (Map<String, Boolean>, () -> Unit) -> Unit, onFinish: () -> Unit) {
     LaunchedEffect(Unit) { onLoad() }
-    var step by remember { mutableStateOf(1) }
+    var step by remember { mutableIntStateOf(1) }
     val want = remember { mutableStateMapOf<String, Boolean>() }
     LaunchedEffect(info) {
         info?.features?.items?.filter { it.switchable }?.forEach { if (it.key !in want) want[it.key] = it.on == true }
