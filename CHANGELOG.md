@@ -6,6 +6,24 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.15.0] – 2026-10-13
+
+Pause and cancel work during the print start. Until now the start sequence (`G9111`, up to half an hour with the heat
+soak) held Klipper's G-code lock, so Pause and Cancel waited until it was done — only the emergency stop helped.
+
+### Added
+- `startseq.py`: with the printer module `kobra_seq` (Klipper + ACEPRO setup) every pause/resume/cancel of the bridge —
+  web UI, app, display, AI, damp spool check, clog — goes to its endpoint `printer.kobra_seq.control` while the start
+  sequence runs; that endpoint does not wait for the G-code lock. The start holds at the next safe point (before a step
+  or while waiting for a temperature) and lifts the nozzle; cancel switches the heaters off and ends the print as
+  cancelled.
+- `/api/app/state`: `printer.start_seq` (`paused`, `requested`, `step`, …); a paused start sequence reports
+  `printer.state` `paused` and the phase *Start sequence paused · <step>*; message *Start sequence paused – continue or
+  cancel*.
+
+### Unchanged
+- Without the module, with it switched off, or with Rinkhals: pause/cancel as before.
+
 ## [3.14.0] – 2026-10-13
 
 Bug reports that can be reproduced: the bridge collects what a report needs, the GitHub forms ask for it.

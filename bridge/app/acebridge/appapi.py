@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 
 from aiohttp import web
 
-from . import __version__, acemodel, appupdate, phase
+from . import __version__, acemodel, appupdate, phase, startseq
 from .assets import TAG as UI_TAG
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
@@ -317,7 +317,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
     if not connected or not klippy_ready:
         state = "offline"
     else:
-        state = ps.get("state") or "standby"
+        state = startseq.print_state(status, ps.get("state") or "standby")
     running = state in ("printing", "paused")
     progress = vsd.get("progress") if running else None
     duration = ps.get("print_duration") if running else None
@@ -329,13 +329,22 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
     shows_file = running or state in ("complete", "cancelled", "error")
     info = ps.get("info") or {}
     ph = phase.describe(status, steps) if state != "offline" else None
+    seq = startseq.view(status)
+    if seq is not None and seq["paused"]:
+        # Klipper still says printing (the start macro runs): name the pause, keep the step it holds in
+        live = phase.describe(dict(status, print_stats=dict(ps, state="printing")), steps)
+        ph = {"key": "start_seq_paused",
+              "text": tr("{text} · {step}", text=tr("Start sequence paused"), step=live["text"]) if live
+              else tr("Start sequence paused")}
     return {
         "state": state,
         "file": (ps.get("filename") or None) if shows_file else None,
         "progress": round(float(progress), 4) if progress is not None else None,
         "print_duration_s": int(duration) if duration else None,
         "eta_s": eta,
-        "message": ps.get("message") or None,
+        "message": (startseq.note(status) if startseq.state(status) else None) or ps.get("message") or None,
+        # print start sequence (kobra_seq): paused / pause or cancel waiting for the step to end; None otherwise
+        "start_seq": startseq.view(status),
         # Moonraker reachable but Klipper not ready (emergency stop, error): web/app offer "reload Klipper"
         "moonraker_connected": bool(connected),
         "klippy_ready": bool(connected and klippy_ready),

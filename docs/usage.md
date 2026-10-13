@@ -335,6 +335,15 @@ the nozzle/bed target, also without a print (e.g. to preheat) — and **Emergenc
 seconds, then confirm. After an emergency stop (or a Klipper error) the bar shows **Reload Klipper**
 (`FIRMWARE_RESTART`, asks first); home the axes again afterwards.
 
+**During the print start** (Klipper + ACEPRO with the printer module `kobra_seq`) Pause and Cancel work too: the start
+sequence holds at the next safe point — before its next step or while it waits for a temperature or the heat soak —
+and lifts the nozzle; the status says *Start sequence paused*, **Resume** continues there. Cancel switches the heaters
+off at once and ends the print as cancelled. Steps without a waiting point (filament change, PA measurement, bed mesh)
+finish first — the card says *pauses after this step*. After 30 minutes paused it cancels by itself. This works from
+the web UI, the app, the display and for the automatic pauses (AI, damp spool, clog); Mainsail and KlipperScreen still
+wait until the start is done. Without the module, or with Rinkhals, everything stays as before (only the emergency stop
+helps during the start).
+
 ## The printer's own display
 
 `http://<docker-host>:7913/display` is a view made for the Kobra S1's touchscreen (800×480, fingers): a kiosk

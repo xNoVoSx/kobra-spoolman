@@ -341,6 +341,15 @@ die drei Lüfter und die Solltemperatur von Düse und Bett, auch ohne Druck (z. 
 **Not-Aus**: zwei Sekunden gedrückt halten, dann bestätigen. Nach einem Not-Aus (oder einem Klipper-Fehler)
 zeigt die Leiste **Klipper neu laden** (`FIRMWARE_RESTART`, fragt nach); danach die Achsen neu referenzieren.
 
+**Im Startablauf** (Klipper + ACEPRO mit dem Drucker-Modul `kobra_seq`) gehen Pause und Abbrechen auch: Der Startablauf
+hält an der nächsten sicheren Stelle – vor seinem nächsten Schritt oder während er auf eine Temperatur oder das
+Vorheizen wartet – und hebt die Düse an; der Status zeigt *Startablauf pausiert*, **Weiter** macht dort weiter.
+Abbrechen schaltet die Heizungen sofort aus und beendet den Druck als abgebrochen. Schritte ohne Wartestelle
+(Filamentwechsel, PA-Messung, Bettnetz) laufen zu Ende – die Karte zeigt *pausiert nach diesem Schritt*. Nach 30 Minuten
+Pause bricht er selbst ab. Das geht aus Weboberfläche, App, Display und für die automatischen Pausen (KI, feuchte Spule,
+Verstopfung); Mainsail und KlipperScreen warten weiter, bis der Start durch ist. Ohne das Modul oder mit Rinkhals bleibt
+alles wie bisher (im Startablauf hilft dann nur der Not-Aus).
+
 ## Das Display des Druckers
 
 `http://<docker-host>:7913/display` ist eine Ansicht für den Touchscreen des Kobra S1 (800×480, Finger): ein

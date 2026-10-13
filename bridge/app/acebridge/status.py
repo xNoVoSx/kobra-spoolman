@@ -10,7 +10,7 @@ import math
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from . import acemodel
+from . import acemodel, startseq
 from .i18n import tr
 from .purge import change_mm
 from .slots import hint_level, is_unknown_tag_event
@@ -157,6 +157,9 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
     elif state == "error":
         out.append(_msg("error", tr("Printer error: {why}", why=ps["message"]) if ps.get("message")
                         else tr("Printer error"), "error"))
+    seq = startseq.view(moon.status)
+    if seq is not None and seq["paused"]:
+        out.append(_msg("warn", tr("Start sequence paused – continue or cancel"), "start_seq"))
 
     rs = getattr(bridge, "resume", None)
     if rs is not None and rs.message():

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optiona
 
 import aiohttp
 
-from . import __version__, acemodel, clog, pa, phase, resume, switches
+from . import __version__, acemodel, clog, pa, phase, resume, startseq, switches
 from .i18n import tr
 from .prompts import Prompts
 from .config import Config
@@ -33,7 +33,7 @@ SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "bed_mesh": ["profile_name"]}
 # ACE driver (ACEPRO, acemodel.SUBSCRIBE), Klipper modules and the S1's extra fans - only what objects/list names
 OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, **pa.SUBSCRIBE, **resume.SUBSCRIBE, **clog.SUBSCRIBE, **switches.SUBSCRIBE,
-                    **phase.SUBSCRIBE,
+                    **phase.SUBSCRIBE, **startseq.SUBSCRIBE,
                     "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
 
 StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]
@@ -186,8 +186,14 @@ class Moonraker:
             return
         if self._ws is None:
             raise ConnectionError(tr("Moonraker not connected"))
+        # print start sequence running (kobra_seq): pause/resume/cancel go to its endpoint, which bypasses Klipper's
+        # G-code lock - PAUSE/CANCEL_PRINT would wait until the start sequence is done
+        params = startseq.route(method, self.status)
+        if params is not None:
+            method = startseq.METHOD
+            log.info("Start sequence running: %s via %s", params["action"], method)
         try:
-            await self._call(method, timeout=timeout)
+            await self._call(method, params, timeout=timeout)
         except Exception as e:
             if self.console is not None:
                 self.console.add("error", str(e) or e.__class__.__name__, source)

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import aiohttp
 from aiohttp import web
 
-from . import diagnostics
+from . import diagnostics, startseq
 from .auth import AuthError
 from .console import LOG_BUFFER, check_command
 from .control import ControlError, check_action, tune_commands
@@ -60,7 +60,7 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             return _err(e.status, msg_of(e))
         body = await _body(request)
         # Klipper shut down (emergency stop, error): print_stats still holds the old value, e.g. "printing"
-        state = ((bridge.moon.status.get("print_stats") or {}).get("state")
+        state = (startseq.print_state(bridge.moon.status, (bridge.moon.status.get("print_stats") or {}).get("state"))
                  if bridge.moon.klippy_ready else "shutdown")
         try:
             method, label = check_action(request.match_info["action"], state, bool(body.get("confirm")),

@@ -10,6 +10,11 @@ header `X-Lang: de` (web UI, app and plugin send it), else the browser's `Accept
 `UI_LANGUAGE`. Supported: `en`, `de`. Stable codes (states,
 sources, keys) never change with the language.
 
+**Print start:** while the printer module `kobra_seq` runs the start sequence, `POST /api/print/pause|resume|cancel`
+go to its endpoint (no wait for Klipper's G-code lock); `printer.state` in `/api/app/state` is `paused` while the start
+sequence is paused and `printer.start_seq` holds `paused`, `requested` (`pause`/`cancel`), `step`, `index`, `steps`
+(`null` outside the start sequence).
+
 **Base path:** the web UI and the API work under any base path (Home Assistant ingress serves them under
 `/api/hassio_ingress/<token>/`). With `HA_INGRESS_TRUST=true` a request from HA's ingress proxy counts as the paired
 device `ha_ingress` (see [configuration](configuration.md)).

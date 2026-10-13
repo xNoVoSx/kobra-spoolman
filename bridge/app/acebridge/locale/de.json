@@ -608,5 +608,10 @@
  "“{part}”: humidity 0–100 %": "„{part}“: Feuchte 0–100 %",
  "“{part}”: humidity must be a number": "„{part}“: Feuchte muss eine Zahl sein",
  "… when the slot is empty this long": "… wenn der Slot so lange leer ist",
- "Report a bug: Logs → Report a bug copies the diagnostics (versions, setup, slots, settings, log – without addresses and keys) and opens the GitHub form": "Fehler melden: Logs → Fehler melden kopiert die Diagnose (Versionen, Aufbau, Slots, Einstellungen, Log – ohne Adressen und Schlüssel) und öffnet das GitHub-Formular"
+ "Report a bug: Logs → Report a bug copies the diagnostics (versions, setup, slots, settings, log – without addresses and keys) and opens the GitHub form": "Fehler melden: Logs → Fehler melden kopiert die Diagnose (Versionen, Aufbau, Slots, Einstellungen, Log – ohne Adressen und Schlüssel) und öffnet das GitHub-Formular",
+ "Start sequence paused": "Startablauf pausiert",
+ "pauses after this step": "pausiert nach diesem Schritt",
+ "cancels after this step": "bricht nach diesem Schritt ab",
+ "Start sequence paused – continue or cancel": "Startablauf pausiert – weiter oder abbrechen",
+ "Pause and cancel during the print start (Klipper + ACEPRO with kobra_seq): holds at the next safe point, lifts the nozzle, resume continues there; cancel ends the print as cancelled": "Pause und Abbrechen im Startablauf (Klipper + ACEPRO mit kobra_seq): hält an der nächsten sicheren Stelle, hebt die Düse an, Weiter macht dort weiter; Abbrechen beendet den Druck als abgebrochen"
 }
