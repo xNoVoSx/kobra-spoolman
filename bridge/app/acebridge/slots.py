@@ -442,11 +442,17 @@ class SlotManager:
         async with self._lock:
             assigned, self.warnings = self.assignments()
             now = time.time()
-            for gate in range(self.num_gates()):
-                slot = gate + 1
-                ace = self.ace_gate(gate)
-                if self.ace_connected:
-                    await self._track_empty(gate, slot, ace["present"], assigned.get(slot), now)
+            gates = range(self.num_gates())
+            present = {gate: self.ace_gate(gate)["present"] for gate in gates}
+            # every slot empty at once: the ACE was switched off or lost (13.10.: Rinkhals reported all four slots empty
+            # when the ACE was power-cycled and the bridge moved all spools to the shelf) - nobody took four spools
+            # out in the same second, so nothing is moved; a slot emptied by hand still counts as before
+            ace_gone = not any(present.values())
+            for gate in gates:
+                if self.ace_connected and not ace_gone:
+                    await self._track_empty(gate, gate + 1, present[gate], assigned.get(gate + 1), now)
+                elif ace_gone:
+                    self._empty_since.pop(gate, None)
             # without Spoolman data (bridge start, Spoolman gone) overwrite nothing - otherwise the slots would briefly
             # stand without a profile (filament_id) and Orca's sync button would pick wrong
             if self.cfg.write_lane_data and self.moon.connected and getattr(self.sm, "connected", True):

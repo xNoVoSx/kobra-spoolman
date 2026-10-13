@@ -81,7 +81,14 @@ fun ControlRow(p: Printer, onAction: (String, String) -> Unit, onTune: () -> Uni
     val printing = p.state == "printing"
     val paused = p.state == "paused"
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (printing || paused) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // slow firmware (Rinkhals): the action is on its way - no second click on "Resume"
+        if (p.pendingAction != null) Text(when (p.pendingAction) {
+            "pause" -> tr("Pausing …")
+            "resume" -> tr("Resuming – heating up …")
+            "cancel" -> tr("Cancelling …")
+            else -> tr("The printer is still working on it")
+        }, style = MaterialTheme.typography.bodyMedium, color = K.Muted)
+        else if (printing || paused) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (printing) SecondaryButton(tr("Pause"), { onAction("pause", tr("Paused")) }, Modifier.weight(1f))
             if (paused) PrimaryButton(tr("Resume"), { onAction("resume", tr("Running again")) }, Modifier.weight(1f))
             SecondaryButton(tr("Cancel"), { ask = "cancel" }, Modifier.weight(1f))

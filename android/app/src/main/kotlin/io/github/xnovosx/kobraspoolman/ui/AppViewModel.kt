@@ -303,8 +303,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun image(path: String): ByteArray? = runCatching { client()?.image(path) }.getOrNull()
 
     fun printAction(action: String, done: String) = launchSafe {
-        it.printAction(action)
-        _messages.send(done)
+        val r = it.printAction(action)
+        _messages.send(if (r.pending) tr("Sent – the printer is still working on it") else done)
         refresh()
     }
 

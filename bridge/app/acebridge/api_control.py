@@ -4,6 +4,7 @@ Added by web.build_app; shared helpers in webcommon.py."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -15,7 +16,7 @@ from aiohttp import web
 from . import diagnostics, startseq
 from .auth import AuthError
 from .console import LOG_BUFFER, check_command
-from .control import ControlError, check_action, tune_commands
+from .control import ANSWER_S, SLOW, ControlError, check_action, tune_commands
 from .i18n import tr
 from .webcommon import Ctx, json_response, msg_of, _err
 
@@ -69,13 +70,21 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
             if e.confirm:
                 return json_response({"error": msg_of(e), "confirm": True}, status=409)
             return _err(e.status, msg_of(e))
+        action = request.match_info["action"]
+        slow = action in SLOW
+        pending = False
         try:
-            await bridge.moon.action(method, label, source=dev.get("name") or tr("Web UI"))
+            await bridge.moon.action(method, label, source=dev.get("name") or tr("Web UI"),
+                                     timeout=ANSWER_S if slow else 30)
+        except asyncio.TimeoutError:
+            if not slow:
+                return _err(503, tr("Action failed"))
+            pending = True  # sent - the printer is still carrying it out (Rinkhals: reheating, unloading)
         except Exception as e:  # noqa: BLE001
             return _err(400 if isinstance(e, RuntimeError) else 503, msg_of(e) or tr("Action failed"))
-        bridge.last_control = {"action": request.match_info["action"], "source": dev.get("name") or "",
-                               "at": round(time.time(), 1)}
-        return json_response({"ok": True})
+        bridge.last_control = {"action": action, "source": dev.get("name") or "", "at": round(time.time(), 1)}
+        bridge.pending_control = {"action": action, "at": time.time()} if pending else None
+        return json_response({"ok": True, "pending": pending}, status=202 if pending else 200)
 
     # ---------------------------------------------------------------- console and logs
     help_cache: dict = {"at": 0.0, "commands": {}}

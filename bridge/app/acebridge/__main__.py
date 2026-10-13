@@ -93,6 +93,7 @@ class Bridge:
         self._print_state = ""
         # last print action triggered through the bridge - the app does not report its own pauses as an alarm
         self.last_control: Optional[Dict[str, Any]] = None
+        self.pending_control: Optional[Dict[str, Any]] = None   # pause/resume/cancel the printer still carries out
 
     async def _on_status(self, delta: Dict[str, Any], full: bool) -> None:
         if full:

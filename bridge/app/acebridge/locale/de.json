@@ -690,5 +690,8 @@
  "Moisture estimate: drying approaches the humidity the ACE measures – a run with the lid open hardly counts": "Feuchte-Schätzung: Trocknen nähert sich der Feuchte an, die die ACE misst – eine Trocknung mit offenem Deckel zählt kaum",
  "Dryer fault of the ACE (e.g. PTC_err): no automatic restart any more, red message": "Trocknerfehler der ACE (z. B. PTC_err): kein automatischer Neustart mehr, rote Meldung",
  "Print card: “x of y still to print” and what is left on the spool, instead of “~y, x left”": "Druckkarte: „noch x von y zu drucken“ und der Rest auf der Spule statt „~y, noch x“",
- "Rinkhals: no negative interim booking when a slot is unloaded (retract and cut)": "Rinkhals: keine negative Zwischenbuchung mehr beim Entladen eines Slots (Rückzug und Schnitt)"
+ "Rinkhals: no negative interim booking when a slot is unloaded (retract and cut)": "Rinkhals: keine negative Zwischenbuchung mehr beim Entladen eines Slots (Rückzug und Schnitt)",
+ "No answer yet – the printer is still working on it": "Noch keine Antwort – der Drucker ist noch dabei",
+ "Pause, resume and cancel answer at once even when the printer takes a minute (Rinkhals heats up again first); web and app show “Resuming …” instead of the buttons": "Pause, Weiter und Abbrechen antworten sofort, auch wenn der Drucker eine Minute braucht (Rinkhals heizt erst wieder auf); Web und App zeigen „Wird fortgesetzt …“ statt der Knöpfe",
+ "ACE switched off: the slots no longer count as emptied – the spools stay in their slots": "ACE ausgeschaltet: die Slots gelten nicht mehr als geleert – die Spulen bleiben in ihren Slots"
 }

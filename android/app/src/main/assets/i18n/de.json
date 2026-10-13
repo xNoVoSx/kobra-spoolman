@@ -617,5 +617,10 @@
  "{min} min too cold": "{min} min zu kalt",
  "discarded": "verworfen",
  "Drying run discarded": "Trocknung verworfen",
- "CPU {n} %": "CPU {n} %"
+ "CPU {n} %": "CPU {n} %",
+ "Sent – the printer is still working on it": "Gesendet – der Drucker ist noch dabei",
+ "Pausing …": "Wird pausiert …",
+ "Resuming – heating up …": "Wird fortgesetzt – heizt auf …",
+ "Cancelling …": "Wird abgebrochen …",
+ "The printer is still working on it": "Der Drucker ist noch dabei"
 }

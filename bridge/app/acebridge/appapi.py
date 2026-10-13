@@ -16,11 +16,12 @@ import math
 import os
 import random
 import re
+import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from aiohttp import web
 
-from . import __version__, acemodel, appupdate, phase, startseq
+from . import __version__, acemodel, appupdate, control, phase, startseq
 from .assets import TAG as UI_TAG
 from .orca_profiles import FIELD_MAP
 from .profiles import basic_info, color_hex, find_template, orca_filament_id
@@ -310,9 +311,11 @@ def tag_content(spool: Dict[str, Any], templates: List[Dict[str, Any]], tag_nr: 
 # ====================================================================== printer state
 def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_ready: bool,
                   active_slot: Optional[int], steps: Optional[phase.ChangeSteps] = None,
-                  platform: str = "klipper", cpu: Optional[float] = None) -> Dict[str, Any]:
+                  platform: str = "klipper", cpu: Optional[float] = None,
+                  pending: Optional[Dict[str, Any]] = None, now: Optional[float] = None) -> Dict[str, Any]:
     """State for the app from the bridge's Moonraker subscription (no extra load on the printer).
-    cpu: the printer's own CPU in % (Rinkhals: Moonraker runs on the printer; elsewhere None)."""
+    cpu: the printer's own CPU in % (Rinkhals: Moonraker runs on the printer; elsewhere None).
+    pending: pause/resume/cancel sent but not carried out yet (control.pending_action)."""
     ps = status.get("print_stats") or {}
     vsd = status.get("virtual_sdcard") or {}
     if not connected or not klippy_ready:
@@ -354,6 +357,9 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         "can_restart": platform != "rinkhals",
         # Rinkhals: printer CPU (mean over 10 s, Moonraker's own proc_stat - no extra query), else None
         "printer_cpu": round(cpu) if cpu is not None and platform == "rinkhals" else None,
+        # pause/resume/cancel sent, the printer is still carrying it out (Rinkhals: reheating ~50 s, unloading):
+        # web and app show "Resuming …" instead of the buttons
+        "pending_action": control.pending_action(pending, state, now if now is not None else time.time()),
         "active_slot": active_slot,
         "mmu_action": action or None,
         "changing_filament": bool(action),
@@ -572,7 +578,8 @@ class AppApi:
                 "ui": UI_TAG,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active,
                                          getattr(b, "phase_steps", None), getattr(b.moon, "platform", "klipper"),
-                                         b.moon.cpu(10.0) if hasattr(b.moon, "cpu") else None),
+                                         b.moon.cpu(10.0) if hasattr(b.moon, "cpu") else None,
+                                         getattr(b, "pending_control", None)),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"], "by_tag": s.get("by_tag", False),

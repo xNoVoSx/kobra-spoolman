@@ -15,7 +15,7 @@
 | `SLOT_LOCATION_PREFIX` | `ACE Slot ` | Spoolman location of a loaded spool (`ACE Slot 1` …) |
 | `SHELF_LOCATION` | *(auto)* | Spoolman location of unloaded spools. Empty: `Shelf`, or `Regal` if your Spoolman already uses that (installs before 3.12) |
 | `TEMPLATE_VENDOR` | *(auto)* | vendor name of the material templates. Empty: `Template`, or `Vorlage` if that vendor already exists |
-| `AUTO_UNASSIGN_ON_EMPTY` | `true` | move the spool to the shelf when the ACE reports its slot empty |
+| `AUTO_UNASSIGN_ON_EMPTY` | `true` | move the spool to the shelf when the ACE reports its slot empty (not when every slot is empty at once — that is the ACE switched off) |
 | `AUTO_ASSIGN_BY_TAG` | `true` | a spool with one of our tags (number ≥ `TAG_NR_MIN`) in a slot is assigned to it automatically |
 | `AUTO_ASSIGN_BY_KIND` | `true` | an original Anycubic tag (names only material and colour): the one spool on the shelf with the same material, colour and vendor is assigned; with several, a message asks |
 | `EMPTY_DEBOUNCE_S` | `15` | …after the slot stayed empty this long (during a print: after it ends) |

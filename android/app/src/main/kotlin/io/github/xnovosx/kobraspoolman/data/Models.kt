@@ -444,6 +444,8 @@ data class Printer(
     @SerialName("can_restart") val canRestart: Boolean = true,
     // Rinkhals: the printer's own CPU in % (bridge 3.17.0+), else null
     @SerialName("printer_cpu") val printerCpu: Int? = null,
+    /** pause/resume/cancel sent, the printer is still carrying it out (Rinkhals: reheating, unloading). */
+    @SerialName("pending_action") val pendingAction: String? = null,
     /** What is happening now ("Preheating 5/15 min", "Change to slot 2 · loading", "Printing · layer 3/80"); bridge 3.9.0+. */
     val phase: String? = null,
     @SerialName("phase_key") val phaseKey: String? = null,
@@ -607,6 +609,10 @@ data class Health(val app: String = "", val version: String = "")
 
 @Serializable
 data class ApiError(val error: String = "")
+
+/** Answer of POST /api/print/{action}: pending = sent, the printer is still working on it (HTTP 202). */
+@Serializable
+data class ActionResult(val ok: Boolean = false, val pending: Boolean = false)
 
 @Serializable
 data class NewSpool(

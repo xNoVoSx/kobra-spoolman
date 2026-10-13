@@ -113,3 +113,22 @@ def check_action(action: str, state: Optional[str], confirmed: bool, platform: s
                                  "firmware_restart": tr("Reload Klipper? (takes a few seconds)")}[action],
                            confirm=True)
     return method, label
+
+
+# ---------------------------------------------------------------------- slow firmware (Rinkhals)
+# GoKlipper takes its time: resume heats the nozzle back up from 140 °C first (~50 s), cancel unloads (~45 s). The web
+# and the app must not wait that long (the app gives up after 15 s): the bridge answers after ANSWER_S with "sent,
+# still working" and remembers the action until the printer's state shows it is done.
+ANSWER_S = 8.0
+PENDING_MAX_S = 180.0
+SLOW = ("pause", "resume", "cancel")
+
+
+def pending_action(pending: Optional[Dict[str, Any]], state: Optional[str], now: float) -> Optional[str]:
+    """Action still being carried out by the printer ("pause", "resume", "cancel"), None when done or too old."""
+    if not pending or now - pending.get("at", 0) > PENDING_MAX_S:
+        return None
+    action = pending.get("action")
+    done = {"pause": state == "paused", "resume": state == "printing",
+            "cancel": state not in ("printing", "paused")}.get(action, True)
+    return None if done else action

@@ -6,6 +6,27 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.18.1] – 2026-10-13
+
+From the second Rinkhals test print (pause, resume, cancel, bridge restart).
+
+### Fixed
+- Pause, resume and cancel under Rinkhals: the firmware lowers the nozzle to 140 °C while paused and heats it up
+  again before it resumes (~50 s); cancelling unloads first (~45 s). The bridge waited 30 s, the app only 15 s — the
+  app said *bridge not reachable* although it worked, and *Resume* stayed on screen. Now the bridge answers after at
+  most 8 s (**202**, `pending: true`) and `printer.pending_action` makes web and app show *Resuming – heating up …*
+  (or *Pausing …*, *Cancelling …*) until the printer is there. The console says *still working on it* instead of a
+  `TimeoutError`.
+- Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
+  shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
+  every slot is empty at once nothing is moved now.
+
+## app 1.17.1 – 2026-10-13
+
+### Fixed
+- *Pause*/*Resume*/*Cancel* on a slow printer: *Sent – the printer is still working on it* instead of *bridge not
+  reachable*, and *Resuming …* instead of a second *Resume* button.
+
 ## plugin 0.7.1 – 2026-10-13
 
 ### Fixed

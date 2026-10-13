@@ -194,6 +194,10 @@ class Moonraker:
             log.info("Start sequence running: %s via %s", params["action"], method)
         try:
             await self._call(method, params, timeout=timeout)
+        except asyncio.TimeoutError:
+            if self.console is not None:
+                self.console.add("response", tr("No answer yet – the printer is still working on it"), source)
+            raise
         except Exception as e:
             if self.console is not None:
                 self.console.add("error", str(e) or e.__class__.__name__, source)

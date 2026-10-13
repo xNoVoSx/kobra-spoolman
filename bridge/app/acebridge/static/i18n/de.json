@@ -952,5 +952,10 @@
  "lid open?": "Deckel offen?",
  "The ACE stayed more than 10 °C below its target – lid open?": "Die ACE blieb mehr als 10 °C unter dem Soll – Deckel offen?",
  "{min} min too cold": "{min} min zu kalt",
- "discarded": "verworfen"
+ "discarded": "verworfen",
+ "Sent – the printer is still working on it": "Gesendet – der Drucker ist noch dabei",
+ "Pausing …": "Wird pausiert …",
+ "Resuming – heating up …": "Wird fortgesetzt – heizt auf …",
+ "Cancelling …": "Wird abgebrochen …",
+ "The printer is still working on it": "Der Drucker ist noch dabei"
 }

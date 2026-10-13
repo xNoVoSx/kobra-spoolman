@@ -379,6 +379,13 @@ during a print, yellow); status line `ai`.
 | POST | `/api/print/firmware_restart` | *(paired)* `{"confirm": true}` required — `FIRMWARE_RESTART`, only when no print is running (standby, complete, cancelled, error, shutdown); the UIs offer it when Moonraker is connected but Klipper is not ready. Refused (**409**) on Rinkhals — the stock firmware does not allow it; `printer.can_restart` in `/api/app/state` says whether it is possible |
 | POST | `/api/print/tune` | *(paired)* any of `{"speed": 120, "flow": 98, "fans": {"part": 60, "box": 30, "filter": 0}, "nozzle": 240, "bed": 70}` — percent / °C; nozzle above 260 °C needs `confirm: true` |
 
+**Slow firmware:** `pause`, `resume` and `cancel` wait at most 8 s for the printer. Under Rinkhals resuming heats the
+nozzle back up from 140 °C first (~50 s) and cancelling unloads (~45 s); then the answer is **202**
+`{"ok": true, "pending": true}` — sent, the printer is still carrying it out — and `/api/app/state` →
+`printer.pending_action` (`"pause"`, `"resume"`, `"cancel"`) stays set until the printer's state shows it is done (at
+most 3 min). Web and app show *Resuming …* instead of the buttons. A fast answer is **200** `{"ok": true,
+"pending": false}`.
+
 `tune` sends `M220`, `M221`, `M106` (part fan), `SET_FAN_SPEED FAN=box_fan|air_filter_fan SPEED=0..1`,
 `M104`, `M140` — all checked on a Kobra S1. Limits: speed 10–300 %, flow 50–150 %, fans 0–100 %,
 nozzle 0–300 °C, bed 0–110 °C. Every action shows in the console with the device that sent it.

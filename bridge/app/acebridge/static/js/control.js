@@ -14,8 +14,10 @@ const HOLD_MS = 2000;
 /** Send an action; errors as a toast, then rethrow (so dialogs stay open). */
 async function send(path, body = {}, okText) {
   try {
-    await post(path, body);
-    if (okText) toast(okText, "ok");
+    const r = await post(path, body);
+    // slow firmware (Rinkhals): sent, the printer is still carrying it out - the bar shows "Resuming …"
+    if (r?.pending) toast(t("Sent – the printer is still working on it"), "ok");
+    else if (okText) toast(okText, "ok");
     loadState();
   } catch (e) {
     if (!(e instanceof ApiError && (e.status === 401 || e.status === 403))) toast(e.message, "bad");
@@ -69,6 +71,12 @@ export function ControlBar({ p }) {
       : t("Stops all motors and heaters at once. Reload Klipper afterwards (the button appears here)."),
     action: () => send("/api/print/emergency_stop", { confirm: true }, t("Emergency stop triggered")),
   });
+  const PENDING = { pause: t("Pausing …"), resume: t("Resuming – heating up …"), cancel: t("Cancelling …") };
+  if (p.pending_action) {
+    return html`<div class="ctl row wrap"><span class="small muted grow">${PENDING[p.pending_action] || t("The printer is still working on it")}</span>
+      <span class="grow"></span>
+      <${HoldButton} onHeld=${estop}><${Icon} name="warn" small />${t("Emergency stop")}</${HoldButton}></div>`;
+  }
   return html`<div class="ctl row wrap">
     ${printing && html`<button class="btn sm" onClick=${guard(() => send("/api/print/pause", {}, t("Paused")).catch(() => {}))}><${Icon} name="pause" small />${t("Pause")}</button>`}
     ${paused && html`<button class="btn sm acc" onClick=${guard(() => send("/api/print/resume", {}, t("Continuing")).catch(() => {}))}><${Icon} name="play" small />${t("Continue")}</button>`}

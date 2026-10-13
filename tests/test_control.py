@@ -119,3 +119,45 @@ def test_rinkhals_never_reloads_klipper():
     assert e.value.confirm and "off and on" in str(e.value)
     assert check_action("firmware_restart", "shutdown", True)[0] == "printer.firmware_restart"
 
+
+
+def test_slow_firmware_answers_early_and_shows_the_pending_action(api):
+    """13.10. Rinkhals: resume took ~50 s (the nozzle heats back up from 140 °C), cancel ~45 s. The app gave up after
+    15 s ("bridge not reachable") and still offered "Resume". Now: answer after ANSWER_S with pending, the printer state
+    shows the action until the printer is done."""
+    from acebridge import control
+    from acebridge.appapi import printer_state
+    bridge, call, sent = api
+    waited = []
+
+    async def slow(method, label, source="Bridge", timeout=30):
+        waited.append(timeout)
+        sent.append(("action", method, source))
+        raise asyncio.TimeoutError
+    bridge.moon.action = slow
+    bridge.moon.merge({"print_stats": {"state": "paused"}})
+    status, res = call("/api/print/resume")
+    assert status == 202 and res == {"ok": True, "pending": True}
+    assert waited == [control.ANSWER_S] and control.ANSWER_S < 15     # the app's read timeout
+    assert bridge.last_control["action"] == "resume"
+    p = printer_state(bridge.moon.status, True, True, None, pending=bridge.pending_control)
+    assert p["pending_action"] == "resume"                   # still paused: web/app show "Resuming …"
+    bridge.moon.merge({"print_stats": {"state": "printing"}})
+    assert printer_state(bridge.moon.status, True, True, None, pending=bridge.pending_control)["pending_action"] is None
+    # never stuck: forgotten after PENDING_MAX_S even if the printer never got there
+    old = {"action": "cancel", "at": 1000.0}
+    assert control.pending_action(old, "printing", 1000.0 + 10) == "cancel"
+    assert control.pending_action(old, "printing", 1000.0 + control.PENDING_MAX_S + 1) is None
+    assert control.pending_action(old, "cancelled", 1010.0) is None
+    # an emergency stop that times out is still an error, never "pending"
+    bridge.moon.merge({"print_stats": {"state": "printing"}})
+    assert call("/api/print/emergency_stop", {"confirm": True})[0] == 503
+
+
+def test_fast_answer_clears_the_pending_action(api):
+    bridge, call, _sent = api
+    bridge.pending_control = {"action": "resume", "at": 0.0}
+    bridge.moon.merge({"print_stats": {"state": "printing"}})
+    status, res = call("/api/print/pause")
+    assert status == 200 and res == {"ok": True, "pending": False}
+    assert bridge.pending_control is None

@@ -196,9 +196,8 @@ class BridgeClient(
     }
 
     /** pause, resume, cancel, emergency_stop, firmware_restart - the app asked for confirmation itself (confirm). */
-    suspend fun printAction(action: String) {
-        call("POST", "/api/print/$action", "{\"confirm\":true}", ApiError.serializer())
-    }
+    suspend fun printAction(action: String): ActionResult =
+        call("POST", "/api/print/$action", "{\"confirm\":true}", ActionResult.serializer())
 
     suspend fun humidity(hours: Int): HumidityData = call("GET", "/api/humidity?hours=$hours", null, HumidityData.serializer())
     suspend fun spoolMoisture(id: Int): SpoolMoistureFull =
