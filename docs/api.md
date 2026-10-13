@@ -253,6 +253,8 @@ no entries. The bridge only ever sends the command listed for a key — never fr
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/api/features` | every feature in one list (`features.py`): `groups`, `items`: `key`, `group`, `title`, `text`, `needs`, `doc` (link into usage.md), `available`, `on`, `switchable`, `source` (`core`, `setting`, `printer`, `install`, `client`), `why`, `paired` (clients) |
+| POST | `/api/features/<key>` | *(paired)* `{"on": true}` — switches where the switch lives (bridge setting or printer module); `409` for what is not switchable here (set by the installation, a client, the core, not installed) |
 | GET | `/api/switches` | `groups` (`print`, `watch`, `io`, `system` — groups without items are left out), `items`: `key`, `group`, `kind` (`switch` with `on`, `choice` with `options` and `current`), `title`, `hint`, `sensitive` |
 | POST | `/api/switch` | *(paired)* `{"key": "pa", "value": true}` — 404 unknown or missing key, 409 locked, 503 Klipper not ready (USB watchdog: not running) |
 | GET | `/api/usb` | USB tunnel watchdog on the Klipper computer: `available`, `alive`, `state` (`ok`/`warn`/`bad`/`off`), `detail`, `gadget`, `tries`/`max_tries`, `gave_up`, `restarts`, `max_speed`, `switches`, last `events` (`at`, `text`). Read from Moonraker's database (namespace `kobra_usb`, key `state`, written by the watchdog); the switches `usb_watch`, `usb_auto_restart`, `usb_full_speed` (group `system`) go through `/api/switch` into key `switches` |

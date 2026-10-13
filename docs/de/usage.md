@@ -415,6 +415,15 @@ Android-Einstellungen der App.
 **Widget:** *Einstellungen → Widget auf den Startbildschirm* legt den Druck auf den Startbildschirm –
 Kamerabild, Fortschritt, Rest- und Fertig-Zeit; Antippen öffnet die App.
 
+## Funktionen
+
+*Funktionen* (Weboberfläche, unten in der Seitenleiste) zeigt alles, was das System kann, gruppiert in *Kern*,
+*Bedienung*, *Komfort*, *Anbindungen* und *Drucker-Module*: was jede Funktion tut, was sie braucht, ob sie an ist, und
+einen Link zur Erklärung hier. Ein Schalter pro Funktion, egal wo sie lebt – Einstellung der Bridge oder Modul im
+Drucker (Klipper-Weg). Was die Installation festlegt (Umgebungsvariablen des Containers, Optionen des
+Home-Assistant-Add-ons), steht als *von der Installation festgelegt* da und wird dort geändert, nie auf dieser Seite.
+Geräte (App, Display, Orca-Plugin) zeigen, wie viele gekoppelt sind; eingerichtet werden sie am Gerät selbst.
+
 ## Einstellungen
 
 *Einstellungen* in der Weboberfläche ändert die Bridge im laufenden Betrieb – Kamera, Druckvorschau, Slots

@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "3.15.0"
+__version__ = "3.16.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("3.16.0", "2026-10-13", [
+        tr("Features page: everything the system can do in one place – what it does, what it needs, on/off, one switch per feature (bridge or printer), link to the docs"),
+    ]),
     ("3.15.0", "2026-10-13", [
         tr("Pause and cancel during the print start (Klipper + ACEPRO with kobra_seq): holds at the next safe point, lifts the nozzle, resume continues there; cancel ends the print as cancelled"),
     ]),

@@ -9,6 +9,7 @@ import { Icon } from "./icons.js";
 import { AcePage, DevicesPage, FilamentHub, JobsPage, Overview, PairPage, SettingsPage, Ultra, filamentView } from "./pages.js";
 import { useFilteredSpools } from "./spools.js";
 import { AiPage } from "./ai.js";
+import { FeaturesPage } from "./features.js";
 import { LogsPage, TerminalPage } from "./terminal.js";
 import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set, useStore } from "./store.js";
 import { cls, printerLook } from "./util.js";
@@ -21,6 +22,7 @@ const PAGES = {
   ai: { title: t("AI"), icon: "eye", C: AiPage },
   terminal: { title: t("Terminal"), icon: "terminal", C: TerminalPage, fill: true },
   logs: { title: t("Logs"), icon: "log", C: LogsPage, fill: true },
+  features: { title: t("Features"), icon: "check", C: FeaturesPage, bottom: true },
   devices: { title: t("Devices"), icon: "phone", C: DevicesPage, bottom: true },
   settings: { title: t("Settings"), icon: "sliders", C: SettingsPage, bottom: true },
 };
@@ -54,7 +56,7 @@ function useWidth() {
 function MorePage() {
   return html`<div class="col">
     <h1 class="h1">${t("More")}</h1>
-    ${["ace", "ai", "terminal", "logs", "devices", "settings"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
+    ${["ace", "ai", "terminal", "logs", "features", "devices", "settings"].map((k) => html`<a class="card pad row" href=${"#/" + k} style="color:var(--text)"><${Icon} name=${PAGES[k].icon} /><span class="grow">${PAGES[k].title}</span><${Icon} name="back" style="transform:rotate(180deg)" /></a>`)}
   </div>`;
 }
 

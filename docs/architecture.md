@@ -113,6 +113,15 @@ only a few Moonraker clients. Browser, Android app and Orca plugin are clients o
   tag cannot send a header. A separate, view-only key (`camera.json`) is accepted as `?key=` on the
   camera URLs; any paired device can show or replace it.
 
+## Features (`bridge/app/acebridge/features.py`)
+
+One list of everything the system can do, built on the switches that already exist — nothing is switched twice:
+runtime settings (`runtime_settings.py`), printer module switches (`switches.py`), what the installation sets
+(environment variables, read only) and paired clients (`auth.py`). `view()` gives each feature its state (available,
+on, switchable, source, why), `switch()` sends the change where the switch lives. A setting whose environment variable
+is set explicitly counts as set by the installation, so the HA add-on keeps control over its options. Every feature
+links to its heading in `docs/usage.md` / `docs/de/usage.md` (a test checks the anchors).
+
 ## Messages and status (`bridge/app/acebridge/status.py`)
 
 Computed on every `/api/app/state` from what the bridge already holds — no extra request to the

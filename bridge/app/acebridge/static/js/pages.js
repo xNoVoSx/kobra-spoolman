@@ -260,7 +260,7 @@ function BridgeSettings() {
     </section>`)}
     <section class="card pad col">
       <h2 class="h2">${t("More settings")}</h2>
-      <div class="row wrap"><a class="btn sm" href="#/ace">${t("Dryer rules (ACE)")}</a><a class="btn sm" href="#/ai">${t("AI")}</a><a class="btn sm" href="#/devices">${t("Devices")}</a></div>
+      <div class="row wrap"><a class="btn sm" href="#/features">${t("Features")}</a><a class="btn sm" href="#/ace">${t("Dryer rules (ACE)")}</a><a class="btn sm" href="#/ai">${t("AI")}</a><a class="btn sm" href="#/devices">${t("Devices")}</a></div>
     </section>
     <section class="card pad col">
       <h2 class="h2">${t("Connections")}</h2>

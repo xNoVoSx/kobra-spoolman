@@ -6,6 +6,18 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.16.0] – 2026-10-13
+
+First step towards a simpler start (concept: core on, everything else switched on where it is wanted): one page that
+shows and switches every feature.
+
+### Added
+- `features.py`, `GET /api/features`, `POST /api/features/<key>` (paired): every feature of the system with what it
+  does, what it needs, whether it is on, where its switch lives and a link to the docs — built on the existing switches
+  (bridge settings, printer modules), nothing is switched twice. What the installation sets (environment variables, HA
+  add-on options) is shown and never changed there.
+- Web UI page *Features* (side bar, *More* on the phone, *Settings → More settings*).
+
 ## [3.15.0] – 2026-10-13
 
 Pause and cancel work during the print start. Until now the start sequence (`G9111`, up to half an hour with the heat

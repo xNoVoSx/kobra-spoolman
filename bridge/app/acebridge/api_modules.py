@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 
+from . import features
 from .ace import AceError
 from .clog import ClogError
 from .i18n import tr
@@ -198,6 +199,24 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
     @r.get("/api/switches")
     async def switches_state(_):
         return json_response(bridge.switches.view())
+
+    # ---------------------------------------------------------------- all features in one list (features.py)
+    @r.get("/api/features")
+    async def features_view(_):
+        return json_response(features.view(bridge))
+
+    @r.post("/api/features/{key}")
+    @need_device
+    async def feature_switch(request: web.Request):
+        try:
+            body = await request.json()
+            on = body["on"]
+        except Exception:  # noqa: BLE001
+            return _err(400, tr("Expected JSON {\"on\": true}"))
+        try:
+            return json_response(await features.switch(bridge, request.match_info["key"], on))
+        except features.FeatureError as e:
+            return _err(e.status, msg_of(e))
 
     @r.get("/api/purge")
     async def purge_pairs(_):

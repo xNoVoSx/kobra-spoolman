@@ -23,7 +23,7 @@ from acebridge.i18n import localize, request_lang, tr
 ROOT = Path(__file__).resolve().parents[1]
 PKG = ROOT / "bridge" / "app" / "acebridge"
 CATALOG = PKG / "locale" / "de.json"
-KEEP = "i18n: printer text"
+KEEP = ("i18n: printer text", "i18n: German doc heading")
 
 # Words that only appear in German text (lower case, whole words). Kept short and unambiguous.
 GERMAN_WORDS = {
@@ -137,7 +137,7 @@ def _german_lines(path):
         if tok.type not in (tokenize.COMMENT, tokenize.STRING):
             continue
         row = tok.start[0]
-        if KEEP in lines[row - 1] or (tok.type == tokenize.STRING and KEEP in lines[min(row, len(lines) - 1)]):
+        if any(k in lines[row - 1] for k in KEEP) or (tok.type == tokenize.STRING and any(k in lines[min(row, len(lines) - 1)] for k in KEEP)):
             continue
         if _german(tok.string):
             hits.append(f"{path.relative_to(ROOT)}:{row}")

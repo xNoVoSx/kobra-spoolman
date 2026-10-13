@@ -410,6 +410,15 @@ Android's notification settings.
 **Widget:** *Settings → Widget on the home screen* puts the print on the home screen — camera
 picture, progress, remaining and finish time; tapping it opens the app.
 
+## Features
+
+*Features* (web UI, bottom of the side bar) lists everything the system can do, grouped as *Core*, *Operation*,
+*Comfort*, *Integrations* and *Printer modules*: what each feature does, what it needs, whether it is on, and a link to
+its explanation here. One switch per feature, no matter where it lives — a setting of the bridge or a module on the
+printer (Klipper setup). What the installation sets (environment variables of the container, options of the Home
+Assistant add-on) is shown as *set by the installation* and changed there, never on this page. Clients (app, display,
+Orca plugin) show how many are paired; they are set up on the device itself.
+
 ## Settings
 
 *Settings* in the web UI changes the bridge while it runs — camera, print preview, slots and RFID,
