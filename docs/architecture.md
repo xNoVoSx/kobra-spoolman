@@ -283,7 +283,7 @@ makes it match presets by `lane_data.filament_id` — which the bridge already w
 
 On `SlicingJobComplete` (and on every panel refresh) the plugin reads
 `orca.host.slice_statistics()` — per filament the model, support, prime tower, flush and total
-volume plus density, the number of loads and the filament changes (`transitions`: from → to with
+volume plus density and the filament changes (`transitions`: from → to with
 counts). `build_forecast()` converts them to grams exactly like Orca's preview legend (*Total* =
 model + support + flush + tower; Orca's own `total_volumes_per_extruder` attributes the tower
 differently at tool changes and is not used) and compares that with the spool's remaining weight.

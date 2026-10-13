@@ -37,6 +37,13 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - *Pause*/*Resume*/*Cancel* on a slow printer: *Sent – the printer is still working on it* instead of *bridge not
   reachable*, and *Resuming …* instead of a second *Resume* button.
 
+## plugin 0.7.2 – 2026-10-13
+
+### Changed
+- Works with orca-kobra builds after Orca's review of `slice_statistics` (#16423): no `require_valid` argument any
+  more, the slice result is valid already when *SlicingJobComplete* arrives, `loads` is gone (the plugin counts loads
+  from `transitions`). Older builds keep working.
+
 ## plugin 0.7.1 – 2026-10-13
 
 ### Fixed

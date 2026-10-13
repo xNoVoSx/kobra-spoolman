@@ -53,7 +53,7 @@ from pathlib import Path
 
 import orca
 
-PLUGIN_VERSION = "0.7.1"
+PLUGIN_VERSION = "0.7.2"
 MARKER = "kobra-spoolman"
 DEFAULT_CONFIG = {
     "bridge_url": "http://localhost:7913",   # change in the plugin settings
@@ -573,12 +573,21 @@ def forecast_warnings(fc):
 
 
 def read_slice_statistics(require_valid=True):
-    """orca.host.slice_statistics (orca-kobra patch 0003) - None if missing / not sliced."""
+    """orca.host.slice_statistics (orca-kobra patch 0003) - None if missing / not sliced.
+
+    Builds up to 13.10.2026 take (plate_index, require_valid) and set the valid flag only after SlicingJobComplete,
+    so the event handler asks with require_valid=False. Newer builds (review of Orca #16423) set the flag first and
+    take plate_index only - there the plain call already answers inside the event."""
     fn = getattr(orca.host, "slice_statistics", None)
     if fn is None:
         return None
     try:
-        return fn(-1, require_valid)
+        if not require_valid:
+            try:
+                return fn(-1, False)
+            except TypeError:           # newer build: no require_valid, the result is valid in the event already
+                pass
+        return fn(-1)
     except Exception as e:  # noqa: BLE001
         log("Slice statistics not readable:", e)
         return None
@@ -953,7 +962,7 @@ class Core:
 
     # ---------------------------------------------------------------- usage forecast (UI thread)
     def on_slice_complete(self):
-        """Right after SlicingJobComplete: Orca sets the valid flag only afterwards."""
+        """Right after SlicingJobComplete (older orca-kobra builds set the valid flag only afterwards)."""
         stats = read_slice_statistics(require_valid=False)
         if stats is None:
             return None

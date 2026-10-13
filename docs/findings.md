@@ -230,9 +230,10 @@ wrong for such files (test B: −345 mm) and pulls the average used by the plugi
   exactly a keyword (`conf`, `config`, `secret(s)`, `cert(s)`, …) or end in `.conf`/`.ini` are still denied.
 - No API for per-filament usage after slicing (only the G-code / 3MF contain it) → patch 0003 adds
   `orca.host.slice_statistics()` (read-only, from `GCodeProcessorResult::print_statistics`).
-- `SlicingJobComplete` is dispatched synchronously on the UI thread **before** the plate's
-  `slice_result_valid` flag is set; a handler of that event must read the result with
-  `require_valid=False` (the flag is set right after the event returns).
+- `SlicingJobComplete` was dispatched synchronously on the UI thread **before** the plate's
+  `slice_result_valid` flag was set; with patch 0003 up to 2026-10-13 a handler read the result with
+  `require_valid=False`. Since the review of Orca #16423 the patch sets the flag first and `slice_statistics()` takes
+  only `plate_index`; the plugin handles both.
 - `total_filament_changes` counts changes only (not the first load): loads = changes + 1.
 - The Kobra's firmware purge does not appear in Orca's flush statistics (0 for this printer),
   see [Firmware purge per filament change](#firmware-purge-per-filament-change-2026-09-25).

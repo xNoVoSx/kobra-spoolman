@@ -162,6 +162,28 @@ def test_without_patch_there_is_no_preview(ks):
     assert ks.read_slice_statistics() is None
 
 
+def test_reads_slice_statistics_from_old_and_new_builds(ks, monkeypatch):
+    """Up to 13.10.2026 the patch took (plate_index, require_valid); after Orca's review only plate_index (the valid
+    flag is set before SlicingJobComplete). The plugin works with both."""
+    calls = []
+
+    def old(plate_index=-1, require_valid=True):
+        calls.append(("old", plate_index, require_valid))
+        return {"valid": require_valid}
+
+    def new(plate_index=-1):
+        calls.append(("new", plate_index))
+        return {"valid": True}
+
+    monkeypatch.setattr(ks.orca.host, "slice_statistics", old, raising=False)
+    assert ks.read_slice_statistics(require_valid=False) == {"valid": False}
+    assert ks.read_slice_statistics() == {"valid": True}
+    monkeypatch.setattr(ks.orca.host, "slice_statistics", new, raising=False)
+    assert ks.read_slice_statistics(require_valid=False) == {"valid": True}
+    assert ks.read_slice_statistics() == {"valid": True}
+    assert calls == [("old", -1, False), ("old", -1, True), ("new", -1), ("new", -1)]
+
+
 RINKHALS = {"model": {"model": "colour", "flush_multiplier": 1.0, "flush_volume_min": 107.0, "flush_volume_max": 800.0,
                       "offset_mm": -3.0, "first_load_mm": 95.0}}
 
