@@ -70,3 +70,19 @@ def test_ace_switched_off_moves_nothing(cfg):
     run(slots)
     assert sm.patched == []
     assert [s["location"] for s in sm.spools] == [f"ACE Slot {n}" for n in (1, 2, 3, 4)]
+
+
+def test_printer_switched_off_and_on_moves_nothing(cfg):
+    """Printer off: Klipper is gone (not ready). Back on: Klipper is ready before the ACE reports its slots - for a
+    moment every slot looks empty. Neither moves a spool."""
+    moon, sm, slots = make(cfg)
+    run(slots, 1)
+    moon.klippy_ready = False                                 # printer off
+    run(slots, 3)
+    moon.klippy_ready = True                                  # back on, the ACE has not reported yet
+    moon.merge(ace_status([None, None, None, None]))
+    run(slots, 3)
+    moon.merge(ace_status(LOADED))                            # the ACE is there
+    run(slots)
+    assert sm.patched == []
+    assert [s["location"] for s in sm.spools] == [f"ACE Slot {n}" for n in (1, 2, 3, 4)]
