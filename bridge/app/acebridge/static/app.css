@@ -200,6 +200,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 
 .slot { display: flex; flex-direction: column; overflow: hidden; }
 .slot.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.slot.offline .head, .slot.offline .body > :not(.actions) { opacity: .6; }
 .slot .head { height: 180px; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--line); }
 .slot .num { position: absolute; top: 14px; left: 16px; font: 500 13px var(--mono); color: var(--muted); }
 .slot .flag { position: absolute; top: 12px; right: 14px; }

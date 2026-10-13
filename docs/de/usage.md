@@ -89,6 +89,8 @@ die Spule nochmal zuordnen. ACEPRO braucht die Werte für die Endlosspule und di
 
 Spule herausnehmen: Meldet die ACE einen Slot eine Weile als leer, kommt die Spule automatisch ins
 Regal (während eines Drucks erst danach). Oder auf der Slot-Karte **Leeren** drücken.
+Sind Drucker oder ACE ausgeschaltet, sehen alle Slots auf einmal leer aus – dann wird nichts verschoben: Die Spulen
+bleiben in ihren Slots, und die Slot-Karten zeigen sie blass mit *Offline – letzter Stand*, bis die ACE wieder meldet.
 
 **Spulen mit unseren Tags werden automatisch zugeordnet.** Liest die ACE einen unserer Sticker
 (`AHPEBK-<nummer>`, Nummer ab 1000) in einem Slot, ordnet die Bridge die Spule mit dieser Tag-Nummer

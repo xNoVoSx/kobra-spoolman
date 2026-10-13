@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "3.18.2"
+__version__ = "3.19.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("3.19.0", "2026-10-14", [
+        tr("Printer or ACE switched off: the slot cards keep their spools and show them dimmed with “Offline – last known” (web, app, display)"),
+    ]),
     ("3.18.2", "2026-10-13", [
         tr("Purge log: every colour change says where its purge comes from – set by Orca, the firmware's own purge on Rinkhals (now with its length), or nothing set (print start, endless spool, by hand)"),
     ]),

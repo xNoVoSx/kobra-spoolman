@@ -197,6 +197,7 @@ class SlotManager:
     def slots_view(self) -> List[Dict[str, Any]]:
         assigned, _ = self.assignments()
         out = []
+        live = self.ace_connected        # False: printer or ACE off - the assignment is Spoolman's last known state
         for gate in range(self.num_gates()):
             slot = gate + 1
             ace = self.ace_gate(gate)
@@ -229,7 +230,7 @@ class SlotManager:
             if gate in self._pending_unassign:
                 hints.append(tr("will be moved to the shelf after the print"))
             out.append({"slot": slot, "gate": gate, "ace": ace, "spool": info, "hints": hints,
-                        "by_tag": self.by_tag.get(gate) is not None and info is not None})
+                        "by_tag": self.by_tag.get(gate) is not None and info is not None, "live": live})
         return out
 
     def assignable_spools(self, slot: Optional[int] = None) -> List[Dict[str, Any]]:

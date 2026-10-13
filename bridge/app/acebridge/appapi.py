@@ -583,6 +583,7 @@ class AppApi:
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,
                 "slots": [{"slot": s["slot"], "ace": s["ace"], "hints": s["hints"], "by_tag": s.get("by_tag", False),
+                           "live": s.get("live", True),
                            "spool": self._with_tag(s["spool"])} for s in slots],
                 "shelf": shelf,
                 "dryer": b.dryer.state(),

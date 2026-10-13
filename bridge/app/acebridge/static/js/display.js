@@ -147,8 +147,9 @@ function Slot({ s }) {
   const color = hex(sp?.color || ace.color);
   const rest = sp?.remaining_weight;
   const low = rest != null && rest < 200;
-  return html`<div class=${"disp-slot" + (ace.active ? " on" : "")}>
-    <div class="hd"><span>${t("Slot {slot}", { slot: s.slot })}</span>${ace.active && html`<span class="disp-tag">${t("loaded")}</span>`}</div>
+  const offline = s.live === false && !!sp;      // printer or ACE off: Spoolman's last known assignment
+  return html`<div class=${"disp-slot" + (ace.active ? " on" : "") + (offline ? " offline" : "")}>
+    <div class="hd"><span>${t("Slot {slot}", { slot: s.slot })}</span>${ace.active && html`<span class="disp-tag">${t("loaded")}</span>`}${offline && html`<span class="disp-tag">${t("offline")}</span>`}</div>
     <div class=${"disp-swatch" + (color ? "" : " empty")} style=${color ? `background:${color}` : ""}></div>
     <div class="name">${sp ? (sp.name || sp.material || t("Spool")) : ace.present ? (ace.material || t("Unknown")) : t("empty")}</div>
     <div class=${"sub" + (low ? " warn" : "")}>${sp ? `${rest != null ? Math.round(rest) + " g" : "–"} · ${low ? t("almost empty") : sp.vendor || ""}` : ace.present ? t("no spool") : ""}</div>

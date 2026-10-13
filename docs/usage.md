@@ -88,6 +88,8 @@ load temperature.
 
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Empty** on the slot card.
+When the printer or the ACE is switched off, every slot looks empty at once — then nothing is moved: the spools stay
+in their slots, and the slot cards show them dimmed with *Offline – last known* until the ACE reports again.
 
 **Spools with our tags are assigned automatically.** When the ACE reads one of our stickers
 (`AHPEBK-<number>`, number ≥ 1000) in a slot, the bridge assigns the spool with that tag number — the

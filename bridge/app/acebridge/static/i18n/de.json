@@ -957,5 +957,8 @@
  "Pausing …": "Wird pausiert …",
  "Resuming – heating up …": "Wird fortgesetzt – heizt auf …",
  "Cancelling …": "Wird abgebrochen …",
- "The printer is still working on it": "Der Drucker ist noch dabei"
+ "The printer is still working on it": "Der Drucker ist noch dabei",
+ "Offline – last known": "Offline – letzter Stand",
+ "The ACE is not reachable (printer or ACE switched off) – the spool comes from Spoolman": "Die ACE ist nicht erreichbar (Drucker oder ACE aus) – die Spule kommt aus Spoolman",
+ "offline": "offline"
 }

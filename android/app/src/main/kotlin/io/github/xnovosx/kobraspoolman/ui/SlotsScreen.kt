@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -106,9 +107,10 @@ fun SlotsScreen(
 @Composable
 private fun SlotCard(slot: Slot, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val sp = slot.spool
+    val offline = !slot.live && sp != null
     val shape = RoundedCornerShape(20.dp)
     Column(
-        modifier.heightIn(min = 188.dp).clip(shape)
+        modifier.heightIn(min = 188.dp).clip(shape).alpha(if (offline) 0.6f else 1f)
             .background(if (active) androidx.compose.ui.graphics.Color(0xFF16231C) else K.Surface)
             .border(if (active) 2.dp else 1.dp, if (active) K.Ok else K.Line, shape)
             .clickable(role = Role.Button, onClick = onClick).padding(14.dp),
@@ -117,6 +119,7 @@ private fun SlotCard(slot: Slot, active: Boolean, modifier: Modifier, onClick: (
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(tr("SLOT {slot}", "slot" to slot.slot), style = MaterialTheme.typography.titleSmall, color = K.Muted, modifier = Modifier.weight(1f))
             if (active) Badge(tr("ACTIVE"), K.Ok, androidx.compose.ui.graphics.Color(0xFF0B2415))
+            if (offline) Badge(tr("Offline – last known"), K.Surface2, K.Muted)
             if ((slot.ace.tagId ?: 0) > 0) Badge("RFID", K.Surface2, K.Text)
         }
         SpoolDisc(sp?.color ?: slot.ace.color.ifBlank { null }, 64.dp)

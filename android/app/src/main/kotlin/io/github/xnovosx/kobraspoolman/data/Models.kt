@@ -465,6 +465,7 @@ data class Slot(
     val ace: Ace = Ace(),
     val hints: List<String> = emptyList(),
     val spool: SpoolInfo? = null,
+    val live: Boolean = true,      // false: printer or ACE off - the spool is Spoolman's last known assignment
 )
 
 @Serializable

@@ -44,7 +44,7 @@ the printer do something (dryer) needs the key of a [paired device](#pairing-dev
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/slots` | per slot: what the ACE reports, the assigned spool, hints; plus live/last usage and open items |
+| GET | `/api/slots` | per slot: what the ACE reports, the assigned spool, hints, `live` (`false` while the printer or the ACE is off — the spool is then Spoolman's last known assignment; also in `/api/app/state`); plus live/last usage and open items |
 | POST | `/api/slots/{n}` | *(paired)* `{"spool_id": 5}` assign a spool to slot *n* (the previous one goes to the shelf), `{"spool_id": null}` unload |
 | GET | `/api/spools?slot=n` | assignable spools; with `slot` each entry has `match` (`material`, `color`, `full`) against the ACE |
 

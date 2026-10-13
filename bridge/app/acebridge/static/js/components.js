@@ -80,9 +80,10 @@ export function SlotCard({ slot }) {
     action: () => import("./actions.js").then((a) => a.assignSlot(slot.slot, null)),
   }));
   // the overview has no spool detail: open the spool on Filament → Spools (idea: MineTech13's HA add-on)
+  const offline = slot.live === false && !!sp;    // printer or ACE off: Spoolman's last known assignment
   const open = () => { if (!sp) return; set({ sel: sp.spool_id }); if (!location.hash.startsWith("#/filament")) location.hash = "#/filament/spools"; };
   return html`
-  <article class=${cls("card slot", active && "active")} aria-label=${t("Slot {slot}", { slot: slot.slot })}>
+  <article class=${cls("card slot", active && "active", offline && "offline")} aria-label=${t("Slot {slot}", { slot: slot.slot })}>
     <div class="head" style=${{ background: sp ? tint(sp.color) : "var(--sunken)" }}>
       <span class="num">${t("SLOT {slot}", { slot: slot.slot })}</span>
       <${Spool} color=${sp?.color} empty=${!sp} size=${84} />
@@ -98,6 +99,7 @@ export function SlotCard({ slot }) {
         ? t("ACE reports {material}", { material: slot.ace.material || t("a spool without material") }) : t("Insert a spool and assign it here")}</div>
       ${sp && html`<div class="row"><${Bar} value=${sp.remaining_weight} max=${sp.initial_weight || 1000} /><span class="m small" style="min-width:64px;text-align:right">${grams(sp.remaining_weight)}</span></div>`}
       <div class="row wrap" style="gap:6px">
+        ${offline && html`<span class="chip" title=${t("The ACE is not reachable (printer or ACE switched off) – the spool comes from Spoolman")}>${t("Offline – last known")}</span>`}
         ${tag && html`<span class=${cls("chip", slot.by_tag && "ok")} title=${slot.by_tag ? t("Assigned automatically: the ACE read the tag") : ""}>${slot.by_tag ? `RFID · ${tag}` : tag}</span>`}
         ${sp?.nozzle_temp && html`<span class="chip">${sp.nozzle_temp} °C</span>`}
         ${live && html`<span class="chip ok">${t("this print {g}", { g: grams(live.g) })}</span>`}

@@ -86,3 +86,15 @@ def test_printer_switched_off_and_on_moves_nothing(cfg):
     run(slots)
     assert sm.patched == []
     assert [s["location"] for s in sm.spools] == [f"ACE Slot {n}" for n in (1, 2, 3, 4)]
+
+
+def test_overview_keeps_the_spools_and_says_offline(cfg):
+    """Printer off: the overview still shows each slot's spool (Spoolman's location), marked as not live."""
+    moon, sm, slots = make(cfg)
+    run(slots, 1)
+    assert all(s["live"] for s in slots.slots_view())
+    moon.klippy_ready = False
+    run(slots, 3)
+    view = slots.slots_view()
+    assert [s["spool"]["spool_id"] for s in view] == [1, 2, 5, 8]
+    assert not any(s["live"] for s in view)

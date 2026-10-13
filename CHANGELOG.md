@@ -6,6 +6,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [3.19.0] – 2026-10-14
+
+### Added
+- Slot cards while the printer or the ACE is off: they keep the spool Spoolman has in the slot and show it dimmed
+  with *Offline – last known* (web, app, display), until the ACE reports again. `live` per slot in `/api/slots` and
+  `/api/app/state`. (Since 3.18.1 switching off moves no spool to the shelf any more.)
+
 ### Tests
 - Replay of a real print on a **Kobra 3 with ACE Pro** under Rinkhals (shared by MineTech13, 9 h, 94.4 m, 6 colour
   changes): every spool booked like the printer's counter, never below zero, and the firmware purge model within 10 %
@@ -35,6 +42,11 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.18.0 – 2026-10-14
+
+### Added
+- Slots while the printer or the ACE is off: the card keeps its spool, dimmed with *Offline – last known*.
 
 ## app 1.17.1 – 2026-10-13
 
