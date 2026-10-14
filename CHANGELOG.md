@@ -8,6 +8,8 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.0.2] – 2026-10-14
+
 ### Fixed
 - Web UI on a phone: a slot card with a long spool name plus the moisture and *active* chips ran over the right edge;
   the name now gives way.
