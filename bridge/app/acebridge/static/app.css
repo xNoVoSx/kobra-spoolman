@@ -206,6 +206,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 0; }
 .slot .flag { position: absolute; top: 12px; right: 14px; }
 .slot .body { padding: 16px 18px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
 .slot .name { font: 700 19px var(--grotesk); line-height: 1.2; }
+/* the name gives way to the chips beside it (phone: the card is a row, long name + moisture + active overflowed) */
+.slot .body, .slot .body .name { min-width: 0; }
+.slot .body .row > .chip { flex: none; }
 .slot .hint { font-size: 13px; color: var(--accent-text); }
 .slot .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
 .slot .actions .btn { flex: 1 1 auto; min-width: 0; padding: 0 12px; }

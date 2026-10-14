@@ -8,6 +8,14 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Fixed
+- Web UI on a phone: a slot card with a long spool name plus the moisture and *active* chips ran over the right edge;
+  the name now gives way.
+
+### Documentation
+- README: the first image now shows the ACE slots with their Spoolman spools instead of the camera; new screenshots
+  from a clean Rinkhals demo (English names, no error messages), the phone image shows the slots.
+
 ## [4.0.1] – 2026-10-14
 
 ### Fixed

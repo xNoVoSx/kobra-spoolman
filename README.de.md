@@ -17,6 +17,12 @@ Läuft auf der **Original-Firmware mit [Rinkhals](https://github.com/rinkhals-co
 
 ---
 
+<p align="center">
+  <img src="docs/images/web-slots.png" width="900" alt="Die vier ACE-Slots mit ihren Spoolman-Spulen"><br>
+  <sub>Die ACE-Slots mit ihren Spoolman-Spulen: Restgewicht, Tag, Temperatur und was der laufende Druck bisher verbraucht hat.
+  Ordnest du eine Spule zu, bekommt die ACE Material, Farbe und Temperatur.</sub>
+</p>
+
 Du trägst ein Filament **einmal** in [Spoolman](https://github.com/Donkie/Spoolman) ein – Temperaturen,
 Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 
@@ -53,13 +59,13 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 - **Englisch und Deutsch** in Weboberfläche, App und Orca-Panel – jeder Nutzer und jedes Gerät wählt seine Sprache.
 
 <p align="center">
-  <img src="docs/images/web-overview.png" width="860" alt="Weboberfläche: Drucker mit Kamera, Meldungen und Status, Trockner, ACE, Slots"><br>
-  <sub>Weboberfläche: der Druckermonitor – Kamera und Druckerdaten, Meldungen und Status, Trockner, ACE, die vier Slots</sub>
+  <img src="docs/images/web-overview.png" width="860" alt="Übersicht der Weboberfläche: Drucker mit Kamera, Meldungen und Status, Trockner, ACE, Slots"><br>
+  <sub>Die ganze Übersicht auf einem Desktop-Bildschirm: der laufende Druck mit Kamera und Druckerdaten, Meldungen und Status, Trockner, ACE und die Slots</sub>
 </p>
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Weboberfläche auf dem Handy"><br><sub>Weboberfläche auf dem Handy</sub></td>
+    <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Weboberfläche auf dem Handy: die Slots"><br><sub>Weboberfläche auf dem Handy: die Slots</sub></td>
     <td align="center"><img src="docs/images/app-start.png" width="230" alt="Android-App"><br><sub>Android-App</sub></td>
     <td align="center"><img src="docs/images/orca-panel.png" width="230" alt="Orca-Seitenpanel"><br><sub>Orca-Seitenpanel</sub></td>
   </tr>

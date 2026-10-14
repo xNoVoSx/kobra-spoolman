@@ -17,6 +17,12 @@ Works on the **stock firmware with [Rinkhals](https://github.com/rinkhals-commun
 
 ---
 
+<p align="center">
+  <img src="docs/images/web-slots.png" width="900" alt="The four ACE slots with their Spoolman spools"><br>
+  <sub>The ACE slots with their Spoolman spools: remaining weight, tag, temperature and what the running print has used so far.
+  Assign a spool and the ACE gets its material, colour and temperature.</sub>
+</p>
+
 You enter a filament **once** in [Spoolman](https://github.com/Donkie/Spoolman) — temperatures, fans,
 aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 
@@ -51,13 +57,13 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
 - **English and German** in the web UI, app and Orca panel — every user and device picks its own language.
 
 <p align="center">
-  <img src="docs/images/web-overview.png" width="860" alt="Web UI: printer with camera, messages and status, dryer, ACE, slots"><br>
-  <sub>Web UI: the printer monitor — camera and printer data, messages and status, dryer, ACE, the four slots</sub>
+  <img src="docs/images/web-overview.png" width="860" alt="Web UI overview: printer with camera, messages and status, dryer, ACE, slots"><br>
+  <sub>The whole overview on a desktop screen: the running print with camera and printer data, messages and status, dryer, ACE and the slots</sub>
 </p>
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Web UI on a phone"><br><sub>Web UI on the phone</sub></td>
+    <td align="center"><img src="docs/images/web-phone.png" width="230" alt="Web UI on a phone: the slots"><br><sub>Web UI on the phone: the slots</sub></td>
     <td align="center"><img src="docs/images/app-start.png" width="230" alt="Android app"><br><sub>Android app</sub></td>
     <td align="center"><img src="docs/images/orca-panel.png" width="230" alt="Orca side panel"><br><sub>Orca side panel</sub></td>
   </tr>
