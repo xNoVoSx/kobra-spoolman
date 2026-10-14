@@ -98,3 +98,23 @@ def test_overview_keeps_the_spools_and_says_offline(cfg):
     view = slots.slots_view()
     assert [s["spool"]["spool_id"] for s in view] == [1, 2, 5, 8]
     assert not any(s["live"] for s in view)
+
+
+EMPTY_HINT = "ACE reports the slot as empty"
+
+
+def test_empty_hint_only_for_a_slot_emptied_by_hand(cfg):
+    """MineTech13, 14.10.2026: printer on, ACE off -> every slot showed "ACE reports the slot as empty" (and as a
+    warning). The hint is for one slot taken out, not for an ACE that is off or not reporting."""
+    moon, sm, slots = make(cfg)
+    run(slots, 1)
+    assert not any(EMPTY_HINT in s["hints"] for s in slots.slots_view())
+    moon.merge(ace_status([None, None, None, None]))          # ACE off
+    run(slots, 1)
+    assert not any(EMPTY_HINT in s["hints"] for s in slots.slots_view())
+    moon.klippy_ready = False                                 # printer off
+    assert not any(EMPTY_HINT in s["hints"] for s in slots.slots_view())
+    moon.klippy_ready = True
+    moon.merge(ace_status(LOADED[:2] + [None, LOADED[3]]))    # one slot taken out (spool still assigned)
+    sm.spools[2]["location"] = "ACE Slot 3"
+    assert [EMPTY_HINT in s["hints"] for s in slots.slots_view()] == [False, False, True, False]

@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "4.0.0"
+__version__ = "4.0.1"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("4.0.1", "2026-10-14", [
+        tr("Slot cards: “ACE reports the slot as empty” only for a slot taken out by hand – no longer on every slot while the ACE is switched off"),
+    ]),
     ("4.0.0", "2026-10-14", [
         tr("First release for everyone: documentation for newcomers with the supported printers (Kobra S1, Kobra 3), the Home Assistant add-on and a check list – an update from 3.x changes nothing"),
         tr("Report a bug: the diagnostics name the printer and the ACE model"),

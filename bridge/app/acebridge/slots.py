@@ -198,6 +198,8 @@ class SlotManager:
         assigned, _ = self.assignments()
         out = []
         live = self.ace_connected        # False: printer or ACE off - the assignment is Spoolman's last known state
+        # every slot empty at once = the ACE is off or lost (see evaluate), not four spools taken out: no empty hint
+        ace_gone = not any(self.ace_gate(g)["present"] for g in range(self.num_gates()))
         for gate in range(self.num_gates()):
             slot = gate + 1
             ace = self.ace_gate(gate)
@@ -225,7 +227,7 @@ class SlotManager:
                 else:
                     hints.append(tr("The ACE knows no material for this slot – assign the spool here again") if again
                                  else tr("The ACE knows no material for this slot – assign a spool"))
-            if info and self.moon.klippy_ready and not ace["present"]:
+            if info and live and not ace_gone and not ace["present"]:
                 hints.append(tr("ACE reports the slot as empty"))
             if gate in self._pending_unassign:
                 hints.append(tr("will be moved to the shelf after the print"))

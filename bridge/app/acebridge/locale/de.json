@@ -694,6 +694,7 @@
  "No answer yet – the printer is still working on it": "Noch keine Antwort – der Drucker ist noch dabei",
  "Printer name": "Druckername",
  "Shown in web, app, display and Home Assistant. Empty: taken from the last print file (the slicer's printer model)": "Steht in Web, App, Display und Home Assistant. Leer: aus der letzten Druckdatei (Druckermodell aus dem Slicer)",
+ "Slot cards: “ACE reports the slot as empty” only for a slot taken out by hand – no longer on every slot while the ACE is switched off": "Slot-Karten: „ACE meldet den Slot als leer“ nur noch bei einem herausgenommenen Slot – nicht mehr auf allen Slots, solange die ACE aus ist",
  "First release for everyone: documentation for newcomers with the supported printers (Kobra S1, Kobra 3), the Home Assistant add-on and a check list – an update from 3.x changes nothing": "Erste Version für alle: Doku für Neue mit den unterstützten Druckern (Kobra S1, Kobra 3), dem Home-Assistant-Add-on und einer Prüfliste – ein Update von 3.x ändert nichts",
  "Report a bug: the diagnostics name the printer and the ACE model": "Fehler melden: die Diagnose nennt Drucker- und ACE-Modell",
  "The printer's name comes from the print file (e.g. Kobra 3) or the setting “Printer name”, the ACE's from the driver – no fixed “Kobra S1” and “ACE 2 Pro” any more": "Der Druckername kommt aus der Druckdatei (z. B. Kobra 3) oder der Einstellung „Druckername“, das ACE-Modell vom Treiber – kein festes „Kobra S1“ und „ACE 2 Pro“ mehr",

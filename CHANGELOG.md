@@ -2,9 +2,18 @@
 
 All notable changes. Versions: **bridge** = ace-lane-bridge (also the repo tag),
 **plugin** = Orca plugin "Kobra Spoolman". Plugin-only releases have no repo tag.
+The bridge follows [semantic versioning](https://semver.org/): x.y.**Z** = bug fixes, x.**Y**.0 = new features,
+**X**.0.0 = major changes.
 Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com/xNoVoSx/orca-kobra/blob/main/CHANGELOG.md). Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
+
+## [4.0.1] – 2026-10-14
+
+### Fixed
+- Slot cards: the hint *ACE reports the slot as empty* showed on every slot (and as a warning) while the printer was on
+  and the ACE switched off. It now shows only for a slot taken out by hand; with the ACE off the cards say
+  *Offline – last known* or show no hint. Reported by MineTech13.
 
 ## [4.0.0] – 2026-10-14
 
