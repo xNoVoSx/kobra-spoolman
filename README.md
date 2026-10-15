@@ -106,7 +106,7 @@ app, the Orca plugin and Home Assistant all talk to the bridge. It reads which f
 | **[Android app](android/)** | Printer with camera, 3D view and controls, notifications in the background, home-screen widget, slots, spool card, new spools and filaments, ACE dryer with humidity history and settings, spool moisture, writes ACE-compatible NFC tags (two per spool), pairing by QR code, updates through the bridge. |
 | **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | AI print-failure detection: Obico's failure model on ONNX Runtime (CPU, ~50 ms per picture), the bridge judges the results over time. |
 | **[spoolman_setup.py](spoolman/)** | One-time setup of the Spoolman extra fields (all Orca filament settings) and material templates. |
-| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with four small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), read-only slice statistics for plugins, a minimum size for docked plugin panels and the real first-layer temperatures in the G-code header. Updates itself. |
+| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (separate repo) | Nightly OrcaSlicer AppImage with three small patches: preset matching via `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), read-only slice statistics for plugins ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)) and a minimum size for docked plugin panels. The real first-layer temperatures in the G-code header are in Orca itself since [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422). Updates itself. |
 
 ## Supported printers
 

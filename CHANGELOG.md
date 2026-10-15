@@ -8,6 +8,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Documentation
+- README: orca-kobra now carries three patches; the first-layer temperatures in the G-code header are in Orca itself
+  since [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422).
+
 ## [4.0.2] – 2026-10-14
 
 ### Fixed
