@@ -1,8 +1,10 @@
 # kobra-vision - failure detection for the ace-lane-bridge (Obico's "failure" model, ONNX)
 # default: CPU (enough: ~50 ms per image with 2 threads). With an Nvidia graphics card:
 #   docker build --build-arg ORT=onnxruntime-gpu -t kobra-vision:gpu vision/   and USE_GPU=true
-# official Python image via the AWS mirror (same content as Docker Hub, without its pull limit for CI)
-FROM public.ecr.aws/docker/library/python:3.12-slim
+# official Python image via the AWS mirror (same content as Docker Hub). CI passes BASE = its own copy in GitHub's
+# registry (docker.yml, job "base"): anonymous pulls from the mirror often hit its data limit (429) on shared runners.
+ARG BASE=public.ecr.aws/docker/library/python:3.12-slim
+FROM ${BASE}
 
 ARG ORT=onnxruntime
 

@@ -19,16 +19,49 @@ permissions:
   contents: read
   packages: write
 
+env:
+  BASE_SRC: python:3.12-slim       # official image; must match the default ARG BASE in bridge/ and vision/Dockerfile
+
 jobs:
+  # one copy of the Python base image in GitHub's own registry for both images: anonymous pulls from the AWS mirror
+  # hit its data limit (429 "Data limit exceeded", 4.0.1 and 4.1.0) when the two builds pull at once on shared runners.
+  # Tries the AWS mirror, then Docker Hub, with pauses; if both fail, the copy from an earlier run is used.
+  base:
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.copy.outputs.image }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: copy
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          dst="ghcr.io/${owner}/kobra-spoolman-base:${BASE_SRC/:/-}"
+          echo "image=$dst" >> "$GITHUB_OUTPUT"
+          for wait in 0 30 90 180; do
+            sleep "$wait"
+            for src in "public.ecr.aws/docker/library/$BASE_SRC" "docker.io/library/$BASE_SRC"; do
+              if docker buildx imagetools create --tag "$dst" "$src"; then
+                echo "Base image: $src -> $dst"; exit 0
+              fi
+            done
+          done
+          echo "::warning::could not refresh the base image, using the copy from an earlier run"
+          docker buildx imagetools inspect "$dst" > /dev/null
+
   app:
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/apk.yml
     secrets: inherit
 
   image:
-    needs: app
+    needs: [app, base]
     # also without the APK job (push to main): then an image without an app update
-    if: ${{ !cancelled() && (needs.app.result == 'success' || needs.app.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.base.result == 'success' && (needs.app.result == 'success' || needs.app.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -61,6 +94,7 @@ jobs:
         with:
           context: bridge
           platforms: linux/amd64,linux/arm64
+          build-args: BASE=${{ needs.base.outputs.image }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -68,6 +102,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   vision:
+    needs: base
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -89,6 +124,7 @@ jobs:
         with:
           context: vision
           platforms: linux/amd64,linux/arm64
+          build-args: BASE=${{ needs.base.outputs.image }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
