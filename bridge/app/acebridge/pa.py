@@ -1,9 +1,14 @@
 """Auto PA: pressure advance between Spoolman and the Klipper module kobra_pa (Kobra S1, load cell).
 
 The Klipper module measures PA per speed and applies it; the values belong to the filament in Spoolman though:
-- extra field `pa_table` (text, JSON): {"speeds": [100, 200, 300], "k": [...], "temp", "nozzle", "kind", "date"}
-- extra field `pressure_advance` (Orca value): K at 200 mm/s - so Orca prints with it too.
+- extra field `pa_table` (text, JSON), one table per nozzle (swappable hotends, kobra_nozzle):
+  {"nozzles": {"0.4": {"speeds": [100, 200, 300], "k": [...], "temp", "kind", "date"}, "0.6": {...}}}
+  The older single table {"speeds", "k", "nozzle", ...} still reads - as the table of its nozzle (none: 0.4).
+- extra field `pressure_advance` (Orca value): K at 200 mm/s of the last measurement - so Orca prints with it too.
 Only values on the filament itself count, not ones inherited from the template (otherwise it would never measure).
+The nozzle in use comes from kobra_nozzle (Klipper); without it 0.4. A filament with tables but none for this nozzle
+counts as "not measured yet" - Klipper measures it at the next print (pressure_advance is then the value of another
+nozzle, not one set by hand).
 
 Per slot the bridge gives Klipper the state (KOBRA_PA_SET): table, fixed PA (pressure_advance set by hand only) or
 NONE=1 = "not measured yet" - then Klipper measures at the next print with this slot (when switched on there).
@@ -40,6 +45,7 @@ SUBSCRIBE = {OBJ: ["enabled", "auto", "patched", "measuring", "active_t", "slots
 FIELD = "pa_table"
 FIELD_DEF = {"name": "PA table (auto PA)", "field_type": "text", "order": 43}
 SPEED_REF = 200.0           # mm/s: K for Orca's field and the global PA (like kobra_pa.SPEED_REF)
+NOZZLE_DEFAULT = 0.4        # without kobra_nozzle (and for tables measured before 4.3.0 without a nozzle)
 RECENT_S = 12 * 3600        # a measurement message stays in the overview this long
 
 
@@ -62,13 +68,29 @@ def k_at(speeds: List[float], ks: List[float], v: float = SPEED_REF) -> float:
     return ks[-1]
 
 
-def _table(raw: Any) -> Optional[Dict[str, Any]]:
-    """pa_table from Spoolman (text with JSON, maybe encoded twice) -> {"speeds", "k", ...} or None."""
-    if isinstance(raw, str):
+def nozzle_key(nozzle: Any) -> str:
+    """Nozzle diameter as the key of the table: 0.4 -> "0.4", 0.25 -> "0.25"."""
+    try:
+        return f"{float(nozzle):g}"
+    except (TypeError, ValueError):
+        return f"{NOZZLE_DEFAULT:g}"
+
+
+def _json(raw: Any) -> Any:
+    """Text with JSON, maybe encoded twice (Spoolman text field)."""
+    for _ in range(2):
+        if not isinstance(raw, str):
+            break
         try:
             raw = json.loads(raw)
         except json.JSONDecodeError:
             return None
+    return raw
+
+
+def _table(raw: Any) -> Optional[Dict[str, Any]]:
+    """One table {"speeds", "k", ...} -> sorted and checked, or None."""
+    raw = _json(raw)
     if not isinstance(raw, dict):
         return None
     try:
@@ -80,11 +102,31 @@ def _table(raw: Any) -> Optional[Dict[str, Any]]:
     return {**raw, "speeds": [v for v, _ in pairs], "k": [k for _, k in pairs]}
 
 
-def filament_pa(fil: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """PA of a filament (own values only): table, else fixed pressure_advance, else None."""
-    tbl = _table(extra_value(fil, FIELD))
+def tables(fil: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """All PA tables of a filament by nozzle ("0.4" -> table); the older single table under its own nozzle."""
+    raw = _json(extra_value(fil, FIELD))
+    if not isinstance(raw, dict):
+        return {}
+    if isinstance(raw.get("nozzles"), dict):
+        out = {}
+        for key, tbl in raw["nozzles"].items():
+            t = _table(tbl)
+            if t:
+                out[nozzle_key(key)] = {**t, "nozzle": float(nozzle_key(key))}
+        return out
+    t = _table(raw)
+    return {nozzle_key(t.get("nozzle") or NOZZLE_DEFAULT): t} if t else {}
+
+
+def filament_pa(fil: Dict[str, Any], nozzle: Any = None) -> Optional[Dict[str, Any]]:
+    """PA of a filament for a nozzle (own values only): its table, else fixed pressure_advance (set by hand - only
+    when the filament has no measured table at all), else None = measure."""
+    tbls = tables(fil)
+    tbl = tbls.get(nozzle_key(nozzle if nozzle is not None else NOZZLE_DEFAULT))
     if tbl:
         return {**tbl, "source": "table"}
+    if tbls:
+        return None                # measured for another nozzle only: pressure_advance is that one's value
     pa = extra_value(fil, "pressure_advance")
     if isinstance(pa, (int, float)) and 0 < pa < 1:
         return {"speeds": [SPEED_REF], "k": [float(pa)], "source": "manual"}
@@ -122,8 +164,15 @@ class PaSync:
         st = self.moon.status.get(OBJ)
         return st if st and self.moon.klippy_ready else None
 
+    def nozzle(self) -> float:
+        """Nozzle in use: kobra_nozzle (swappable hotends) when it is there and on, else 0.4."""
+        kn = self.moon.status.get("kobra_nozzle") or {}
+        d = kn.get("diameter")
+        return float(d) if kn.get("enabled") and isinstance(d, (int, float)) and d > 0 else NOZZLE_DEFAULT
+
     def desired(self) -> Dict[int, str]:
-        """Per tool T (slot - 1) the KOBRA_PA_SET command for the current Spoolman state."""
+        """Per tool T (slot - 1) the KOBRA_PA_SET command for the current Spoolman state and nozzle."""
+        nozzle = self.nozzle()
         assigned, _ = self.slots.assignments()
         if self.direct is not None:
             assigned = self.direct.per_tool(assigned)     # direct feed: the direct spool for every tool
@@ -135,7 +184,7 @@ class PaSync:
             if not fil.get("id"):
                 out[t] = f"KOBRA_PA_SET T={t} CLEAR=1"
                 continue
-            pa = filament_pa(fil)
+            pa = filament_pa(fil, nozzle)
             if pa:
                 out[t] = (f"KOBRA_PA_SET T={t} SPEEDS={_fmt(pa['speeds'], 1)} K={_fmt(pa['k'], 5)} "
                           f"FILAMENT={fil['id']}")
@@ -194,14 +243,17 @@ class PaSync:
                                    n=int(res.get("t", 0)) + 1))
             self._save()
             return
+        nozzle = res.get("nozzle") if isinstance(res.get("nozzle"), (int, float)) else NOZZLE_DEFAULT
         table = {"speeds": res["speeds"], "k": [round(k, 5) for k in res["k"]], "temp": res.get("temp"),
-                 "nozzle": res.get("nozzle"), "kind": res.get("kind"),
-                 "date": time.strftime("%Y-%m-%d", time.localtime(float(res["time"])))}
+                 "kind": res.get("kind"), "date": time.strftime("%Y-%m-%d", time.localtime(float(res["time"])))}
         k200 = round(k_at(table["speeds"], table["k"]), 4)
+        # the tables of the other nozzles stay; the older single table becomes the entry of its nozzle
+        alltbl = {key: {k: v for k, v in t.items() if k != "nozzle"} for key, t in tables(fil).items()}
+        alltbl[nozzle_key(nozzle)] = table
         try:
             await self.sm.ensure_field("filament", FIELD, FIELD_DEF)
             await self.sm.patch_filament(fil["id"], {"extra": {
-                FIELD: json.dumps(json.dumps(table, separators=(",", ":"))),
+                FIELD: json.dumps(json.dumps({"nozzles": alltbl}, separators=(",", ":"))),
                 "pressure_advance": json.dumps(k200)}})
         except Exception as e:  # noqa: BLE001
             self.done = prev                                     # try again with the next status
@@ -209,23 +261,26 @@ class PaSync:
             self._event("warn", tr("PA measured for {name}, Spoolman not reachable – will be saved later", name=name))
             return
         self._save()
-        log.info("Auto PA: %s measured (%s), K %s @ %s mm/s -> Spoolman", name, table["kind"],
-                 table["k"], table["speeds"])
+        log.info("Auto PA: %s measured (%s, nozzle %s), K %s @ %s mm/s -> Spoolman", name, table["kind"],
+                 nozzle_key(nozzle), table["k"], table["speeds"])
         if len(table["k"]) > 1:
-            self._event("info", tr("PA measured for {name}: {k:.3f} (at 200 mm/s, per speed)", name=name, k=k200))
+            self._event("info", tr("PA measured for {name}: {k:.3f} (at 200 mm/s, per speed, nozzle {nozzle})",
+                                   name=name, k=k200, nozzle=nozzle_key(nozzle)))
         else:
-            self._event("info", tr("PA measured for {name}: {k:.3f} (at 200 mm/s)", name=name, k=k200))
+            self._event("info", tr("PA measured for {name}: {k:.3f} (at 200 mm/s, nozzle {nozzle})", name=name,
+                                   k=k200, nozzle=nozzle_key(nozzle)))
 
     # ------------------------------------------------------------ API
     def view(self) -> Dict[str, Any]:
         kp = self.klipper or {}
+        nozzle = self.nozzle()
         assigned, _ = self.slots.assignments()
         slots = []
         for slot in range(1, 5):
             t = slot - 1
             fil = ((assigned.get(slot) or {}).get("filament") or {})
             ks = (kp.get("slots") or {}).get(str(t)) or {}
-            pa = filament_pa(fil) if fil.get("id") else None
+            pa = filament_pa(fil, nozzle) if fil.get("id") else None
             slots.append({
                 "slot": slot, "filament_id": fil.get("id"), "name": fil.get("name"),
                 "state": ks.get("state") or ("table" if pa else "needed" if fil.get("id") else "empty"),
@@ -234,12 +289,14 @@ class PaSync:
                 "k_ref": round(k_at(pa["speeds"], pa["k"]), 4) if pa else None,
                 "date": (pa or {}).get("date"),
                 "active": kp.get("active_t") == t,
+                "nozzles": sorted(tables(fil), key=float) if fil.get("id") else [],     # measured for these nozzles
             })
         res = kp.get("result") if isinstance(kp.get("result"), dict) else None
         return {
             "present": bool(kp), "sync": bool(getattr(self.cfg, "pa_sync", True)),
             "enabled": kp.get("enabled"), "auto": kp.get("auto"), "patched": kp.get("patched"),
             "measuring": bool(kp.get("measuring")), "calibrating": self.calibrating,
+            "nozzle": nozzle_key(nozzle),                       # the values shown are for this nozzle
             "slots": slots,
             # lists never null (a failed measurement has no k) - the app expects lists
             "last": ({**{k: res.get(k) for k in ("t", "kind", "temp", "message", "time")},
@@ -286,8 +343,17 @@ class PaSync:
         asyncio.get_running_loop().create_task(run())
 
     async def forget(self, filament_id: int) -> None:
-        """Delete a filament's PA in Spoolman - the next print with it measures again (when switched on)."""
-        if self.sm.filament(filament_id) is None:
+        """Delete a filament's PA for the nozzle in use in Spoolman (the other nozzles' tables stay) - the next print
+        with it measures again (when switched on)."""
+        fil = self.sm.filament(filament_id)
+        if fil is None:
             raise PaError(404, tr("Filament not found"))
-        await self.sm.patch_filament(filament_id, {"extra": {FIELD: None, "pressure_advance": None}})
-        self._event("info", tr("PA of filament #{id} deleted – measured again at the next print", id=filament_id))
+        key = nozzle_key(self.nozzle())
+        rest = {k: {x: v for x, v in t.items() if x != "nozzle"} for k, t in tables(fil).items() if k != key}
+        if rest:
+            await self.sm.patch_filament(filament_id, {"extra": {
+                FIELD: json.dumps(json.dumps({"nozzles": rest}, separators=(",", ":")))}})
+        else:
+            await self.sm.patch_filament(filament_id, {"extra": {FIELD: None, "pressure_advance": None}})
+        self._event("info", tr("PA of filament #{id} deleted for nozzle {nozzle} – measured again at the next print",
+                               id=filament_id, nozzle=key))

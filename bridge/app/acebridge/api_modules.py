@@ -17,6 +17,7 @@ from .i18n import tr
 from .pa import PaError
 from .resume import ResumeError
 from .direct import DirectError
+from .nozzle import NozzleError
 from .switches import SwitchError
 from .webcommon import Ctx, json_response, msg_of, _err
 
@@ -290,6 +291,50 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         try:
             return json_response(await bridge.direct.set(enable, spool_id, unload))
         except DirectError as e:
+            return _err(e.status, msg_of(e))
+
+    # ---------------------------------------------------------------- swappable hotends (nozzle.py)
+    @r.get("/api/nozzle")
+    async def nozzle_state(_):
+        return json_response(bridge.hotends.view())
+
+    @r.post("/api/nozzle")
+    @need_device
+    async def nozzle_set(request: web.Request):
+        """{"hotend": "ceramic_06"} / {"check": false} / {"enabled": true} / {"z": 0.02} - any combination"""
+        try:
+            body = await request.json()
+            assert isinstance(body, dict)
+            hotend = body.get("hotend")
+            assert hotend is None or isinstance(hotend, str)
+            check, enabled = body.get("check"), body.get("enabled")
+            assert check is None or isinstance(check, bool)
+            assert enabled is None or isinstance(enabled, bool)
+            z = body.get("z")
+            assert z is None or (isinstance(z, (int, float)) and not isinstance(z, bool))
+        except Exception:  # noqa: BLE001
+            return _err(400, tr("Expected JSON {\"hotend\": \"ceramic_06\"}, {\"check\": true}, {\"enabled\": true} "
+                                "or {\"z\": 0.02}"))
+        try:
+            return json_response(await bridge.hotends.set(hotend, check, enabled, None if z is None else float(z)))
+        except NozzleError as e:
+            return _err(e.status, msg_of(e))
+
+    @r.post("/api/nozzle/pid")
+    @need_device
+    async def nozzle_pid(request: web.Request):
+        """{"temp": 250} (optional) - measures the PID of the hotend in use, a few minutes"""
+        temp = None
+        if request.can_read_body:
+            try:
+                body = await request.json()
+                temp = body.get("temp") if isinstance(body, dict) else None
+                assert temp is None or (isinstance(temp, (int, float)) and not isinstance(temp, bool))
+            except Exception:  # noqa: BLE001
+                return _err(400, tr("Expected JSON {\"temp\": 250}"))
+        try:
+            return json_response(bridge.hotends.measure_pid(None if temp is None else float(temp)))
+        except NozzleError as e:
             return _err(e.status, msg_of(e))
 
     # ---------------------------------------------------------------- clog detection

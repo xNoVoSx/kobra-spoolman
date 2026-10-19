@@ -47,8 +47,10 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
 - **Unter Klipper** steuern die Filamentdaten zusammen mit Klipper-Modulen am Drucker (nicht Teil dieses Repos) den
   Druck selbst: **Auto-PA**, von der Wiegezelle gemessen und pro Filament gespeichert, **Z-Versatz pro
   Filament**, **Fortsetzen nach Stromausfall** (tastet die Höhe auf dem Teil an, fragt immer vorher) und
-  **Verstopfung erkennen** (Extruder gegen Filament-Encoder) und **Direkteinzug** (TPU & Co. von Hand direkt in den
-  Druckkopf, die ACE bleibt an, der Verbrauch geht auf die gewählte Spule) – jedes mit eigenem Aus-Schalter.
+  **Verstopfung erkennen** (Extruder gegen Filament-Encoder), **Direkteinzug** (TPU & Co. von Hand direkt in den
+  Druckkopf, die ACE bleibt an, der Verbrauch geht auf die gewählte Spule) und **Wechsel-Hotends** (PID, Düsengröße
+  und Z-Korrektur je Hotend, Auto-PA je Düse, eine Datei für die falsche Düse wird gestoppt) – jedes mit eigenem
+  Aus-Schalter.
 - Eine Ansicht fürs **Display des Druckers** (`/display`, 800×480): Status, eine Druckansicht, die bei Druckstart
   von selbst kommt, mit dem Vorschaubild der Datei, und alle Schalter – angezeigt von einem Kiosk-Browser auf dem
   Klipper-Pi.
@@ -158,7 +160,7 @@ Für beide:
 | Kamera-Restream | ✅ (Bildrate folgt der Drucker-CPU) | ✅ (folgt der Drucker-CPU, wenn die Kamera am Drucker hängt) |
 | KI-Fehldruck-Erkennung | ✅ | ✅ |
 | Druckphase (*Vorheizen*, *Wechsel auf Slot 2* …) | einfach (druckt / wechselt) | ✅ ausführlich |
-| Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung erkennen, Direkteinzug | – (brauchen Klipper-Module) | ✅ mit unseren Klipper-Modulen (nicht Teil dieses Repos) |
+| Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung erkennen, Direkteinzug, Wechsel-Hotends | – (brauchen Klipper-Module) | ✅ mit unseren Klipper-Modulen (nicht Teil dieses Repos) |
 | Ansicht fürs Drucker-Display (`/display`), USB-Wächter, Klipper neu laden | – | ✅ |
 
 ## Schnellstart

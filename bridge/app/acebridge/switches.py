@@ -88,6 +88,12 @@ def items(st: St) -> List[Dict[str, Any]]:
         sw("pa", "print", tr("Auto PA"), tr("PA per speed from Spoolman; off = PA from Orca"), pa.get("enabled"))
         sw("pa_auto", "print", tr("Measure PA automatically"), tr("If missing, the printer measures (~5 min)"), pa.get("auto"),
            pa.get("enabled"))
+    kn = st.get("kobra_nozzle")
+    if kn:
+        sw("hotends", "print", tr("Swappable hotends"), tr("PID, nozzle and Z correction of the hotend in use"),
+           kn.get("enabled"))
+        sw("nozzle_check", "print", tr("Check the nozzle at print start"),
+           tr("Stop a print sliced for another nozzle"), kn.get("check"), kn.get("enabled"))
     fz = _filament_z(st)
     if fz is not None:
         sw("filament_z", "print", tr("Z offset per filament"), tr("Field Z offset from Spoolman for the first layer"), fz)
@@ -132,6 +138,8 @@ def _commands(key: str) -> Optional[Callable[[Any], str]]:
         "pa": _bool_cmd("KOBRA_PA ENABLE=%d"),
         "pa_auto": _bool_cmd("KOBRA_PA AUTO=%d"),
         "filament_z": _bool_cmd("KOBRA_FILAMENT_Z ENABLE=%d"),
+        "hotends": _bool_cmd("KOBRA_NOZZLE ENABLE=%d"),
+        "nozzle_check": _bool_cmd("KOBRA_NOZZLE CHECK_PRINT=%d"),
         "endless": _endless,
         "endless_mode": _choice_cmd("ACE_SET_ENDLESS_SPOOL_MODE MODE=%s", ENDLESS_MODES),
         "powerloss": _bool_cmd("KOBRA_POWERLOSS ENABLE=%d"),

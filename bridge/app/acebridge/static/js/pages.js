@@ -7,6 +7,7 @@ import { AceCard } from "./ace.js";
 import { PaCard } from "./pa.js";
 import { ClogCard, PowerlossCard, ResumeCard, UsbCard } from "./resume.js";
 import { DirectCard } from "./direct.js";
+import { HotendCard } from "./hotend.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
 import { NoticesCard } from "./notices.js";
 import { FeaturesHint } from "./features.js";
@@ -146,7 +147,7 @@ export function AcePage() {
     <h1 class="h1">ACE</h1>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
       <div class="col" style="gap:20px"><${DirectCard} /><${DryerCard} big />${!off(S.st?.resume) && html`<${PowerlossCard} />`}${!off(S.st?.clog) && html`<${ClogCard} />`}<${UsbCard} /></div>
-      <div class="col" style="gap:20px"><${AceCard} />${!off(S.st?.pa) && html`<${PaCard} />`}</div>
+      <div class="col" style="gap:20px"><${AceCard} /><${HotendCard} />${!off(S.st?.pa) && html`<${PaCard} />`}</div>
     </div>
     ${hidden.length > 0 && html`<div class="small muted">${t("Switched off: {names} –", { names: hidden.join(", ") })} <a href="#/features">${t("switch on under Features")}</a></div>`}
     ${d?.present && html`<section class="card pad col">

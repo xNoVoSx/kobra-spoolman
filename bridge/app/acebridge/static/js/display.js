@@ -6,7 +6,7 @@
 import { html, render, useEffect, useRef, useState } from "../vendor/preact-htm.module.js";
 import { auth, get, post } from "./api.js";
 import { locale, t } from "./i18n.js";
-import { duration, fileName, finishAt, fixed, hex, num, printerLook } from "./util.js";
+import { duration, fileName, finishAt, fixed, hex, nozzleMm, num, printerLook } from "./util.js";
 
 const POLL_MS = 2000;
 const PAGES = [["start", "home", t("Home")], ["print", "print", t("Print")], ["files", "files", t("Files")],
@@ -228,7 +228,9 @@ function Control(ctx) {
   async function loadM() { try { setM(await get("/api/machine")); } catch { /* display stays */ } }
   useEffect(() => { loadM(); const timer = setInterval(loadM, POLL_MS); return () => clearInterval(timer); }, []);
   const act = (fn) => ctx.act(async () => { await fn(); await loadM(); });
-  const tabs = [["temp", t("Temperature")], ["move", t("Move")], ["fil", t("Filament")], ["more", t("More")]];
+  const hot = ctx.st.nozzle?.available && ctx.st.nozzle.enabled;
+  const tabs = [["temp", t("Temperature")], ["move", t("Move")], ["fil", t("Filament")], ...(hot ? [["hotend", t("Hotend")]] : []),
+    ["more", t("More")]];
   const sub = { ...ctx, m, act };
   return html`
     <div class="disp-tabs" role="tablist" aria-label=${t("Control")}>
@@ -240,7 +242,33 @@ function Control(ctx) {
     ${tab === "temp" && html`<${Temps} ...${sub} />`}
     ${tab === "move" && html`<${Move} ...${sub} />`}
     ${tab === "fil" && html`<${Filament} ...${sub} />`}
+    ${tab === "hotend" && hot && html`<${Hotend} ...${sub} />`}
     ${tab === "more" && html`<${More} ...${sub} />`}`;
+}
+
+// swappable hotends (bridge nozzle.py, Klipper kobra_nozzle): which hotend is in, PID per hotend
+function Hotend({ st, m, busy, act, confirm }) {
+  const n = st.nozzle;
+  const ok = m?.move_allowed && !busy && !m?.running && !n.measuring;
+  return html`
+    <div class="disp-lbl">${t("Hotend in use – Klipper takes its PID and nozzle at once")}</div>
+    <div class="disp-grid4">${n.hotends.map((h) => html`<button type="button" class=${"disp-slot" + (h.id === n.active ? " on" : "")}
+        style="min-height:104px" disabled=${!ok && h.id !== n.active}
+        onClick=${() => h.id !== n.active && act(() => post("/api/nozzle", { hotend: h.id }))}>
+      <div class="hd"><span>${nozzleMm(h.diameter)}</span>${h.id === n.active && html`<span class="disp-tag">${t("in use")}</span>`}</div>
+      <div class="name">${h.name}</div>
+      <div class="disp-note" style="margin:0">${h.pid ? t("PID measured") : h.default ? t("PID from the Klipper configuration") : t("PID not measured")}</div></button>`)}</div>
+    ${n.warning && html`<div class="disp-alert warn">${n.warning}</div>`}
+    ${n.error && html`<div class="disp-alert">${t("PID measurement failed: {error}", { error: n.error })}</div>`}
+    <div class="disp-tile"><div class="disp-lbl">${t("PID")} · ${n.pid_measured ? t("measured for this hotend") : t("from the Klipper configuration")}</div>
+      <div class="disp-val" style="font-size:20px">${n.measuring ? t("measuring PID …") : n.pid.length ? n.pid.map((v) => fixed(v, 3)).join(" / ") : "–"}</div></div>
+    <div class="disp-btns">
+      <button type="button" class="disp-btn" disabled=${!ok}
+        onClick=${() => confirm({ title: t("Measure the PID of {name}?", { name: n.name }),
+          text: t("The printer homes if needed, moves over the waste chute and heats the nozzle to {temp} °C several times (a few minutes). Stay near the printer. The values apply at once and are saved for this hotend.", { temp: 250 }),
+          ok: t("Measure"), action: () => post("/api/nozzle/pid", {}) })}>${n.pid_measured ? t("Measure again") : t("Measure PID")}</button>
+    </div>
+    ${!m?.move_allowed && html`<div class="disp-note">${t("Locked while printing.")}</div>`}`;
 }
 
 function Temps({ st, busy, act, setDlg }) {

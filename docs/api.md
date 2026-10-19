@@ -224,14 +224,16 @@ settings).
 For the Klipper module `kobra_pa` (load-cell PA measurement). The bridge subscribes to its status, sends each slot's
 PA from Spoolman (`KOBRA_PA_SET`: table, fixed value or "not measured yet") and writes new results to the filament
 (`pa_table` as JSON text, `pressure_advance` = K at 200 mm/s). Only values on the filament itself count, not inherited
-ones. `/api/app/state` contains `pa`.
+ones. `/api/app/state` contains `pa`. Since 4.3.0 `pa_table` holds one table per nozzle
+(`{"nozzles": {"0.4": {"speeds": [...], "k": [...], "temp", "kind", "date"}, "0.6": {...}}}`, the older single table
+reads as the table of its nozzle); the nozzle in use comes from `kobra_nozzle` (without it 0.4).
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/pa` | `present`, `sync` (setting `PA_SYNC`), `enabled`, `auto`, `patched` (Klipper with per-move PA), `measuring`, `calibrating`, `slots` (`slot`, `filament_id`, `name`, `state` — `table`, `needed`, `failed`, `empty` —, `source` — `table`, `manual` —, `speeds`, `k`, `k_ref`, `date`, `active`), `last` (last result) |
+| GET | `/api/pa` | `present`, `sync` (setting `PA_SYNC`), `enabled`, `auto`, `patched` (Klipper with per-move PA), `measuring`, `calibrating`, `nozzle` (values are for this nozzle), `slots` (`slot`, `filament_id`, `name`, `state` — `table`, `needed`, `failed`, `empty` —, `source` — `table`, `manual` —, `speeds`, `k`, `k_ref`, `date`, `active`, `nozzles` — nozzles with a table), `last` (last result) |
 | POST | `/api/pa/switch` | *(paired)* `{"enabled": bool, "auto": bool}` (either) — `KOBRA_PA ENABLE= AUTO=`, stored in the printer |
 | POST | `/api/pa/calibrate` | *(paired)* `{"slot": 1}` — measure the loaded slot now (~2 min, not while printing); the result arrives through the status |
-| POST | `/api/pa/forget` | *(paired)* `{"filament_id": 5}` — delete the filament's PA so the next print measures again |
+| POST | `/api/pa/forget` | *(paired)* `{"filament_id": 5}` — delete the filament's PA for the nozzle in use (other nozzles keep theirs) so the next print measures again |
 
 ## Resume after power loss
 
@@ -308,6 +310,9 @@ the filament moves normally again or the print is paused/ended.
 | POST | `/api/clog/switch` | *(paired)* `{"enabled": bool}` and/or `{"action": "log"\|"warn"\|"pause"}` — `KOBRA_CLOG ENABLE= ACTION=`, stored in the printer |
 | GET | `/api/direct` | Direct feed (Klipper module `kobra_direct`): `available`, `active`, `spool_id`, `label`, `material`, `color`, `tool` (tool of the running print), `warning` (text for the red bar while it is on). Also `direct` in `/api/app/state` |
 | POST | `/api/direct` | *(paired)* `{"enable": true, "spool_id": 17, "unload": false}` / `{"enable": false}` — `KOBRA_DIRECT ENABLE=1 SPOOL= NAME= [UNLOAD=1]` / `ENABLE=0`. 409 during a print or when Klipper refuses (e.g. ACE filament still in the head without `unload`), 503 without the module |
+| GET | `/api/nozzle` | Swappable hotends (Klipper module `kobra_nozzle`): `available`, `enabled`, `check` (print start check), `active`, `name`, `diameter`, `z`, `pid` (`[Kp, Ki, Kd]` in use), `pid_measured`, `measuring`, `hotends` (`id`, `name`, `diameter`, `pid` — measured —, `z`, `default`), `last` (last PID measurement: `hotend`, `ok`, `time`, `pid`, `error`), `error` (failed measurement), `warning` (uncalibrated hotend). Also `nozzle` in `/api/app/state` |
+| POST | `/api/nozzle` | *(paired)* any of `{"hotend": "ceramic_06", "check": true, "enabled": true, "z": 0.02}` — `KOBRA_NOZZLE SELECT= CHECK_PRINT= ENABLE= Z=`. Hotend and on/off not during a print or PID measurement (409); 404 unknown hotend, 400 Z outside ±0.5 mm, 503 without the module |
+| POST | `/api/nozzle/pid` | *(paired)* `{"temp": 250}` (optional) — measure the PID of the hotend in use (`KOBRA_NOZZLE_PID`, a few minutes, in the background; the result arrives through the status). 409 during a print, while measuring or with hotends off |
 
 ## Camera and print preview
 

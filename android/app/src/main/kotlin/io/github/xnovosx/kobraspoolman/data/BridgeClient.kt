@@ -299,6 +299,17 @@ class BridgeClient(
         call("POST", "/api/direct", body, ApiError.serializer())
     }
 
+    /** Swappable hotends: hotend in use and/or the print start check (bridge nozzle.py). */
+    suspend fun nozzle(hotend: String? = null, check: Boolean? = null) {
+        val parts = listOfNotNull(hotend?.let { "\"hotend\":\"$it\"" }, check?.let { "\"check\":$it" })
+        call("POST", "/api/nozzle", parts.joinToString(",", "{", "}"), ApiError.serializer())
+    }
+
+    /** Measure the PID of the hotend in use (a few minutes, the result arrives via the state). */
+    suspend fun nozzlePid() {
+        call("POST", "/api/nozzle/pid", "{}", ApiError.serializer())
+    }
+
     /** All features of the system (one page, one switch each - bridge features.py). */
     suspend fun features(): Features = call("GET", "/api/features", null, Features.serializer())
 

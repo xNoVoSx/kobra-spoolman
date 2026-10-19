@@ -288,6 +288,27 @@ While it is on:
 In Orca nothing changes: pick the profile of the inserted filament in any slot. **Switch off** (red bar, ACE page or
 display) returns to printing through the ACE; not possible during a print.
 
+## Swappable hotends
+
+*Klipper only — needs the Klipper module `kobra_nozzle` on the printer (not part of this repo).*
+
+For printers with several hotends — e.g. the 0.2/0.4/0.6 ceramic hotends for the Kobra S1 next to the original. Klipper
+has one PID for the nozzle; a different hotend (another heater) needs its own. The card **Hotend** on the ACE page (app:
+ACE sheet, printer display: *Control → Hotend*) lists the hotends; after a swap, tap the one you put in — Klipper takes
+its PID, nozzle size and Z correction at once, without a restart (not during a print).
+
+- **Measure PID** — once per hotend: the printer homes if needed, moves over the waste chute and heats the nozzle several
+  times (a few minutes). The values apply at once and stay with that hotend. A hotend that was never measured heats with
+  the PID of the Klipper configuration (the original's) and shows a warning.
+- **Z correction** of the hotend (web) — added to the first-layer offset, like the Z offset per filament.
+- **Check the nozzle at print start** — a file sliced for another nozzle is stopped: with our Orca profiles (they pass
+  the nozzle to the start G-code) before anything heats up, other files (Orca's `; nozzle_diameter` comment) are paused
+  at once with a message.
+- **Auto PA** keeps its values per nozzle (see [pressure advance](#pressure-advance-auto-pa)).
+
+In Orca, use a printer profile with the right nozzle (0.2 and 0.6 printer and process profiles come with the Klipper
+modules). *Features → Swappable hotends* switches it all off: Klipper heats with its configuration again.
+
 ## Z offset per filament
 
 *Klipper only — needs a Klipper module on the printer (not part of this repo); not available on Rinkhals.*
@@ -313,6 +334,10 @@ printer: **Auto PA** (off = Klipper uses Orca's PA) and **Measure automatically*
 (Spoolman or Orca) counts as fixed PA and is not measured; changing PA in Orca replaces a measured table. A failed
 measurement never stops the print — it continues with the previous PA. *Settings → Pressure advance* turns off the
 link to Spoolman entirely.
+
+With [swappable hotends](#swappable-hotends) the PA is kept **per nozzle**: the card shows the nozzle in use, after a
+hotend change a filament without values for that nozzle is measured at the next print, and *Measure again* deletes
+only the values of the nozzle in use.
 
 ## Slicing and printing
 

@@ -9,7 +9,7 @@ import time
 import pytest
 from conftest import FakeMoonraker, FakeSlots, FakeSpoolman, spool
 
-from acebridge.pa import PaError, PaSync, filament_pa, k_at
+from acebridge.pa import PaError, PaSync, filament_pa, k_at, tables
 from acebridge.spoolman import extra_value
 
 
@@ -128,7 +128,7 @@ def test_result_is_written_to_the_filament(env):
         "nozzle": 0.4, "filament": "102", "time": t0, "message": ""}}})
     run(pa.tick())
     fil = sm.filament(102)
-    tbl = json.loads(extra_value(fil, "pa_table"))
+    tbl = json.loads(extra_value(fil, "pa_table"))["nozzles"]["0.4"]
     assert tbl["k"] == [0.05, 0.045, 0.04] and tbl["temp"] == 250.0 and tbl["kind"] == "dynamic"
     assert extra_value(fil, "pressure_advance") == 0.045 and ("filament", "pa_table") in sm.fields
     assert moon.sent[-1] == "KOBRA_PA_SET T=1 SPEEDS=100,200,300 K=0.05,0.045,0.04 FILAMENT=102"
@@ -247,3 +247,52 @@ def test_failed_push_is_retried_later(env):
     assert pa.pushed == {} and len(moon.sent) == 1
     run(pa.tick())
     assert len(moon.sent) == 2
+
+
+# ---------------------------------------------------------------- swappable hotends (kobra_nozzle): PA per nozzle
+def nozzle(moon, d, enabled=True):
+    moon.merge({"kobra_nozzle": {"enabled": enabled, "diameter": d, "active": "x"}})
+
+
+def test_older_single_table_belongs_to_its_nozzle():
+    old = {"extra": {"pa_table": table(nozzle=0.4), "pressure_advance": "0.035"}}
+    assert filament_pa(old, 0.4)["k"] == [0.04, 0.035, 0.03] and filament_pa(old)["source"] == "table"
+    assert filament_pa(old, 0.6) is None              # measured for 0.4 only: pressure_advance is not "by hand"
+    assert list(tables({"extra": {"pa_table": table()}})) == ["0.4"]          # no nozzle stored: 0.4
+    assert filament_pa({"extra": {"pressure_advance": "0.05"}}, 0.6)["source"] == "manual"   # only by hand: any nozzle
+
+
+def test_measures_again_after_a_nozzle_change_and_keeps_both(env):
+    pa, moon, sm = env
+    nozzle(moon, 0.6)
+    run(pa.tick())
+    assert moon.sent[-1].startswith("KOBRA_PA_SET T=0 NONE=1 FILAMENT=101")     # 0.4 table only -> measure for 0.6
+    v = pa.view()
+    assert v["nozzle"] == "0.6" and v["slots"][0]["state"] == "needed" and v["slots"][0]["nozzles"] == ["0.4"]
+    moon.merge({"kobra_pa": {"result": {"t": 0, "kind": "dynamic", "speeds": [100.0, 200.0, 300.0],
+                                        "k": [0.03, 0.025, 0.02], "nozzle": 0.6, "filament": "101", "time": time.time()}}})
+    run(pa.tick())
+    fil = sm.filament(101)
+    assert sorted(tables(fil)) == ["0.4", "0.6"] and tables(fil)["0.4"]["k"] == [0.04, 0.035, 0.03]
+    assert extra_value(fil, "pressure_advance") == 0.025
+    assert moon.sent[-1].startswith("KOBRA_PA_SET T=0 SPEEDS=100,200,300 K=0.03,0.025,0.02")
+    assert any("nozzle 0.6" in e["text"] for e in pa.events)
+    nozzle(moon, 0.4)                                                            # back: the 0.4 table again
+    run(pa.tick())
+    assert "K=0.04,0.035,0.03 FILAMENT=101" in moon.sent[-1]
+    nozzle(moon, 0.6, enabled=False)                                             # hotends off: 0.4
+    assert pa.nozzle() == 0.4
+
+
+def test_forget_deletes_the_nozzle_in_use_only(env):
+    pa, moon, sm = env
+    fil = sm.filament(101)
+    fil["extra"]["pa_table"] = json.dumps(json.dumps({"nozzles": {
+        "0.4": {"speeds": [200], "k": [0.04]}, "0.6": {"speeds": [200], "k": [0.03]}}}))
+    fil["extra"]["pressure_advance"] = "0.03"
+    nozzle(moon, 0.6)
+    run(pa.forget(101))
+    assert list(tables(fil)) == ["0.4"] and extra_value(fil, "pressure_advance") == 0.03
+    nozzle(moon, 0.4)
+    run(pa.forget(101))
+    assert tables(fil) == {} and extra_value(fil, "pressure_advance") is None

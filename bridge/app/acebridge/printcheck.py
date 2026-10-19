@@ -7,6 +7,10 @@ damp (moisture.py)? Whether the remaining amount is enough, status.spool_reach c
 The result is messages (red = alarm on the phone). With wet_print_action = pause the bridge pauses a print that starts
 with a damp spool - once per print, only in the first minutes.
 
+Swappable hotends (nozzle.py): a file sliced for another nozzle than the hotend in use (Orca's "; nozzle_diameter") is an
+alarm and the bridge pauses it at once - Klipper stops such a file before heating when the start G-code passes
+NOZZLE= (our Orca profiles); this catches files without it (e.g. from Anycubic's slicer). Switch: kobra_nozzle check.
+
 Direct feed (direct.py): the ACE is passed by - the file is compared with the direct spool instead of the slots. A file
 that uses more than one tool cannot print that way: alarm, and the bridge pauses it at once (Klipper would pause at
 the first colour change anyway - this catches it at the start).
@@ -56,11 +60,11 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
     if not m or pv.status != "ready" or not len(m):
         return []
     assigned, _ = bridge.slots.assignments()
-    out: List[Dict[str, Any]] = []
+    out: List[Dict[str, Any]] = _check_nozzle(bridge, m)
     tools = sorted(t for t, mm in m.e_total.items() if mm > 1)
     direct = getattr(bridge, "direct", None)
     if direct is not None and direct.active:
-        return _check_direct(bridge, m, tools)
+        return out + _check_direct(bridge, m, tools)
     for tool in tools:
         gate = acemodel.tool_slot(bridge.moon.status, tool)   # ACEPRO: T<n> = slot n+1; Rinkhals: its ttg_map
         slot = gate + 1
@@ -101,6 +105,18 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
     return out
 
 
+def _check_nozzle(bridge: "Bridge", m: Any) -> List[Dict[str, Any]]:
+    hot = getattr(bridge, "hotends", None)
+    have = hot.diameter() if hot is not None else None
+    want = getattr(m, "nozzle", None)
+    if have is None or not want or not hot.raw.get("check") or abs(want - have) <= 0.01:
+        return []
+    return [{"slot": None, "tool": None, "kind": "nozzle", "level": "error",
+             "text": tr("Print start check: the file is sliced for a {want:g} mm nozzle, the hotend in use is {name} "
+                        "({have:g} mm). The print is paused – cancel it or change the hotend.",
+                        want=want, have=have, name=hot.raw.get("name") or "?")}]
+
+
 def _check_direct(bridge: "Bridge", m: Any, tools: List[int]) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     if len(tools) > 1:
@@ -129,8 +145,8 @@ def _check_direct(bridge: "Bridge", m: Any, tools: List[int]) -> List[Dict[str, 
 
 
 class PrintGuard:
-    """Pauses once per print: a damp spool is needed and wet_print_action = pause, or direct feed with a multi-colour
-    file."""
+    """Pauses once per print: a damp spool is needed and wet_print_action = pause, direct feed with a multi-colour
+    file, or a file for another nozzle than the hotend in use."""
 
     def __init__(self, bridge: "Bridge", clock=time.time):
         self.bridge = bridge
@@ -155,7 +171,10 @@ class PrintGuard:
         problems = check(b)
         multi = [i for i in problems if i["kind"] == "direct_multi"]
         wet = [i for i in problems if i["kind"] == "wet"]
-        if multi:
+        noz = [i for i in problems if i["kind"] == "nozzle"]
+        if noz:
+            why, items = tr("PAUSE (file for another nozzle)"), noz
+        elif multi:
             why, items = tr("PAUSE (direct feed, several filaments)"), multi
         elif wet and b.cfg.wet_print_action == "pause":
             why, items = tr("PAUSE (damp spool)"), wet

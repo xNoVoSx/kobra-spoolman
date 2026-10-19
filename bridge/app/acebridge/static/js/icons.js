@@ -31,6 +31,7 @@ const P = {
   log: () => html`<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>`,
   eye: () => html`<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>`,
   download: () => html`<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>`,
+  nozzle: () => html`<rect x="7" y="3" width="10" height="7" rx="1.5"/><path d="M9 10h6l-1.5 5h-3zM12 15v3M10 21h4"/>`,
 };
 
 export function Icon({ name, small, style }) {

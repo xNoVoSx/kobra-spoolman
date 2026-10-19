@@ -269,6 +269,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun hotend(id: String) = launchSafe {
+        it.nozzle(hotend = id)
+        refresh()
+    }
+
+    fun hotendCheck(on: Boolean) = launchSafe {
+        it.nozzle(check = on)
+        refresh()
+    }
+
+    fun hotendPid() = launchSafe {
+        it.nozzlePid()
+        _messages.send(tr("Measuring the PID – a few minutes"))
+        refresh()
+    }
+
     fun clogSwitch(enabled: Boolean? = null, action: String? = null) = launchSafe {
         it.clogSwitch(enabled, action)
         refresh()

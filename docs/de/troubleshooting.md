@@ -43,6 +43,8 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | *ACE meldet …, zugeordnet ist …* / *Farbe weicht ab* | Material oder Farbe in Spoolman weichen vom ACE-Tag ab. Bei Anycubic-Spulen den Hex-Wert der ACE nehmen. |
 | Verbrauch nicht gebucht | Siehe *Offene Buchungen*. Spoolman weg → alle 30 s automatisch nachgeholt. |
 | Falsche Menge gebucht | Die Rohaufzeichnung (`/api/telemetry/<datei>`) und den Eintrag aus `/api/jobs` in ein Issue packen. |
+| Druck bricht sofort ab: *Duese passt nicht* / pausiert: *Datei für eine …-mm-Düse* | Wechsel-Hotends: Die Datei ist für eine andere Düse als das auf der ACE-Seite gewählte Hotend. Das wirklich eingesetzte Hotend wählen oder mit dem Druckerprofil dieser Düse slicen. Die Prüfung lässt sich abschalten (*Funktionen → Düse beim Druckstart prüfen*). |
+| Düsentemperatur schwankt oder heizt träge nach einem Hotend-Wechsel | Der PID des Hotends ist noch nicht gemessen (Warnung auf der ACE-Seite) – einmal *Hotend → PID messen*. |
 | Trockner startet kühler als gedacht | Die Bridge geht nie über das empfindlichste eingelegte Filament (*Trocknen max.*, Vorlage, Materialwert) oder das Maximum der ACE. Die Seite *Trockner* zeigt, welcher Slot die Grenze setzt. |
 
 ## Rinkhals

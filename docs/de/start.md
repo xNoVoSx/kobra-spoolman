@@ -60,6 +60,7 @@ RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die A
 | Z-Versatz pro Filament | Z-Versatz der ersten Schicht vom Filament in Spoolman | Klipper-Weg, Makro `KOBRA_START` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Fortsetzen nach Stromausfall | setzt einen unterbrochenen Druck in der richtigen Höhe fort | Klipper-Weg, Modul `kobra_resume` | an, wenn installiert; *Funktionen* | schreibt regelmäßig die Druckposition | – | ja |
 | Verstopfung | vergleicht Extruder und Filament-Encoder, warnt oder pausiert | Klipper-Weg, Modul `kobra_clog` | an, wenn installiert; *Funktionen* | keine | – | ja |
+| Wechsel-Hotends | PID, Düsengröße und Z-Korrektur je Hotend, Auto-PA je Düse, eine Datei für die falsche Düse wird gestoppt | Klipper-Weg, Modul `kobra_nozzle` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Endlosspule | wird eine Spule leer, lädt die ACE eine passende andere | ACEPRO (Klipper) oder die Firmware (Rinkhals) | Klipper: *Funktionen*; Rinkhals: die ACE-Karte | keine | ja | ja |
 | Licht und Töne | Licht im Drucker und Piepser bei Ereignissen, nachts leise | Klipper-Weg, App kobra-io auf dem Drucker | an, wenn installiert; *Funktionen* | keine | – | ja |
 

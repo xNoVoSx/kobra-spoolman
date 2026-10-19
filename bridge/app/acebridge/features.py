@@ -83,6 +83,9 @@ FEATURES: List[Feature] = [
             "printer", ("powerloss",), tr("Klipper setup, module kobra_resume"), klipper_only=True),
     Feature("clog", "printer", tr("Clog detection"), tr("Compares the extruder with the filament encoder, warns or pauses"),
             "printer", ("clog",), tr("Klipper setup, module kobra_clog"), klipper_only=True),
+    Feature("hotends", "printer", tr("Swappable hotends"),
+            tr("PID, nozzle size and Z correction per hotend, Auto PA per nozzle, a file for the wrong nozzle is stopped"),
+            "printer", ("hotends",), tr("Klipper setup, module kobra_nozzle"), klipper_only=True),
     Feature("endless", "printer", tr("Endless spool"), tr("When a spool runs out, the ACE loads a matching other one"),
             "printer", ("endless",), tr("Klipper setup, ACEPRO"), klipper_only=True),
     Feature("io", "printer", tr("Light and sounds"), tr("Printer light and beeper on events (quiet at night)"),
@@ -107,6 +110,7 @@ DOC_HEADINGS = {
     "filament_z": ("Z offset per filament", "Z-Versatz pro Filament"),  # i18n: German doc heading
     "powerloss": ("Resume after a power loss", "Fortsetzen nach Stromausfall"),  # i18n: German doc heading
     "clog": ("Clog detection", "Verstopfung erkennen"),  # i18n: German doc heading
+    "hotends": ("Swappable hotends", "Wechsel-Hotends"),  # i18n: German doc heading
     "endless": ("When a filament is used up", "Wenn ein Filament leer ist"),  # i18n: German doc heading
     "io": ("Settings", "Einstellungen"),  # i18n: German doc heading
 }

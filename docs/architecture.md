@@ -170,7 +170,7 @@ single snapshot — it never starts the camera pump for this), judges the result
 (EWM against a baseline, safe start, warn/fail thresholds), raises messages, stores frames and labels.
 Details: [vision.md](vision.md).
 
-## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`, `phase.py`, `startseq.py`)
+## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`, `phase.py`, `startseq.py`, `direct.py`, `nozzle.py`)
 
 Since 3.0 the printer runs real Klipper, so features that need the printer's timing live in Klipper modules
 (kept in a separate, private repo, not part of this one). The bridge is their link to Spoolman and to the
@@ -197,7 +197,7 @@ running) and adds `start_seq` (`paused`, `requested`, `step`); the booking logic
 
 | Bridge | Klipper object | Direction |
 |---|---|---|
-| `pa.py` | `kobra_pa` | Spoolman `pa_table` → `KOBRA_PA_SET` per slot; measured result → back to the filament (`pa_table`, `pressure_advance`) |
+| `pa.py` | `kobra_pa` (+ `kobra_nozzle`) | Spoolman `pa_table` (one table per nozzle) → `KOBRA_PA_SET` per slot for the nozzle in use; measured result → back to the filament (`pa_table` entry of that nozzle, `pressure_advance`) |
 | `filament_z.py` | `KOBRA_START` variable `slot_z` | Spoolman `z_offset` (or the template's) of each loaded slot → printer; the print start applies the start filament's value |
 | `resume.py` | `kobra_resume` | interrupted print → alarm + card; *Resume* sends `KOBRA_RESUME CONFIRM=1` only after confirmation |
 | `switches.py` | all of them | one list of the modules' switches for display, web and app (`/api/switches`); sends only listed commands |
@@ -206,6 +206,8 @@ running) and adds `start_seq` (`paused`, `requested`, `step`); the booking logic
 | `clog.py` | `kobra_clog` | `suspect` → alarm until the filament moves normally again; switch and reaction (`warn`/`pause`) |
 | `phase.py` | `kobra_phase` (+ `kobra_pa`, `ace`, console) | print phase text for web, app, display and MQTT (`printer.phase`); read only |
 | `startseq.py` | `kobra_seq` | print start running: pause/resume/cancel → `printer.kobra_seq.control`; paused start → state `paused` + `start_seq` for the UIs |
+| `direct.py` | `kobra_direct` | direct feed on/off with the spool inserted; booking, Auto PA and Z offset take that spool for every tool; red bar |
+| `nozzle.py` | `kobra_nozzle` | swappable hotends: hotend in use, print start check, Z correction (`KOBRA_NOZZLE`), PID measurement in the background (`KOBRA_NOZZLE_PID`); nozzle → `pa.py`, files without `G9111 NOZZLE=` → `printcheck.py` (Orca's `; nozzle_diameter` from `render.py`) |
 | `usb.py` | Moonraker database `kobra_usb` (USB watchdog service on the Klipper computer) | state every 30 s → status line, message after giving up; switches written to `kobra_usb.switches` |
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.

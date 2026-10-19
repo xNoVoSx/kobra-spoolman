@@ -5,6 +5,12 @@ import { locale, t } from "./i18n.js";
 
 const nf0 = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+const nfNozzle = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+
+/** Nozzle size: 0.4 mm, 0.25 mm. */
+export function nozzleMm(d) {
+  return d == null || Number.isNaN(Number(d)) ? "–" : `${nfNozzle.format(Number(d))} mm`;
+}
 
 export function num(v, digits = 1) {
   if (v == null || v === "" || Number.isNaN(Number(v))) return "–";

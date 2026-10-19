@@ -593,6 +593,7 @@ class AppApi:
                 "resume": b.resume.view() if getattr(b, "resume", None) else None,
                 "clog": b.clog.view() if getattr(b, "clog", None) else None,
                 "direct": b.direct.view() if getattr(b, "direct", None) else None,     # direct feed (red warning)
+                "nozzle": b.hotends.view() if getattr(b, "hotends", None) else None,  # swappable hotends
                 # USB tunnel watchdog (usb.py) - None without a watchdog
                 "usb": b.usb.view() if getattr(b, "usb", None) and b.usb.available() else None,
                 "prompt": b.moon.prompts.view() if getattr(b.moon, "prompts", None) else None,

@@ -38,8 +38,8 @@ export function PaCard() {
   });
   const forget = (s) => openDialog("confirm", {
     title: t("Discard PA?"), ok: t("Discard"), back: t("Back"),
-    text: t("{name}: the PA value is deleted in Spoolman. At the next print with this filament the printer measures again (if “Measure automatically” is on).",
-      { name: s.name }),
+    text: t("{name}: the PA value for nozzle {nozzle} mm is deleted in Spoolman (other nozzles keep theirs). At the next print with this filament the printer measures again (if “Measure automatically” is on).",
+      { name: s.name, nozzle: pa.nozzle || "0.4" }),
     action: () => call("/api/pa/forget", { filament_id: s.filament_id }, t("PA discarded")),
   });
 
@@ -48,7 +48,8 @@ export function PaCard() {
   return html`
   <section class="card pad col" aria-label=${t("Pressure advance")}>
     <div class="row"><span style="color:var(--accent)"><${Icon} name="sliders" /></span><h2 class="h2 grow">${t("Pressure advance")}</h2>
-      ${(pa.measuring || pa.calibrating != null) && html`<span class="chip warn">${t("measuring …")}</span>`}</div>
+      ${(pa.measuring || pa.calibrating != null) && html`<span class="chip warn">${t("measuring …")}</span>`}
+      ${S.st?.nozzle?.enabled && pa.nozzle && html`<span class="chip" title=${t("The values shown are for this nozzle – every nozzle has its own")}>${t("Nozzle {d} mm", { d: pa.nozzle })}</span>`}</div>
     ${!pa.present ? html`<div class="small muted">${S.st?.ace?.variant === "rinkhals"
       ? t("Auto PA needs Klipper with the load cell module kobra_pa – not available with the Anycubic firmware. Orca's PA from the filament profile applies.")
       : t("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready.")}</div>` : html`

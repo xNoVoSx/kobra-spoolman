@@ -43,6 +43,8 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | *ACE reports …, assigned is …* / *colour differs* | Spoolman's material or colour differs from what the ACE reads. For Anycubic spools use the ACE's hex colour. |
 | Consumption not booked | See *Open bookings*. Spoolman down → retried automatically every 30 s. |
 | Wrong amount booked | Send the raw recording (`/api/telemetry/<file>`) and the `/api/jobs` entry in an issue. |
+| Print stops at once: *nozzle does not fit* / paused: *file sliced for a … mm nozzle* | Swappable hotends: the file is for another nozzle than the hotend chosen on the ACE page. Choose the hotend that is really in, or slice with the printer profile of that nozzle. The check can be switched off (*Features → Check the nozzle at print start*). |
+| Nozzle temperature swings or heats slowly after a hotend swap | The hotend's PID is not measured yet (warning on the ACE page) – *Hotend → Measure PID* once. |
 | Dryer starts colder than expected | The bridge never exceeds the most sensitive loaded filament (*Dry max.*, template, material default) or the ACE's maximum. The *Dryer* page shows which slot sets the limit. |
 
 ## Rinkhals

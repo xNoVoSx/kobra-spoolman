@@ -33,6 +33,8 @@ data class AppState(
     val usb: UsbState? = null,
     /** Direct feed: filament by hand in the toolhead, the ACE passed by (bridge >= 4.1.0) - null with older bridges */
     val direct: DirectState? = null,
+    /** Swappable hotends: PID/nozzle per hotend (bridge >= 4.3.0) - null with older bridges */
+    val nozzle: NozzleState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -307,6 +309,34 @@ data class DirectState(
     val material: String? = null,
     val color: String? = null,
     val tool: Int? = null,
+)
+
+/** Swappable hotends (bridge nozzle.py, Klipper kobra_nozzle). */
+@Serializable
+data class NozzleState(
+    val available: Boolean = false,
+    val enabled: Boolean = false,
+    val check: Boolean = false,
+    val active: String? = null,
+    val name: String? = null,
+    val diameter: Double? = null,
+    val z: Double = 0.0,
+    val pid: List<Double> = emptyList(),
+    @SerialName("pid_measured") val pidMeasured: Boolean = false,
+    val measuring: Boolean = false,
+    val hotends: List<Hotend> = emptyList(),
+    val error: String? = null,
+    val warning: String? = null,
+)
+
+@Serializable
+data class Hotend(
+    val id: String = "",
+    val name: String = "",
+    val diameter: Double? = null,
+    val pid: Boolean = false,
+    val z: Double = 0.0,
+    val default: Boolean = false,
 )
 
 @Serializable

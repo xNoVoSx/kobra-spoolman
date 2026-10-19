@@ -56,6 +56,7 @@ class GcodeModel:
         self._thumb_size = 0
         self.colours: List[str] = []   # from "; filament_colour = #..;#.."
         self.types: List[str] = []     # from "; filament_type = PETG;PLA" (check at print start)
+        self.nozzle: Optional[float] = None   # from "; nozzle_diameter = 0.4" (check against the hotend in use)
         # consumption per tool (net mm, retractions subtracted) and tool changes - for "is the spool enough?"
         self.e_total: Dict[int, float] = {}
         # (byte position, from, to, purge mm from ACE_SET_PURGE_AMOUNT or None); from None = first
@@ -158,6 +159,11 @@ class GcodeModel:
         if line.startswith("; filament_diameter ="):
             try:
                 self.diameter = float(line.split("=", 1)[1].split(";")[0].split(",")[0])
+            except ValueError:
+                pass
+        if line.startswith("; nozzle_diameter =") and self.nozzle is None:
+            try:
+                self.nozzle = float(line.split("=", 1)[1].replace(";", ",").split(",")[0])
             except ValueError:
                 pass
         if line.startswith("; filament_type =") and not self.types:

@@ -8,6 +8,25 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.3.0] – 2026-10-19
+
+### Added
+- **Swappable hotends** (`nozzle.py`): for printers with several hotends (e.g. the 0.2/0.4/0.6 ceramic hotends for the
+  Kobra S1 next to the original). The hotend in use is chosen on the *ACE* page (web), in the app's ACE sheet or on the
+  display (*Control → Hotend*); Klipper then takes its PID, nozzle size and Z correction at once, without a restart.
+  *Measure PID* measures the hotend in use once (over the waste chute, a few minutes) and keeps the values for it — an
+  uncalibrated hotend heats with the PID of the Klipper configuration and shows a warning. Z correction per hotend in
+  the web UI. Switches *Swappable hotends* and *Check the nozzle at print start* on the *Features* page. Needs
+  kobra-klipper's `kobra_nozzle` module; without it nothing changes. `nozzle` in `/api/app/state`,
+  `GET/POST /api/nozzle`, `POST /api/nozzle/pid`.
+- **Auto PA per nozzle**: the Spoolman field `pa_table` keeps one table per nozzle
+  (`{"nozzles": {"0.4": {...}, "0.6": {...}}}`); the older single table still reads as the table of its nozzle. After
+  a hotend change a filament without values for that nozzle counts as *not measured* and Klipper measures it at the next
+  print; *Measure again* deletes only the values of the nozzle in use. The PA card shows the nozzle.
+- **Print start check: nozzle** — a file sliced for another nozzle than the hotend in use is stopped. Our Orca profiles
+  pass the nozzle to `G9111` and Klipper stops before anything heats up; for other files (e.g. Anycubic's slicer) the
+  bridge reads Orca's `; nozzle_diameter` comment and pauses the print at once with a message.
+
 ## [4.2.0] – 2026-10-19
 
 ### Added
@@ -139,6 +158,12 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.20.0 – 2026-10-19
+
+### Added
+- Swappable hotends: section in the ACE sheet to choose the hotend in use, measure its PID and switch the nozzle check
+  at print start.
 
 ## app 1.19.0 – 2026-10-19
 

@@ -267,6 +267,27 @@ Solange er an ist:
 In Orca ändert sich nichts: das Profil des eingelegten Filaments in irgendeinem Slot wählen. **Ausschalten** (rote
 Leiste, ACE-Seite oder Display) druckt wieder über die ACE; während eines Drucks nicht möglich.
 
+## Wechsel-Hotends
+
+*Nur Klipper – braucht das Klipper-Modul `kobra_nozzle` am Drucker (nicht Teil dieses Repos).*
+
+Für Drucker mit mehreren Hotends – z. B. die Keramik-Hotends 0,2/0,4/0,6 für den Kobra S1 neben dem Original. Klipper
+hat für die Düse einen PID-Satz; ein anderes Hotend (andere Heizung) braucht seinen eigenen. Die Karte **Hotend** auf der
+ACE-Seite (App: ACE-Blatt, Display des Druckers: *Steuerung → Hotend*) zeigt die Hotends; nach dem Wechsel tippst du das
+eingesetzte an – Klipper übernimmt PID, Düsengröße und Z-Korrektur sofort, ohne Neustart (nicht während eines Drucks).
+
+- **PID messen** – einmal je Hotend: Der Drucker homt bei Bedarf, fährt über den Abfallkanal und heizt die Düse mehrmals
+  auf (ein paar Minuten). Die Werte gelten sofort und bleiben bei diesem Hotend. Ein nie gemessenes Hotend heizt mit dem
+  PID aus der Klipper-Konfiguration (dem des Originals) und zeigt eine Warnung.
+- **Z-Korrektur** des Hotends (Web) – kommt zum Versatz der ersten Schicht dazu, wie der Z-Versatz pro Filament.
+- **Düse beim Druckstart prüfen** – eine Datei für eine andere Düse wird gestoppt: mit unseren Orca-Profilen (sie geben
+  die Düse an den Start-G-Code) bevor etwas heizt, andere Dateien (Orcas Kommentar `; nozzle_diameter`) werden sofort mit
+  Meldung pausiert.
+- **Auto-PA** führt seine Werte je Düse (siehe [Pressure Advance](#pressure-advance-auto-pa)).
+
+In Orca ein Druckerprofil mit der passenden Düse nehmen (Drucker- und Prozessprofile für 0,2 und 0,6 kommen mit den
+Klipper-Modulen). *Funktionen → Wechsel-Hotends* schaltet alles ab: Klipper heizt wieder nach seiner Konfiguration.
+
 ## Z-Versatz pro Filament
 
 *Nur Klipper – braucht ein Klipper-Modul am Drucker (nicht Teil dieses Repos); unter Rinkhals nicht verfügbar.*
@@ -292,6 +313,10 @@ den geladenen Slot sofort (nicht im Druck), *Neu messen* löscht den Wert, damit
 eingetragener Wert (Spoolman oder Orca) gilt als festes PA und wird nicht gemessen; PA in Orca geändert ersetzt eine
 Messtabelle. Eine gescheiterte Messung hält den Druck nie an – es geht mit dem bisherigen PA weiter.
 *Einstellungen → Pressure Advance* schaltet die Verbindung zu Spoolman ganz ab.
+
+Mit [Wechsel-Hotends](#wechsel-hotends) gilt das PA **je Düse**: Die Karte zeigt die eingesetzte Düse, nach einem
+Hotend-Wechsel wird ein Filament ohne Werte für diese Düse beim nächsten Druck gemessen, und *Neu messen* löscht nur die
+Werte der eingesetzten Düse.
 
 ## ACE-Einstellungen
 

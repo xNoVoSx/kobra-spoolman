@@ -247,6 +247,15 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
         out.append(_msg("info", text or tr("Print ended: {file} ({min} min ago)", file=last.get("file"),
                                            min=round(age / 60)), "done"))
 
+    hot = getattr(bridge, "hotends", None)
+    if hot is not None and hot.available:
+        hv = hot.view()
+        if hv["warning"]:
+            out.append(_msg("warn", hv["warning"], "hotend_pid"))
+        if hv["error"]:
+            out.append(_msg("warn", tr("PID measurement {name}: {error}", name=hv["name"] or "?", error=hv["error"]),
+                            "hotend_pid_error"))
+
     cam = bridge.camera.state()
     if cam.get("enabled") and cam.get("error"):
         out.append(_msg("info", cam["error"], "camera"))
