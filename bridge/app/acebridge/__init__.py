@@ -2,13 +2,17 @@
 
 from .i18n import tr
 
-__version__ = "4.1.0"
+__version__ = "4.2.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("4.2.0", "2026-10-19", [
+        tr("Printer CPU also with Klipper on a Pi: the bridge reads it from the Moonraker Rinkhals keeps running on the printer and shows it on the printer card, the display and in Home Assistant"),
+        tr("Camera with Klipper on a Pi: no continuous stream any more where the camera hangs on the printer (it took the printer CPU to 100 %) – snapshots follow the printer CPU as under Rinkhals"),
+    ]),
     ("4.1.0", "2026-10-19", [
         tr("Direct feed: filament by hand straight in the toolhead (e.g. TPU) while the ACE stays on – switched on the ACE page, in the app or on the display with the spool you inserted; red bar while it is on, consumption, PA and Z offset from that spool"),
         tr("Clog detection: “Log only” as a third reaction"),

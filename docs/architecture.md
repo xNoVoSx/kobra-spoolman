@@ -149,13 +149,18 @@ to ~5 per second cost nothing measurable ([findings](findings.md#camera-load-on-
 The bridge therefore fetches snapshots one after another by default (`CAMERA_STREAM=false`) — only while
 someone watches, closed 20 s after the last viewer — and fans each frame out: web UI, app, Mainsail
 (camera link) and the AI service. Each viewer always gets the newest frame; a slow viewer skips frames
-instead of queueing. With Klipper on the Pi the printer has plenty of headroom, so the rate is simply
-`CAMERA_FPS_MAX`. On Rinkhals the bridge starts at 2 fps and follows the printer's CPU (Moonraker's `proc_stats`, averaged over 10 s): below
+instead of queueing. Wherever the bridge knows the printer's own CPU (`printercpu.py`) it starts at 2 fps and
+follows it, averaged over 10 s: under Rinkhals from Moonraker's `proc_stats` (Moonraker runs on the printer), with
+Klipper on a Pi from the printer's own Moonraker (Rinkhals keeps it running beside the USB tunnel; `/machine/proc_stats`
+every 3 s, address `PRINTER_CPU_URL` or the camera's host on port 7125). On 19.10. a continuous stream took the printer
+CPU to 100 % with Klipper on the Pi too: mjpg-streamer and the tunnel still run on the printer. Without a known printer
+CPU (camera on the Klipper computer) the rate is simply `CAMERA_FPS_MAX`. Below
 `CAMERA_CPU_LOW` it adds 1 fps every 5 s, above `CAMERA_CPU_HIGH` it takes one away (`/api/camera` → `throttled`, the
-web UI shows *throttled*). *Status* shows the CPU of the printer or the Klipper host (the Pi); under Rinkhals the
-printer card shows it all the time (`printer.printer_cpu`). `CAMERA_STREAM` is ignored under Rinkhals — on 13.10. a
-stream left on from older settings kept the printer CPU at 100 % — and every change of it ends the running reader, so
-it takes effect while people watch.
+web UI shows *throttled*). *Status* shows the Klipper CPU and, beside a separate Klipper, the printer CPU; the printer
+card (web, app), the display (*System → Info*) and Home Assistant (`printer_cpu`) show it all the time
+(`printer.printer_cpu`). `CAMERA_STREAM` is ignored wherever the printer CPU is known — on 13.10. (Rinkhals) and 19.10.
+(tunnel) a stream kept the printer CPU at 100 % — and every change of it ends the running reader, so it takes effect
+while people watch.
 
 ## AI print-failure detection (`vision.py`, `vision/`)
 

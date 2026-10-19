@@ -213,9 +213,11 @@ etwa fertig ist (*~17:35*, *morgen ~02:10*), geschätzt aus dem bisherigen Forts
 Die Bridge **verteilt die Kamera weiter** (Restream): Egal wie viele Browser und Handys zuschauen, sie
 holt die Bilder nur einmal vom Drucker – und nur solange jemand zuschaut. Die Bildrate (bis 10 fps)
 richtet sich nach der Drucker-CPU; *gedrosselt* in der Ecke heißt, die Bridge hält sich zurück, damit
-der Druck Vorrang hat. Unter Rinkhals zeigt die Druckerkarte ständig die Drucker-CPU, und die Bridge öffnet
-nie den Dauerstream des Druckers (er lastete die CPU voll aus) – die Einstellung *Dauerstream* gilt nur mit
-Klipper auf einem eigenen Rechner und wirkt sofort. Damit Mainsail keinen zweiten
+der Druck Vorrang hat. Die Druckerkarte (und das Display unter *System → Info*) zeigt ständig die CPU des
+Druckers selbst – unter Rinkhals und mit Klipper auf einem Pi daneben (gelesen vom Moonraker, den Rinkhals auf dem
+Drucker weiterlaufen lässt) –, und dort öffnet die Bridge nie den Dauerstream der Kamera (er lastete die Drucker-CPU
+voll aus, auch mit USB-Tunnel). Die Einstellung *Dauerstream* gilt nur, wo die Drucker-CPU unbekannt ist (Kamera am
+Klipper-Rechner), und wirkt sofort. Damit Mainsail keinen zweiten
 Stream öffnet, trag dort auch die Bridge ein: **Geräte → Kamera-Link** zeigt eine Stream- und eine
 Einzelbild-Adresse. In Mainsail *Einstellungen → Webcams*, die Webcam bearbeiten, Dienst
 *MJPEG-Streamer* wählen und die beiden Adressen einfügen. Der Link zeigt nur die Kamera; *Neu erzeugen*

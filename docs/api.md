@@ -322,13 +322,14 @@ the filament moves normally again or the print is paused/ended.
 
 **One source at the printer, adapted to its CPU.** While someone watches (and 20 s after the last
 viewer) the bridge fetches single snapshots one after another and hands every frame to all viewers.
-The rate starts at 2 fps and follows the printer's CPU, which Moonraker pushes about once a second
-(`notify_proc_stat_update`, no extra request; mean over 10 s): below `CAMERA_CPU_LOW` +1 fps every 5 s up
+Where the printer's own CPU is known, the rate starts at 2 fps and follows it (mean over 10 s) — under Rinkhals
+Moonraker pushes it about once a second (`notify_proc_stat_update`, no extra request), beside Klipper on a Pi the
+bridge reads the printer's own Moonraker (`/machine/proc_stats` every 3 s, `PRINTER_CPU_URL`): below `CAMERA_CPU_LOW` +1 fps every 5 s up
 to `CAMERA_FPS_MAX`, above `CAMERA_CPU_HIGH` −1 fps every 5 s down to `CAMERA_FPS_MIN`. With
 `CAMERA_STREAM=true` the bridge holds the printer's MJPEG stream instead (one connection, falls back
-to snapshots if the printer has none; switching ends the running reader at once). Under Rinkhals the stream setting is
-ignored (`/api/camera` → `stream_ignored: true`), and `printer_cpu` (also in `/api/app/state` → `printer.printer_cpu`)
-is the printer's CPU in % (null elsewhere).
+to snapshots if the printer has none; switching ends the running reader at once). Wherever the printer CPU is known
+the stream setting is ignored (`/api/camera` → `stream_ignored: true`), and `printer_cpu` (also in `/api/app/state` →
+`printer.printer_cpu`, MQTT state `printer.printer_cpu`) is the printer's CPU in % (null where unknown).
 
 **Camera key.** Mainsail and an `<img>` tag cannot send an `Authorization` header, so camera URLs
 also accept `?key=<camera key>`. The key only shows camera images; it is stored in `camera.json`

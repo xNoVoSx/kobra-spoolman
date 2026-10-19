@@ -153,7 +153,7 @@ Both need:
 | Endless spool | ✅ (on/off) | ✅ (on/off + matching mode) |
 | Purge per colour change | firmware's own: multiplier + preview in the ACE card | Orca's flushing volumes |
 | Usage preview in Orca | ✅ incl. the firmware purge | ✅ |
-| Camera restream | ✅ (frame rate follows the printer's CPU) | ✅ |
+| Camera restream | ✅ (frame rate follows the printer's CPU) | ✅ (follows the printer's CPU when the camera is on the printer) |
 | AI print-failure detection | ✅ | ✅ |
 | Print phase (*Preheating*, *Change to slot 2* …) | basic (printing / changing) | ✅ detailed |
 | Auto-PA, Z offset per filament, resume after power loss, clog detection, direct feed | — (need Klipper modules) | ✅ with our Klipper modules (not part of this repo) |

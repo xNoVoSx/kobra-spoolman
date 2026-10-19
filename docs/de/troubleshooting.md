@@ -54,7 +54,7 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | Slot-Karte / Orca-Panel: *Am Drucker ist kein Material eingetragen – der Druck bricht ab* | GoKlipper bricht einen Druck ab, der einen Slot ohne Material nutzt. Spule zuordnen (die Bridge schickt Material und Farbe per `MMU_GATE_MAP` – nicht im Druck und nie für Slots mit Anycubic-RFID-Tag) oder am Drucker-Display eintragen. |
 | Spule zugeordnet, aber das Drucker-Display zeigt das alte Material | Slots mit Anycubic-RFID-Tag lehnt Rinkhals ab – der Tag gewinnt. Slots ohne Tag übernehmen den Wert etwa 20 s später. |
 | *Spülen Firmware* in der Orca-Vorschau weicht von der Buchung ab | Das Modell lernt aus fertigen Orca-Drucken (Versatz und erstes Laden). Nach ein paar Drucken passt es besser; siehe [Befunde](../findings.md) (englisch). |
-| Kamera ruckelt (1–2 fps) im Druck | Gewollt: Die Bridge senkt die Bildrate, solange die Drucker-CPU über `CAMERA_CPU_HIGH` (97 %) liegt – die Original-Firmware braucht sie zum Drucken. In der Ecke steht *gedrosselt*. |
+| Kamera ruckelt (1–2 fps) im Druck | Gewollt: Die Bridge senkt die Bildrate, solange die Drucker-CPU über `CAMERA_CPU_HIGH` (97 %) liegt – die Original-Firmware (Rinkhals) bzw. der USB-Tunnel zum Pi braucht sie. In der Ecke steht *gedrosselt*. |
 | Kein Knopf *Klipper neu laden* | Rinkhals erlaubt keinen Firmware-Neustart von außen; den Drucker aus- und einschalten. |
 | Auto-PA, Z-Versatz, Fortsetzen, Verstopfung fehlen | Die brauchen Klipper-Module und gibt es auf der Original-Firmware nicht ([was wo geht](../../README.de.md#was-auf-welchem-aufbau-geht)). |
 

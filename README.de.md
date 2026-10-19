@@ -155,7 +155,7 @@ Für beide:
 | Endlosspule | ✅ (an/aus) | ✅ (an/aus + Auswahlmodus) |
 | Spülen je Farbwechsel | von der Firmware: Multiplikator + Vorschau in der ACE-Karte | Orcas Spülvolumen |
 | Verbrauchsvorschau in Orca | ✅ inkl. Spülen der Firmware | ✅ |
-| Kamera-Restream | ✅ (Bildrate folgt der Drucker-CPU) | ✅ |
+| Kamera-Restream | ✅ (Bildrate folgt der Drucker-CPU) | ✅ (folgt der Drucker-CPU, wenn die Kamera am Drucker hängt) |
 | KI-Fehldruck-Erkennung | ✅ | ✅ |
 | Druckphase (*Vorheizen*, *Wechsel auf Slot 2* …) | einfach (druckt / wechselt) | ✅ ausführlich |
 | Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung erkennen, Direkteinzug | – (brauchen Klipper-Module) | ✅ mit unseren Klipper-Modulen (nicht Teil dieses Repos) |

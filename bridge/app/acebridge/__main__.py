@@ -75,6 +75,7 @@ class Bridge:
         self.machine = Machine(self.moon, self.sm, self.slots)
         self.files = Files(self.moon, self.slots)
         self.camera = Camera(cfg, self.moon, session)
+        self.printer_cpu = self.camera.printer_cpu                # the printer's own CPU (printercpu.py)
         self.vision = Vision(cfg, self.moon, self.camera, session)
         self.preview = PrintPreview(cfg, self.moon, session)
         self.printer = PrinterInfo(cfg, self.moon, session)       # printer/ACE model for the UIs (printerinfo.py)
@@ -260,7 +261,7 @@ async def amain() -> None:
         await web.TCPSite(runner, cfg.http_host, cfg.http_port).start()
 
         tasks = [asyncio.create_task(c) for c in (bridge.moon.run(), bridge.spoolman_loop(), bridge.ticker(),
-                                                         bridge.vision.run(), bridge.mqtt.run())]
+                                                         bridge.vision.run(), bridge.mqtt.run(), bridge.printer_cpu.run())]
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):

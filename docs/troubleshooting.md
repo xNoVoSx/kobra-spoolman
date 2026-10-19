@@ -54,7 +54,7 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | Slot card / Orca panel: *no material is set at the printer – the print gets cancelled* | GoKlipper cancels a print that uses a slot with an empty material. Assign a spool (the bridge sends material and colour with `MMU_GATE_MAP` — not while printing, and never for slots with an Anycubic RFID tag) or set it on the printer display. |
 | Assigned spool, but the printer display keeps the old material | Slots with an Anycubic RFID tag are refused by Rinkhals — the tag wins. Untagged slots take the value about 20 s later. |
 | *Firmware purge* in the Orca preview differs from what was booked | The model learns from finished Orca prints (offset and first load). After a few prints it fits better; see [findings](findings.md). |
-| Camera stutters (1–2 fps) during a print | Intended: the bridge lowers the frame rate while the printer's CPU is above `CAMERA_CPU_HIGH` (97 %) — the stock firmware needs it for printing. The corner shows *throttled*. |
+| Camera stutters (1–2 fps) during a print | Intended: the bridge lowers the frame rate while the printer's CPU is above `CAMERA_CPU_HIGH` (97 %) — the stock firmware (Rinkhals) or the USB tunnel to the Pi needs it. The corner shows *throttled*. |
 | No *Reload Klipper* button | Rinkhals does not allow a firmware restart from outside; switch the printer off and on. |
 | Auto-PA, Z offset, resume, clog detection missing | These need Klipper modules and are not available on the stock firmware ([what works where](../README.md#what-works-on-which-setup)). |
 

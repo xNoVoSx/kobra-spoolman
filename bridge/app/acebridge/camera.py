@@ -3,12 +3,13 @@
 The camera is attached to the printer (mjpg-streamer, port 8080); its URLs come from Moonraker's webcam list. On the
 stock firmware even ONE continuous stream used the whole printer CPU (2026-10-01) - so the bridge fetches snapshots
 (like Mainsail's "adaptive" mode), only while someone watches, at most CAMERA_FPS_MAX, and re-distributes them as an
-MJPEG stream to web UI, app, Mainsail (camera link) and the AI. With Klipper on a separate computer the printer CPU is
-free: CAMERA_STREAM=true uses the printer's continuous stream (full frame rate).
+MJPEG stream to web UI, app, Mainsail (camera link) and the AI. CAMERA_STREAM=true uses the camera's continuous stream
+(full frame rate) - only where the bridge sees no printer CPU (e.g. a camera on the Klipper computer).
 
-Under Rinkhals Moonraker reports the printer's own CPU (notify_proc_stat_update, over the one Moonraker connection
-anyway): the frame rate follows it - start with 2 fps; CPU mean below CAMERA_CPU_LOW -> +1 fps every 5 s up to
-CAMERA_FPS_MAX; above CAMERA_CPU_HIGH -> 1 fps less every 5 s down to CAMERA_FPS_MIN. The print always comes first.
+Wherever the bridge can read the printer's own CPU (printercpu.py: Rinkhals, or the printer's Moonraker beside Klipper
+on a Pi - there a continuous stream took the printer CPU to 100 % as well, 2026-10-19, and the USB tunnel shares it)
+the frame rate follows it - start with 2 fps; CPU mean below CAMERA_CPU_LOW -> +1 fps every 5 s up to CAMERA_FPS_MAX;
+above CAMERA_CPU_HIGH -> 1 fps less every 5 s down to CAMERA_FPS_MIN. The print always comes first.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING, AsyncIterator, Deque, Optional, Tuple
 import aiohttp
 
 from .i18n import msg_of, tr
+from .printercpu import PrinterCpu
 
 if TYPE_CHECKING:
     from .config import Config
@@ -112,7 +114,9 @@ class Camera:
         self._snap_lock = asyncio.Lock()
         self._retry_at = 0.0
         self.target_fps = float(cfg.camera_fps_max)
-        self.throttled = False       # Rinkhals: below the maximum because of a high printer CPU
+        self.throttled = False       # below the maximum because of a high printer CPU
+        # the printer's own CPU (Rinkhals: moon.cpu; beside a separate Klipper: polled, the bridge runs printer_cpu.run())
+        self.printer_cpu = PrinterCpu(cfg, moon, session, source_url=self.source_url)
 
     # ------------------------------------------------------------ URLs
     async def _resolve(self) -> None:
@@ -136,6 +140,11 @@ class Camera:
         self.snapshot_url = self.snapshot_url or absolute((cam or {}).get("snapshot_url"), "/webcam/?action=snapshot")
         log.info("Camera: stream %s, snapshot %s", self.stream_url, self.snapshot_url)
 
+    async def source_url(self) -> Optional[str]:
+        """Where the camera's images come from (resolved from Moonraker's webcam list on first use)."""
+        await self._resolve()
+        return self.stream_url or self.snapshot_url
+
     # ------------------------------------------------------------ reading the stream (one connection)
     def fps(self) -> Optional[float]:
         now = self.clock()
@@ -153,8 +162,9 @@ class Camera:
         return self._viewers == 0 and self.clock() > self._wanted_until
 
     def use_stream(self) -> bool:
-        """Continuous stream only where the printer CPU is free: under Rinkhals one stream used the whole printer CPU
-        (findings 2026-10-01, again 2026-10-13) - there the setting is ignored, snapshots follow the printer CPU."""
+        """Continuous stream only where the bridge sees no printer CPU: one stream used the whole printer CPU under
+        Rinkhals (findings 2026-10-01, 2026-10-13) and with the camera on the printer beside Klipper on a Pi
+        (2026-10-19) - there the setting is ignored, snapshots follow the printer CPU."""
         return bool(self.cfg.camera_stream) and not self._throttles()
 
     def _switched(self, stream: bool) -> bool:
@@ -165,8 +175,8 @@ class Camera:
         return False
 
     def _throttles(self) -> bool:
-        """The frame rate follows the printer CPU only where Moonraker reports the printer's own CPU (Rinkhals)."""
-        return getattr(self.moon, "platform", "klipper") == "rinkhals"
+        """The frame rate follows the printer CPU wherever the bridge can read it (printercpu.py)."""
+        return self.printer_cpu.measures()
 
     def adjust(self, cpu: Optional[float]) -> None:
         """One control step: printer CPU above CAMERA_CPU_HIGH -> 1 fps less, below CAMERA_CPU_LOW -> 1 fps more.
@@ -185,12 +195,11 @@ class Camera:
             self.throttled = self.target_fps < hi and self.throttled
 
     async def _run_pump(self) -> None:
-        """Snapshots one after the other (never two at once): at CAMERA_FPS_MAX, under Rinkhals by the printer CPU."""
+        """Snapshots one after the other (never two at once): at CAMERA_FPS_MAX, or by the printer CPU where known."""
         await self._resolve()
         throttles = self._throttles()
         start = min(START_FPS, float(self.cfg.camera_fps_max)) if throttles else float(self.cfg.camera_fps_max)
         self.mode, self.target_fps, self.throttled = "snapshots", start, False
-        cpu_of = getattr(self.moon, "cpu", None)
         next_adjust = self.clock() + ADJUST_S
         fails = 0
         log.info("Camera: snapshots, %s", f"{self.cfg.camera_fps_min:.0f}-{self.cfg.camera_fps_max:.0f} fps by the "
@@ -206,8 +215,8 @@ class Camera:
                         raise CameraError(tr("Answer is not a JPEG"))
                     await self._publish(data)
                     fails = 0
-                    if throttles and started >= next_adjust:
-                        self.adjust(cpu_of(CPU_WINDOW_S) if cpu_of else None)
+                    if self._throttles() and started >= next_adjust:   # the source may appear later
+                        self.adjust(self.printer_cpu.cpu(CPU_WINDOW_S))
                         next_adjust = started + ADJUST_S
                 except asyncio.CancelledError:
                     raise
@@ -363,18 +372,17 @@ class Camera:
             self._wanted_until = max(self._wanted_until, self.clock() + IDLE_CLOSE_S)
 
     def _printer_cpu(self) -> Optional[float]:
-        """Printer CPU (Rinkhals: Moonraker runs on the printer), None elsewhere or without fresh values."""
-        cpu_of = getattr(self.moon, "cpu", None)
-        cpu = cpu_of(CPU_WINDOW_S) if self._throttles() and cpu_of else None
+        """Printer CPU (printercpu.py), None where unknown or without fresh values."""
+        cpu = self.printer_cpu.cpu(CPU_WINDOW_S)
         return round(cpu) if cpu is not None else None
 
     def state(self) -> dict:
         return {"enabled": self.cfg.camera, "mode": self.mode, "viewers": self._viewers, "fps": self.fps(),
                 "error": self.error, "stream": self.use_stream(),
                 "source": "stream" if self.use_stream() else "snapshots",
-                # Rinkhals: the stream setting is ignored there (printer CPU); the printer CPU for the web UI and app
+                # printer CPU known: the stream setting is ignored there; the printer CPU for the web UI and app
                 "stream_ignored": bool(self.cfg.camera_stream) and not self.use_stream(),
                 "printer_cpu": self._printer_cpu(),
                 "target_fps": round(self.target_fps, 1) if self.mode == "snapshots" else None,
-                "throttled": self.throttled and self.mode == "snapshots",   # Rinkhals: slowed by the printer CPU
+                "throttled": self.throttled and self.mode == "snapshots",   # slowed by the printer CPU
                 "last": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.taken_wall)) if self.taken_wall else None}

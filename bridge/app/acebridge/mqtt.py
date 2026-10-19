@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from . import i18n, phase
 from .i18n import tr
-from .status import notices, printer_cpu
+from .status import notices, own_cpu, printer_cpu
 
 if TYPE_CHECKING:
     from .__main__ import Bridge
@@ -90,6 +90,7 @@ class MqttBridge:
             "nozzle": _f(ext.get("temperature")), "nozzle_target": _f(ext.get("target")),
             "bed": _f(bed.get("temperature")), "bed_target": _f(bed.get("target")),
             "active_slot": active, "cpu": _f(printer_cpu(b), 0),
+            "printer_cpu": _f(own_cpu(b), 0),
             "phase": (phase.describe(st, getattr(b, "phase_steps", None)) or {}).get("text") if b.moon.connected else None}}
         d = b.dryer.state()
         out["ace"] = {"humidity": d.get("humidity"), "temp": d.get("temp"), "drying": bool(d.get("drying")),
@@ -146,6 +147,8 @@ class MqttBridge:
         ent("sensor", "bed", tr("Bed"), "printer", "{{ value_json.bed }}", unit_of_measurement="°C", device_class="temperature")
         ent("sensor", "cpu", tr("Klipper CPU"), "printer", "{{ value_json.cpu }}", unit_of_measurement="%", icon="mdi:cpu-32-bit",
             entity_category="diagnostic")
+        ent("sensor", "printer_cpu", tr("Printer CPU"), "printer", "{{ value_json.printer_cpu }}", unit_of_measurement="%",
+            icon="mdi:cpu-32-bit", entity_category="diagnostic")
         ent("sensor", "ace_humidity", tr("ACE humidity"), "ace", "{{ value_json.humidity }}", unit_of_measurement="%", device_class="humidity")
         ent("sensor", "ace_temp", tr("ACE temperature"), "ace", "{{ value_json.temp }}", unit_of_measurement="°C", device_class="temperature")
         ent("binary_sensor", "ace_drying", tr("ACE drying"), "ace", "{{ 'ON' if value_json.drying else 'OFF' }}", device_class="running")

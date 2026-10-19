@@ -428,8 +428,9 @@ def test_bad_requests_and_spoolman_failures_never_break_the_bridge(api):
     assert call("GET", "/api/app/state", token=None)[0] == 200
 
 
-def test_printer_cpu_only_under_rinkhals():
+def test_printer_cpu_wherever_known():
+    """Rinkhals and Klipper beside a camera on the printer (printercpu.py) both pass the printer's own CPU."""
     st = {"print_stats": {"state": "standby"}}
     assert printer_state(st, True, True, None, platform="rinkhals", cpu=63.4)["printer_cpu"] == 63
-    assert printer_state(st, True, True, None, platform="klipper", cpu=63.4)["printer_cpu"] is None
-    assert printer_state(st, True, True, None, platform="rinkhals")["printer_cpu"] is None
+    assert printer_state(st, True, True, None, platform="klipper", cpu=63.4)["printer_cpu"] == 63
+    assert printer_state(st, True, True, None, platform="klipper")["printer_cpu"] is None

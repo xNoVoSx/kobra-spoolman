@@ -40,9 +40,10 @@
 | `PRINTER_UI_URL` | – | Mainsail link (*Open Mainsail*); empty = the Moonraker host on port 80 |
 | `CAMERA` | `true` | camera through the bridge (web UI, app, Mainsail via camera link) |
 | `CAMERA_INGRESS_SNAPSHOTS` | `true` | under HA ingress the browser asks for one image after the other (`/api/camera/frame.jpg`) instead of the MJPEG stream, which does not get through every proxy chain. `false` tries the stream |
-| `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer). Ignored under Rinkhals (one stream took the whole printer CPU); takes effect at once |
+| `CAMERA_STREAM` | `false` | `false`: the bridge fetches single snapshots (like Mainsail's *adaptive* mode) and restreams them; `true`: it holds the camera's MJPEG stream instead (full frame rate; the camera still runs on the printer). Ignored wherever the bridge sees the printer's own CPU — under Rinkhals and with the camera on the printer beside Klipper on a Pi (one stream took the whole printer CPU in both cases); takes effect at once |
 | `CAMERA_FPS_MIN` / `CAMERA_FPS_MAX` | `1` / `10` | range of the snapshot rate |
-| `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | Rinkhals only: the printer's CPU (%) below which the rate goes up by 1 fps every 5 s, above which it goes down — the stock firmware needs its CPU for printing. Ignored under Klipper on a Pi |
+| `CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH` | `90` / `97` | the printer's CPU (%) below which the rate goes up by 1 fps every 5 s, above which it goes down — the stock firmware (Rinkhals) or the USB tunnel to a Pi needs it. Only where the printer CPU is known (`PRINTER_CPU_URL`) |
+| `PRINTER_CPU_URL` | – | Moonraker on the printer for its own CPU while Klipper runs on a separate computer (e.g. `http://<printer-ip>:7125`, Rinkhals keeps it running). Empty = the camera's host on port 7125 if the camera is not on the Klipper computer; `off` = never ask. Read only, one small request every 3 s. Not needed under Rinkhals |
 | `CAMERA_STREAM_URL` | – | stream URL; empty = from Moonraker's webcam list (`/webcam/?action=stream` on the printer) |
 | `CAMERA_SNAPSHOT_URL` | – | snapshot URL; empty = from Moonraker's webcam list (`/webcam/?action=snapshot` on the printer) |
 | `CAMERA_INTERVAL_S` | `1` | a single `snapshot.jpg` request reuses an image younger than this |

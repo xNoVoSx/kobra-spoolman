@@ -208,10 +208,12 @@ finish time (*~17:35*, *tomorrow ~02:10*), estimated from the progress so far.
 
 The bridge **restreams** the camera: however many browsers and phones watch, it fetches single images
 from the printer only once — and only while someone is watching. The rate (up to 10 fps) adapts to the
-printer's CPU; *throttled* in the corner means the bridge is holding back so the print comes first. Under
-Rinkhals the printer card shows the printer's CPU all the time, and the bridge never opens the printer's
-continuous stream (it took the whole CPU) — the *continuous stream* setting only applies with Klipper on a
-separate computer, and switching it takes effect at once. Point Mainsail at the bridge too, so it does not open
+printer's CPU; *throttled* in the corner means the bridge is holding back so the print comes first. The
+printer card (and the display under *System → Info*) shows the printer's own CPU all the time — under Rinkhals and
+with Klipper on a Pi beside it (read from the Moonraker Rinkhals keeps running on the printer) — and there the bridge
+never opens the camera's continuous stream (it took the whole printer CPU, with the USB tunnel too). The *continuous
+stream* setting only applies where the printer CPU is unknown (camera on the Klipper computer); switching it takes
+effect at once. Point Mainsail at the bridge too, so it does not open
 a second stream: **Devices → Camera link** shows a stream and a snapshot URL. In Mainsail open
 *Settings → Webcams*, edit the webcam, choose the service *MJPEG-Streamer* and paste the two URLs.
 The link only shows the camera; *Create new* replaces it (the old one stops working).

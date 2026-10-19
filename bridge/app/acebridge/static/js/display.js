@@ -690,6 +690,8 @@ function System({ st, busy, act, confirm }) {
         <div class="disp-tile disp-mini"><div class="disp-lbl">Klipper</div><div class="disp-val" style="font-size:17px">${info?.klippy_state || "–"}</div></div>
         <div class="disp-tile disp-mini"><div class="disp-lbl">Bridge</div><div class="disp-val" style="font-size:17px">${info?.bridge || st.version || "–"}</div></div>
         <div class="disp-tile disp-mini"><div class="disp-lbl">${t("Klipper version")}</div><div class="disp-val" style="font-size:13px">${info?.klipper || "–"}</div></div>
+        ${st.printer?.printer_cpu != null && html`<div class="disp-tile disp-mini"><div class="disp-lbl">${t("Printer CPU")}</div>
+          <div class="disp-val" style=${`font-size:17px;color:${st.printer.printer_cpu >= 90 ? "var(--danger-text)" : "var(--text)"}`}>${st.printer.printer_cpu} %</div></div>`}
       </div>
       ${usb?.available && html`<${UsbTile} usb=${usb} />`}
       <div style="flex:1"></div>

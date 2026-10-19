@@ -133,9 +133,13 @@ class Config:
     camera_ingress_snapshots: bool = field(default_factory=lambda: _bool("CAMERA_INGRESS_SNAPSHOTS", True))
     camera_fps_min: float = field(default_factory=lambda: _float("CAMERA_FPS_MIN", 1.0))
     camera_fps_max: float = field(default_factory=lambda: _float("CAMERA_FPS_MAX", 10.0))
-    # Rinkhals: the frame rate follows the printer CPU (GoKlipper and the camera share it); not under Klipper on a Pi
+    # the frame rate follows the printer CPU wherever the bridge can read it (printercpu.py): Rinkhals (GoKlipper and the
+    # camera share it) and a camera on the printer beside Klipper on a Pi (the USB tunnel shares it)
     camera_cpu_low: float = field(default_factory=lambda: _float("CAMERA_CPU_LOW", 90.0))
     camera_cpu_high: float = field(default_factory=lambda: _float("CAMERA_CPU_HIGH", 97.0))
+    # Moonraker on the printer for its CPU while Klipper runs elsewhere: empty = the camera's host on port 7125 (if it
+    # is not the Klipper computer), "off" = never ask
+    printer_cpu_url: str = field(default_factory=lambda: os.environ.get("PRINTER_CPU_URL", "").strip())
     camera_stream_url: str = field(default_factory=lambda: os.environ.get("CAMERA_STREAM_URL", ""))
     camera_snapshot_url: str = field(default_factory=lambda: os.environ.get("CAMERA_SNAPSHOT_URL", ""))
     camera_interval_s: float = field(default_factory=lambda: _float("CAMERA_INTERVAL_S", 1.0))

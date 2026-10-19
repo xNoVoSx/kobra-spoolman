@@ -1,4 +1,5 @@
 {
+ "Printer CPU": "Drucker-CPU",
  "(0–1; suspicious from {low}, failure from {high})": "(0–1; ab {low} verdächtig, ab {high} Fehldruck)",
  "(fully valid from ~7200)": "(gilt ab ~7200 voll)",
  "(quiet hours)": "(Ruhezeit)",
@@ -957,7 +958,7 @@
  "Resume after a power loss": "Fortsetzen nach Stromausfall",
  "Clog detection": "Verstopfung erkennen",
  "experimental": "experimentell",
- "CPU of the printer (Rinkhals) – the bridge keeps its own load on the printer low": "CPU des Druckers (Rinkhals) – die Bridge hält ihre eigene Last auf dem Drucker klein",
+ "CPU of the printer itself (camera, Rinkhals, USB tunnel) – the bridge keeps its own load on the printer low": "CPU des Druckers selbst (Kamera, Rinkhals, USB-Tunnel) – die Bridge hält ihre eigene Last auf dem Drucker klein",
  "CPU {n} %": "CPU {n} %",
  "{rest} of {total} still to print": "noch {rest} von {total} zu drucken",
  "{g} on the spool": "{g} auf der Spule",

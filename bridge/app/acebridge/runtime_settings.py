@@ -49,14 +49,15 @@ SPECS: List[Spec] = [
     Spec("camera", tr("Camera"), tr("Camera through the bridge"), "bool",
          help=tr("Web, app and the Mainsail link fetch their images through the bridge")),
     Spec("camera_stream", tr("Camera"), tr("Continuous stream instead of snapshots"), "bool",
-         help=tr("Full frame rate from the printer's MJPEG stream – only with Klipper on a separate computer. Under "
-                 "Rinkhals it used the whole printer CPU, there the bridge always fetches snapshots by the printer CPU. "
-                 "Takes effect at once. Default: off")),
+         help=tr("Full frame rate from the camera's MJPEG stream – only where the bridge cannot see the printer's CPU. "
+                 "With the camera on the printer (Rinkhals, or beside Klipper on a Pi) one stream used the whole "
+                 "printer CPU, there the bridge always fetches snapshots by the printer CPU. Takes effect at once. "
+                 "Default: off")),
     Spec("camera_fps_min", tr("Camera"), tr("Frame rate at least"), "float", 0.5, 15, "fps"),
     Spec("camera_fps_max", tr("Camera"), tr("Frame rate at most"), "float", 1, 15, "fps"),
-    Spec("camera_cpu_low", tr("Camera"), tr("Faster below printer CPU (Rinkhals)"), "float", 30, 100, "%",
+    Spec("camera_cpu_low", tr("Camera"), tr("Faster below printer CPU"), "float", 30, 100, "%",
          tr("Below it 1 fps more every 5 s, up to the maximum")),
-    Spec("camera_cpu_high", tr("Camera"), tr("Slower above printer CPU (Rinkhals)"), "float", 30, 100, "%",
+    Spec("camera_cpu_high", tr("Camera"), tr("Slower above printer CPU"), "float", 30, 100, "%",
          tr("Above it 1 fps less every 5 s")),
     # print preview
     Spec("render", tr("Print preview"), tr("Load the print file (model, remaining amount)"), "bool",

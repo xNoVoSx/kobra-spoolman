@@ -8,6 +8,22 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.2.0] – 2026-10-19
+
+### Added
+- **Printer CPU with Klipper on a separate computer** (`printercpu.py`): with kobra-klipper's USB tunnel Klipper and
+  Moonraker run on the Pi, but the camera (mjpg-streamer) and the tunnel stay on the printer. Rinkhals keeps its own
+  Moonraker running there; the bridge reads `/machine/proc_stats` from it every 3 s (read only) and shows the printer
+  CPU on the printer card (web, app), the display (*System → Info*), *Status* and in Home Assistant (new sensor
+  *Printer CPU*, `printer_cpu` in the MQTT state). Address: new setting `PRINTER_CPU_URL`, empty = the camera's host on
+  port 7125 (only when that is not the Klipper computer), `off` = never ask.
+
+### Fixed
+- Camera with Klipper on a Pi: a continuous stream (`CAMERA_STREAM=true`) took the printer CPU to 100 % — the docs
+  said the printer CPU was free there, but the camera still runs on the printer, and the USB tunnel shares that CPU.
+  Wherever the printer CPU is known the stream setting is now ignored and snapshots follow the printer CPU, as under
+  Rinkhals (`CAMERA_CPU_LOW` / `CAMERA_CPU_HIGH`).
+
 ## [4.1.0] – 2026-10-19
 
 ### Added

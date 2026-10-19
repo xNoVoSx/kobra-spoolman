@@ -460,7 +460,7 @@ data class Printer(
     /** "klipper" or "rinkhals" (bridge 3.12+); Rinkhals blocks reloading Klipper - switch the printer off and on */
     val platform: String = "klipper",
     @SerialName("can_restart") val canRestart: Boolean = true,
-    // Rinkhals: the printer's own CPU in % (bridge 3.17.0+), else null
+    // the printer's own CPU in % (Rinkhals: bridge 3.17.0+; beside Klipper on a Pi: 4.2.0+), else null
     @SerialName("printer_cpu") val printerCpu: Int? = null,
     /** pause/resume/cancel sent, the printer is still carrying it out (Rinkhals: reheating, unloading). */
     @SerialName("pending_action") val pendingAction: String? = null,

@@ -314,7 +314,7 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
                   platform: str = "klipper", cpu: Optional[float] = None,
                   pending: Optional[Dict[str, Any]] = None, now: Optional[float] = None) -> Dict[str, Any]:
     """State for the app from the bridge's Moonraker subscription (no extra load on the printer).
-    cpu: the printer's own CPU in % (Rinkhals: Moonraker runs on the printer; elsewhere None).
+    cpu: the printer's own CPU in % (printercpu.py: Rinkhals, or the printer's Moonraker beside Klipper; else None).
     pending: pause/resume/cancel sent but not carried out yet (control.pending_action)."""
     ps = status.get("print_stats") or {}
     vsd = status.get("virtual_sdcard") or {}
@@ -355,8 +355,8 @@ def printer_state(status: Dict[str, Dict[str, Any]], connected: bool, klippy_rea
         # web/app offer "reload Klipper" only where that works (Rinkhals blocks it: switch the printer off and on)
         "platform": platform,
         "can_restart": platform != "rinkhals",
-        # Rinkhals: printer CPU (mean over 10 s, Moonraker's own proc_stat - no extra query), else None
-        "printer_cpu": round(cpu) if cpu is not None and platform == "rinkhals" else None,
+        # printer CPU (mean over 10 s; Rinkhals: Moonraker's own proc_stat, beside Klipper: the printer's Moonraker)
+        "printer_cpu": round(cpu) if cpu is not None else None,
         # pause/resume/cancel sent, the printer is still carrying it out (Rinkhals: reheating ~50 s, unloading):
         # web and app show "Resuming …" instead of the buttons
         "pending_action": control.pending_action(pending, state, now if now is not None else time.time()),
@@ -579,7 +579,7 @@ class AppApi:
                 "ui": UI_TAG,
                 "printer": printer_state(b.moon.status, b.moon.connected, b.moon.klippy_ready, active,
                                          getattr(b, "phase_steps", None), getattr(b.moon, "platform", "klipper"),
-                                         b.moon.cpu(10.0) if hasattr(b.moon, "cpu") else None,
+                                         b.printer_cpu.cpu(10.0) if getattr(b, "printer_cpu", None) else None,
                                          getattr(b, "pending_control", None)),
                 "spoolman": b.sm.connected,
                 "can_write": self._device(request) is not None,

@@ -286,6 +286,12 @@ def printer_cpu(bridge: "Bridge") -> Optional[float]:
     return cpu(5.0) if callable(cpu) else None
 
 
+def own_cpu(bridge: "Bridge") -> Optional[float]:
+    """CPU of the printer itself (printercpu.py; under Rinkhals the same as the Klipper CPU), None where unknown."""
+    pc = getattr(bridge, "printer_cpu", None)
+    return pc.cpu(5.0) if pc is not None else None
+
+
 # ====================================================================== status
 def _device_status(bridge: "Bridge", kind: str, label: Any, now: float) -> Optional[Dict[str, Any]]:
     devs = [d for d in bridge.devices.devices if d.get("kind") == kind]
@@ -314,6 +320,10 @@ def status_lines(bridge: "Bridge", now: float) -> List[Dict[str, Any]]:
     if cpu is not None:
         lines.append({"key": "cpu", "label": tr("Klipper CPU"), "detail": f"{cpu:.0f} %",
                       "state": "ok" if cpu < CPU_WARN else "warn" if cpu < CPU_BAD else "bad"})
+    own, pc = own_cpu(bridge), getattr(bridge, "printer_cpu", None)
+    if own is not None and pc is not None and pc.source() == "printer":   # under Rinkhals it is the line above
+        lines.append({"key": "printer_cpu", "label": tr("Printer CPU"), "detail": f"{own:.0f} %",
+                      "state": "ok" if own < CPU_WARN else "warn" if own < CPU_BAD else "bad"})
     lines.append({"key": "spoolman", "label": "Spoolman", "state": "ok" if bridge.sm.connected else "bad",
                   "detail": tr("connected") if bridge.sm.connected else tr("not reachable")})
     cam = bridge.camera.state()
