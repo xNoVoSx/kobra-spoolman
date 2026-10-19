@@ -211,6 +211,7 @@ class Bridge:
             await asyncio.sleep(2)
             try:
                 self.recorder.tick(self.moon.status)
+                await self.moon.heal_late_fields()   # ACE humidity/firmware missing from a frozen subscription
                 await self.usage.tick()
                 await self.slots.evaluate()  # debouncing of the auto release
                 await self.dryer.evaluate()  # automation and temperature safety

@@ -68,6 +68,7 @@ class Moonraker:
         self._wake = asyncio.Event()
         self._sub_ids: set = set()   # open subscribe requests: the reader queues their state (before later changes)
         self._dispatcher: Optional[asyncio.Task] = None
+        self._heal_at = 0.0          # last check of the late fields (heal_late_fields)
 
     # ------------------------------------------------------------------ HTTP
     def _headers(self) -> Dict[str, str]:
@@ -159,6 +160,31 @@ class Moonraker:
             raise ConnectionError(tr("Moonraker not ready"))
         res = await self._call("printer.objects.query", {"objects": objects}, timeout=timeout)
         return (res or {}).get("status") or {}
+
+    async def heal_late_fields(self, interval: float = 60.0, now: Optional[float] = None) -> bool:
+        """Every `interval` s: query the fields that only appear after the ACE connects (acemodel.LATE_FIELDS). If the
+        printer has a value the subscription never delivered, Klipper froze the field list without them - subscribe
+        again (Moonraker then renews its subscription at Klipper) and take the values over. True if it subscribed."""
+        now = time.monotonic() if now is None else now
+        if not self.klippy_ready or now - self._heal_at < interval:
+            return False
+        want = {obj: list(fields) for obj, fields in acemodel.LATE_FIELDS.items() if obj in self.status}
+        if not want:
+            return False
+        self._heal_at = now
+        try:
+            fresh = await self.query(want)
+        except Exception as e:  # noqa: BLE001
+            log.debug("Late fields not queryable: %s", e)
+            return False
+        missed = [f"{obj}.{k}" for obj, vals in fresh.items() for k, v in (vals or {}).items()
+                  if v is not None and (self.status.get(obj) or {}).get(k) is None]
+        if not missed:
+            return False
+        log.warning("Subscription misses %s (field list frozen before the ACE connected) - subscribing again",
+                    ", ".join(missed))
+        await self._subscribe()
+        return True
 
     async def gcode(self, script: str, timeout: float = 15, source: str = "Bridge") -> None:
         """G-code over the existing WebSocket connection.

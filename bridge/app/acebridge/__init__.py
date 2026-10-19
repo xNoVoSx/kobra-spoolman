@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "4.0.2"
+__version__ = "4.0.3"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("4.0.3", "2026-10-19", [
+        tr("ACE humidity and firmware showed “–” after a Klipper restart when Mainsail was open – the bridge now notices and fetches them again within a minute"),
+    ]),
     ("4.0.2", "2026-10-14", [
         tr("Web UI on a phone: a slot card with a long spool name no longer runs over the right edge"),
     ]),

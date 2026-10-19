@@ -72,6 +72,7 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | Status *MQTT / HA* gelb | Broker nicht erreichbar oder Anmeldung abgelehnt – die Zeile nennt den Grund; `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`/`MQTT_PASSWORD` prüfen. Die Bridge versucht es alle 15 s neu. |
 | Home Assistant zeigt kein Gerät *<Druckername> (ace-lane-bridge)* | MQTT-Integration in Home Assistant eingerichtet, Discovery-Präfix `homeassistant` (bzw. gleich `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` darf nicht leer sein. |
 | Status *Raumsensor* gelb | Seit 2 h kein Wert auf `ROOM_SENSOR_TOPIC` – Themenname (z. B. in Zigbee2MQTT) prüfen und ob die Nachricht `humidity` enthält. Bis dahin rechnet die Bridge mit `ROOM_RH`. |
+| ACE-Feuchte oder -Firmware zeigt nach einem Drucker-Neustart *–* | Seit 4.0.3 merkt die Bridge das innerhalb einer Minute und meldet sich neu an (Log: *Subscription misses …*). Ältere Versionen: Bridge neu starten, sobald die ACE verbunden ist. |
 | Spule sagt *trocknen empfohlen*, ist aber trocken | Die Schätzung weiß nicht, wie die Spule vorher gelagert war. Einmal trocknen (oder *Außerhalb getrocknet …* auf der Spulenkarte); neue Spulen gelten nur als feucht, wenn *Neue Spulen zuerst trocknen* an ist. |
 
 ## Nützliche Befehle

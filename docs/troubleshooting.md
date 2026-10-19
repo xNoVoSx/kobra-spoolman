@@ -72,6 +72,7 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | Status *MQTT / HA* yellow | The broker is unreachable or refuses the login — the line shows the reason; check `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`/`MQTT_PASSWORD`. The bridge retries every 15 s. |
 | Home Assistant shows no *<printer name> (ace-lane-bridge)* device | MQTT integration in Home Assistant set up, discovery prefix `homeassistant` (or the same as `MQTT_DISCOVERY`)? `MQTT_DISCOVERY` must not be empty. |
 | Status *Room sensor* yellow | No value for 2 h on `ROOM_SENSOR_TOPIC` — check the topic name (e.g. in Zigbee2MQTT) and that the payload has `humidity`. Until then the bridge uses `ROOM_RH`. |
+| ACE humidity or firmware shows *–* after a printer restart | Since 4.0.3 the bridge notices it within a minute and subscribes again (log: *Subscription misses …*). Older versions: restart the bridge once the ACE is connected. |
 | A spool says *drying recommended* but it is dry | The estimate cannot know how the spool was stored before. Dry it once (or *Dried elsewhere …* on the spool card); new spools count as wet only if *Dry new spools first* is on. |
 
 ## Useful commands

@@ -9,6 +9,7 @@
  "ACE drying": "ACE trocknet",
  "ACE humidity": "ACE Feuchte",
  "ACE humidity and firmware were missing after a printer restart when the ACE connected later than Klipper": "ACE-Feuchte und Firmware fehlten nach einem Neustart des Druckers, wenn die ACE später verbunden war als Klipper",
+ "ACE humidity and firmware showed “–” after a Klipper restart when Mainsail was open – the bridge now notices and fetches them again within a minute": "ACE-Feuchte und -Firmware zeigten nach einem Klipper-Neustart bei offenem Mainsail „–“ – die Bridge merkt das jetzt und holt sie innerhalb einer Minute wieder",
  "ACE not connected": "ACE nicht verbunden",
  "ACE page: dryer, resume, clog and USB tunnel on the left, ACE and pressure advance on the right": "ACE-Seite: Trockner, Fortsetzen, Verstopfung und USB-Tunnel links, ACE und Pressure Advance rechts",
  "ACE reports the slot as empty": "ACE meldet den Slot als leer",

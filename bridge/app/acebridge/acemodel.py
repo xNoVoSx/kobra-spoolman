@@ -37,6 +37,11 @@ SUBSCRIBE = {
                        "feed_assist_count", "feed_assist_slot", "cont_assist_time", "rfid_sync_enabled", "firmware",
                        "model", "protocol", "instance", "usb_port", "usb_path"],
 }
+# Fields the ACE driver only reports once the ACE is connected. Explicit fields alone do not protect them: Moonraker
+# subscribes Klipper with the union of all clients, and a client asking for all fields (Mainsail) turns it into None
+# again - Klipper then freezes the list without them (2026-10-19: humidity "–" after SAVE_CONFIG with Mainsail open).
+# moonraker.heal_late_fields() queries them and subscribes again when the subscription misses them.
+LATE_FIELDS = {"ace_instance_0": ("humidity", "firmware")}
 # Rinkhals: mmu is added to every status by Rinkhals anyway; filament_hub is GoKlipper's own object (not in
 # objects/list, but subscribable - bridge 2.x ran with it for weeks)
 SUBSCRIBE_RINKHALS = {"mmu": None, "filament_hub": None}

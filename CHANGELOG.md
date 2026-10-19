@@ -8,6 +8,15 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.0.3] – 2026-10-19
+
+### Fixed
+- ACE humidity and firmware showed *–* after a Klipper restart (e.g. `SAVE_CONFIG`) while Mainsail was open. The ACE
+  driver reports them only once the ACE is connected; Moonraker subscribes Klipper with the union of all clients, and
+  Mainsail asks for all fields, so Klipper froze the field list without them – the bridge's explicit field list from
+  3.13 could not prevent that. The bridge now queries these fields once a minute and subscribes again when the
+  subscription misses a value the printer has.
+
 ### Documentation
 - README: orca-kobra now carries three patches; the first-layer temperatures in the G-code header are in Orca itself
   since [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422).
