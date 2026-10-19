@@ -168,7 +168,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     camera = { vm.cameraStream() },
                     viewerUrl = vm.viewerUrl(vm.connection.collectAsState().value, vm.render3d.collectAsState().value),
                     onPrintAction = { action, done -> vm.printAction(action, done) },
-                    onTune = { tuneOpen = true })
+                    onTune = { tuneOpen = true },
+                    onDirectOff = { vm.direct(false) })
             }
             composable("notices") { NoticesScreen(state, padding, onRefresh = { vm.refreshNow() }) }
             composable("filament") {
@@ -306,6 +307,13 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     }
                     state?.resume?.let { r -> PowerlossSwitch(r) { vm.resumeSwitch(it) } }
                     state?.clog?.let { c -> ClogSwitch(c, { vm.clogSwitch(enabled = it) }, { vm.clogSwitch(action = it) }) }
+                    state?.let { st -> st.direct?.let { d -> st to d } }?.let { (st, d) ->
+                        DirectSection(d, allSpools(st.slots.mapNotNull { s -> s.spool } + st.shelf),
+                            aceLoadedSlot = st.slots.firstOrNull { s -> s.ace.active }?.slot,
+                            printing = st.printer.state in setOf("printing", "paused"), canWrite = st.canWrite) { on, id, unload ->
+                            dryerOpen = false; vm.direct(on, id, unload)
+                        }
+                    }
                     state?.usb?.let { u -> UsbSection(u) { key, v -> vm.setSwitch(key, v) } }
                 })
         }

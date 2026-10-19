@@ -260,9 +260,31 @@ where it stopped, slower for the first minute. If the probed height does not fit
 
 With the Klipper module `kobra_clog` (not part of this repo) the printer compares, while printing, how much filament
 the extruder fed with what the encoder at the filament inlet saw. If the encoder sees far too little twice in a row,
-the overview and the app show **Clog?** with the numbers — check the nozzle and the filament path. By default it
-only warns; ACE page → *Detect clogs* switches it off or to *Pause print*. Tool changes are not checked (the ACE
-moves the filament itself).
+the overview and the app show **Clog?** with the numbers — check the nozzle and the filament path. ACE page →
+*Detect clogs* switches it off and sets the reaction: *Log only* (only the printer's log, the module's default),
+*Warn only* or *Pause print*. Tool changes are not checked (the ACE moves the filament itself), nor is direct feed.
+
+## Direct feed (filament straight into the toolhead)
+
+*Klipper only — needs the Klipper module `kobra_direct` on the printer (not part of this repo).*
+
+For filament that should not go through the ACE — TPU, for example — you insert it by hand straight into the
+toolhead. **ACE page → Direct feed → Switch on …** (app: ACE sheet, also on the printer display) asks which spool you
+insert, and whether the ACE filament still in the head should be unloaded first (the head heats up over the waste
+chute). Then insert the filament into the toolhead.
+
+While it is on:
+
+- a **red bar** on every page (web, app home screen, printer display, Mainsail) — it stays on until you switch it off,
+  also after a restart;
+- the print start loads nothing from the ACE, primes briefly and refuses to start without filament at the toolhead
+  sensor; the toolhead sensor pauses when the filament runs out;
+- the consumption is booked on the chosen spool (no open item), Auto PA and the Z offset come from its filament;
+- the ACE stays on: drying, humidity and slots work as usual;
+- a file that uses more than one filament is paused at once with a message — multi-colour only works through the ACE.
+
+In Orca nothing changes: pick the profile of the inserted filament in any slot. **Switch off** (red bar, ACE page or
+display) returns to printing through the ACE; not possible during a print.
 
 ## Z offset per filament
 
@@ -325,7 +347,8 @@ print. Assign a spool (the bridge then tells the ACE its material) or set it on 
 
 ## Open items
 
-If a slot without an assigned spool was used, or its spool was deleted, the consumption is kept as
+If a slot without an assigned spool was used (or a print without the ACE and without
+[direct feed](#direct-feed-filament-straight-into-the-toolhead)), or its spool was deleted, the consumption is kept as
 an **open item** (card *Open bookings*, badge on *Prints*). Press **Book**, pick the spool, or
 **Discard**. If Spoolman was unreachable, bookings are retried automatically.
 

@@ -27,6 +27,7 @@ from .spoolman import extra_value
 from .storage import save_json
 
 if TYPE_CHECKING:
+    from .direct import DirectFeed
     from .config import Config
     from .moonraker import Moonraker
     from .slots import SlotManager
@@ -97,6 +98,7 @@ def _fmt(vals: List[float], nd: int) -> str:
 class PaSync:
     def __init__(self, cfg: "Config", moon: "Moonraker", sm: "Spoolman", slots: "SlotManager"):
         self.cfg, self.moon, self.sm, self.slots = cfg, moon, sm, slots
+        self.direct: Optional["DirectFeed"] = None    # set by the bridge (direct.py)
         self.pushed: Dict[int, str] = {}           # T -> last KOBRA_PA_SET sent
         self.push = GcodePush(moon, tr("Auto PA"))  # at most one request in flight (the print start holds Klipper)
         self.events: List[Dict[str, Any]] = []     # {"at", "level", "text"} for the messages
@@ -123,6 +125,8 @@ class PaSync:
     def desired(self) -> Dict[int, str]:
         """Per tool T (slot - 1) the KOBRA_PA_SET command for the current Spoolman state."""
         assigned, _ = self.slots.assignments()
+        if self.direct is not None:
+            assigned = self.direct.per_tool(assigned)     # direct feed: the direct spool for every tool
         out = {}
         for slot in range(1, 5):
             t = slot - 1
@@ -256,7 +260,7 @@ class PaSync:
         return self.view()
 
     def calibrate(self, slot: int) -> None:
-        """Start a manual measurement (runs ~2 min in the background; the result arrives through the status)."""
+        """Start a manual measurement (runs ~5 min in the background; the result arrives through the status)."""
         import asyncio
         kp = self.klipper
         if kp is None:

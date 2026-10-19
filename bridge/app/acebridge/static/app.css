@@ -450,3 +450,10 @@ table.tbl td.n { max-width: min(30vw, 15em); overflow: hidden; text-overflow: el
 .hum-session { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); display: flex; flex-direction: column; gap: 4px; }
 .set-text { width: min(320px, 50vw); }
 .set-time { width: 120px; }
+
+/* direct feed (direct.js): red bar on every page while it is on */
+.direct-bar { display: flex; align-items: center; gap: 10px; margin: 0 24px 4px; padding: 10px 14px; border-radius: var(--r-sm);
+  border: 1px solid var(--danger-line); background: var(--danger-soft); color: var(--danger-text); font-size: 14px; }
+.direct-bar .btn { flex: none; }
+.card.direct-on { border-color: var(--danger-line); }
+@media (max-width: 720px) { .direct-bar { margin: 0 12px 4px; flex-wrap: wrap; } }

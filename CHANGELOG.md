@@ -8,7 +8,22 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
-## [4.0.3] – 2026-10-19
+## [4.1.0] – 2026-10-19
+
+### Added
+- **Direct feed** — filament inserted by hand straight into the toolhead (e.g. TPU) while the ACE stays on and
+  connected (drying, slots). Switched in the web UI (*ACE* page), the app (ACE sheet), the printer display or
+  `POST /api/direct` with the spool you inserted; it stays on until switched off and shows a **red bar** on every page
+  (web, app home screen, display) and in Mainsail. While it is on the bridge books the consumption on that spool (no
+  open item), gives its Auto PA and Z offset for every tool, and the print start check compares the file with it — a
+  multi-colour file is paused at once with a message. Needs kobra-klipper's `kobra_direct` module (Klipper + ACEPRO);
+  without it nothing changes. `direct` in `/api/app/state`, `GET/POST /api/direct`. The same request came from a user
+  on Discord (book a direct-feed spool without an open item).
+- Clog detection: *Log only* as a third reaction (web, app, `POST /api/clog/switch` with `"action": "log"`) — kobra-
+  klipper's default since 18.10.
+
+### Changed
+- Auto PA texts: a measurement now takes ~5 minutes (each step is pushed three times and the median taken — kobra-klipper).
 
 ### Fixed
 - ACE humidity and firmware showed *–* after a Klipper restart (e.g. `SAVE_CONFIG`) while Mainsail was open. The ACE
@@ -108,6 +123,13 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.19.0 – 2026-10-19
+
+### Added
+- Direct feed: red bar on the home screen while it is on (with *Switch off*), section in the ACE sheet to switch it on
+  with the spool you inserted (optionally unloading the ACE filament first).
+- Clog detection: *Log only*.
 
 ## app 1.18.0 – 2026-10-14
 

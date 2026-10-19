@@ -2,14 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "4.0.3"
+__version__ = "4.1.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
-    ("4.0.3", "2026-10-19", [
+    ("4.1.0", "2026-10-19", [
+        tr("Direct feed: filament by hand straight in the toolhead (e.g. TPU) while the ACE stays on – switched on the ACE page, in the app or on the display with the spool you inserted; red bar while it is on, consumption, PA and Z offset from that spool"),
+        tr("Clog detection: “Log only” as a third reaction"),
         tr("ACE humidity and firmware showed “–” after a Klipper restart when Mainsail was open – the bridge now notices and fetches them again within a minute"),
     ]),
     ("4.0.2", "2026-10-14", [

@@ -7,6 +7,7 @@ import { lang, t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { CameraDialog } from "./media.js";
 import { TuneDialog } from "./control.js";
+import { DirectOn } from "./direct.js";
 import { S, closeDialog, loadCatalog, toast } from "./store.js";
 import { cls, grams, hex, num, parseNum, title } from "./util.js";
 
@@ -276,7 +277,7 @@ function BugReport() {
     </div></${Dialog}>`;
 }
 
-const KINDS = { bugReport: BugReport, confirm: Confirm, assign: Assign, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
+const KINDS = { bugReport: BugReport, confirm: Confirm, assign: Assign, directOn: DirectOn, newSpool: NewSpool, dryerStart: DryerStart, dryerRules: DryerRules, dryerPlan: DryerPlan,
   bookOpen: BookOpen, copyFilament: CopyFilament, addDevice: AddDevice, camera: CameraDialog, tune: TuneDialog };
 
 export function Dialogs() {

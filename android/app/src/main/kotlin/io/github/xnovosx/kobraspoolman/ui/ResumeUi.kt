@@ -73,7 +73,7 @@ fun PowerlossSwitch(r: ResumeState, onSwitch: (Boolean) -> Unit) {
     }
 }
 
-/** Switch in the ACE sheet: clog detection on/off, on suspicion only warn or pause. */
+/** Switch in the ACE sheet: clog detection on/off, on suspicion only log, warn or pause. */
 @Composable
 fun ClogSwitch(c: ClogState, onSwitch: (Boolean) -> Unit, onAction: (String) -> Unit) {
     if (!c.present) return
@@ -89,7 +89,7 @@ fun ClogSwitch(c: ClogState, onSwitch: (Boolean) -> Unit, onAction: (String) -> 
     if (c.enabled == true) {
         Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(tr("On suspicion"), style = MaterialTheme.typography.bodySmall, color = K.Muted)
-            Segmented(listOf("warn" to tr("Warn only"), "pause" to tr("Pause")), c.action ?: "warn") {
+            Segmented(listOf("log" to tr("Log only"), "warn" to tr("Warn only"), "pause" to tr("Pause")), c.action ?: "warn") {
                 if (it != c.action) onAction(it)
             }
         }

@@ -238,9 +238,32 @@ druckt an der Stelle weiter, die erste Minute langsamer. Passt die getastete Hö
 
 Mit dem Klipper-Modul `kobra_clog` (nicht Teil dieses Repos) vergleicht der Drucker im Druck, wie viel Filament der
 Extruder gefördert hat, mit dem, was der Encoder am Filament-Eingang gesehen hat. Sieht der Encoder zweimal hintereinander
-viel zu wenig, zeigen Übersicht und App **Verstopfung?** mit den Zahlen – Düse und Filamentweg prüfen. Standard ist nur
-warnen; ACE-Seite → *Verstopfung erkennen* schaltet es aus oder auf *Pausieren*. Werkzeugwechsel werden nicht geprüft (dort
-bewegt die ACE das Filament selbst).
+viel zu wenig, zeigen Übersicht und App **Verstopfung?** mit den Zahlen – Düse und Filamentweg prüfen. ACE-Seite →
+*Verstopfung erkennen* schaltet es aus und legt die Reaktion fest: *Nur protokollieren* (nur ins Protokoll des Druckers,
+Standard des Moduls), *Nur warnen* oder *Pausieren*. Werkzeugwechsel werden nicht geprüft (dort bewegt die ACE das
+Filament selbst), der Direkteinzug auch nicht.
+
+## Direkteinzug (Filament direkt in den Druckkopf)
+
+*Nur Klipper – braucht das Klipper-Modul `kobra_direct` am Drucker (nicht Teil dieses Repos).*
+
+Filament, das nicht durch die ACE soll – zum Beispiel TPU –, legst du von Hand direkt in den Druckkopf ein.
+**ACE-Seite → Direkteinzug → Einschalten …** (App: ACE-Blatt, auch am Display des Druckers) fragt, welche Spule du
+einlegst und ob das ACE-Filament, das noch im Kopf steckt, vorher entladen werden soll (der Kopf heizt dafür über dem
+Abfallkanal auf). Danach das Filament in den Druckkopf einlegen.
+
+Solange er an ist:
+
+- eine **rote Leiste** auf jeder Seite (Web, Startseite der App, Display des Druckers, Mainsail) – er bleibt an, bis du
+  ihn ausschaltest, auch über einen Neustart;
+- der Druckstart lädt nichts aus der ACE, fördert kurz nach und startet nicht ohne Filament am Kopf-Sensor; geht das
+  Filament aus, pausiert der Kopf-Sensor;
+- der Verbrauch wird auf die gewählte Spule gebucht (kein offener Posten), Auto-PA und Z-Versatz kommen von ihrem Filament;
+- die ACE bleibt an: Trocknen, Feuchte und Slots wie immer;
+- eine Datei mit mehr als einem Filament wird sofort mit Meldung pausiert – mehrfarbig geht nur über die ACE.
+
+In Orca ändert sich nichts: das Profil des eingelegten Filaments in irgendeinem Slot wählen. **Ausschalten** (rote
+Leiste, ACE-Seite oder Display) druckt wieder über die ACE; während eines Drucks nicht möglich.
 
 ## Z-Versatz pro Filament
 
@@ -331,7 +354,8 @@ Druck abbrechen. Spule zuordnen (die Bridge gibt der ACE dann das Material) oder
 
 ## Offene Posten
 
-Wurde ein Slot ohne zugeordnete Spule benutzt oder seine Spule gelöscht, bleibt der Verbrauch als
+Wurde ein Slot ohne zugeordnete Spule benutzt (oder ohne ACE gedruckt, aber ohne
+[Direkteinzug](#direkteinzug-filament-direkt-in-den-druckkopf)) oder seine Spule gelöscht, bleibt der Verbrauch als
 **offener Posten** stehen (Karte *Offene Buchungen*, Zahl bei *Drucke*). **Buchen** drücken und die
 Spule wählen, oder **Verwerfen**. War Spoolman nicht erreichbar, holt die Bridge die Buchung selbst nach.
 

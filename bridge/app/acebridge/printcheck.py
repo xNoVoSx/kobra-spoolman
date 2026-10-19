@@ -6,6 +6,10 @@ damp (moisture.py)? Whether the remaining amount is enough, status.spool_reach c
 
 The result is messages (red = alarm on the phone). With wet_print_action = pause the bridge pauses a print that starts
 with a damp spool - once per print, only in the first minutes.
+
+Direct feed (direct.py): the ACE is passed by - the file is compared with the direct spool instead of the slots. A file
+that uses more than one tool cannot print that way: alarm, and the bridge pauses it at once (Klipper would pause at
+the first colour change anyway - this catches it at the start).
 """
 
 from __future__ import annotations
@@ -53,7 +57,11 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
         return []
     assigned, _ = bridge.slots.assignments()
     out: List[Dict[str, Any]] = []
-    for tool in sorted(t for t, mm in m.e_total.items() if mm > 1):
+    tools = sorted(t for t, mm in m.e_total.items() if mm > 1)
+    direct = getattr(bridge, "direct", None)
+    if direct is not None and direct.active:
+        return _check_direct(bridge, m, tools)
+    for tool in tools:
         gate = acemodel.tool_slot(bridge.moon.status, tool)   # ACEPRO: T<n> = slot n+1; Rinkhals: its ttg_map
         slot = gate + 1
         ace = bridge.slots.ace_gate(gate)
@@ -93,8 +101,36 @@ def check(bridge: "Bridge") -> List[Dict[str, Any]]:
     return out
 
 
+def _check_direct(bridge: "Bridge", m: Any, tools: List[int]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    if len(tools) > 1:
+        out.append({"slot": None, "tool": None, "kind": "direct_multi", "level": "error",
+                    "text": tr("Print start check: direct feed is on, but the file uses {n} filaments – multi-colour "
+                               "only works through the ACE. The print is paused – cancel it.", n=len(tools))})
+    spool = bridge.direct.spool()
+    fil = (spool or {}).get("filament") or {}
+    for tool in tools[:1]:
+        want_type = base_type(m.types[tool]).upper() if tool < len(m.types) and m.types[tool] else ""
+        have_type = base_type(fil.get("material") or "").upper()
+        if want_type and have_type and want_type != have_type:
+            out.append({"slot": None, "tool": tool, "kind": "material", "level": "error",
+                        "text": tr("Print start check: direct feed – the file wants {want}, the direct spool is {have}",
+                                   want=want_type, have=have_type)})
+        if spool:
+            mv = bridge.moisture.view(spool)
+            if mv["needs_drying"]:
+                why = (tr("new, history unknown") if mv["score"] is None
+                       else tr("moisture estimate {score} %", score=mv["score"]))
+                out.append({"slot": None, "tool": tool, "kind": "wet", "level": "error",
+                            "text": tr("Print start check: direct feed – {name} probably damp ({why}), dry ~{h:g} h "
+                                       "first", name=fil.get("name") or tr("spool"), why=why,
+                                       h=float(mv["hours_needed"]))})
+    return out
+
+
 class PrintGuard:
-    """Pauses once per print when a damp spool is needed and wet_print_action = pause."""
+    """Pauses once per print: a damp spool is needed and wet_print_action = pause, or direct feed with a multi-colour
+    file."""
 
     def __init__(self, bridge: "Bridge", clock=time.time):
         self.bridge = bridge
@@ -111,17 +147,23 @@ class PrintGuard:
             if st == "printing" and self._state not in ("printing", "paused"):
                 self.started_at = self.clock()
             self._state = st
-        if st != "printing" or b.cfg.wet_print_action != "pause" or self.started_at is None:
+        if st != "printing" or self.started_at is None:
             return
         job = f"{ps.get('filename')}:{self.started_at}"
         if job == self.acted_job or self.clock() - self.started_at > PAUSE_WINDOW_S:
             return
-        wet = [i for i in check(b) if i["kind"] == "wet"]
-        if not wet:
+        problems = check(b)
+        multi = [i for i in problems if i["kind"] == "direct_multi"]
+        wet = [i for i in problems if i["kind"] == "wet"]
+        if multi:
+            why, items = tr("PAUSE (direct feed, several filaments)"), multi
+        elif wet and b.cfg.wet_print_action == "pause":
+            why, items = tr("PAUSE (damp spool)"), wet
+        else:
             return
         self.acted_job = job
         try:
-            await b.moon.action("printer.print.pause", tr("PAUSE (damp spool)"), source=tr("Print start check"))
-            log.warning("Print paused: %s", "; ".join(i["text"] for i in wet))
+            await b.moon.action("printer.print.pause", why, source=tr("Print start check"))
+            log.warning("Print paused: %s", "; ".join(i["text"] for i in items))
         except Exception as e:  # noqa: BLE001
-            log.error("Pause for a damp spool failed: %s", e)
+            log.error("Pause at the print start check failed: %s", e)

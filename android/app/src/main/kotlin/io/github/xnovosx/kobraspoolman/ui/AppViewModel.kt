@@ -262,6 +262,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun direct(enable: Boolean, spoolId: Int? = null, unload: Boolean = false) = launchSafe {
+        if (enable && unload) _messages.send(tr("Unloading the ACE filament – this takes a minute"))
+        it.direct(enable, spoolId, unload)
+        _messages.send(if (enable) tr("Direct feed on – insert the filament into the toolhead") else tr("Direct feed off – printing through the ACE again"))
+        refresh()
+    }
+
     fun clogSwitch(enabled: Boolean? = null, action: String? = null) = launchSafe {
         it.clogSwitch(enabled, action)
         refresh()
@@ -279,7 +286,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun paCalibrate(slot: Int) = launchSafe {
         it.paCalibrate(slot)
-        _messages.send(tr("PA measurement running – result in ~2 minutes"))
+        _messages.send(tr("PA measurement running – result in ~5 minutes"))
         refresh()
     }
 

@@ -13,6 +13,7 @@ import { FeaturesPage, SetupPage } from "./features.js";
 import { LogsPage, TerminalPage } from "./terminal.js";
 import { S, guard, loadHealth, loadJobs, loadSpools, loadState, openDialog, set, useStore } from "./store.js";
 import { cls, printerLook } from "./util.js";
+import { DirectBanner } from "./direct.js";
 
 const PAGES = {
   "": { title: t("Overview"), icon: "overview", C: Overview },
@@ -169,6 +170,7 @@ function App() {
     <${Rail} page=${page} />
     <div class="main">
       <${TopBar} page=${page} ultra=${ultra} />
+      <${DirectBanner} />
       <main class=${cls("content", (P.fill || isUltraOverview) && "fill")}>${isUltraOverview || P.fill ? html`<${C} />` : html`<${C} />`}</main>
       <${BottomNav} page=${page} />
     </div>

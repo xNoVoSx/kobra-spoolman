@@ -32,9 +32,9 @@ export function PaCard() {
   });
   const measure = (s) => openDialog("confirm", {
     title: t("Measure PA for slot {slot}?", { slot: s.slot }), ok: t("Measure"), back: t("Back"),
-    text: t("{name}: the printer moves to the purge position, heats to printing temperature and pushes about 120 mm into the waste chute (~2 minutes). The result goes to Spoolman.",
+    text: t("{name}: the printer moves to the purge position, heats to printing temperature and pushes filament into the waste chute several times (~5 minutes). The result goes to Spoolman.",
       { name: s.name || t("Filament") }),
-    action: () => call("/api/pa/calibrate", { slot: s.slot }, t("Measuring – the result arrives in ~2 minutes")),
+    action: () => call("/api/pa/calibrate", { slot: s.slot }, t("Measuring – the result arrives in ~5 minutes")),
   });
   const forget = (s) => openDialog("confirm", {
     title: t("Discard PA?"), ok: t("Discard"), back: t("Back"),
@@ -54,7 +54,7 @@ export function PaCard() {
       : t("Auto PA is not set up in Klipper (module kobra_pa) or Klipper is not ready.")}</div>` : html`
       <${Toggle} label=${t("Auto PA")} hint=${t("Apply PA per speed from Spoolman; off = Klipper takes the PA from Orca")}
                  value=${pa.enabled} disabled=${busy} onChange=${(v) => call("/api/pa/switch", { enabled: v })} />
-      <${Toggle} label=${t("Measure automatically")} hint=${t("If a filament has no PA yet, the printer measures at print start or colour change (~2 min)")}
+      <${Toggle} label=${t("Measure automatically")} hint=${t("If a filament has no PA yet, the printer measures at print start or colour change (~5 min)")}
                  value=${pa.auto} disabled=${busy || !pa.enabled} onChange=${(v) => call("/api/pa/switch", { auto: v })} />
       ${!pa.patched && html`<div class="small" style="color:var(--accent-text)">${t("Klipper without the auto PA patch: fixed PA only, measuring does not work (kobra-klipper deploy).")}</div>`}
       ${!pa.sync && html`<div class="small" style="color:var(--accent-text)">${t("The connection to Spoolman is off (Settings → Pressure advance) – Klipper gets no values.")}</div>`}

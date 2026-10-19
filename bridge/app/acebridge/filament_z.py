@@ -16,6 +16,7 @@ from .profiles import find_template
 from .spoolman import extra_value
 
 if TYPE_CHECKING:
+    from .direct import DirectFeed
     from .config import Config
     from .moonraker import Moonraker
     from .slots import SlotManager
@@ -39,11 +40,14 @@ def filament_z(fil: dict, templates: list) -> float:
 class FilamentZSync:
     def __init__(self, cfg: "Config", moon: "Moonraker", sm: "Spoolman", slots: "SlotManager"):
         self.cfg, self.moon, self.sm, self.slots = cfg, moon, sm, slots
+        self.direct: Optional["DirectFeed"] = None    # set by the bridge (direct.py)
         self.pushed: Optional[List[float]] = None
         self.push = GcodePush(moon, tr("Z offset"))  # at most one request in flight (the print start holds Klipper)
 
     def desired(self) -> List[float]:
         assigned, _ = self.slots.assignments()
+        if self.direct is not None:
+            assigned = self.direct.per_tool(assigned)     # direct feed: the direct spool for every tool
         templates = self.sm.templates()
         out = []
         for slot in range(1, 5):

@@ -31,6 +31,8 @@ data class AppState(
     val clog: ClogState? = null,
     /** USB tunnel watchdog on the Klipper computer (bridge >= 3.11.0) - null without a watchdog */
     val usb: UsbState? = null,
+    /** Direct feed: filament by hand in the toolhead, the ACE passed by (bridge >= 4.1.0) - null with older bridges */
+    val direct: DirectState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -295,11 +297,23 @@ data class UsbState(
 @Serializable
 data class UsbEvent(val at: Long = 0, val text: String = "")
 
+/** Direct feed (bridge direct.py, Klipper kobra_direct). */
+@Serializable
+data class DirectState(
+    val available: Boolean = false,
+    val active: Boolean = false,
+    @SerialName("spool_id") val spoolId: Int? = null,
+    val label: String? = null,
+    val material: String? = null,
+    val color: String? = null,
+    val tool: Int? = null,
+)
+
 @Serializable
 data class ClogState(
     val present: Boolean = false,
     val enabled: Boolean? = null,
-    /** warn or pause */
+    /** log, warn or pause */
     val action: String? = null,
     val available: Boolean? = null,
     val suspect: Boolean = false,

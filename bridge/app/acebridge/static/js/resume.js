@@ -116,7 +116,7 @@ export function ClogCard() {
       value=${c.enabled} disabled=${busy} onChange=${(v) => set({ enabled: v })} />
     <div class="row wrap" style="gap:8px;align-items:center">
       <span class="small">${t("On suspicion")}</span>
-      <div class="seg">${opt("warn", t("Warn only"))}${opt("pause", t("Pause print"))}</div></div>
+      <div class="seg">${opt("log", t("Log only"))}${opt("warn", t("Warn only"))}${opt("pause", t("Pause print"))}</div></div>
     ${c.available === false && html`<div class="small" style="color:var(--danger-text)">${t("No encoder found – detection inactive")}</div>`}
     ${c.last_ratio != null && html`<div class="small faint">${t("Last measured: {pct} % (limit {min} %)", { pct: Math.round(100 * c.last_ratio), min: Math.round(100 * (c.min_ratio || 0)) })}${c.alarms
       ? " · " + t("{n}× suspicion since Klipper start", { n: c.alarms }) : ""}</div>`}

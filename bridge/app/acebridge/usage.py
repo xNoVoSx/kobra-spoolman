@@ -16,6 +16,9 @@ change), under Rinkhals the firmware's purge is in the counter as well (real pri
   later in the web UI.
 - everything is in data/usage/state.json; if the bridge restarts in the middle of a print, it continues at the
   saved counter.
+- direct feed (direct.py, Klipper kobra_direct): the ACE is passed by - consumption goes to the tool the print uses
+  (kobra_direct.tool, so the comparison with the G-code still fits) and is booked on the direct spool, not on the
+  spool in that slot. The bucket is marked "direct".
 """
 
 from __future__ import annotations
@@ -37,6 +40,7 @@ from .i18n import tr
 from .storage import save_json, save_lines
 
 if TYPE_CHECKING:
+    from .direct import DirectFeed
     from .purge import PurgeModel
     from .moonraker import Moonraker
     from .slots import SlotManager
@@ -98,6 +102,7 @@ class UsageTracker:
         self.open: List[Dict[str, Any]] = []
         self.history: List[Dict[str, Any]] = []
         self.purge: Optional["PurgeModel"] = None    # set by the bridge (purge model of the firmware, Rinkhals)
+        self.direct: Optional["DirectFeed"] = None   # set by the bridge (direct feed, direct.py)
         self._load()
 
     # ================================================================== Persistenz
@@ -203,7 +208,19 @@ class UsageTracker:
             log.error("Writing the journal failed: %s", e)
 
     # ================================================================== helpers
+    @property
+    def _direct_on(self) -> bool:
+        return self.direct is not None and self.direct.active
+
+    def _seen(self, status: Dict[str, Dict[str, Any]]) -> Optional[int]:
+        """Consuming slot (0-based): the ACE driver's - in direct feed the tool the print uses."""
+        if self._direct_on:
+            return self.direct.tool
+        return acemodel.consuming_slot(status)
+
     def _spool_for_gate(self, gate: int) -> Optional[int]:
+        if self._direct_on:
+            return self.direct.spool_id
         assigned, _ = self.slots.assignments()
         spool = assigned.get(gate + 1)
         return spool.get("id") if spool else None
@@ -230,6 +247,10 @@ class UsageTracker:
         return f"#{spool_id} {vendor} {fil.get('name') or ''}".strip()
 
     def _ace_info(self, gate: int) -> Dict[str, Any]:
+        if self._direct_on:
+            fil = (self.direct.spool() or {}).get("filament") or {}
+            return {"material": fil.get("material"), "color": fil.get("color_hex"), "name": self.direct.label(),
+                    "direct": True}
         a = self.slots.ace_gate(gate)
         return {"material": a.get("material"), "color": a.get("color"), "name": a.get("name")}
 
@@ -275,11 +296,12 @@ class UsageTracker:
     def _bucket(self, gate: int) -> Dict[str, Any]:
         assert self.job is not None
         spool_id = self._spool_for_gate(gate)
-        key = f"{gate}:{spool_id or '-'}"
+        direct = self._direct_on
+        key = f"{gate}:{spool_id or '-'}" + (":direct" if direct else "")
         b = self.job["buckets"].get(key)
         if b is None:
             b = {"gate": gate, "spool_id": spool_id, "mm": 0.0, "booked_mm": 0.0, "last_book": 0.0,
-                 "ace": self._ace_info(gate)}
+                 "ace": self._ace_info(gate), "direct": direct}
             self.job["buckets"][key] = b
         return b
 
@@ -411,8 +433,8 @@ class UsageTracker:
             # order: first give the consumption to the slot known so far, then update the slot
             if "filament_used" in ps_d and isinstance(ps_d["filament_used"], (int, float)):
                 self._consume(ps_d["filament_used"])
-            if acemodel.touches(delta):
-                self._observe_gate(acemodel.consuming_slot(status), now, acemodel.flickers(status))
+            if acemodel.touches(delta) or "kobra_direct" in delta or self._direct_on:
+                self._observe_gate(self._seen(status), now, acemodel.flickers(status) and not self._direct_on)
             self._settle(now)
 
             if state not in PRINTING_STATES:
@@ -440,7 +462,8 @@ class UsageTracker:
                          self.job["file"], gap)
                 self._journal("resume", job=self.job["id"], gap_mm=round(gap, 1))
             self._consume(used)
-            self._observe_gate(acemodel.consuming_slot(status), time.monotonic(), acemodel.flickers(status))
+            self._observe_gate(self._seen(status), time.monotonic(),
+                               acemodel.flickers(status) and not self._direct_on)
             if not printing:
                 await self._finish(state or "ended")
         else:
@@ -603,6 +626,8 @@ class UsageTracker:
         for b in job["buckets"].values():
             s = per_slot.setdefault(b["gate"], {"slot": b["gate"] + 1, "gate": b["gate"], "mm": 0.0, "g": 0.0,
                                                 "spools": [], "open_mm": 0.0})
+            if b.get("direct"):
+                s["direct"] = True             # direct feed: the ACE slot was passed by
             s["mm"] += b["mm"]
             s["g"] += self.grams(b["mm"], b.get("spool_id"))
             if b.get("spool_id"):

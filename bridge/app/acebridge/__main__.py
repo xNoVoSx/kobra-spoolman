@@ -27,6 +27,7 @@ from .phase import ChangeSteps
 from .usb import UsbTunnel
 from .dryer import Dryer
 from .usage import UsageTracker
+from .direct import DirectFeed
 from .humidity import HumidityLog
 from .i18n import tr
 from .moisture import MoistureModel, hours_needed
@@ -64,6 +65,9 @@ class Bridge:
         self.usage.purge = self.purge                             # calibrated from finished Orca prints
         self.pa = PaSync(cfg, self.moon, self.sm, self.slots)
         self.filament_z = FilamentZSync(cfg, self.moon, self.sm, self.slots)
+        # direct feed (filament by hand in the toolhead): booking, Auto PA and Z offset take the direct spool
+        self.direct = DirectFeed(self.moon, self.sm)
+        self.usage.direct = self.pa.direct = self.filament_z.direct = self.direct
         self.resume = Resume(self.moon, self.slots)
         self.clog = Clog(self.moon)
         self.usb = UsbTunnel(self.moon)                           # USB watchdog on the Klipper computer (Moonraker DB)

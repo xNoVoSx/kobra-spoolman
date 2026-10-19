@@ -24,7 +24,7 @@ SUBSCRIBE = {
 }
 
 GROUPS = [("print", tr("Printing")), ("watch", tr("Monitoring")), ("io", tr("Light & sounds")), ("system", tr("System"))]
-CLOG_ACTIONS = [("warn", tr("Warn only")), ("pause", tr("Pause"))]
+CLOG_ACTIONS = [("log", tr("Log only")), ("warn", tr("Warn only")), ("pause", tr("Pause"))]
 ENDLESS_MODES = [("exact", tr("Same colour")), ("material", tr("Same material")), ("next", tr("Next spool"))]
 SOUND_EVENTS = [("done", tr("Sound: print finished")), ("error", tr("Sound: pause, error, cancel")),
                 ("clog", tr("Sound: clog")), ("change", tr("Sound: colour change stuck")),
@@ -86,7 +86,7 @@ def items(st: St) -> List[Dict[str, Any]]:
     pa = st.get("kobra_pa")
     if pa:
         sw("pa", "print", tr("Auto PA"), tr("PA per speed from Spoolman; off = PA from Orca"), pa.get("enabled"))
-        sw("pa_auto", "print", tr("Measure PA automatically"), tr("If missing, the printer measures (~2 min)"), pa.get("auto"),
+        sw("pa_auto", "print", tr("Measure PA automatically"), tr("If missing, the printer measures (~5 min)"), pa.get("auto"),
            pa.get("enabled"))
     fz = _filament_z(st)
     if fz is not None:

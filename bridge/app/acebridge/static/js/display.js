@@ -104,6 +104,9 @@ function Display() {
           disabled=${!light.sensitive || busy} onClick=${() => flip("light", !light.on)}><${Icon} name="light" /></button>`}
         <span class="disp-clock">${now}</span>
       </header>
+      ${st.direct?.active && html`<div class="disp-alert disp-direct"><span class="grow">${t("Direct feed is on")} – ${t("the ACE is passed by.")} ${st.direct.label}</span>
+        ${!PRINTING.has(st.printer?.state) && html`<button type="button" class="disp-btn" disabled=${busy}
+          onClick=${() => act(() => post("/api/direct", { enable: false }))}>${t("Switch off")}</button>`}</div>`}
       ${!["switch", "system"].includes(page) && errors.slice(0, 1).map((m) => html`<div class="disp-alert">${m.text}</div>`)}
       ${page === "start" && html`<${Start} ...${ctx} />`}
       ${page === "print" && html`<${Print} ...${ctx} />`}

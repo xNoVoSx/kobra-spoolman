@@ -3,8 +3,8 @@
 During a print Klipper compares, per window (20 mm), what the extruder pushed with the encoder at the filament inlet.
 If the ratio drops below the limit twice in a row it reports a suspicion (`suspect`) - the bridge then shows a red
 message (alarm in the app) until feeding is normal again or the print pauses/ends.
-Reaction in Klipper: warn only (default) or also pause.
-Can be switched off in Klipper: KOBRA_CLOG ENABLE=0 (POST /api/clog/switch), there also ACTION=warn|pause.
+Reaction in Klipper: log only (default since 18.10.), warn, or also pause.
+Can be switched off in Klipper: KOBRA_CLOG ENABLE=0 (POST /api/clog/switch), there also ACTION=warn|pause|log.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 OBJ = "kobra_clog"
 SUBSCRIBE = {OBJ: ["enabled", "action", "available", "suspect", "alarm", "alarms", "last", "min_ratio"]}
-ACTIONS = ("warn", "pause")
+ACTIONS = ("warn", "pause", "log")   # log: only into the log (kobra-klipper 18.10.), no message
 
 
 class ClogError(Exception):
@@ -61,7 +61,7 @@ class Clog:
         if self.klipper is None:
             raise ClogError(503, tr("Clog detection is not set up in Klipper (kobra_clog) or Klipper is not ready"))
         if action is not None and action not in ACTIONS:
-            raise ClogError(400, tr("action: warn or pause"))
+            raise ClogError(400, tr("action: warn, pause or log"))
         parts = ([f"ENABLE={int(bool(enabled))}"] if enabled is not None else []) + \
             ([f"ACTION={action}"] if action is not None else [])
         if not parts:

@@ -16,6 +16,7 @@ from .clog import ClogError
 from .i18n import tr
 from .pa import PaError
 from .resume import ResumeError
+from .direct import DirectError
 from .switches import SwitchError
 from .webcommon import Ctx, json_response, msg_of, _err
 
@@ -267,6 +268,29 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         except Exception as e:  # noqa: BLE001
             log.warning("Switch %s: %s", key, e)
             return _err(502, msg_of(e))
+
+    # ---------------------------------------------------------------- direct feed (direct.py)
+    @r.get("/api/direct")
+    async def direct_state(_):
+        return json_response(bridge.direct.view())
+
+    @r.post("/api/direct")
+    @need_device
+    async def direct_set(request: web.Request):
+        """{"enable": true, "spool_id": 17, "unload": false} / {"enable": false}"""
+        try:
+            body = await request.json()
+            enable = body["enable"]
+            assert isinstance(enable, bool)
+            spool_id = body.get("spool_id")
+            assert spool_id is None or (isinstance(spool_id, int) and not isinstance(spool_id, bool))
+            unload = bool(body.get("unload", False))
+        except Exception:  # noqa: BLE001
+            return _err(400, tr("Expected JSON {\"enable\": true, \"spool_id\": 17, \"unload\": false}"))
+        try:
+            return json_response(await bridge.direct.set(enable, spool_id, unload))
+        except DirectError as e:
+            return _err(e.status, msg_of(e))
 
     # ---------------------------------------------------------------- clog detection
     @r.get("/api/clog")

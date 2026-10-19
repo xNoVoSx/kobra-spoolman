@@ -58,6 +58,7 @@ fun SlotsScreen(
     onPrintAction: (String, String) -> Unit = { _, _ -> },
     onTune: () -> Unit = {},
     viewerUrl: String? = null,
+    onDirectOff: () -> Unit = {},
 ) {
     LazyColumn(
         Modifier.fillMaxSize().background(K.Ground),
@@ -75,6 +76,9 @@ fun SlotsScreen(
             return@LazyColumn
         }
         if (state.notices == null) state.warnings.forEach { w -> item { Hint(w, danger = true) } }   // older bridge
+        state.direct?.takeIf { it.active }?.let { d ->
+            item { DirectBanner(d, state.canWrite && state.printer.state !in setOf("printing", "paused"), onDirectOff) }
+        }
         // home screen: camera on top, then the print, then the slots and the ACE - the rest lives in the tabs
         if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera, viewerUrl) }
         state.resume?.takeIf { it.pending != null || it.running || it.error != null }?.let { r ->

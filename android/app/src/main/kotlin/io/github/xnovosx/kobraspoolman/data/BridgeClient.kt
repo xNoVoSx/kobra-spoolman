@@ -293,6 +293,12 @@ class BridgeClient(
         call("POST", "/api/clog/switch", parts.joinToString(",", "{", "}"), ApiError.serializer())
     }
 
+    /** Direct feed on (with the spool inserted in the toolhead, optionally unloading the ACE first) or off. */
+    suspend fun direct(enable: Boolean, spoolId: Int?, unload: Boolean) {
+        val body = if (enable) "{\"enable\":true,\"spool_id\":$spoolId,\"unload\":$unload}" else "{\"enable\":false}"
+        call("POST", "/api/direct", body, ApiError.serializer())
+    }
+
     /** All features of the system (one page, one switch each - bridge features.py). */
     suspend fun features(): Features = call("GET", "/api/features", null, Features.serializer())
 
@@ -317,7 +323,7 @@ class BridgeClient(
         call("POST", "/api/resume/switch", "{\"enabled\":$enabled}", ApiError.serializer())
     }
 
-    /** Measure PA now (only without a print; the result arrives after ~2 min via the state). */
+    /** Measure PA now (only without a print; the result arrives after ~5 min via the state). */
     suspend fun paCalibrate(slot: Int) {
         call("POST", "/api/pa/calibrate", "{\"slot\":$slot}", ApiError.serializer())
     }

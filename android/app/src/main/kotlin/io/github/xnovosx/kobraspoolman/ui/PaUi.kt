@@ -44,7 +44,7 @@ fun PaSection(
     }
     PaSwitch(tr("Auto PA"), tr("Apply PA per speed from Spoolman; off = Klipper takes the PA from Orca"),
         pa.enabled == true) { onSwitch(it, null) }
-    PaSwitch(tr("Measure automatically"), tr("If a filament has no PA yet, the printer measures at print start or colour change (~2 min)"),
+    PaSwitch(tr("Measure automatically"), tr("If a filament has no PA yet, the printer measures at print start or colour change (~5 min)"),
         pa.auto == true, enabled = pa.enabled == true) { onSwitch(null, it) }
     if (pa.patched == false) Hint(tr("Klipper without the auto PA patch: fixed PA only, measuring does not work."))
     if (!pa.sync) Hint(tr("The connection to Spoolman is off (Settings → Pressure advance)."))
@@ -73,7 +73,7 @@ fun PaSection(
     ask?.let { (what, s) ->
         AlertDialog(onDismissRequest = { ask = null }, containerColor = K.Surface,
             title = { Text(if (what == "measure") tr("Measure PA for slot {slot}?", "slot" to s.slot) else tr("Discard PA?")) },
-            text = { Text(if (what == "measure") tr("{name}: the printer heats to printing temperature and pushes about 120 mm into the waste chute (~2 minutes). The result goes to Spoolman.", "name" to s.name)
+            text = { Text(if (what == "measure") tr("{name}: the printer heats to printing temperature and pushes filament into the waste chute several times (~5 minutes). The result goes to Spoolman.", "name" to s.name)
                 else tr("{name}: the PA value is deleted in Spoolman. At the next print the printer measures again (if “Measure automatically” is on).", "name" to s.name)) },
             confirmButton = { TextButton(onClick = {
                 ask = null

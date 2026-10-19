@@ -304,8 +304,10 @@ the filament moves normally again or the print is paused/ended.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/clog` | `present`, `enabled`, `action` (`warn`/`pause`), `available` (encoder found), `suspect`, `alarm` (`extruder_mm`, `encoder_mm`, `ratio`, `action`, `time`), `alarms`, `min_ratio`, `last_ratio` |
-| POST | `/api/clog/switch` | *(paired)* `{"enabled": bool}` and/or `{"action": "warn"\|"pause"}` — `KOBRA_CLOG ENABLE= ACTION=`, stored in the printer |
+| GET | `/api/clog` | `present`, `enabled`, `action` (`log`/`warn`/`pause`), `available` (encoder found), `suspect`, `alarm` (`extruder_mm`, `encoder_mm`, `ratio`, `action`, `time`), `alarms`, `min_ratio`, `last_ratio` |
+| POST | `/api/clog/switch` | *(paired)* `{"enabled": bool}` and/or `{"action": "log"\|"warn"\|"pause"}` — `KOBRA_CLOG ENABLE= ACTION=`, stored in the printer |
+| GET | `/api/direct` | Direct feed (Klipper module `kobra_direct`): `available`, `active`, `spool_id`, `label`, `material`, `color`, `tool` (tool of the running print), `warning` (text for the red bar while it is on). Also `direct` in `/api/app/state` |
+| POST | `/api/direct` | *(paired)* `{"enable": true, "spool_id": 17, "unload": false}` / `{"enable": false}` — `KOBRA_DIRECT ENABLE=1 SPOOL= NAME= [UNLOAD=1]` / `ENABLE=0`. 409 during a print or when Klipper refuses (e.g. ACE filament still in the head without `unload`), 503 without the module |
 
 ## Camera and print preview
 

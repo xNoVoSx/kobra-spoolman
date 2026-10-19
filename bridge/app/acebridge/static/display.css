@@ -181,3 +181,8 @@ button.disp-slot:disabled { opacity: .45; }
 .disp-tool > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .disp-tool .warn { color: var(--accent-text); font-size: 13px; }
 .disp-tool .ok { color: var(--ok-text); font-size: 13px; }
+
+/* direct feed (bridge direct.py): red bar on every page while it is on */
+.disp-direct { display: flex; align-items: center; gap: 10px; }
+.disp-direct .grow { flex: 1; }
+.disp-direct .disp-btn { min-height: 36px; padding: 0 12px; font-size: 14px; }
