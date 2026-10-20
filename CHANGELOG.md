@@ -20,6 +20,10 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
   answer* (keep waiting, or take the most similar spool after 5/15/30 minutes). Needs kobra-klipper's `kobra_spare`
   module (with an ACEPRO patch); without it nothing changes. `spare` in `/api/app/state`, `GET/POST /api/spare`.
 
+- **Spoolman QR codes** (app): see *app 1.21.0*. The bridge now also returns archived spools by ID
+  (`GET /api/app/spool/{id}`), brings one back with `POST /api/app/spool/{id}/unarchive` or by putting it into a slot,
+  and `POST /api/app/tag/link` names the spool a tag was taken from (`previous`).
+
 ### Changed
 - Endless spool: the mode *Same colour* is now called *Same colour and material* — that is what it always matched.
 
@@ -179,6 +183,10 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 ### Added
 - Empty spool without a matching one: a card on the home screen asks which loaded spool to continue with (another
   material asks first); the red message comes as an alarm.
+- **Scan a QR code** next to NFC: Spoolman's label QR codes (`web+spoolman:s-<id>` or the Spoolman address) open the
+  spool card like a tag, a filament label opens *New spool* of that filament. Torch and a short buzz in the scanner. A
+  `web+spoolman:` code scanned with the phone camera opens the app. Archived spools show *Back from the archive*.
+  When a written tag belonged to another spool (refill on an old spool body), the app offers to archive the old one.
 
 ### Changed
 - Endless spool mode *Same colour* is now called *Same colour and material*.

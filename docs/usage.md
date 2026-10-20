@@ -73,7 +73,9 @@ button then puts the profiles into the filament slots (see below).
 **New spool** (top right, or `n`): pick the filament, check the weights (defaults come from the
 filament), optionally **Insert right away** into a slot. In the app you can also scan an NFC tag first
 — the new spool is linked to it, or the app writes an ACE-compatible tag for it
-([android-app.md](android-app.md)).
+([android-app.md](android-app.md)). Spools that only carry a **Spoolman label** (e.g. stocked refills): in the
+app's scan sheet *Scan a QR code instead* opens the spool from its Spoolman QR code — put it into a slot and write
+its tags from there; the tag of an old spool body moves to it and the app offers to archive the old spool.
 
 ## Loading a spool into the ACE
 

@@ -442,6 +442,26 @@ class AppApi:
             raise AppError(404, tr("Spool {id} not found (archived?)", id=sid))
         return sp
 
+    async def _spool_any(self, sid: int) -> Dict[str, Any]:
+        """Like _spool, but an archived spool (e.g. a refill found by its Spoolman QR code) is fetched from Spoolman."""
+        sp = self.bridge.sm.spool(sid)
+        if sp:
+            return sp
+        try:
+            sp = await self.bridge.sm.fetch_spool(sid)
+        except Exception as e:  # noqa: BLE001
+            raise AppError(502, tr("Spoolman not reachable: {error}", error=msg_of(e))) from e
+        if not sp:
+            raise AppError(404, tr("Spool #{id} does not exist in Spoolman", id=sid))
+        return sp
+
+    async def _unarchive(self, sp: Dict[str, Any]) -> Dict[str, Any]:
+        """Back from the archive (to the shelf); returns the spool from the refreshed cache."""
+        await self.bridge.sm.patch_spool(sp["id"], {"archived": False, "location": self.bridge.cfg.shelf_location})
+        await self.bridge.sm.refresh()
+        log.info("Spool #%s: back from the archive", sp["id"])
+        return self.bridge.sm.spool(sp["id"]) or {**sp, "archived": False}
+
     def orca_bases(self) -> List[str]:
         try:
             with open(self.bases_file, encoding="utf-8") as fh:
@@ -646,7 +666,7 @@ class AppApi:
         @handler(write=False)
         async def spool_detail(request):
             sid = int(request.match_info["sid"])
-            sp = self._spool(sid)
+            sp = await self._spool_any(sid)          # archived ones too (a scanned Spoolman QR code)
             jobs = []
             for h in b.usage.history:
                 mm = sum(x["mm"] for s in h.get("slots", []) for x in s.get("spools", []) if x.get("id") == sid)
@@ -748,9 +768,11 @@ class AppApi:
         @r.post("/api/app/spool/{sid}/location")
         @handler(write=True)
         async def spool_location(request):
-            sp = self._spool(int(request.match_info["sid"]))
+            sp = await self._spool_any(int(request.match_info["sid"]))
             body = await self._json(request)
             slot = body.get("slot")
+            if sp.get("archived") and slot is not None:
+                sp = await self._unarchive(sp)      # into a slot = in use again
             current = b.cfg.slot_from_location(sp.get("location"))
             if slot is None:
                 if current:
@@ -761,6 +783,14 @@ class AppApi:
             else:
                 await b.slots.assign(int(slot), sp["id"])
             return json_response({"spool": self.spool_view(b.sm.spool(sp["id"]) or sp)})
+
+        @r.post("/api/app/spool/{sid}/unarchive")
+        @handler(write=True)
+        async def spool_unarchive(request):
+            sp = await self._spool_any(int(request.match_info["sid"]))
+            if sp.get("archived"):
+                sp = await self._unarchive(sp)
+            return json_response({"spool": self.spool_view(sp)})
 
         @r.post("/api/app/spool/{sid}/archive")
         @handler(write=True)
@@ -777,7 +807,7 @@ class AppApi:
         @handler(write=True)
         async def tag_issue(request):
             body = await self._json(request)
-            sp = self._spool(int(body.get("spool_id") or 0))
+            sp = await self._spool_any(int(body.get("spool_id") or 0))
             nr = extra_value(sp, "tag_nr")
             if not nr:
                 used = [int(extra_value(s, "tag_nr")) for s in b.sm.spools if extra_value(s, "tag_nr")]
@@ -792,22 +822,29 @@ class AppApi:
         @handler(write=True)
         async def tag_link(request):
             body = await self._json(request)
-            sp = self._spool(int(body.get("spool_id") or 0))
+            sp = await self._spool_any(int(body.get("spool_id") or 0))
             uid = normalize_uid(body.get("uid"))
             if not uid:
                 raise AppError(400, tr("uid missing or not an NFC ID (hex)"))
             other = next((s for s in b.sm.spools if s["id"] != sp["id"] and uid in uids_of(s)), None)
             if other and not body.get("force"):
                 raise AppError(409, tr("This tag already belongs to spool #{id}", id=other["id"]))
+            previous = None
             if other:
                 rest = [u for u in uids_of(other) if u != uid]
                 await self._patch_spool_extra(other["id"], {"nfc_uid": json.dumps(",".join(rest)) if rest else None})
+                # e.g. a refill on the old spool body: the app offers to archive the old (empty) spool
+                info = b.slots.spool_info(other)
+                previous = {"spool_id": other["id"], "name": info.get("display_name") or info.get("name") or "",
+                            "remaining_weight": other.get("remaining_weight"), "tags_left": len(rest),
+                            "slot": b.cfg.slot_from_location(other.get("location"))}
             # reset (default, like older apps): this ID replaces all; else added as another tag (second spool side),
             # at most MAX_TAGS - the oldest drops out
             uids = [uid] if body.get("reset", True) else ([u for u in uids_of(sp) if u != uid] + [uid])[-MAX_TAGS:]
             await self._patch_spool_extra(sp["id"], {"nfc_uid": json.dumps(",".join(uids))})
-            log.info("Spool #%s: NFC tag %s linked (%d of %d)", sp["id"], uid, len(uids), MAX_TAGS)
-            return json_response({"spool": self.spool_view(b.sm.spool(sp["id"]) or sp)})
+            log.info("Spool #%s: NFC tag %s linked (%d of %d)%s", sp["id"], uid, len(uids), MAX_TAGS,
+                     f", taken from spool #{other['id']}" if other else "")
+            return json_response({"spool": self.spool_view(b.sm.spool(sp["id"]) or sp), "previous": previous})
 
         @r.get("/api/app/tag/{uid}")
         @handler(write=False)

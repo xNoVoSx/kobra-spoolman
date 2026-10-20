@@ -41,4 +41,7 @@ object KIcons {
     val Dryer = stroke("dryer", "M3 8h11a3 3 0 1 0-3-3", "M3 12h15a3 3 0 1 1-3 3", "M3 16h7")
     val Phone = stroke("phone", "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z", "M11 18h2")
     val Chevron = stroke("chevron", "m9 6 6 6-6 6")
+    val Qr = stroke("qr", "M4 4h6v6H4z", "M14 4h6v6h-6z", "M4 14h6v6H4z", "M14 14h2v2h-2z", "M18 18h2v2h-2z", "M14 20h2",
+        "M20 14v2")
+    val Torch = stroke("torch", "M8 2h8v5l-2 3v12h-4V10L8 7z", "M12 14v2")
 }

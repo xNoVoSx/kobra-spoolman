@@ -130,6 +130,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             scanOpen = false
             when (r) {
                 is ScanResult.Known -> nav.navigate("spool/${r.spoolId}") { launchSingleTop = true }
+                is ScanResult.Filament -> nav.navigate("new?filament=${r.filamentId}") { launchSingleTop = true }
                 is ScanResult.Unknown -> if (r.blank) blankTag = r.uid else unknownTag = r.uid
             }
         }
@@ -224,13 +225,18 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onBack = { nav.popBackStack() },
                     onMove = { vm.moveSpool(id, it) },
                     onArchive = { vm.archiveSpool(id) { nav.popBackStack() } },
+                    onRestore = { vm.unarchiveSpool(id) },
                     onWriteTag = { side -> nav.navigate("tag/$id?side=$side") },
                     moisture = { SpoolMoistureSection(id, canWrite, { vm.spoolMoisture(it) }) { t, h, done -> vm.spoolDried(id, t, h, done) } })
             }
-            composable("new?uid={uid}", arguments = listOf(navArgument("uid") { nullable = true; defaultValue = null })) { entry ->
+            composable("new?uid={uid}&filament={filament}", arguments = listOf(
+                navArgument("uid") { nullable = true; defaultValue = null },
+                navArgument("filament") { type = NavType.IntType; defaultValue = 0 })) { entry ->
                 val uid = entry.arguments?.getString("uid")
+                // a scanned Spoolman filament label preselects that filament
+                val scanned = entry.arguments?.getInt("filament")?.takeIf { it > 0 }
                 val created by vm.createdFilament.collectAsState()
-                NewSpoolScreen(catalog, slotCount, uid, canWrite, busy, padding, preselect = created,
+                NewSpoolScreen(catalog, slotCount, uid, canWrite, busy, padding, preselect = created ?: scanned,
                     onLoad = { vm.loadCatalog() },
                     onNewFilament = { nav.navigate("filament/new") },
                     onCancel = { nav.popBackStack() },
@@ -331,7 +337,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
     }
     if (scanOpen) {
         ModalBottomSheet(onDismissRequest = { scanOpen = false }, containerColor = K.Surface) {
-            ScanSheet(scanner, state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty())
+            ScanSheet(scanner, state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty(),
+                onQr = { text -> scanOpen = false; vm.onQr(text) })
         }
     }
     unknownTag?.let { uid ->
@@ -383,6 +390,19 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             spools = state?.let { allSpools(it.slots.mapNotNull { s -> s.spool } + it.shelf) }.orEmpty(),
             onDismiss = { linkTagUid = null },
             onPick = { sp -> linkTagUid = null; vm.linkTag(sp.spoolId, uid) { nav.navigate("spool/${sp.spoolId}") } },
+        )
+    }
+    // a written tag belonged to another spool (refill on the old spool body): archive the old one?
+    vm.oldSpool.collectAsState().value?.let { old ->
+        AlertDialog(
+            onDismissRequest = { vm.dismissOldSpool() },
+            title = { Text(tr("Archive the old spool?")) },
+            text = { Text(tr("The tag belonged to spool #{id} ({name}, {g} left) – it has no tag now. Archive it if it is empty (e.g. the refill went onto its spool body).",
+                "id" to old.spoolId, "name" to old.name.ifBlank { "?" }, "g" to Format.grams(old.remainingWeight)) +
+                (old.slot?.let { " " + tr("It is still assigned to slot {slot}; archiving takes it out.", "slot" to it) } ?: "")) },
+            confirmButton = { TextButton(onClick = { vm.archiveOldSpool(old.spoolId) }) { Text(tr("Archive"), color = K.DangerText) } },
+            dismissButton = { TextButton(onClick = { vm.dismissOldSpool() }) { Text(tr("Keep")) } },
+            containerColor = K.Surface,
         )
     }
     fillSlot?.let { slot ->
@@ -439,7 +459,20 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick
 }
 
 @Composable
-private fun ScanSheet(scanner: TagScanner, spools: List<SpoolInfo>) {
+private fun ScanSheet(scanner: TagScanner, spools: List<SpoolInfo>, onQr: (String) -> Unit) {
+    var qr by remember { mutableStateOf(false) }
+    if (qr) {
+        // Spoolman label instead of an NFC tag (e.g. a refill that has only the Spoolman sticker)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(tr("Scan the Spoolman QR code"), style = MaterialTheme.typography.titleLarge)
+            Text(tr("The label from Spoolman's label printing – spool or filament."), style = MaterialTheme.typography.bodyMedium,
+                color = K.Muted)
+            QrScanner(onResult = onQr)
+            TextButton(onClick = { qr = false }) { Text(tr("Back to NFC"), color = K.Accent) }
+        }
+        return
+    }
     LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         item {
@@ -455,6 +488,9 @@ private fun ScanSheet(scanner: TagScanner, spools: List<SpoolInfo>) {
                 !scanner.nfcEnabled -> tr("NFC is switched off – switch it on in the Android settings.")
                 else -> tr("Centre of the phone's back onto the spool's tag.")
             }, style = MaterialTheme.typography.bodyMedium, color = K.Muted)
+        }
+        item {
+            SecondaryButton(tr("Scan a QR code instead"), { qr = true }, Modifier.fillMaxWidth().padding(top = 8.dp))
         }
         if (BuildConfig.DEBUG) {
             item { SectionLabel(tr("Virtual tags (test without NFC)"), Modifier.fillMaxWidth().padding(top = 12.dp)) }

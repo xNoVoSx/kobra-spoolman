@@ -171,6 +171,10 @@ class BridgeClient(
         call("POST", "/api/app/spool/$id/location", json.encodeToString(LocationChange.serializer(), LocationChange(slot)),
             SpoolResponse.serializer()).spool
 
+    /** Back from the archive (to the shelf). */
+    suspend fun unarchiveSpool(id: Int): SpoolInfo =
+        call("POST", "/api/app/spool/$id/unarchive", null, SpoolResponse.serializer()).spool
+
     suspend fun archiveSpool(id: Int) {
         call("POST", "/api/app/spool/$id/archive", null, ApiError.serializer())
     }
@@ -353,7 +357,7 @@ class BridgeClient(
         call("POST", "/api/app/tag/issue", json.encodeToString(SpoolIdBody.serializer(), SpoolIdBody(spoolId)),
             TagIssue.serializer())
 
-    suspend fun linkTag(spoolId: Int, uid: String, force: Boolean = false, reset: Boolean = true): SpoolInfo =
+    suspend fun linkTag(spoolId: Int, uid: String, force: Boolean = false, reset: Boolean = true): TagLinkResponse =
         call("POST", "/api/app/tag/link", json.encodeToString(TagLink.serializer(), TagLink(spoolId, uid, force, reset)),
-            SpoolResponse.serializer()).spool
+            TagLinkResponse.serializer())
 }

@@ -584,6 +584,8 @@ data class SpoolInfo(
     @SerialName("nfc_uid") val nfcUid: String? = null,
     /** ACE 2 Pro: one tag per spool side - up to two IDs. */
     @SerialName("nfc_uids") val nfcUids: List<String> = emptyList(),
+    /** archived in Spoolman (e.g. a refill found by its Spoolman QR code) - into a slot brings it back */
+    val archived: Boolean = false,
 )
 
 @Serializable
@@ -665,6 +667,19 @@ data class FilamentResponse(val filament: FilamentInfo)
 
 @Serializable
 data class SpoolResponse(val spool: SpoolInfo)
+
+/** Answer of POST /api/app/tag/link: the spool, and the spool the tag belonged to before (null = none). */
+@Serializable
+data class TagLinkResponse(val spool: SpoolInfo, val previous: PreviousSpool? = null)
+
+@Serializable
+data class PreviousSpool(
+    @SerialName("spool_id") val spoolId: Int,
+    val name: String = "",
+    @SerialName("remaining_weight") val remainingWeight: Double? = null,
+    @SerialName("tags_left") val tagsLeft: Int = 0,
+    val slot: Int? = null,
+)
 
 /** Answer of POST /api/app/tag/issue: reserved tag number and content for the ACE tag. */
 @Serializable

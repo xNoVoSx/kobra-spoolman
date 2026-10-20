@@ -1,5 +1,6 @@
 package io.github.xnovosx.kobraspoolman
 
+import android.content.Intent
 import android.os.Bundle
 import android.graphics.Color
 import androidx.activity.ComponentActivity
@@ -23,6 +24,18 @@ class MainActivity : ComponentActivity() {
         // Always the dark theme -> light icons in the system bars, even when the phone is set to light
         enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
         setContent { KobraTheme { AppRoot(vm, scanner) } }
+        if (savedInstanceState == null) openLink(intent)
+    }
+
+    // a Spoolman QR code from the phone camera (web+spoolman:...) while the app is already open (singleTop)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openLink(intent)
+    }
+
+    private fun openLink(intent: Intent?) {
+        val uri = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
+        if (uri.startsWith("web+spoolman:", ignoreCase = true)) vm.onQr(uri)
     }
 
     // NFC only in the foreground: reader mode catches every tag while the app is open

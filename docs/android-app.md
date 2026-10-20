@@ -71,6 +71,12 @@ Tabs at the bottom: **Home · Messages · (scan) · Filament · More**.
 - **Scan** — hold a spool to the phone: known tag → spool card; an unknown **blank** sticker → write it
   for a new or an existing spool (then the second sticker); an unknown tag **with content** (e.g. an
   original Anycubic tag, write-protected) → new spool or link its UID to an existing one.
+  **Scan a QR code instead** (app ≥ 1.21.0) reads Spoolman's label QR codes (`web+spoolman:s-<id>` or
+  `http(s)://<spoolman>/spool/show/<id>`) — e.g. a refill that only has the Spoolman sticker: spool label → the
+  same spool card as an NFC tag (put into a slot, write the tags); filament label → *New spool* of that filament.
+  With a torch for dark shelves. A `web+spoolman:` code scanned with the phone's own camera opens the app straight
+  away. An **archived** spool shows *Back from the archive*; putting it into a slot brings it back too. When a written
+  tag belonged to another spool (refill on an old spool body), the app offers to **archive the old spool**.
 - **New spool** from an existing filament, optionally straight into a slot.
 - **New filament** — a 7-step wizard with every Orca field; template values are placeholders and
   never stored; *Copy values from …* copies a product line for a new colour.

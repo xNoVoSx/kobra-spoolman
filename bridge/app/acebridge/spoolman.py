@@ -86,6 +86,15 @@ class Spoolman:
             self.cfg.shelf_location_auto = False
             log.info("Shelf location in Spoolman: %s", self.cfg.shelf_location)
 
+    async def fetch_spool(self, spool_id: int) -> Optional[Dict[str, Any]]:
+        """One spool straight from Spoolman, archived ones too (the cache holds only active spools). None = no such
+        spool."""
+        async with self.session.get(f"{self.base}/spool/{spool_id}", timeout=aiohttp.ClientTimeout(total=15)) as r:
+            if r.status == 404:
+                return None
+            r.raise_for_status()
+            return await r.json()
+
     async def patch_spool(self, spool_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.cfg.dry_run:
             log.info("[dry-run] PATCH spool %s %s", spool_id, data)

@@ -1,4 +1,7 @@
 {
+ "App 1.21.0: scan Spoolman QR codes next to NFC – a refill with only the Spoolman sticker opens its spool card; archived spools come back from there, and a tag taken from an old spool body offers to archive that spool": "App 1.21.0: Spoolman-QR-Codes neben NFC scannen – ein Refill nur mit Spoolman-Aufkleber öffnet seine Spulenkarte; archivierte Spulen kommen von dort zurück, und ein Tag von einem alten Spulenkörper bietet an, diese Spule zu archivieren",
+ "Spool #{id} does not exist in Spoolman": "Spule #{id} gibt es in Spoolman nicht",
+ "Spoolman not reachable: {error}": "Spoolman nicht erreichbar: {error}",
  "Empty spool without a matching one: instead of only pausing, the print waits over the waste chute and asks which loaded spool to continue with – in the web UI, the app (alarm), on the display and in Mainsail; one tap changes and resumes": "Leere Spule ohne passenden Ersatz: statt nur zu pausieren wartet der Druck über dem Abfallkanal und fragt, mit welcher geladenen Spule es weitergeht – in der Weboberfläche, der App (Alarm), am Display und in Mainsail; ein Tipp wechselt und druckt weiter",
  "Endless spool: the mode “Same colour” is now called “Same colour and material” – that is what it always matched": "Endlosspule: der Modus „Gleiche Farbe“ heißt jetzt „Gleiche Farbe und gleiches Material“ – genau das hat er immer verglichen",
  "Expected JSON {\"tool\": 1}": "Erwartet JSON {\"tool\": 1}",

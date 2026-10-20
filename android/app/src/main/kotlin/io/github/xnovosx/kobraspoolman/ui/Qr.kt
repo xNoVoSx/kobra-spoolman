@@ -35,6 +35,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.view.HapticFeedbackConstants
+import androidx.camera.core.Camera
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.zxing.BarcodeFormat
@@ -96,6 +101,8 @@ fun QrScanner(onResult: (String) -> Unit, modifier: Modifier = Modifier) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     LaunchedEffect(Unit) { if (!granted) launcher.launch(Manifest.permission.CAMERA) }
     var done by remember { mutableStateOf(false) }
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    var torch by remember { mutableStateOf(false) }
     val executor = remember { Executors.newSingleThreadExecutor() }
     DisposableEffect(Unit) { onDispose { executor.shutdown() } }
 
@@ -116,14 +123,28 @@ fun QrScanner(onResult: (String) -> Unit, modifier: Modifier = Modifier) {
                 analysis.setAnalyzer(executor, QrAnalyzer { text ->
                     if (!done) {
                         done = true
-                        view.post { onResult(text) }
+                        view.post {
+                            // short buzz: the code was read (the phone may be at arm's length on a shelf)
+                            view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM
+                                else HapticFeedbackConstants.VIRTUAL_KEY)
+                            onResult(text)
+                        }
                     }
                 })
                 provider.unbindAll()
-                provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                camera = provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
             }, ContextCompat.getMainExecutor(ctx))
             view
         }, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
         Box(Modifier.size(200.dp).clip(RoundedCornerShape(20.dp)).background(K.Accent.copy(alpha = 0.08f)))
+        // torch for dark shelves - only where the camera has one
+        if (camera?.cameraInfo?.hasFlashUnit() == true) {
+            IconButton(onClick = { torch = !torch; camera?.cameraControl?.enableTorch(torch) },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp),
+                colors = IconButtonDefaults.iconButtonColors(containerColor = if (torch) K.Accent else K.Surface.copy(alpha = 0.8f))) {
+                Icon(KIcons.Torch, contentDescription = if (torch) tr("Torch off") else tr("Torch on"),
+                    tint = if (torch) K.OnAccent else K.Text)
+            }
+        }
     }
 }

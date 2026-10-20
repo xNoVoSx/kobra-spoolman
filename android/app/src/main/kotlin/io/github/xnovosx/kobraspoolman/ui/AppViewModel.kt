@@ -13,6 +13,8 @@ import io.github.xnovosx.kobraspoolman.data.AppState
 import io.github.xnovosx.kobraspoolman.data.Features
 import io.github.xnovosx.kobraspoolman.data.SetupInfo
 import io.github.xnovosx.kobraspoolman.data.AppUpdate
+import io.github.xnovosx.kobraspoolman.data.PreviousSpool
+import io.github.xnovosx.kobraspoolman.data.SpoolmanQr
 import io.github.xnovosx.kobraspoolman.monitor.MonitorService
 import io.github.xnovosx.kobraspoolman.update.Installer
 import io.github.xnovosx.kobraspoolman.data.ConsoleLines
@@ -60,6 +62,8 @@ sealed interface ScanResult {
     data class Known(val spoolId: Int) : ScanResult
     /** blank: the tag has no ACE content (empty sticker) - then write it instead of linking. */
     data class Unknown(val uid: String, val blank: Boolean = false) : ScanResult
+    /** Spoolman filament label: new spool of this filament */
+    data class Filament(val filamentId: Int) : ScanResult
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -158,9 +162,45 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         done()
     }
 
+    /** A Spoolman QR code (scanner in the app or a link from the phone camera): open the spool / new spool of the
+     * filament, like an NFC tag does. */
+    fun onQr(text: String?) = launchSafe(showBusy = false) {
+        when (val qr = SpoolmanQr.parse(text)) {
+            null -> _messages.send(tr("Not a Spoolman QR code"))
+            is SpoolmanQr.Filament -> _scans.send(ScanResult.Filament(qr.id))
+            is SpoolmanQr.Spool -> {
+                _detail.value = it.spool(qr.id)          // 404 -> message "Spool #12 does not exist in Spoolman"
+                _scans.send(ScanResult.Known(qr.id))
+            }
+        }
+    }
+
+    fun unarchiveSpool(id: Int) = launchSafe {
+        it.unarchiveSpool(id)
+        _messages.send(tr("Spool #{id} is back from the archive", "id" to id))
+        refresh()
+        loadSpool(id)
+    }
+
+    // a written tag belonged to another spool (refill on an old spool body): offer to archive that one once it has no
+    // tag left
+    private val _oldSpool = MutableStateFlow<PreviousSpool?>(null)
+    val oldSpool: StateFlow<PreviousSpool?> = _oldSpool
+
+    private fun offerArchive(p: PreviousSpool?) {
+        if (p != null && p.tagsLeft == 0) _oldSpool.value = p
+    }
+
+    fun dismissOldSpool() { _oldSpool.value = null }
+
+    fun archiveOldSpool(id: Int) {
+        _oldSpool.value = null
+        archiveSpool(id) {}
+    }
+
     fun createSpool(req: NewSpool, tagUid: String?, done: (SpoolInfo) -> Unit) = launchSafe {
         var spool = it.createSpool(req)
-        if (tagUid != null) spool = it.linkTag(spool.spoolId, tagUid)
+        if (tagUid != null) spool = it.linkTag(spool.spoolId, tagUid).spool
         _messages.send(if (tagUid != null) tr("Spool #{id} created and linked to the tag", "id" to spool.spoolId) else tr("Spool #{id} created", "id" to spool.spoolId))
         refresh()
         done(spool)
@@ -206,7 +246,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             is WriteResult.Failed -> _messages.send(r.message)
             is WriteResult.Written -> when {
                 job.side == 1 -> {
-                    it.linkTag(job.spoolId, r.uid, force = true, reset = true)
+                    offerArchive(it.linkTag(job.spoolId, r.uid, force = true, reset = true).previous)
                     scanner.armWrite(job.ace.encode())
                     _tagJob.value = job.copy(side = 2, firstUid = r.uid)
                     _messages.send(tr("Tag 1 written – now the second sticker for the other spool side"))
@@ -216,7 +256,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     _messages.send(tr("That is the same sticker – please hold the second one to the phone"))
                 }
                 else -> {
-                    it.linkTag(job.spoolId, r.uid, force = true, reset = false)
+                    offerArchive(it.linkTag(job.spoolId, r.uid, force = true, reset = false).previous)
                     _tagJob.value = null
                     _messages.send(tr("Both tags {sku} written and linked to spool #{id}", "sku" to job.content.sku, "id" to job.spoolId))
                     refresh()

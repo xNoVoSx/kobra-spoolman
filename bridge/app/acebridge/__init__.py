@@ -11,6 +11,7 @@ __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 CHANGELOG = [
     ("4.4.0", "2026-10-20", [
         tr("Empty spool without a matching one: instead of only pausing, the print waits over the waste chute and asks which loaded spool to continue with – in the web UI, the app (alarm), on the display and in Mainsail; one tap changes and resumes"),
+        tr("App 1.21.0: scan Spoolman QR codes next to NFC – a refill with only the Spoolman sticker opens its spool card; archived spools come back from there, and a tag taken from an old spool body offers to archive that spool"),
         tr("Endless spool: the mode “Same colour” is now called “Same colour and material” – that is what it always matched"),
     ]),
     ("4.3.0", "2026-10-20", [

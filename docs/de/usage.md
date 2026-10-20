@@ -75,7 +75,10 @@ setzt die Profile danach in die Filament-Felder (siehe unten).
 **Neue Spule** (oben rechts oder `n`): Filament wählen, Gewichte prüfen (Vorgaben kommen vom
 Filament), wahlweise **Gleich einlegen** in einen Slot. In der App kannst du vorher einen NFC-Tag
 scannen – die neue Spule wird damit verknüpft, oder die App schreibt ihr einen ACE-tauglichen Tag
-([android-app.md](../android-app.md), englisch).
+([android-app.md](../android-app.md), englisch). Spulen, die nur ein **Spoolman-Etikett** haben (z. B. eingelagerte
+Refills): im Scan-Fenster der App *Stattdessen QR-Code scannen* öffnet die Spule über ihren Spoolman-QR-Code – von
+dort in einen Slot legen und die Tags schreiben; der Tag eines alten Spulenkörpers wandert mit, und die App bietet an,
+die alte Spule zu archivieren.
 
 ## Spule in die ACE einlegen
 

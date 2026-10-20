@@ -156,6 +156,9 @@ class MemSpoolman:
     def filament(self, fid):
         return next((f for f in self.filaments if f["id"] == fid), None)
 
+    async def fetch_spool(self, sid):            # straight from Spoolman: archived ones too
+        return next((s for s in self.spools if s["id"] == sid), None)
+
     def templates(self):
         return [f for f in self.filaments if (f.get("vendor") or {}).get("name") == "Template"]
 
@@ -392,6 +395,37 @@ def test_two_tags_per_spool(api):
     res = call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04222222222222"})[1]
     assert res["spool"]["nfc_uids"] == ["04222222222222"]
     assert call("GET", "/api/app/tag/04ffeeddccbbaa", token=None)[0] == 404
+
+
+def test_archived_spool_by_qr_code_comes_back(api):
+    """A refill found by its Spoolman QR code may be archived: the detail shows it, unarchive and putting it into a slot
+    bring it back; an unknown ID is a clear 404."""
+    bridge, call = api
+    call("POST", "/api/app/spool/1/archive")
+    status, d = call("GET", "/api/app/spool/1", token=None)
+    assert status == 200 and d["spool"]["archived"] is True
+    status, res = call("POST", "/api/app/spool/1/unarchive")
+    assert status == 200 and res["spool"]["archived"] is False and bridge.sm.spools[0]["location"] == "Shelf"
+    call("POST", "/api/app/spool/1/archive")
+    status, res = call("POST", "/api/app/spool/1/location", {"slot": 2})
+    assert status == 200 and bridge.sm.spools[0]["archived"] is False
+    status, err = call("GET", "/api/app/spool/999", token=None)
+    assert status == 404 and "999" in err["error"]
+
+
+def test_tag_taken_from_another_spool_reports_it(api):
+    """Refill on an old spool body: the tag moves to the new spool, the answer names the old one (app: archive it?)."""
+    bridge, call = api
+    call("POST", "/api/app/tag/link", {"spool_id": 1, "uid": "04A1B2C3D4E5F6"})
+    status, sp = call("POST", "/api/app/spool", {"filament_id": 20, "initial_weight": 1000})
+    new_id = sp["spool"]["spool_id"]
+    status, res = call("POST", "/api/app/tag/link", {"spool_id": new_id, "uid": "04A1B2C3D4E5F6"})
+    assert status == 409                                                    # without force: asks first
+    status, res = call("POST", "/api/app/tag/link", {"spool_id": new_id, "uid": "04A1B2C3D4E5F6", "force": True})
+    assert status == 200 and res["spool"]["nfc_uids"] == ["04A1B2C3D4E5F6"]
+    assert res["previous"]["spool_id"] == 1 and res["previous"]["tags_left"] == 0 and res["previous"]["slot"] == 1
+    assert res["previous"]["remaining_weight"] == 978
+    assert call("POST", "/api/app/tag/link", {"spool_id": new_id, "uid": "04A1B2C3D4E5F6"})[1]["previous"] is None
 
 
 def test_orca_bases_are_stored(api, cfg):

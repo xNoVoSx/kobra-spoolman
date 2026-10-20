@@ -51,6 +51,7 @@ fun SpoolScreen(
     onArchive: () -> Unit,
     onWriteTag: (side: Int) -> Unit,
     moisture: @Composable () -> Unit = {},
+    onRestore: () -> Unit = {},
 ) {
     var confirmArchive by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(K.Ground).verticalScroll(rememberScrollState())) {
@@ -98,6 +99,11 @@ fun SpoolScreen(
                 sp.bedTemp?.let { Chip(tr("Bed {t} °C", "t" to it.toInt())) }
                 sp.template?.let { Chip(it, muted = true) }
             }
+            if (sp.archived) {
+                // e.g. a refill found by its Spoolman QR code: putting it into a slot brings it back as well
+                Hint(tr("This spool is archived in Spoolman. Putting it into a slot brings it back."))
+                SecondaryButton(tr("Back from the archive"), onRestore, Modifier.fillMaxWidth(), enabled = canWrite && !busy)
+            }
             SectionLabel(tr("Put into a slot"), Modifier.padding(top = 10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 (1..slots).forEach { n ->
@@ -118,7 +124,7 @@ fun SpoolScreen(
                 SecondaryButton(when (tags) { 0 -> tr("Write tags"); 1 -> tr("Write 2nd tag"); else -> tr("Rewrite tags") },
                     { onWriteTag(if (tags == 1) 2 else 1) }, Modifier.weight(1f), enabled = canWrite && !busy)
             }
-            SecondaryButton(tr("Empty · archive"), { confirmArchive = true }, Modifier.fillMaxWidth(),
+            if (!sp.archived) SecondaryButton(tr("Empty · archive"), { confirmArchive = true }, Modifier.fillMaxWidth(),
                 enabled = canWrite && !busy, danger = true)
             if (!canWrite) Hint(tr("Changing only works once the app is paired (Settings)."))
 
