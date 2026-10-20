@@ -305,6 +305,11 @@ class BridgeClient(
         call("POST", "/api/nozzle", parts.joinToString(",", "{", "}"), ApiError.serializer())
     }
 
+    /** Empty spool: continue the waiting print with this slot (0-based tool; the empty one = refilled). */
+    suspend fun spare(tool: Int) {
+        call("POST", "/api/spare", "{\"tool\":$tool}", ApiError.serializer())
+    }
+
     /** Measure the PID of the hotend in use (a few minutes, the result arrives via the state). */
     suspend fun nozzlePid() {
         call("POST", "/api/nozzle/pid", "{}", ApiError.serializer())

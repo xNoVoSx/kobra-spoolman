@@ -35,6 +35,7 @@ data class AppState(
     val direct: DirectState? = null,
     /** Swappable hotends: PID/nozzle per hotend (bridge >= 4.3.0) - null with older bridges */
     val nozzle: NozzleState? = null,
+    val spare: SpareState? = null,
     val warnings: List<String> = emptyList(),
     val notices: Notices? = null,
     @SerialName("last_control") val lastControl: LastControl? = null,
@@ -309,6 +310,41 @@ data class DirectState(
     val material: String? = null,
     val color: String? = null,
     val tool: Int? = null,
+)
+
+/** Empty spool without a matching one (bridge spare.py, Klipper kobra_spare): the print waits for a choice. */
+@Serializable
+data class SpareState(
+    val available: Boolean = false,
+    val enabled: Boolean = false,
+    @SerialName("auto_after") val autoAfter: Double = 0.0,
+    @SerialName("auto_order") val autoOrder: List<String> = emptyList(),
+    val waiting: SpareSlot? = null,
+    val candidates: List<SpareSlot> = emptyList(),
+    @SerialName("auto_in") val autoIn: Double? = null,
+    val busy: Boolean = false,
+    val error: String? = null,
+)
+
+@Serializable
+data class SpareSlot(
+    val tool: Int = 0,
+    val slot: Int = 1,
+    val material: String = "",
+    val color: String = "",
+    @SerialName("same_material") val sameMaterial: Boolean = true,
+    @SerialName("same_color") val sameColor: Boolean = true,
+    val sticks: Boolean = true,
+    val spool: SpareSpool? = null,
+)
+
+@Serializable
+data class SpareSpool(
+    @SerialName("spool_id") val spoolId: Int? = null,
+    val name: String = "",
+    val color: String? = null,
+    val material: String? = null,
+    @SerialName("remaining_weight") val remainingWeight: Double? = null,
 )
 
 /** Swappable hotends (bridge nozzle.py, Klipper kobra_nozzle). */

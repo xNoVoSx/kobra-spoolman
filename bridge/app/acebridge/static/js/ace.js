@@ -20,7 +20,7 @@ export function Toggle({ label, hint, value, disabled, onChange }) {
   </label>`;
 }
 
-const MODE_LABEL = { exact: t("Same colour"), material: t("Same material"), next: t("Next spool") };
+const MODE_LABEL = { exact: t("Same colour and material"), material: t("Same material"), next: t("Next spool") };
 const PRESET_LABEL = { minimal: t("Minimal"), normal: t("Normal"), maximum: t("Maximum") };
 
 export function AceCard({ compact }) {

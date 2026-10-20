@@ -8,6 +8,7 @@ import { PaCard } from "./pa.js";
 import { ClogCard, PowerlossCard, ResumeCard, UsbCard } from "./resume.js";
 import { DirectCard } from "./direct.js";
 import { HotendCard } from "./hotend.js";
+import { SpareCard } from "./spare.js";
 import { DryerCard, JobCard, JobsList, OpenItemsCard, OrcaCard, PrinterCard, Slots, Swatch } from "./components.js";
 import { NoticesCard } from "./notices.js";
 import { FeaturesHint } from "./features.js";
@@ -29,6 +30,7 @@ export function Overview() {
   <div class="ov2">
     <div class="ov2-printer"><${PrinterCard} /></div>
     <div class="ov2-side">
+      <${SpareCard} />
       <${ResumeCard} />
       <${FeaturesHint} />
       <div class="o-notices"><${NoticesCard} /></div>

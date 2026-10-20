@@ -7,6 +7,7 @@ import { html, render, useEffect, useRef, useState } from "../vendor/preact-htm.
 import { auth, get, post } from "./api.js";
 import { locale, t } from "./i18n.js";
 import { duration, fileName, finishAt, fixed, hex, nozzleMm, num, printerLook } from "./util.js";
+import { autoPick, note } from "./spare.js";
 
 const POLL_MS = 2000;
 const PAGES = [["start", "home", t("Home")], ["print", "print", t("Print")], ["files", "files", t("Files")],
@@ -116,7 +117,8 @@ function Display() {
       ${page === "system" && html`<${System} ...${ctx} />`}
     </main>
     <${Resume} ...${ctx} />
-    ${!st.resume?.pending && !st.resume?.running && st.prompt && html`<${Prompt} ...${ctx} />`}
+    ${spareOpen(st) && html`<${Spare} ...${ctx} />`}
+    ${!st.resume?.pending && !st.resume?.running && !spareOpen(st) && st.prompt && html`<${Prompt} ...${ctx} />`}
     ${p.moonraker_connected !== false && p.klippy_ready === false && !dlg && html`<${KlippyDown} ...${ctx} />`}
     ${dlg && html`<${Dialog} dlg=${dlg} close=${() => setDlg(null)} act=${act} st=${st} />`}
   </div>`;
@@ -734,7 +736,44 @@ function System({ st, busy, act, confirm }) {
       ${printing && html`<div class="disp-note">${t("Locked during a print.")}</div>`}`}`;
 }
 
-// ------------------------------------------------------------ overlays: macro prompt, Klipper error
+// ------------------------------------------------------------ overlays: empty spool, macro prompt, Klipper error
+// Empty spool without a matching one (kobra_spare): the same question as Klipper's prompt, with the Spoolman spools.
+const spareOpen = (st) => !!(st.spare?.available && (st.spare.waiting || st.spare.busy));
+
+function Spare({ st, busy, act, confirm }) {
+  const sp = st.spare, w = sp.waiting;
+  const label = (x) => x.spool?.name || x.material || "?";
+  const go = (tool) => act(() => post("/api/spare", { tool }));
+  const pick = (c) => c.same_material ? go(c.tool) : confirm({
+    title: t("Continue with {name}?", { name: label(c) }), ok: t("Continue"), danger: !c.sticks,
+    text: t("Slot {slot} holds {material}, the print so far is {was}. The nozzle switches to the temperature of the new spool; the bed and the fans stay as the file sets them.",
+      { slot: c.slot, material: c.material, was: w.material }) + (c.sticks ? "" : " " + t("These two materials usually do not stick to each other well.")),
+    action: () => post("/api/spare", { tool: c.tool }),
+  });
+  const auto = sp.auto_in != null && autoPick(sp);
+  const dot = (x) => html`<span class="disp-dot" style=${{ background: hex(x.spool?.color || x.color) || "var(--surface2)" }}></span>`;
+  return html`<div class="disp-over" role="alertdialog" aria-label=${t("Spool empty")}>
+    <section class="disp-dialog danger" style="gap:10px">
+      <h2>${sp.busy || !w ? t("Changing the spool …") : t("Spool empty – which one now?")}</h2>
+      ${w && html`<p class="disp-row" style="gap:10px">${dot(w)}<span>${t("Slot {slot} · {name} is empty. No matching spool is loaded; the print waits over the waste chute.",
+        { slot: w.slot, name: label(w) })}</span></p>`}
+      ${sp.error && html`<div class="disp-alert">${t("Change to another spool failed: {error}", { error: sp.error })}</div>`}
+      ${w && !sp.busy && html`
+        <div class="disp-spare">${sp.candidates.map((c) => html`<button type="button" class=${"disp-btn" + (c.sticks ? "" : " danger")}
+          disabled=${busy} onClick=${() => pick(c)}>${dot(c)}<span class="grow"><b>${t("Slot {slot}", { slot: c.slot })} · ${label(c)}</b>
+          <small>${[c.material, note(c)].filter(Boolean).join(" · ")}</small></span></button>`)}</div>
+        <div class="disp-btns">
+          <button type="button" class="disp-btn" disabled=${busy} onClick=${() => go(w.tool)}>${t("Slot {slot} refilled – load and continue", { slot: w.slot })}</button>
+          <button type="button" class="disp-btn danger" disabled=${busy} onClick=${() => confirm({ title: t("Cancel the print?"), ok: t("Cancel print"), danger: true,
+            text: t("{file} is cancelled. This cannot be undone.", { file: fileName(st.printer?.file || "") }),
+            action: () => post("/api/print/cancel", { confirm: true }) })}>${t("Cancel print")}</button>
+        </div>
+        ${auto && html`<p class="muted">${t("Without an answer the printer takes slot {slot} in {min} min.",
+          { slot: auto.slot, min: Math.max(1, Math.ceil(sp.auto_in / 60)) })}</p>`}`}
+    </section>
+  </div>`;
+}
+
 function Prompt({ st, busy, act }) {
   const q = st.prompt;
   const answer = (id) => act(() => post("/api/prompt", { id }));

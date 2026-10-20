@@ -88,6 +88,9 @@ FEATURES: List[Feature] = [
             "printer", ("hotends",), tr("Klipper setup, module kobra_nozzle"), klipper_only=True),
     Feature("endless", "printer", tr("Endless spool"), tr("When a spool runs out, the ACE loads a matching other one"),
             "printer", ("endless",), tr("Klipper setup, ACEPRO"), klipper_only=True),
+    Feature("spare", "printer", tr("Ask for another spool"),
+            tr("No matching spool when one runs out → the print waits and asks which loaded spool to continue with"),
+            "printer", ("spare",), tr("Klipper setup, module kobra_spare"), klipper_only=True),
     Feature("io", "printer", tr("Light and sounds"), tr("Printer light and beeper on events (quiet at night)"),
             "printer", ("light_auto", "sound"), tr("Klipper setup, kobra-io app on the printer"), klipper_only=True),
 ]
@@ -112,6 +115,7 @@ DOC_HEADINGS = {
     "clog": ("Clog detection", "Verstopfung erkennen"),  # i18n: German doc heading
     "hotends": ("Swappable hotends", "Wechsel-Hotends"),  # i18n: German doc heading
     "endless": ("When a filament is used up", "Wenn ein Filament leer ist"),  # i18n: German doc heading
+    "spare": ("When a filament is used up", "Wenn ein Filament leer ist"),  # i18n: German doc heading
     "io": ("Settings", "Einstellungen"),  # i18n: German doc heading
 }
 

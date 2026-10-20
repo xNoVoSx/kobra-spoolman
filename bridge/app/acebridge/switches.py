@@ -25,7 +25,10 @@ SUBSCRIBE = {
 
 GROUPS = [("print", tr("Printing")), ("watch", tr("Monitoring")), ("io", tr("Light & sounds")), ("system", tr("System"))]
 CLOG_ACTIONS = [("log", tr("Log only")), ("warn", tr("Warn only")), ("pause", tr("Pause"))]
-ENDLESS_MODES = [("exact", tr("Same colour")), ("material", tr("Same material")), ("next", tr("Next spool"))]
+ENDLESS_MODES = [("exact", tr("Same colour and material")), ("material", tr("Same material")), ("next", tr("Next spool"))]
+# kobra_spare: choose by itself after this many minutes (order from the Klipper config: same material, same colour)
+SPARE_AUTO = [("0", tr("Keep waiting")), ("5", tr("After 5 min: most similar spool")),
+              ("15", tr("After 15 min: most similar spool")), ("30", tr("After 30 min: most similar spool"))]
 SOUND_EVENTS = [("done", tr("Sound: print finished")), ("error", tr("Sound: pause, error, cancel")),
                 ("clog", tr("Sound: clog")), ("change", tr("Sound: colour change stuck")),
                 ("prompt", tr("Sound: question after a power loss"))]
@@ -69,6 +72,13 @@ def _choice_cmd(fmt: str, options: List[Tuple[str, str]]) -> Callable[[Any], str
     return cmd
 
 
+def _spare_auto(v: Any) -> str:
+    try:
+        return str(int(round(float(v or 0))))
+    except (TypeError, ValueError):
+        return "0"
+
+
 def items(st: St) -> List[Dict[str, Any]]:
     """All existing switches and choices with their state. Each entry: key, group, kind (switch|choice), title, hint,
     on or current/options, sensitive. The commands are in _commands (not in the result)."""
@@ -104,6 +114,14 @@ def items(st: St) -> List[Dict[str, Any]]:
         if ace.get("endless_spool_enabled"):
             ch("endless_mode", "print", tr("Which spool matches?"), ENDLESS_MODES,
                ace.get("endless_spool_match_mode") or "exact")
+    sp = st.get("kobra_spare")
+    if sp:
+        endless_on = bool((ace or {}).get("endless_spool_enabled"))
+        sw("spare", "print", tr("Ask for another spool"),
+           tr("No matching spool → the print waits and asks which loaded spool to continue with") if endless_on
+           else tr("Needs the endless spool"), sp.get("enabled"), endless_on)
+        if endless_on and sp.get("enabled"):
+            ch("spare_auto", "print", tr("Without an answer"), SPARE_AUTO, _spare_auto(sp.get("auto_after")))
     rs = st.get("kobra_resume")
     if rs:
         sw("powerloss", "watch", tr("Resume after power loss"),
@@ -142,6 +160,8 @@ def _commands(key: str) -> Optional[Callable[[Any], str]]:
         "nozzle_check": _bool_cmd("KOBRA_NOZZLE CHECK_PRINT=%d"),
         "endless": _endless,
         "endless_mode": _choice_cmd("ACE_SET_ENDLESS_SPOOL_MODE MODE=%s", ENDLESS_MODES),
+        "spare": _bool_cmd("KOBRA_SPARE ENABLE=%d"),
+        "spare_auto": _choice_cmd("KOBRA_SPARE AUTO=%s", SPARE_AUTO),
         "powerloss": _bool_cmd("KOBRA_POWERLOSS ENABLE=%d"),
         "clog": _bool_cmd("KOBRA_CLOG ENABLE=%d"),
         "clog_action": _choice_cmd("KOBRA_CLOG ACTION=%s", CLOG_ACTIONS),

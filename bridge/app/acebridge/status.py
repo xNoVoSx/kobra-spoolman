@@ -33,6 +33,22 @@ def _msg(level: str, text: str, key: str) -> Dict[str, str]:
     return {"level": level, "text": text, "key": key}
 
 
+def spare_messages(spare: Any) -> List[Dict[str, str]]:
+    """Empty spool without a matching one (spare.py): red while the print waits for a choice (phone alarm)."""
+    if not spare.available:
+        return []
+    sv = spare.view()
+    w = sv["waiting"]
+    out = []
+    if w and not sv["busy"]:
+        name = (w.get("spool") or {}).get("name") or w["material"]
+        out.append(_msg("error", tr("Slot {slot} ({name}) is empty and no matching spool is loaded – the print waits. "
+                                    "Choose which spool to continue with.", slot=w["slot"], name=name), "spare"))
+    if sv["error"] and w:
+        out.append(_msg("error", tr("Change to another spool failed: {error}", error=sv["error"]), "spare_error"))
+    return out
+
+
 def _grams(mm: float, diameter: float, density: float) -> float:
     return mm * math.pi * (diameter / 2) ** 2 * density / 1000.0
 
@@ -246,6 +262,10 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
                             min=round(age / 60))}.get(last.get("state"))
         out.append(_msg("info", text or tr("Print ended: {file} ({min} min ago)", file=last.get("file"),
                                            min=round(age / 60)), "done"))
+
+    spare = getattr(bridge, "spare", None)
+    if spare is not None:
+        out += spare_messages(spare)
 
     hot = getattr(bridge, "hotends", None)
     if hot is not None and hot.available:

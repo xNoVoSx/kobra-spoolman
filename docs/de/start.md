@@ -62,6 +62,7 @@ RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die A
 | Verstopfung | vergleicht Extruder und Filament-Encoder, warnt oder pausiert | Klipper-Weg, Modul `kobra_clog` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Wechsel-Hotends | PID, Düsengröße und Z-Korrektur je Hotend, Auto-PA je Düse, eine Datei für die falsche Düse wird gestoppt | Klipper-Weg, Modul `kobra_nozzle` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Endlosspule | wird eine Spule leer, lädt die ACE eine passende andere | ACEPRO (Klipper) oder die Firmware (Rinkhals) | Klipper: *Funktionen*; Rinkhals: die ACE-Karte | keine | ja | ja |
+| Nach anderer Spule fragen | keine passende Spule, wenn eine leer wird → der Druck wartet über dem Abfallkanal und fragt, mit welcher geladenen Spule es weitergeht | Klipper-Weg, Modul `kobra_spare` (mit der Endlosspule) | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Licht und Töne | Licht im Drucker und Piepser bei Ereignissen, nachts leise | Klipper-Weg, App kobra-io auf dem Drucker | an, wenn installiert; *Funktionen* | keine | – | ja |
 
 Was die Installation festlegt (Umgebungsvariablen des Containers, Optionen des Home-Assistant-Add-ons), zeigt die Seite

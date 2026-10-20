@@ -2,13 +2,17 @@
 
 from .i18n import tr
 
-__version__ = "4.3.0"
+__version__ = "4.4.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("4.4.0", "2026-10-20", [
+        tr("Empty spool without a matching one: instead of only pausing, the print waits over the waste chute and asks which loaded spool to continue with – in the web UI, the app (alarm), on the display and in Mainsail; one tap changes and resumes"),
+        tr("Endless spool: the mode “Same colour” is now called “Same colour and material” – that is what it always matched"),
+    ]),
     ("4.3.0", "2026-10-20", [
         tr("Swappable hotends (e.g. 0.2/0.4/0.6): choose the hotend in use on the ACE page, in the app or on the display – Klipper takes its PID, nozzle size and Z correction at once; measure the PID once per hotend"),
         tr("Auto PA per nozzle: Spoolman keeps a PA table per nozzle – after a hotend change a filament without values for that nozzle is measured at the next print"),

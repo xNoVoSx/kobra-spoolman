@@ -62,6 +62,7 @@ of our RFID tags are assigned by themselves when you insert them — the tags ar
 | Clog detection | compares the extruder with the filament encoder, warns or pauses | Klipper setup, module `kobra_clog` | on when installed; *Features* | none | – | yes |
 | Swappable hotends | PID, nozzle size and Z correction per hotend, Auto PA per nozzle, a file for the wrong nozzle is stopped | Klipper setup, module `kobra_nozzle` | on when installed; *Features* | none | – | yes |
 | Endless spool | when a spool runs out, the ACE loads a matching other one | ACEPRO (Klipper) or the firmware (Rinkhals) | Klipper: *Features*; Rinkhals: the ACE card | none | yes | yes |
+| Ask for another spool | no matching spool when one runs out → the print waits over the waste chute and asks which loaded spool to continue with | Klipper setup, module `kobra_spare` (with the endless spool) | on when installed; *Features* | none | – | yes |
 | Light and sounds | printer light and beeper on events, quiet at night | Klipper setup, kobra-io app on the printer | on when installed; *Features* | none | – | yes |
 
 What the installation sets (environment variables of the container, options of the Home Assistant add-on) is shown on

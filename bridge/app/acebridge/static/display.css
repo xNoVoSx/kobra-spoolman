@@ -121,6 +121,11 @@
 .disp-dialog { width: 100%; max-height: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line-strong);
   border-radius: 18px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
 .disp-dialog.danger { border-color: var(--danger-line); }
+.disp-spare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.disp-spare .disp-btn { display: flex; align-items: center; gap: 10px; text-align: left; min-height: 60px; padding: 6px 12px; }
+.disp-spare small { display: block; font: 400 13px var(--sans); color: var(--muted); }
+.disp-spare .disp-btn.danger small { color: var(--danger-text); }
+.disp-dot { width: 20px; height: 20px; border-radius: 50%; flex: none; border: 1px solid var(--line-strong); }
 .disp-dialog h2 { margin: 0; font: 700 24px var(--grotesk); }
 .disp-dialog p { margin: 0; font: 400 16px/1.45 var(--sans); }
 .disp-dialog p.muted { font-size: 14px; color: var(--muted); }

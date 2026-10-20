@@ -8,6 +8,21 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.4.0] – 2026-10-20
+
+### Added
+- **Ask for another spool** (`spare.py`): when a spool runs out and the endless spool finds no matching one, the print
+  no longer just pauses. It waits over the waste chute and asks which loaded spool to continue with: a card on the
+  overview (web and app, with the Spoolman spool, colour and weight left), the display, a Mainsail prompt and a red
+  message (alarm on the phone). One tap changes to that slot and resumes; a multi-colour file that calls the empty tool
+  again keeps the replacement until the print ends. Another material asks first; the nozzle takes the temperature of the
+  new spool, pairs that usually do not stick are marked red. *Features*: *Ask for another spool* and *Without an
+  answer* (keep waiting, or take the most similar spool after 5/15/30 minutes). Needs kobra-klipper's `kobra_spare`
+  module (with an ACEPRO patch); without it nothing changes. `spare` in `/api/app/state`, `GET/POST /api/spare`.
+
+### Changed
+- Endless spool: the mode *Same colour* is now called *Same colour and material* — that is what it always matched.
+
 ## [4.3.0] – 2026-10-20
 
 ### Added
@@ -158,6 +173,15 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.21.0 – 2026-10-20
+
+### Added
+- Empty spool without a matching one: a card on the home screen asks which loaded spool to continue with (another
+  material asks first); the red message comes as an alarm.
+
+### Changed
+- Endless spool mode *Same colour* is now called *Same colour and material*.
 
 ## app 1.20.0 – 2026-10-20
 

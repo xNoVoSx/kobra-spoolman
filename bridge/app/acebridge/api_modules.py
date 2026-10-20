@@ -18,6 +18,7 @@ from .pa import PaError
 from .resume import ResumeError
 from .direct import DirectError
 from .nozzle import NozzleError
+from .spare import SpareError
 from .switches import SwitchError
 from .webcommon import Ctx, json_response, msg_of, _err
 
@@ -335,6 +336,26 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         try:
             return json_response(bridge.hotends.measure_pid(None if temp is None else float(temp)))
         except NozzleError as e:
+            return _err(e.status, msg_of(e))
+
+    # ---------------------------------------------------------------- empty spool: which one now? (spare.py)
+    @r.get("/api/spare")
+    async def spare_state(_):
+        return json_response(bridge.spare.view())
+
+    @r.post("/api/spare")
+    @need_device
+    async def spare_choose(request: web.Request):
+        """{"tool": 1} - continue the waiting print with slot 2 (0-based tool; the empty tool = refilled)"""
+        try:
+            body = await request.json()
+            assert isinstance(body, dict)
+            tool = body.get("tool")
+        except Exception:  # noqa: BLE001
+            return _err(400, tr("Expected JSON {\"tool\": 1}"))
+        try:
+            return json_response(bridge.spare.choose(tool))
+        except SpareError as e:
             return _err(e.status, msg_of(e))
 
     # ---------------------------------------------------------------- clog detection

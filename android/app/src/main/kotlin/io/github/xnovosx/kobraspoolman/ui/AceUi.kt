@@ -52,7 +52,7 @@ import java.time.format.DateTimeFormatter
 import io.github.xnovosx.kobraspoolman.data.tr
 import io.github.xnovosx.kobraspoolman.data.I18n
 
-private val MODE_LABEL get() = mapOf("exact" to tr("Same colour"), "material" to tr("Same material"), "next" to tr("Next spool"))
+private val MODE_LABEL get() = mapOf("exact" to tr("Same colour and material"), "material" to tr("Same material"), "next" to tr("Next spool"))
 private val PRESET_LABEL get() = mapOf("minimal" to tr("Minimal"), "normal" to tr("Normal"), "maximum" to tr("Maximum"))
 
 /**

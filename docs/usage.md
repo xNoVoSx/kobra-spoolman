@@ -224,7 +224,8 @@ The **ACE** page (app: tap the dryer card) shows what the printer display hides:
 
 - **Endless spool** — when a spool runs out, the ACE loads a matching one and the print goes on. On Klipper +
   ACEPRO *Which spool matches?* picks same colour and material, same material, or simply the next spool; on Rinkhals the
-  firmware decides. Allowed while printing; applies at the next runout. The consumption follows the new slot.
+  firmware decides. Allowed while printing; applies at the next runout. The consumption follows the new slot. No match:
+  see [When a filament is used up](#when-a-filament-is-used-up).
 - **Runout detection** (Rinkhals) — the printer pauses when the filament runs out.
 - **Schedule drying** — one start at a set time, e.g. tonight at 22:00.
 - **Pressure advance**, **Resume after power loss** and **Detect clogs** (Klipper) — the switches of
@@ -390,6 +391,16 @@ This needs the plugin to be paired; otherwise it tells you so. To go back to the
 single value, clear that field in the filament editor (or use `POST /api/orca/reset`, see [api.md](api.md)).
 
 ## When a filament is used up
+
+**No matching spool loaded** (Klipper + ACEPRO with the printer module `kobra_spare`, endless spool on): instead of
+only pausing, the print waits over the waste chute and asks which loaded spool to continue with — a card on the
+overview (web and app, with the Spoolman spool, colour and weight left), the printer display, a Mainsail prompt and a
+red message (alarm on the phone). One tap changes to that slot and the print goes on; if the file calls the empty tool
+again later (multi-colour), it takes the same replacement until the print ends. Another material asks first: the
+nozzle switches to the temperature of the new spool, the bed and the fans stay as the file sets them, and pairs that
+usually do not stick (e.g. PLA on PETG) are marked red. *Slot n refilled – load and continue* takes the same slot once
+you have put a new spool in. *Features*: **Ask for another spool** on/off and **Without an answer** — keep waiting
+(default) or take the most similar spool after 5/15/30 minutes. Without the module, ACEPRO only pauses as before.
 
 **Archive** on the spool (shelf, app or Spoolman). Filaments without any active spool lose their
 Orca profile on the next sync; profiles the plugin did not create are never touched.

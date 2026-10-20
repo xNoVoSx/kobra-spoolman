@@ -51,8 +51,8 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
   filament**, **resume after a power loss** (probes the height on the part, always asks first) and
   **clog detection** (extruder vs. filament encoder), **direct feed** (TPU & co. by hand straight into the toolhead,
   the ACE stays on, the consumption is booked on the chosen spool) and **swappable hotends** (PID, nozzle size and
-  Z correction per hotend, Auto PA per nozzle, a file for the wrong nozzle is stopped) — each one with its own off
-  switch.
+  Z correction per hotend, Auto PA per nozzle, a file for the wrong nozzle is stopped) and an **empty spool without a
+  matching one asks** which loaded spool to continue with — each one with its own off switch.
 - A view for the **printer's own touchscreen** (`/display`, 800×480): status, a print screen that opens by itself
   with the file's preview, and every switch — shown by a kiosk browser on the Klipper Pi.
 - Live **3D view** of the running print in the spool colours, **Home Assistant** over MQTT, a
@@ -158,7 +158,7 @@ Both need:
 | Camera restream | ✅ (frame rate follows the printer's CPU) | ✅ (follows the printer's CPU when the camera is on the printer) |
 | AI print-failure detection | ✅ | ✅ |
 | Print phase (*Preheating*, *Change to slot 2* …) | basic (printing / changing) | ✅ detailed |
-| Auto-PA, Z offset per filament, resume after power loss, clog detection, direct feed, swappable hotends | — (need Klipper modules) | ✅ with our Klipper modules (not part of this repo) |
+| Auto-PA, Z offset per filament, resume after power loss, clog detection, direct feed, swappable hotends, asking for another spool | — (need Klipper modules) | ✅ with our Klipper modules (not part of this repo) |
 | Printer touchscreen view (`/display`), USB watchdog, Klipper restart | — | ✅ |
 
 ## Quick start

@@ -163,6 +163,7 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     onEmptySlot = { fillSlot = it },
                     onDryer = { dryerOpen = true },
                     onResume = { vm.resume(it) },
+                    onSpare = { vm.spare(it) },
                     fetchImage = { vm.image(it) },
                     printInfo = { vm.printInfo() },
                     camera = { vm.cameraStream() },

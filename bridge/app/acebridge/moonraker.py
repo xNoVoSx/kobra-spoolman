@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Deque, Dict, Optiona
 
 import aiohttp
 
-from . import __version__, acemodel, clog, direct, nozzle, pa, phase, resume, startseq, switches
+from . import __version__, acemodel, clog, direct, nozzle, pa, phase, resume, spare, startseq, switches
 from .i18n import tr
 from .prompts import Prompts
 from .config import Config
@@ -33,7 +33,7 @@ SUBSCRIBE_OBJECTS = {"print_stats": None, "virtual_sdcard": None,
                      "bed_mesh": ["profile_name"]}
 # ACE driver (ACEPRO, acemodel.SUBSCRIBE), Klipper modules and the S1's extra fans - only what objects/list names
 OPTIONAL_OBJECTS = {**acemodel.SUBSCRIBE, **pa.SUBSCRIBE, **resume.SUBSCRIBE, **clog.SUBSCRIBE, **switches.SUBSCRIBE,
-                    **phase.SUBSCRIBE, **startseq.SUBSCRIBE, **direct.SUBSCRIBE, **nozzle.SUBSCRIBE,
+                    **phase.SUBSCRIBE, **startseq.SUBSCRIBE, **direct.SUBSCRIBE, **nozzle.SUBSCRIBE, **spare.SUBSCRIBE,
                     "fan_generic box_fan": ["speed"], "fan_generic air_filter_fan": ["speed"]}
 
 StatusCallback = Callable[[Dict[str, Any], bool], Awaitable[None]]

@@ -52,6 +52,7 @@ fun SlotsScreen(
     onEmptySlot: (Int) -> Unit,
     onDryer: () -> Unit,
     onResume: (Boolean) -> Unit = {},
+    onSpare: (Int) -> Unit = {},
     fetchImage: suspend (String) -> ByteArray? = { null },
     printInfo: suspend () -> PrintInfo? = { null },
     camera: () -> Flow<ByteArray> = { emptyFlow() },
@@ -81,6 +82,9 @@ fun SlotsScreen(
         }
         // home screen: camera on top, then the print, then the slots and the ACE - the rest lives in the tabs
         if (state.printer.state != "offline") item { PrintMedia(state.printer, state.canWrite, fetchImage, printInfo, camera, viewerUrl) }
+        state.spare?.takeIf { it.available && (it.waiting != null || it.busy) }?.let { sp ->
+            item { SpareCard(sp, state.canWrite, onSpare) }
+        }
         state.resume?.takeIf { it.pending != null || it.running || it.error != null }?.let { r ->
             item { ResumeCard(r, state.canWrite, onResume) }
         }

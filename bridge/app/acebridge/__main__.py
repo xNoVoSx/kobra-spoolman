@@ -29,6 +29,7 @@ from .dryer import Dryer
 from .usage import UsageTracker
 from .direct import DirectFeed
 from .nozzle import Hotends
+from .spare import Spare
 from .humidity import HumidityLog
 from .i18n import tr
 from .moisture import MoistureModel, hours_needed
@@ -71,6 +72,8 @@ class Bridge:
         self.usage.direct = self.pa.direct = self.filament_z.direct = self.direct
         # swappable hotends (kobra_nozzle): PID/nozzle per hotend, Auto PA per nozzle, print start check
         self.hotends = Hotends(self.moon)
+        # empty spool without a matching one (kobra_spare): ask which slot to continue with
+        self.spare = Spare(self.moon, self.slots)
         self.resume = Resume(self.moon, self.slots)
         self.clog = Clog(self.moon)
         self.usb = UsbTunnel(self.moon)                           # USB watchdog on the Klipper computer (Moonraker DB)

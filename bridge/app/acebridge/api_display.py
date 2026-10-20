@@ -5,6 +5,7 @@ Added by web.build_app; shared helpers in webcommon.py."""
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from aiohttp import web
@@ -13,6 +14,7 @@ from .auth import AuthError
 from .files import FileError
 from .i18n import tr
 from .machine import MachineError
+from .spare import SpareError
 from .webcommon import Ctx, json_response, msg_of, _err
 
 if TYPE_CHECKING:
@@ -119,6 +121,14 @@ def add_routes(r: web.RouteTableDef, bridge: "Bridge", ctx: Ctx) -> None:
         except KeyError as e:
             return _err(409, msg_of(e))
         bridge.moon.prompts.close()
+        spare = re.fullmatch(r"KOBRA_SPARE T=(\d+)", cmd.strip())
+        if spare and getattr(bridge, "spare", None) is not None:
+            # the spool change takes minutes: in the background like the web/app button (spare.py)
+            try:
+                bridge.spare.choose(int(spare.group(1)))
+            except SpareError as e:
+                return _err(e.status, msg_of(e))
+            return json_response({"ok": True})
         try:
             await bridge.moon.gcode(cmd, source=dev.get("name") or "Display")
         except Exception as e:  # noqa: BLE001

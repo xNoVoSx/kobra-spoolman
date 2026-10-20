@@ -170,7 +170,7 @@ single snapshot — it never starts the camera pump for this), judges the result
 (EWM against a baseline, safe start, warn/fail thresholds), raises messages, stores frames and labels.
 Details: [vision.md](vision.md).
 
-## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`, `phase.py`, `startseq.py`, `direct.py`, `nozzle.py`)
+## Klipper modules on the printer (`pa.py`, `filament_z.py`, `resume.py`, `clog.py`, `phase.py`, `startseq.py`, `direct.py`, `nozzle.py`, `spare.py`)
 
 Since 3.0 the printer runs real Klipper, so features that need the printer's timing live in Klipper modules
 (kept in a separate, private repo, not part of this one). The bridge is their link to Spoolman and to the
@@ -208,6 +208,7 @@ running) and adds `start_seq` (`paused`, `requested`, `step`); the booking logic
 | `startseq.py` | `kobra_seq` | print start running: pause/resume/cancel → `printer.kobra_seq.control`; paused start → state `paused` + `start_seq` for the UIs |
 | `direct.py` | `kobra_direct` | direct feed on/off with the spool inserted; booking, Auto PA and Z offset take that spool for every tool; red bar |
 | `nozzle.py` | `kobra_nozzle` | swappable hotends: hotend in use, print start check, Z correction (`KOBRA_NOZZLE`), PID measurement in the background (`KOBRA_NOZZLE_PID`); nozzle → `pa.py`, files without `G9111 NOZZLE=` → `printcheck.py` (Orca's `; nozzle_diameter` from `render.py`) |
+| `spare.py` | `kobra_spare` | empty spool without a matching one: the question with the Spoolman spools, the choice (`KOBRA_SPARE T=`, in the background; display prompt buttons too), red message `spare` → phone alarm, switches `spare`/`spare_auto` |
 | `usb.py` | Moonraker database `kobra_usb` (USB watchdog service on the Klipper computer) | state every 30 s → status line, message after giving up; switches written to `kobra_usb.switches` |
 
 Writes to the printer wait until Spoolman is loaded (`sm.connected`), so a fresh start never sends empty slots.

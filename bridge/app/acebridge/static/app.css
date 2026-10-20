@@ -312,6 +312,7 @@ table.tbl td.n { max-width: min(30vw, 15em); overflow: hidden; text-overflow: el
 .pick button { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; min-height: 56px; border-radius: var(--r-sm);
   border: 1px solid var(--line); background: var(--sunken); cursor: pointer; }
 .pick button:hover, .pick button.on { border-color: var(--accent); }
+.pick button.warn { border-color: var(--danger-line); }
 .toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 60; max-width: min(440px, calc(100vw - 32px)); }
 .toast { padding: 12px 16px; border-radius: var(--r-sm); background: var(--surface2); border: 1px solid var(--line-strong); box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 14px; }
 .toast.ok { border-color: var(--ok-line); color: var(--ok-text); }

@@ -325,7 +325,8 @@ Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay v
 - **Endlosspule** – ist eine Spule leer, lädt die ACE eine passende andere und der Druck läuft weiter. Unter
   Klipper + ACEPRO wählt *Welche Spule passt?* gleiche Farbe und gleiches Material, gleiches Material oder einfach die
   nächste Spule; unter Rinkhals entscheidet die Firmware. Auch während eines Drucks änderbar; gilt beim nächsten
-  leeren Slot. Der Verbrauch läuft auf dem neuen Slot weiter.
+  leeren Slot. Der Verbrauch läuft auf dem neuen Slot weiter. Kein Treffer: siehe
+  [Wenn ein Filament leer ist](#wenn-ein-filament-leer-ist).
 - **Auslauferkennung** (Rinkhals) – der Drucker pausiert, wenn das Filament ausgeht.
 - **Trocknen planen** – ein Start zu einer festen Zeit, z.B. heute um 22:00.
 - **Pressure Advance**, **Fortsetzen nach Stromausfall** und **Verstopfung erkennen** (Klipper) – die Schalter der
@@ -397,6 +398,17 @@ Dafür muss das Plugin gekoppelt sein; sonst sagt es Bescheid. Um für einen ein
 zurückzukehren, das Feld im Filament-Editor leeren (oder `POST /api/orca/reset`, siehe [api.md](../api.md)).
 
 ## Wenn ein Filament leer ist
+
+**Keine passende Spule geladen** (Klipper + ACEPRO mit dem Drucker-Modul `kobra_spare`, Endlosspule an): statt nur zu
+pausieren wartet der Druck über dem Abfallkanal und fragt, mit welcher geladenen Spule es weitergeht – eine Karte in der
+Übersicht (Weboberfläche und App, mit Spoolman-Spule, Farbe und Restgewicht), das Druckerdisplay, ein Mainsail-Popup
+und eine rote Meldung (Alarm auf dem Handy). Ein Tipp wechselt auf diesen Slot und der Druck läuft weiter; ruft die
+Datei das leere Werkzeug später wieder auf (mehrfarbig), nimmt sie bis zum Druckende denselben Ersatz. Ein anderes
+Material fragt vorher nach: Die Düse wechselt auf die Temperatur der neuen Spule, Bett und Lüfter bleiben, wie die Datei
+sie setzt, und Paare, die meist schlecht halten (z. B. PLA auf PETG), sind rot markiert. *Slot n nachgefüllt – laden
+und weiter* nimmt denselben Slot, sobald eine neue Spule drin ist. *Funktionen*: **Nach anderer Spule fragen** an/aus und
+**Ohne Antwort** – weiter warten (Standard) oder nach 5/15/30 Minuten die ähnlichste Spule nehmen. Ohne das Modul
+pausiert ACEPRO nur wie bisher.
 
 **Archivieren** an der Spule (Regal, App oder Spoolman). Filamente ohne aktive Spule verlieren beim
 nächsten Sync ihr Orca-Profil; Profile, die das Plugin nicht selbst angelegt hat, bleiben unangetastet.

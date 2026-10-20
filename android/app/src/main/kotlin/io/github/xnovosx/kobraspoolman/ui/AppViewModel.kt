@@ -269,6 +269,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun spare(tool: Int) = launchSafe {
+        it.spare(tool)
+        _messages.send(tr("Changing to slot {slot} – the print continues afterwards", "slot" to tool + 1))
+        refresh()
+    }
+
     fun hotend(id: String) = launchSafe {
         it.nozzle(hotend = id)
         refresh()
