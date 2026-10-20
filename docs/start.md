@@ -47,7 +47,7 @@ of our RFID tags are assigned by themselves when you insert them — the tags ar
 
 | Feature | What you get | Needs | Switch it on | Load on the printer | Rinkhals | Klipper |
 |---|---|---|---|---|---|---|
-| Android app | writes the RFID tags, the printer's messages on the phone, everything of the web UI | Android with NFC | *Devices → Add device*, scan the QR code with the app ([app](android-app.md)) | none – the app only asks the bridge | yes | yes |
+| Android app | writes the RFID tags, opens spools by their Spoolman QR code, the printer's messages on the phone, everything of the web UI | Android with NFC | *Devices → Add device*, scan the QR code with the app ([app](android-app.md)) | none – the app only asks the bridge | yes | yes |
 | Printer display | the web UI made for the printer's touch screen | the Klipper computer runs the kiosk | install the kiosk ([display](usage.md#the-printers-own-display)) | none | – | yes |
 | Orca plugin | Spoolman profiles in Orca, usage preview after slicing, back sync | OrcaSlicer, the [orca-kobra](https://github.com/xNoVoSx/orca-kobra) build for the preview | install the plugin ([installation](installation.md#6-orca-plugin-kobra-spoolman)) | none | yes | yes |
 | Camera | the printer camera in web, app and display | a camera at the printer | on by default; *Features* | one connection to the printer, however many watch | yes | yes |

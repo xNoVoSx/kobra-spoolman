@@ -47,7 +47,7 @@ RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die A
 
 | Funktion | Was du bekommst | Braucht | Einschalten | Last am Drucker | Rinkhals | Klipper |
 |---|---|---|---|---|---|---|
-| Android-App | schreibt die RFID-Tags, Meldungen des Druckers aufs Handy, alles aus der Weboberfläche | Android mit NFC | *Geräte → Gerät hinzufügen*, QR-Code mit der App scannen ([App](../android-app.md)) | keine – die App fragt nur die Bridge | ja | ja |
+| Android-App | schreibt die RFID-Tags, öffnet Spulen über ihren Spoolman-QR-Code, Meldungen des Druckers aufs Handy, alles aus der Weboberfläche | Android mit NFC | *Geräte → Gerät hinzufügen*, QR-Code mit der App scannen ([App](../android-app.md)) | keine – die App fragt nur die Bridge | ja | ja |
 | Drucker-Display | die Weboberfläche für den Touchscreen des Druckers | der Klipper-Rechner startet den Kiosk | Kiosk installieren ([Display](usage.md#das-display-des-druckers)) | keine | – | ja |
 | Orca-Plugin | Spoolman-Profile in Orca, Verbrauchsvorschau nach dem Slicen, Rückabgleich | OrcaSlicer, für die Vorschau der Build [orca-kobra](https://github.com/xNoVoSx/orca-kobra) | Plugin installieren ([Installation](installation.md#6-orca-plugin-kobra-spoolman)) | keine | ja | ja |
 | Kamera | die Druckerkamera in Web, App und Display | eine Kamera am Drucker | von Anfang an an; *Funktionen* | eine Verbindung zum Drucker, egal wie viele zuschauen | ja | ja |
