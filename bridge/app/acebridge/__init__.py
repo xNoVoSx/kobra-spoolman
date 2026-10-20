@@ -9,7 +9,7 @@ __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
-    ("4.3.0", "2026-10-19", [
+    ("4.3.0", "2026-10-20", [
         tr("Swappable hotends (e.g. 0.2/0.4/0.6): choose the hotend in use on the ACE page, in the app or on the display – Klipper takes its PID, nozzle size and Z correction at once; measure the PID once per hotend"),
         tr("Auto PA per nozzle: Spoolman keeps a PA table per nozzle – after a hotend change a filament without values for that nozzle is measured at the next print"),
         tr("Print start check: a file sliced for another nozzle than the hotend in use is stopped (with our Orca profiles before anything heats up, otherwise paused at once)"),

@@ -8,7 +8,7 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
-## [4.3.0] – 2026-10-19
+## [4.3.0] – 2026-10-20
 
 ### Added
 - **Swappable hotends** (`nozzle.py`): for printers with several hotends (e.g. the 0.2/0.4/0.6 ceramic hotends for the
@@ -159,7 +159,7 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
 
-## app 1.20.0 – 2026-10-19
+## app 1.20.0 – 2026-10-20
 
 ### Added
 - Swappable hotends: section in the ACE sheet to choose the hotend in use, measure its PID and switch the nozzle check
