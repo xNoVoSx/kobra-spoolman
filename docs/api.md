@@ -275,7 +275,7 @@ Keys: `pa`, `pa_auto`, `filament_z`, `endless`, `endless_mode` (`exact`/`materia
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/machine` | `ready`, `position` [x, y, z], `homed` (e.g. `xyz`), `move_allowed`, `extrude_allowed`, `steps`, `extrude_steps`, `slots`, `macros` (`key`, `label`, `confirm`), `running`, `error` |
-| POST | `/api/machine/{action}` | *(paired)* `home` `{"axes": "all"\|"xy"\|"z"}`, `jog` `{"axis": "x", "dist": -10}` (±0.1/1/10/50, Z ≤ 10, axis must be homed), `motors_off`, `extrude` `{"mm": 10}` (±5/10/50, nozzle ≥ 170 °C), `load` `{"slot": 2}` (`T1`), `unload` (`ACE_SMART_UNLOAD`), `macro` `{"key": "bed_mesh_all", "confirm": true}` |
+| POST | `/api/machine/{action}` | *(paired)* `home` `{"axes": "all"\|"xy"\|"z"}`, `jog` `{"axis": "x", "dist": -10}` (±0.1/1/10/50, Z ≤ 10, axis must be homed), `motors_off`, `extrude` `{"mm": 10}` (±5/10/50, nozzle ≥ 170 °C), `load` `{"slot": 2}` (`T1`), `unload` (`ACE_SMART_UNLOAD`), `eject` `{"slot": 2}` (`ACE_FULL_UNLOAD TOOL=1`, ACEPRO only), `macro` `{"key": "bed_mesh_all", "confirm": true}` |
 
 Also `zadjust` `{"delta": 0.025}` (±0.01/0.025/0.05, allowed while printing; the sum since the print started is in
 `z_session`) and `exclude` `{"name": "PART_1", "confirm": true}` (only while printing). `POST /api/machine-z/save`

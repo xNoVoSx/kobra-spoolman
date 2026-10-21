@@ -303,6 +303,11 @@ class BridgeClient(
         call("POST", "/api/direct", body, ApiError.serializer())
     }
 
+    /** Eject a slot: pull the filament out of the ACE so the spool can come off (ACEPRO's ACE_FULL_UNLOAD, runs in the background). */
+    suspend fun eject(slot: Int) {
+        call("POST", "/api/machine/eject", "{\"slot\":$slot}", ApiError.serializer())
+    }
+
     /** Swappable hotends: hotend in use and/or the print start check (bridge nozzle.py). */
     suspend fun nozzle(hotend: String? = null, check: Boolean? = null) {
         val parts = listOfNotNull(hotend?.let { "\"hotend\":\"$it\"" }, check?.let { "\"check\":$it" })

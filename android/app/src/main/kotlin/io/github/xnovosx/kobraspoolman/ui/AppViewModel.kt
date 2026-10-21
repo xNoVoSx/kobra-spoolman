@@ -302,6 +302,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun eject(slot: Int) = launchSafe {
+        it.eject(slot)
+        _messages.send(tr("Slot {slot} is being ejected …", "slot" to slot))
+        refresh()
+    }
+
     fun direct(enable: Boolean, spoolId: Int? = null, unload: Boolean = false) = launchSafe {
         if (enable && unload) _messages.send(tr("Unloading the ACE filament – this takes a minute"))
         it.direct(enable, spoolId, unload)

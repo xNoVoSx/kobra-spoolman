@@ -440,7 +440,8 @@ is left empty on purpose: the printer's viewer app swallows touches there (hold 
   *System*), plus the AI. They are stored in the printer, so web UI, app and Mainsail show the same. *System* holds the
   *Diagnostic log* and the three switches of the USB tunnel watchdog (see below).
 - **Control** — temperatures (presets from the loaded spools or the number pad), moving (home, jog with 0.1–50 mm
-  steps, motors off), filament (load a slot through the ACE, unload, extrude when hot), fans, *Measure bed meshes*,
+  steps, motors off), filament (load a slot through the ACE, unload, extrude when hot, *eject* a slot = pull the filament out of the
+  ACE so the spool can come off – also on the web slot card and the app's spool card), fans, *Measure bed meshes*,
   Klipper restart and an emergency stop you hold for 1.5 s. Moving and loading are locked while printing.
 - **Files** — the print files on the printer with preview, time and colours; tap one to see its tools next to the
   slots and start it. After a print: *Erneut drucken*.

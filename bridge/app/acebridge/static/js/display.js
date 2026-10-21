@@ -331,7 +331,7 @@ function Move({ m, busy, act }) {
   </div>`;
 }
 
-function Filament({ st, m, busy, act }) {
+function Filament({ st, m, busy, act, confirm }) {
   const p = st.printer || {};
   const ok = m?.move_allowed && !busy && !m?.running;
   const okE = m?.extrude_allowed && !busy && !m?.running;
@@ -352,7 +352,16 @@ function Filament({ st, m, busy, act }) {
       <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 10 }))}>${t("{mm} mm forward", { mm: 10 })}</button>
       <button type="button" class="disp-btn" disabled=${!okE || cold} onClick=${() => act(() => post("/api/machine/extrude", { mm: 50 }))}>${t("{mm} mm forward", { mm: 50 })}</button>
     </div>
-    ${cold && html`<div class="disp-note">${t("Extruding only from 170 °C nozzle (tab Temperature).")}</div>`}`;
+    ${cold && html`<div class="disp-note">${t("Extruding only from 170 °C nozzle (tab Temperature).")}</div>`}
+    ${m?.eject && html`
+    <div class="disp-lbl">${t("Eject a slot (pulls the filament out of the ACE, the spool can come off)")}</div>
+    <div class="disp-btns">${(st.slots || []).map((s) => html`
+      <button type="button" class="disp-btn" disabled=${!ok || !s.ace?.present} onClick=${() => confirm({
+        title: t("Eject slot {slot}?", { slot: s.slot }), ok: t("Eject"),
+        text: s.ace?.active ? t("The filament is in the toolhead: heats over the waste chute, cuts, then pulls it out of the ACE.")
+          : t("Pulls the filament back until the ACE reports the slot as free."),
+        action: () => post("/api/machine/eject", { slot: s.slot }) })}>${t("Eject {slot}", { slot: s.slot })}</button>`)}
+    </div>`}`;
 }
 
 function More({ st, m, busy, act, confirm }) {

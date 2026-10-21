@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "4.4.0"
+__version__ = "4.5.0"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("4.5.0", "2026-10-21", [
+        tr("Eject a slot: pulls the filament out of the ACE so the spool can come off – on the display (Control → Filament), in the web UI (slot card) and in the app (spool card); Klipper with ACEPRO, not while printing"),
+    ]),
     ("4.4.0", "2026-10-20", [
         tr("Empty spool without a matching one: instead of only pausing, the print waits over the waste chute and asks which loaded spool to continue with – in the web UI, the app (alarm), on the display and in Mainsail; one tap changes and resumes"),
         tr("App 1.21.0: scan Spoolman QR codes next to NFC – a refill with only the Spoolman sticker opens its spool card; archived spools come back from there, and a tag taken from an old spool body offers to archive that spool"),

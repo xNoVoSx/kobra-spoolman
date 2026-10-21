@@ -8,6 +8,9 @@ export const assignSlot = (slot, spoolId) =>
   after(post(`/api/slots/${slot}`, { spool_id: spoolId }), spoolId == null ? t("Slot {slot} emptied", { slot })
     : t("Spool #{id} in slot {slot}", { id: spoolId, slot }));
 
+export const ejectSlot = (slot) =>
+  after(post("/api/machine/eject", { slot }), t("Slot {slot} is being ejected …", { slot }));
+
 export const moveSpool = (spoolId, slot) =>
   after(post(`/api/app/spool/${spoolId}/location`, { slot }), slot == null ? t("Put on the shelf") : t("Moved into slot {slot}", { slot }));
 

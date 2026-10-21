@@ -52,8 +52,11 @@ fun SpoolScreen(
     onWriteTag: (side: Int) -> Unit,
     moisture: @Composable () -> Unit = {},
     onRestore: () -> Unit = {},
+    onEject: (() -> Unit)? = null,     // set while the spool's filament can be pulled out of the ACE
+    ejectActive: Boolean = false,      // its filament is in the toolhead (heats and cuts first)
 ) {
     var confirmArchive by remember { mutableStateOf(false) }
+    var confirmEject by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(K.Ground).verticalScroll(rememberScrollState())) {
         if (detail == null) {
             Row(Modifier.padding(start = 20.dp, top = contentPadding.calculateTopPadding() + 16.dp)) {
@@ -124,6 +127,8 @@ fun SpoolScreen(
                 SecondaryButton(when (tags) { 0 -> tr("Write tags"); 1 -> tr("Write 2nd tag"); else -> tr("Rewrite tags") },
                     { onWriteTag(if (tags == 1) 2 else 1) }, Modifier.weight(1f), enabled = canWrite && !busy)
             }
+            if (onEject != null) SecondaryButton(tr("Eject from the ACE"), { confirmEject = true }, Modifier.fillMaxWidth(),
+                enabled = canWrite && !busy)
             if (!sp.archived) SecondaryButton(tr("Empty · archive"), { confirmArchive = true }, Modifier.fillMaxWidth(),
                 enabled = canWrite && !busy, danger = true)
             if (!canWrite) Hint(tr("Changing only works once the app is paired (Settings)."))
@@ -143,6 +148,17 @@ fun SpoolScreen(
             }
             Spacer(contentPadding.calculateBottomPadding())
         }
+    }
+    if (confirmEject && onEject != null) {
+        AlertDialog(
+            onDismissRequest = { confirmEject = false },
+            title = { Text(tr("Eject slot {slot}?", "slot" to (detail?.spool?.slot ?: 0))) },
+            text = { Text(if (ejectActive) tr("The filament is in the toolhead: heats over the waste chute, cuts, then pulls it out of the ACE.")
+                else tr("Pulls the filament back until the ACE reports the slot as free.")) },
+            confirmButton = { TextButton(onClick = { confirmEject = false; onEject() }) { Text(tr("Eject")) } },
+            dismissButton = { TextButton(onClick = { confirmEject = false }) { Text(tr("Cancel")) } },
+            containerColor = K.Surface,
+        )
     }
     if (confirmArchive) {
         AlertDialog(

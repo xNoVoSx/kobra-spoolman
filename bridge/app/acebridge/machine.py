@@ -1,4 +1,4 @@
-"""Printer control (display, later web/app): home, jog, motors off, extrude, load/unload a slot, selected macros.
+"""Printer control (display, later web/app): home, jog, motors off, extrude, load/unload/eject a slot, selected macros.
 Temperatures and fans go through /api/print/tune, emergency stop and reloading Klipper through /api/print/{action} -
 limits and confirmations exist there already.
 
@@ -40,7 +40,7 @@ MACROS: Dict[str, tuple] = {
                      tr("Measures the bed meshes for all temperatures (heats each time, takes long). Bed clear?")),
 }
 Z_STEPS = (0.01, 0.025, 0.05)          # mm per tap for fine adjustment (also while printing)
-LONG = ("home", "load", "unload", "macro")   # take minutes: in the background, answer at once
+LONG = ("home", "load", "unload", "eject", "macro")   # take minutes: in the background, answer at once
 BUSY = ("printing",)                    # moving, loading, macros blocked
 EXTRUDE_BUSY = ("printing",)            # extruding: allowed while paused
 
@@ -80,6 +80,10 @@ class Machine:
         assigned, _ = self.slots.assignments()
         return ((assigned.get(idx + 1) or {}).get("filament") or {})
 
+    def _can_eject(self) -> bool:
+        """Eject = ACEPRO's ACE_FULL_UNLOAD (back until the slot sensor is free); GoKlipper (Rinkhals) has none."""
+        return acemodel.variant(self.moon.status) == acemodel.ACEPRO
+
     def _state(self) -> Optional[str]:
         return (self.moon.status.get("print_stats") or {}).get("state")
 
@@ -107,7 +111,7 @@ class Machine:
             "homed": th.get("homed_axes") or "",
             "move_allowed": bool(self.moon.klippy_ready) and state not in BUSY,
             "extrude_allowed": bool(self.moon.klippy_ready) and state not in EXTRUDE_BUSY,
-            "steps": list(STEPS), "extrude_steps": list(EXTRUDE), "slots": SLOTS,
+            "steps": list(STEPS), "extrude_steps": list(EXTRUDE), "slots": SLOTS, "eject": self._can_eject(),
             "macros": [{"key": k, "label": v[0], "confirm": v[2]} for k, v in MACROS.items()],
             "running": self.running, "error": self.error,
             "z_offset": round(origin[2], 3) if len(origin) >= 3 else None, "z_steps": list(Z_STEPS),
@@ -175,6 +179,13 @@ class Machine:
             return [f"T{slot - 1}"]
         if action == "unload":
             return ["ACE_SMART_UNLOAD"]
+        if action == "eject":
+            slot = body.get("slot")
+            if not isinstance(slot, int) or isinstance(slot, bool) or not 1 <= slot <= SLOTS:
+                raise MachineError(400, tr("slot: 1 to {max}", max=SLOTS))
+            if not self._can_eject():
+                raise MachineError(409, tr("Ejecting needs ACEPRO (Klipper)"))
+            return [f"ACE_FULL_UNLOAD TOOL={slot - 1}"]
         if action == "macro":
             key = body.get("key")
             if key not in MACROS:

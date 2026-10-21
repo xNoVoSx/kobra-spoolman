@@ -8,6 +8,14 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.5.0] – 2026-10-21
+
+### Added
+- **Eject a slot**: pulls the filament out of the ACE so the spool can come off (ACEPRO's `ACE_FULL_UNLOAD`, back until
+  the slot sensor is free; filament in the toolhead is heated over the waste chute and cut first). *Unload* only takes
+  it out of the toolhead. Display *Control → Filament*, web slot card, app spool card – with a confirmation, not while
+  printing, only with Klipper + ACEPRO. `POST /api/machine/eject {"slot": 2}`, `eject` in `GET /api/machine`.
+
 ## [4.4.0] – 2026-10-20
 
 ### Added
@@ -177,6 +185,11 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.22.0 – 2026-10-21
+
+### Added
+- *Eject from the ACE* on the spool card of a loaded spool: pulls the filament out of the ACE so the spool can come off.
 
 ## app 1.21.0 – 2026-10-20
 

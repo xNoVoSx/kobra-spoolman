@@ -686,5 +686,11 @@
  "Resuming – heating up …": "Wird fortgesetzt – heizt auf …",
  "Cancelling …": "Wird abgebrochen …",
  "The printer is still working on it": "Der Drucker ist noch dabei",
- "Offline – last known": "Offline – letzter Stand"
+ "Offline – last known": "Offline – letzter Stand",
+ "Eject slot {slot}?": "Slot {slot} auswerfen?",
+ "Eject": "Auswerfen",
+ "The filament is in the toolhead: heats over the waste chute, cuts, then pulls it out of the ACE.": "Das Filament steckt im Kopf: heizt über dem Abfallkanal, schneidet ab und zieht es dann aus der ACE.",
+ "Pulls the filament back until the ACE reports the slot as free.": "Zieht das Filament zurück, bis die ACE den Slot als frei meldet.",
+ "Slot {slot} is being ejected …": "Slot {slot} wird ausgeworfen …",
+ "Eject from the ACE": "Aus der ACE auswerfen"
 }

@@ -221,11 +221,16 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
             composable("spool/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable
                 LaunchedEffect(id, state) { vm.loadSpool(id) }
+                // eject: ACEPRO only, the spool's slot holds filament, no print running
+                val ejectSlot = state?.takeIf { it.ace?.variant == "acepro" && it.printer.state !in setOf("printing", "paused") }
+                    ?.slots?.firstOrNull { it.spool?.spoolId == id && it.ace.present && it.live }
                 SpoolScreen(detail?.takeIf { it.spool.spoolId == id }, slotCount, canWrite, busy, padding,
                     onBack = { nav.popBackStack() },
                     onMove = { vm.moveSpool(id, it) },
                     onArchive = { vm.archiveSpool(id) { nav.popBackStack() } },
                     onRestore = { vm.unarchiveSpool(id) },
+                    onEject = ejectSlot?.let { sl -> { vm.eject(sl.slot) } },
+                    ejectActive = ejectSlot?.ace?.active == true,
                     onWriteTag = { side -> nav.navigate("tag/$id?side=$side") },
                     moisture = { SpoolMoistureSection(id, canWrite, { vm.spoolMoisture(it) }) { t, h, done -> vm.spoolDried(id, t, h, done) } })
             }

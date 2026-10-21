@@ -79,6 +79,16 @@ export function SlotCard({ slot }) {
     title: t("Empty slot {slot}?", { slot: slot.slot }), text: t("{name} goes back to the shelf.", { name: sp.display_name }), ok: t("Empty"),
     action: () => import("./actions.js").then((a) => a.assignSlot(slot.slot, null)),
   }));
+  // eject = pull the filament out of the ACE (ACEPRO only, not while printing)
+  const p = S.st?.printer;
+  const canEject = S.st?.ace?.variant === "acepro" && slot.ace?.present && slot.live !== false
+    && !(p && (p.state === "printing" || p.state === "paused"));
+  const eject = guard(() => openDialog("confirm", {
+    title: t("Eject slot {slot}?", { slot: slot.slot }), ok: t("Eject"),
+    text: active ? t("The filament is in the toolhead: heats over the waste chute, cuts, then pulls it out of the ACE.")
+      : t("Pulls the filament back until the ACE reports the slot as free."),
+    action: () => import("./actions.js").then((a) => a.ejectSlot(slot.slot)),
+  }));
   // the overview has no spool detail: open the spool on Filament → Spools (idea: MineTech13's HA add-on)
   const offline = slot.live === false && !!sp;    // printer or ACE off: Spoolman's last known assignment
   const open = () => { if (!sp) return; set({ sel: sp.spool_id }); if (!location.hash.startsWith("#/filament")) location.hash = "#/filament/spools"; };
@@ -108,6 +118,7 @@ export function SlotCard({ slot }) {
       <div class="actions">
         <button class="btn sm" onClick=${assign}>${sp ? t("Change spool") : t("Assign spool")}</button>
         ${sp && html`<button class="btn sm ghost" onClick=${clear}>${t("Empty")}</button>`}
+        ${canEject && html`<button class="btn sm ghost" onClick=${eject}>${t("Eject")}</button>`}
       </div>
     </div>
   </article>`;

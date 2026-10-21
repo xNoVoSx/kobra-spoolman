@@ -63,6 +63,25 @@ def test_allowed_commands(env):
                          "T1", "ACE_SMART_UNLOAD", "KOBRA_BED_MESH_ALL"]
 
 
+def test_eject(env):
+    m, moon = env
+    with pytest.raises(MachineError) as e:                 # no ACEPRO objects (no ACE, or Rinkhals' GoKlipper)
+        run(m.run("eject", {"slot": 1}, "Display"))
+    assert e.value.status == 409 and not run(m.view())["eject"]
+    moon.merge({"ace": {"current_index": -1}})
+    assert run(m.view())["eject"]
+    run(m.run("eject", {"slot": 3}, "Display"))
+    assert moon.sent == ["ACE_FULL_UNLOAD TOOL=2"]
+    for body in ({"slot": 0}, {"slot": 5}, {"slot": "1"}, {}):
+        with pytest.raises(MachineError) as e:
+            run(m.run("eject", body, "Display"))
+        assert e.value.status == 400
+    moon.merge({"print_stats": {"state": "printing"}})
+    with pytest.raises(MachineError) as e:
+        run(m.run("eject", {"slot": 1}, "Display"))
+    assert e.value.status == 409 and moon.sent == ["ACE_FULL_UNLOAD TOOL=2"]
+
+
 @pytest.mark.parametrize("action,body,status", [
     ("jog", {"axis": "x", "dist": 7}, 400), ("jog", {"axis": "e", "dist": 1}, 400), ("jog", {"axis": "z", "dist": 50}, 400),
     ("jog", {"axis": "x", "dist": True}, 400), ("load", {"slot": 5}, 400), ("load", {"slot": "1"}, 400),

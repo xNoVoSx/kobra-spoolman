@@ -450,7 +450,8 @@ beendet den Viewer).
   *System*) und die KI. Gespeichert im Drucker, Weboberfläche, App und Mainsail zeigen denselben Stand. Unter *System*:
   *Diagnose-Protokoll* und die drei Schalter des USB-Wächters (siehe unten).
 - **Steuerung** – Temperaturen (Schnellwahl aus den eingelegten Spulen oder Ziffernfeld), Bewegen (homen, joggen mit
-  0,1–50 mm, Motoren aus), Filament (Slot über die ACE laden, entladen, extrudieren, wenn heiß), Lüfter,
+  0,1–50 mm, Motoren aus), Filament (Slot über die ACE laden, entladen, extrudieren, wenn heiß, Slot *auswerfen* = Filament aus der ACE
+  ziehen, damit die Spule raus kann – auch auf der Slot-Karte im Web und der Spulenkarte der App), Lüfter,
   *Bettnetze messen*, Klipper neu laden und Not-Aus (1,5 s gedrückt halten). Bewegen und Laden sind im Druck gesperrt.
 - **Dateien** – die Druckdateien am Drucker mit Vorschau, Zeit und Farben; antippen zeigt die Werkzeuge neben den
   Slots und startet den Druck. Nach dem Druck: *Erneut drucken*.
