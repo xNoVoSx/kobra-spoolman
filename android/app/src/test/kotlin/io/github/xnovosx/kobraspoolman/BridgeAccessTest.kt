@@ -48,6 +48,7 @@ class BridgeAccessTest {
     private val sessions = mutableListOf<String>()
     private var validSession: String? = null
     private var haToken = "ha-token"
+    private var adminOnly = false                    // add-on with panel_admin (default) and a non-admin HA user
 
     private fun homeAssistant() {
         ha.dispatcher = object : Dispatcher() {
@@ -78,6 +79,8 @@ class BridgeAccessTest {
                 if (!path.startsWith("/api/hassio_ingress/tok/")) return MockResponse.Builder().code(404).build()
                 if (request.headers["Cookie"] != "ingress_session=$validSession")
                     return MockResponse.Builder().code(401).addHeader("Content-Type", "text/plain").body("401: Unauthorized").build()
+                if (adminOnly)
+                    return MockResponse.Builder().code(403).addHeader("Content-Type", "text/plain").body("403: Forbidden").build()
                 // the bridge key passes HA unchanged
                 if (request.headers["Authorization"] != "Bearer key") return MockResponse.Builder().code(403).build()
                 return MockResponse.Builder().code(200).body(if (path.endsWith("/api/health")) health else state).build()
@@ -168,6 +171,14 @@ class BridgeAccessTest {
         assertTrue(result[RouteKind.LOCAL]!!.isNotBlank())
         assertNull(result[RouteKind.VPN])
         assertTrue(result[RouteKind.HA]!!, "refused the token" in result[RouteKind.HA]!!)
+    }
+
+    @Test fun admin_only_add_on_is_explained() = runTest {
+        homeAssistant()
+        adminOnly = true
+        val why = access().test(conn(dead, haOn = true))[RouteKind.HA]!!
+        assertTrue(why, "only open to administrators" in why)
+        assertEquals(listOf("s1"), sessions)                       // no endless renewing
     }
 
     @Test fun ingress_path_from_what_is_pasted() {

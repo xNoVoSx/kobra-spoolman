@@ -5,25 +5,18 @@ Status: **released** — see [docs/android-app.md](../docs/android-app.md). Ever
 The app talks only to the [ace-lane-bridge](../bridge) (`/api/app/…`, [API](../docs/api.md#app-and-web-ui)).
 UI texts are English or German (the phone's language, or *Settings → Language*; Android 13+ also per-app language).
 
-## What works
+## What it does
 
-- Slots with printer status (state, file, progress, remaining time, active slot) and the shelf
-- Spool card: remaining weight, temperatures, last prints; move to slot 1–4, shelf, archive
-- Scan: NFC tag → spool card; unknown tag → new spool or link to an existing one
-- New spool from an existing filament (weights, straight into a slot, link the scanned tag)
-- Settings: pairing with the bridge by QR code or 6-digit code; device list (add, remove)
-- New filament (stage 3): 7-step wizard — vendor (or a new one), name, material, template, own Orca
-  base profile (list reported by the Orca plugin), colour, weights, temperatures, cooling,
-  extrusion/retraction, Orca overrides. Template values are shown as placeholders and never stored;
-  *Copy values from …* copies a product line's own values for a new colour.
+Everything in detail: [docs/android-app.md](../docs/android-app.md). In short:
 
-- Write ACE tags: tag number from the bridge, pages 4–31 in the ACE layout (verified against an
-  original Anycubic tag), read back, UID linked to the spool. After creating a spool the app goes
-  straight to writing its tag.
-
-- ACE dryer: humidity/temperature card on the start screen; start/stop and the automation settings.
-
-Next: first test with real NTAG215 stickers on the phone; does the ACE report our tag number?
+- Printer with camera, 3D view, print phase and controls (pause, cancel, tune, emergency stop)
+- Notifications in the background with own sounds, the running print as a Live Update, home-screen widget
+- Slots, shelf and spool card; new spools and filaments (7-step wizard with every Orca field)
+- NFC: writes ACE-compatible tags (two per spool), finds spools by tag; Spoolman QR codes
+- ACE dryer with humidity history, spool moisture, ACE settings and the switches of the Klipper modules
+  (Auto PA, resume, clog detection, direct feed, hotends, eject, USB tunnel)
+- Features page and setup, devices, pairing by QR code, updates through the bridge
+- Away from home through a VPN or Home Assistant (*Settings → Remote access*)
 
 ## Build
 

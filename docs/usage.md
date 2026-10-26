@@ -90,6 +90,11 @@ load temperature.
 
 Removing a spool: if the ACE reports a slot empty for a while, the spool is moved to the shelf
 automatically (during a print only after it ends). You can also press **Empty** on the slot card.
+
+**Eject a slot** (Klipper + ACEPRO): pulls the filament all the way out of the ACE so the spool can come off — the
+slot card in the web UI, *Eject from the ACE* on the app's spool card, or the display under *Control → Filament*. It
+asks first and does not work while printing; filament still in the toolhead is heated over the waste chute and cut
+first. *Unload* only takes it out of the toolhead.
 When the printer or the ACE is switched off, every slot looks empty at once — then nothing is moved: the spools stay
 in their slots, and the slot cards show them dimmed with *Offline – last known* until the ACE reports again.
 
@@ -123,7 +128,7 @@ A filament type lists its spools; tapping one opens it under *Spools*.
 The dryer card shows the ACE's humidity and its current temperature; while drying also the set point,
 the filament that limits it and the time left. **Dry** /
 **Stop** works by hand; **Rules** sets the automation: start when the humidity rises above a
-threshold (default 20 %) — and has stayed above it for *Warten* minutes (default 15), so opening
+threshold (default 20 %) — and has stayed above it for a waiting time (default 15 minutes), so opening
 the lid for a moment starts nothing — stop below a second one (default 10 %) or after a maximum time,
 then a pause; optionally also while printing. A run started **by hand, by plan or because a spool was
 loaded** always lasts its full time, however dry the ACE reports; if the ACE stops early, the bridge
@@ -230,9 +235,9 @@ The **ACE** page (app: tap the dryer card) shows what the printer display hides:
   see [When a filament is used up](#when-a-filament-is-used-up).
 - **Runout detection** (Rinkhals) — the printer pauses when the filament runs out.
 - **Schedule drying** — one start at a set time, e.g. tonight at 22:00.
-- **Pressure advance**, **Resume after power loss** and **Detect clogs** (Klipper) — the switches of
-  the printer's Klipper modules, see the sections below. Each card only shows when the printer has the
-  module; every switch is stored in the printer.
+- **Pressure advance**, **Resume after power loss**, **Detect clogs**, **Direct feed**, **Hotend** and **USB tunnel**
+  (Klipper) — the switches and actions of the printer's Klipper modules, see the sections below. Each card only shows
+  when the printer has the module; every switch is stored in the printer.
 
 **Purge per colour change** depends on the firmware:
 
@@ -344,9 +349,10 @@ only the values of the nozzle in use.
 
 ## Slicing and printing
 
-1. In Orca press the filament **sync** button. With the orca-kobra build the `SM…` profiles are
-   selected for slots 1–4 automatically; the panel shows *Filament N in Orca: matches* per slot and
-   warns if a filament box does not match its slot.
+1. In Orca press the filament **sync** button. The `SM…` profiles are selected for slots 1–4 automatically (Orca
+   nightlies from 2026-10-26 and the orca-kobra build — older Orca builds only set material and colour, then pick the
+   profiles yourself); the panel shows *Filament N in Orca: matches* per slot and warns if a filament box does not
+   match its slot.
 2. Slice. At the top of the panel, **Planned usage** (planned usage) shows one line per slot:
    *need / remaining g* and ✓ (enough), ⚠ (*tight*, tight) or ✗ (*not enough*, too short). If a
    spool is too short, Orca also shows a warning. *Details* expands the breakdown (below).
@@ -444,7 +450,7 @@ is left empty on purpose: the printer's viewer app swallows touches there (hold 
   ACE so the spool can come off – also on the web slot card and the app's spool card), fans, *Measure bed meshes*,
   Klipper restart and an emergency stop you hold for 1.5 s. Moving and loading are locked while printing.
 - **Files** — the print files on the printer with preview, time and colours; tap one to see its tools next to the
-  slots and start it. After a print: *Erneut drucken*.
+  slots and start it. After a print: *Print again …*.
 - **Tune** (while printing) — speed and flow, the first layer's height (±0.01–0.05 mm, *Apply for …*
   adds it to the filament's *Z offset* in Spoolman) and *Objects* to skip a failed part.
 - **System** — all messages, IP and versions, the USB tunnel's state with its last event, Klipper restart, Pi
@@ -478,10 +484,10 @@ took about two thirds of the printer's CPU). It only asks the bridge, so the pri
   finished, alarm, hint.
 - **Alarm** (with a camera picture): printer error, a pause or cancel you did not make yourself (a
   pause from the web UI or the app is no alarm), a stuck colour change, a falling nozzle temperature,
-  printer or bridge gone during a print, a spool that won't last, an interrupted print after a power
-  loss, a suspected clog.
+  printer or bridge gone during a print, a spool that won't last, an empty spool waiting for your choice of another
+  one, an interrupted print after a power loss, a suspected clog.
 - **Hint**: only what you can act on — an unknown tag in a slot, a slot without material, Spoolman
-  unreachable for more than 5 minutes. Printer CPU, *almost empty*, open bookings and humidity stay in
+  unreachable for more than 5 minutes, the bridge gone while you are away from home (see below). Printer CPU, *almost empty*, open bookings and humidity stay in
   the app's *Messages*.
 
 *Settings → Sounds* plays every sound and sends a test notification per kind (checks volume and
@@ -504,8 +510,9 @@ first, then the second address, then Home Assistant; on a way from outside it lo
   the phone's traffic goes on directly. No app can switch another app's VPN on — the app can only offer to open it.
 - **Through Home Assistant** — only with the bridge as a [Home Assistant add-on](installation.md#option-b--home-assistant-add-on)
   and HA reachable from outside (e.g. Home Assistant Cloud). The app logs in to HA with a long-lived token (HA:
-  *Profile → Security*; best of a separate HA user without admin rights — the token can do what its user may; it is
-  stored encrypted on the phone) and goes through the add-on's ingress like the HA sidebar does. The *ingress path*
+  *Profile → Security*; the user needs access to the add-on — usually an administrator, because add-ons are open to
+  administrators only unless they set `panel_admin: false`; the token can do what its user may, it is stored encrypted
+  on the phone) and goes through the add-on's ingress like the HA sidebar does. The *ingress path*
   (`/api/hassio_ingress/<long code>`) is filled in by the bridge: as an add-on it asks the Supervisor at start, and it
   remembers it from the first visit through the HA sidebar. The camera then comes as single images.
 
@@ -541,15 +548,29 @@ takes the printer model from the last print file (Orca writes it at the end, e.g
 
 ## Home Assistant
 
-With `MQTT_HOST` set, the bridge sends printer, slots, ACE, messages and AI to your MQTT broker and
-Home Assistant creates the device *<printer name> (ace-lane-bridge)* (e.g. *Kobra S1 (ace-lane-bridge)*) by itself — the printer gets no extra
-client. Details in [configuration](configuration.md#home-assistant-mqtt).
+Home Assistant can work with the bridge in three ways, each one optional (setup:
+[installation, step 7c](installation.md#7c-home-assistant-optional)):
+
+- **Device over MQTT** — with `MQTT_HOST` set the bridge sends printer, ACE, slots, messages and AI to your broker, and
+  Home Assistant creates the device *<printer name> (ace-lane-bridge)* (e.g. *Kobra S1 (ace-lane-bridge)*) by itself:
+  printer state, print phase, progress, time left and finish time, file, layer, nozzle and bed, ACE humidity and
+  temperature, drying, per slot the spool, its remaining weight and moisture estimate, the number of messages and the
+  most important one, the AI level — and, as diagnostics, the CPU of the printer and of the Klipper computer. The
+  printer gets no extra client. All entities: [configuration](configuration.md#home-assistant-mqtt).
+- **Web UI in the sidebar** — with the bridge as a [Home Assistant add-on](installation.md#option-b--home-assistant-add-on)
+  the whole web UI opens in the HA sidebar (ingress).
+- **The app away from home** — with the add-on, the app reaches the bridge through Home Assistant
+  ([remote access](#away-from-home-remote-access)).
+
+A **room sensor** for the storage room (e.g. a Zigbee humidity sensor via Zigbee2MQTT) makes the moisture estimate of
+the spools on the shelf exact (`ROOM_SENSOR_TOPIC`). Ideas for automations: notify when *Messages* goes above 0, switch
+a socket off after *Printer state* turns *complete*, or start the room dehumidifier when the ACE humidity rises.
 
 ## AI print-failure detection
 
 With [kobra-vision](vision.md) running, the bridge sends a camera picture to the AI every 10 s while
 printing and watches the score over the print. When a print turns into spaghetti you get a red message
-**KI: wahrscheinlich Fehldruck** — in the web UI with **False alarm** / **Correct**, on the phone as an
+**AI: probably a failed print (spaghetti)** — in the web UI with **False alarm** / **Correct**, on the phone as an
 alarm with camera picture and **Pause print** / **Correct** / **False alarm**. The camera image shows the found spots as
 boxes. *False alarm* silences the AI for the rest of this print. The first ~5 minutes of a print never
 alarm. By default the AI only warns; it can pause by itself once you trust it (`VISION_ACTION=pause`).

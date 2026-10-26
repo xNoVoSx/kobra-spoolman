@@ -715,7 +715,6 @@
  "This bridge does not run as a Home Assistant add-on – this way needs the add-on.": "Diese Bridge läuft nicht als Home-Assistant-Add-on – dieser Weg braucht das Add-on.",
  "Home Assistant address from outside": "Home-Assistant-Adresse von außen",
  "Long-lived access token": "Langlebiger Zugriffstoken",
- "Create it in Home Assistant under Profile → Security. Best for a separate HA user without admin rights: the token can do what its user may. It is stored encrypted on this phone.": "Anlegen in Home Assistant unter Profil → Sicherheit. Am besten für einen eigenen HA-Benutzer ohne Adminrechte: Der Token darf, was sein Benutzer darf. Er wird auf diesem Handy verschlüsselt gespeichert.",
  "Ingress path of the add-on": "Ingress-Pfad des Add-ons",
  "Filled in by the bridge.": "Von der Bridge eingetragen.",
  "The bridge fills it in once the web UI was opened in Home Assistant. Or paste it: /api/hassio_ingress/<long code>.": "Die Bridge trägt ihn ein, sobald die Weboberfläche einmal in Home Assistant geöffnet war. Oder einfügen: /api/hassio_ingress/<langer Code>.",
@@ -724,5 +723,7 @@
  "If the bridge is gone during a print while the phone is outside the home network, the monitoring says so quietly – with a button for the VPN app. At home it stays an alarm.": "Ist die Bridge im Druck weg, während das Handy außerhalb des Heimnetzes ist, meldet die Überwachung das leise – mit einem Knopf für die VPN-App. Zu Hause bleibt es ein Alarm.",
  "No VPN app found – the hint comes without a button.": "Keine VPN-App gefunden – der Hinweis kommt ohne Knopf.",
  "The hint opens {app}.": "Der Hinweis öffnet {app}.",
- "VPN app for the hint": "VPN-App für den Hinweis"
+ "VPN app for the hint": "VPN-App für den Hinweis",
+ "Create it in Home Assistant under Profile → Security. The user needs access to the add-on – usually an administrator, add-ons are admin-only unless they allow others. The token can do what its user may; it is stored encrypted on this phone.": "Anlegen in Home Assistant unter Profil → Sicherheit. Der Benutzer braucht Zugriff auf das Add-on – meist ein Administrator, Add-ons sind nur für Admins, wenn sie es nicht anders erlauben. Der Token darf, was sein Benutzer darf; er wird auf diesem Handy verschlüsselt gespeichert.",
+ "Home Assistant refuses this user the add-on – it is only open to administrators": "Home Assistant verweigert diesem Benutzer das Add-on – es ist nur für Administratoren offen"
 }

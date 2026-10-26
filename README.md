@@ -52,11 +52,15 @@ aux fan, exhaust fan, flow, pressure advance, retraction. From then on:
   **clog detection** (extruder vs. filament encoder), **direct feed** (TPU & co. by hand straight into the toolhead,
   the ACE stays on, the consumption is booked on the chosen spool) and **swappable hotends** (PID, nozzle size and
   Z correction per hotend, Auto PA per nozzle, a file for the wrong nozzle is stopped) and an **empty spool without a
-  matching one asks** which loaded spool to continue with — each one with its own off switch.
+  matching one asks** which loaded spool to continue with — each one with its own off switch. With ACEPRO a slot can
+  also be **ejected** (filament pulled out of the ACE) from the display, the web UI or the app.
 - A view for the **printer's own touchscreen** (`/display`, 800×480): status, a print screen that opens by itself
   with the file's preview, and every switch — shown by a kiosk browser on the Klipper Pi.
-- Live **3D view** of the running print in the spool colours, **Home Assistant** over MQTT, a
-  **home-screen widget**, and every bridge setting changeable in the web UI.
+- Live **3D view** of the running print in the spool colours, a **home-screen widget**, and every bridge setting
+  changeable in the web UI.
+- **Home Assistant**: printer, ACE and slots as a device over MQTT, the web UI in the HA sidebar with the community
+  add-on — and **away from home** the app reaches the bridge through a VPN (NetBird, Tailscale …) or through Home
+  Assistant, without opening the bridge to the internet.
 - **English and German** in the web UI, app and Orca panel — every user and device picks its own language.
 
 <p align="center">
@@ -81,7 +85,7 @@ flowchart LR
     end
     SM[(Spoolman)]
     BR[ace-lane-bridge<br/>Docker · web UI]
-    subgraph PC["OrcaSlicer (orca-kobra build)"]
+    subgraph PC["OrcaSlicer (nightly or orca-kobra build)"]
         AG[Moonraker agent]
         PL[Kobra Spoolman<br/>plugin]
     end
@@ -160,7 +164,8 @@ Both need:
 | AI print-failure detection | ✅ | ✅ |
 | Print phase (*Preheating*, *Change to slot 2* …) | basic (printing / changing) | ✅ detailed |
 | Auto-PA, Z offset per filament, resume after power loss, clog detection, direct feed, swappable hotends, asking for another spool | — (need Klipper modules) | ✅ with our Klipper modules (not part of this repo) |
-| Printer touchscreen view (`/display`), USB watchdog, Klipper restart | — | ✅ |
+| Printer touchscreen view (`/display`), USB watchdog, Klipper restart, eject a slot | — | ✅ |
+| App away from home (VPN or Home Assistant) | ✅ | ✅ |
 
 ## Quick start
 
@@ -175,7 +180,8 @@ every extension with what it needs and what it costs the printer. The full workf
    ([installation, option B](docs/installation.md#option-b--home-assistant-add-on)).
 3. **Pair your browser** — open `http://<docker-host>:7913` and enter the setup code from the
    bridge log (`Setup code: …`). Further devices get a code under *Devices → Add device*.
-4. **OrcaSlicer** — install the self-updating build from [orca-kobra](https://github.com/xNoVoSx/orca-kobra) (`tools/install.sh`).
+4. **OrcaSlicer** — a 2.5.0-dev nightly picks the profiles per slot by itself; for the usage preview after slicing
+   install the self-updating build from [orca-kobra](https://github.com/xNoVoSx/orca-kobra) (`tools/install.sh`, Linux).
 5. **Plugin** — copy [`kobra_spoolman.py`](orca-plugin/kobra_spoolman.py) to
    `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/`, enable it, set the bridge address and
    enter a pairing code in its panel. Restart Orca once — your Spoolman filaments are now Orca profiles.
@@ -249,7 +255,8 @@ is the firmware's own purge, which the bridge's model predicts within 9 % ([test
 Reading is open in your network. Everything that changes something — Spoolman, slot assignment,
 open items, the dryer, Orca back-sync — needs a **paired device**: the bridge issues one key per
 browser, phone and Orca plugin, stores only its hash and lets you remove devices at any time.
-Keep the bridge inside your home network; it has no TLS.
+Keep the bridge inside your home network; it has no TLS. Away from home the app goes through a VPN or Home Assistant
+([remote access](docs/usage.md#away-from-home-remote-access)) — never forward the bridge's port to the internet.
 
 ## Documentation
 
@@ -289,6 +296,7 @@ Keep the bridge inside your home network; it has no TLS.
 | — | Web UI behind Home Assistant ingress without patches (community add-on) | ✅ done (3.13) |
 | — | Kobra 3 with ACE Pro confirmed, printer and ACE name from the printer, slots keep their spools while the printer is off | ✅ done (3.18–3.19) |
 | — | First stable release for everyone: supported printers, quick start per setup, documentation for newcomers | ✅ 4.0.0 |
+| — | Printer modules: direct feed, printer CPU with Klipper on a Pi, swappable hotends, asking for another spool, ejecting a slot; Spoolman QR codes in the app | ✅ 4.1–4.5 |
 | — | App away from home: second address (VPN such as NetBird) or through Home Assistant (add-on), quiet hint instead of an alarm | ✅ 4.6.0 |
 
 ## AI notice

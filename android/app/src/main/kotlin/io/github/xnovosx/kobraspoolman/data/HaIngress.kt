@@ -28,8 +28,9 @@ class HaException(message: String) : IOException(message)
  * WebSocket API with a long-lived token and asks the Supervisor for an ingress session (`supervisor/api`
  * POST `/ingress/session`); with the cookie `ingress_session` HA passes `/api/hassio_ingress/<token>/...` on to the
  * add-on. The bridge key goes along in `Authorization` - both proxies keep it, HA itself ignores a key it does not know.
- * A session lives 15 minutes after its last use (Supervisor ingress.py); non-admin users get one too (HA hassio
- * websocket_api, WS_NO_ADMIN_ENDPOINTS), so a separate HA user without admin rights is enough.
+ * A session lives 15 minutes after its last use (Supervisor ingress.py). Non-admin users get a session too (HA hassio
+ * websocket_api, WS_NO_ADMIN_ENDPOINTS), but the Supervisor lets them through only to add-ons with
+ * `panel_admin: false` - else 403 (addonRefused).
  */
 class HaIngress(haUrl: String, private val token: String, private val http: OkHttpClient) {
     companion object {
@@ -51,8 +52,12 @@ class HaIngress(haUrl: String, private val token: String, private val http: OkHt
         }
 
         /** HA's answer to a request through ingress without a valid session (plain text, not a bridge JSON error). */
-        fun sessionRefused(resp: Response): Boolean =
-            resp.code == 401 && resp.header("Content-Type")?.contains("application/json") != true
+        fun sessionRefused(resp: Response): Boolean = resp.code == 401 && !fromBridge(resp)
+
+        /** The Supervisor refuses the add-on to this HA user (admin-only add-on, non-admin user). */
+        fun addonRefused(resp: Response): Boolean = resp.code == 403 && !fromBridge(resp)
+
+        private fun fromBridge(resp: Response) = resp.header("Content-Type")?.contains("application/json") == true
     }
 
     val base = normalizeUrl(haUrl)
@@ -130,10 +135,16 @@ class IngressSession(private val ha: HaIngress, private val clock: () -> Long = 
 class IngressCookie(private val session: IngressSession) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val s = session.current()
-        val resp = chain.proceed(chain.request().withSession(s))
-        if (!HaIngress.sessionRefused(resp)) return resp
-        resp.close()
-        return chain.proceed(chain.request().withSession(session.renew(s)))
+        var resp = chain.proceed(chain.request().withSession(s))
+        if (HaIngress.sessionRefused(resp)) {
+            resp.close()
+            resp = chain.proceed(chain.request().withSession(session.renew(s)))
+        }
+        if (HaIngress.addonRefused(resp)) {
+            resp.close()
+            throw HaException(tr("Home Assistant refuses this user the add-on – it is only open to administrators"))
+        }
+        return resp
     }
 
     private fun Request.withSession(s: String) = newBuilder().header("Cookie", "ingress_session=$s").build()

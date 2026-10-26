@@ -93,14 +93,33 @@ With `MQTT_HOST` set, the bridge publishes what it knows anyway — the printer 
 | Topic (retained JSON) | Content |
 |---|---|
 | `<prefix>/status` | `online` / `offline` (last will) |
-| `<prefix>/printer` | state, progress, ETA, finish time, file, layer, nozzle/bed, active slot, Klipper host CPU (Pi) |
+| `<prefix>/printer` | state, print phase, progress, ETA, finish time, file, layer/layers, nozzle/bed (actual and target), active slot, CPU of the Klipper computer and of the printer |
 | `<prefix>/ace` | humidity, temperature, drying, target, remaining time |
-| `<prefix>/slot/<n>` | spool, material, colour, remaining weight, moisture estimate, needs drying |
-| `<prefix>/notices` | count, errors, warnings, most important text |
-| `<prefix>/vision` | AI level and score (only with `VISION_URL`) |
+| `<prefix>/slot/<n>` | spool, spool ID, material, colour, remaining weight, moisture estimate, needs drying, loaded |
+| `<prefix>/notices` | count, errors, warnings, most important text, the first ten messages |
+| `<prefix>/vision` | AI level, score, muted (only with `VISION_URL`) |
 
 Values are sent on change, at most every 5 s. With `MQTT_DISCOVERY` Home Assistant creates the device
-*<printer name> (ace-lane-bridge)* with all sensors by itself.
+*<printer name> (ace-lane-bridge)* (model *<printer> + <ACE>*) with these entities by itself; their names follow
+`UI_LANGUAGE`:
+
+| Entity | Type | Value |
+|---|---|---|
+| Printer state | sensor | `standby`, `printing`, `paused`, `complete`, `cancelled`, `error`, `offline` |
+| Print phase | sensor | what the printer is doing, e.g. *Heat soak 5/15 min*, *Change to slot 2 · loading* |
+| Progress | sensor | % |
+| Time left · Finished at | sensor | minutes · timestamp |
+| Print file · Layer | sensor | file name · current layer |
+| Nozzle · Bed | sensor | °C |
+| ACE humidity · ACE temperature | sensor | % · °C |
+| ACE drying | binary sensor | on while the dryer runs |
+| Slot *n* spool · remaining · moisture estimate | sensor | per slot: spool name (or *empty*), g, % (100 = drying recommended) |
+| Messages · Top message | sensor | number of messages · the most important one (*all good*) |
+| AI · AI score | sensor | `ok` / `warn` / `fail` · % (only with `VISION_URL`) |
+| Klipper CPU · Printer CPU | sensor (diagnostic) | % of the Klipper computer · of the printer's own computer |
+
+Everything else (switching, drying, pausing) stays in the web UI and the app — Home Assistant only reads. The raw JSON
+of the topics has more fields for your own templates.
 
 **Room sensor:** `ROOM_SENSOR_TOPIC` is subscribed; a JSON payload with `humidity` (and `temperature`),
 as Zigbee2MQTT sends it, or a plain number. While the last value is younger than 2 h it replaces
@@ -121,15 +140,22 @@ run the container as root with `user: "0:0"` in the service.
 ```
 data/
   devices.json          paired devices (name, kind, SHA-256 of the key — never the key itself)
+  camera.json           the camera key for camera links (Mainsail)
   dryer.json            dryer automation settings
   settings.json         settings changed in the web UI (wins over the environment)
+  setup.json            whether the setup page was gone through
+  printer.json          printer and ACE model last seen (names in the UI)
+  pa.json               time of the last auto PA result taken over (none is taken twice)
+  ingress.json          the Home Assistant ingress path (add-on), for the app away from home
   humidity/             ACE humidity, one point per minute (<day>.jsonl), and drying sessions (sessions.json)
   moisture.json         moisture estimate and history per spool
   orca_bases.json       Orca base profile names reported by the plugin
   usage/state.json      running print + open items (restart-safe)
   usage/jobs.json       print history
   usage/journal.jsonl   every booking, open item, start/end (rotated at 5 MB)
+  usage/purge.jsonl     purge per colour change with its source (Orca, firmware)
   telemetry/            raw recordings of the last prints
+  vision/               AI settings and the picture collection (only with VISION_URL)
   venv/                 only when running from source (option B)
 ```
 

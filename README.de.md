@@ -50,15 +50,20 @@ Lüfter, Hilfslüfter, Abluft, Flow, Pressure Advance, Retraction. Ab dann:
   **Verstopfung erkennen** (Extruder gegen Filament-Encoder), **Direkteinzug** (TPU & Co. von Hand direkt in den
   Druckkopf, die ACE bleibt an, der Verbrauch geht auf die gewählte Spule) und **Wechsel-Hotends** (PID, Düsengröße
   und Z-Korrektur je Hotend, Auto-PA je Düse, eine Datei für die falsche Düse wird gestoppt) und bei **leerer Spule
-  ohne passenden Ersatz die Frage**, mit welcher geladenen Spule es weitergeht – jedes mit eigenem Aus-Schalter.
+  ohne passenden Ersatz die Frage**, mit welcher geladenen Spule es weitergeht – jedes mit eigenem Aus-Schalter. Mit
+  ACEPRO lässt sich ein Slot außerdem **auswerfen** (Filament aus der ACE ziehen) – am Display, in der Weboberfläche
+  oder in der App.
 - Eine Ansicht fürs **Display des Druckers** (`/display`, 800×480): Status, eine Druckansicht, die bei Druckstart
   von selbst kommt, mit dem Vorschaubild der Datei, und alle Schalter – angezeigt von einem Kiosk-Browser auf dem
   Klipper-Pi.
 - Die Bridge **weiß, wie feucht jede Spule ist** – Feuchte-Verlauf der ACE, jede Trocknung, eine
   Feuchte-Schätzung pro Spule aus dem, wo sie lag –, trocknet Spulen beim Einlegen von selbst und prüft
   beim Druckstart, ob die eingelegten Spulen zur Datei passen.
-- **3D-Ansicht** des laufenden Drucks in den Spulenfarben, **Home Assistant** über MQTT, ein
-  **Widget** für den Startbildschirm, und jede Bridge-Einstellung lässt sich in der Weboberfläche ändern.
+- **3D-Ansicht** des laufenden Drucks in den Spulenfarben, ein **Widget** für den Startbildschirm, und jede
+  Bridge-Einstellung lässt sich in der Weboberfläche ändern.
+- **Home Assistant**: Drucker, ACE und Slots als Gerät über MQTT, mit dem Community-Add-on die Weboberfläche in der
+  HA-Seitenleiste – und **unterwegs** erreicht die App die Bridge über ein VPN (NetBird, Tailscale …) oder über Home
+  Assistant, ohne die Bridge ins Internet zu öffnen.
 - **Englisch und Deutsch** in Weboberfläche, App und Orca-Panel – jeder Nutzer und jedes Gerät wählt seine Sprache.
 
 <p align="center">
@@ -83,7 +88,7 @@ flowchart LR
     end
     SM[(Spoolman)]
     BR[ace-lane-bridge<br/>Docker · Weboberfläche]
-    subgraph PC["OrcaSlicer (orca-kobra-Build)"]
+    subgraph PC["OrcaSlicer (Nightly oder orca-kobra-Build)"]
         AG[Moonraker-Agent]
         PL[Plugin<br/>Kobra Spoolman]
     end
@@ -162,7 +167,8 @@ Für beide:
 | KI-Fehldruck-Erkennung | ✅ | ✅ |
 | Druckphase (*Vorheizen*, *Wechsel auf Slot 2* …) | einfach (druckt / wechselt) | ✅ ausführlich |
 | Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung erkennen, Direkteinzug, Wechsel-Hotends, Frage nach anderer Spule | – (brauchen Klipper-Module) | ✅ mit unseren Klipper-Modulen (nicht Teil dieses Repos) |
-| Ansicht fürs Drucker-Display (`/display`), USB-Wächter, Klipper neu laden | – | ✅ |
+| Ansicht fürs Drucker-Display (`/display`), USB-Wächter, Klipper neu laden, Slot auswerfen | – | ✅ |
+| App unterwegs (VPN oder Home Assistant) | ✅ | ✅ |
 
 ## Schnellstart
 
@@ -179,7 +185,9 @@ listet jede Erweiterung mit dem, was sie braucht und was sie den Drucker kostet.
 3. **Browser koppeln** – `http://<docker-host>:7913` öffnen und den Einrichtungscode aus dem
    Bridge-Log eingeben (`Setup code: …`). Weitere Geräte bekommen einen Code unter
    *Geräte → Gerät hinzufügen*.
-4. **OrcaSlicer** – den selbst aktualisierenden Build von [orca-kobra](https://github.com/xNoVoSx/orca-kobra) installieren (`tools/install.sh`).
+4. **OrcaSlicer** – ein 2.5.0-dev-Nightly wählt die Profile je Slot selbst; für die Verbrauchsvorschau nach dem Slicen
+   den selbst aktualisierenden Build von [orca-kobra](https://github.com/xNoVoSx/orca-kobra) installieren
+   (`tools/install.sh`, Linux).
 5. **Plugin** – [`kobra_spoolman.py`](orca-plugin/kobra_spoolman.py) nach
    `~/.config/OrcaSlicer/orca_plugins/kobra_spoolman/` kopieren, aktivieren, Bridge-Adresse eintragen
    und im Panel einen Kopplungscode eingeben. Orca einmal neu starten – deine Spoolman-Filamente sind jetzt Orca-Profile.
@@ -253,7 +261,8 @@ das eigene Spülen der Firmware, das das Modell der Bridge auf 9 % genau vorhers
 Lesen ist im Heimnetz offen. Alles, was etwas ändert – Spoolman, Slot-Zuordnung, offene Posten,
 Trockner, Orca-Rücksync – braucht ein **gekoppeltes Gerät**: Die Bridge vergibt einen Schlüssel pro
 Browser, Handy und Orca-Plugin, speichert nur dessen Hash und lässt dich Geräte jederzeit entfernen.
-Die Bridge gehört ins Heimnetz; sie hat kein TLS.
+Die Bridge gehört ins Heimnetz; sie hat kein TLS. Unterwegs geht die App über ein VPN oder Home Assistant
+([Fernzugriff](docs/de/usage.md#unterwegs-fernzugriff)) – den Port der Bridge nie ins Internet weiterleiten.
 
 ## Dokumentation
 
@@ -293,6 +302,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | – | Weboberfläche hinter Home-Assistant-Ingress ohne Patches (Community-Add-on) | ✅ fertig (3.13) |
 | – | Kobra 3 mit ACE Pro bestätigt, Drucker- und ACE-Name vom Drucker, Slots behalten ihre Spulen bei ausgeschaltetem Drucker | ✅ fertig (3.18–3.19) |
 | – | Erste stabile Version für alle: unterstützte Drucker, Schnellstart je Aufbau, Doku für Neue | ✅ 4.0.0 |
+| – | Druckermodule: Direkteinzug, Drucker-CPU mit Klipper auf dem Pi, Wechsel-Hotends, Frage nach anderer Spule, Slot auswerfen; Spoolman-QR-Codes in der App | ✅ 4.1–4.5 |
 | – | App unterwegs: zweite Adresse (VPN wie NetBird) oder über Home Assistant (Add-on), leiser Hinweis statt Alarm | ✅ 4.6.0 |
 
 ## KI-Hinweis

@@ -88,7 +88,7 @@ fun RemoteSection(vm: AppViewModel, c: Connection, busy: Boolean) {
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
         OutlinedTextField(haToken, { haToken = it.trim() }, label = { Text(tr("Long-lived access token")) }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
-        Text(tr("Create it in Home Assistant under Profile → Security. Best for a separate HA user without admin rights: the token can do what its user may. It is stored encrypted on this phone."),
+        Text(tr("Create it in Home Assistant under Profile → Security. The user needs access to the add-on – usually an administrator, add-ons are admin-only unless they allow others. The token can do what its user may; it is stored encrypted on this phone."),
             style = MaterialTheme.typography.bodySmall, color = K.Muted)
         OutlinedTextField(haIngress, { haIngress = it }, label = { Text(tr("Ingress path of the add-on")) }, singleLine = true,
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))

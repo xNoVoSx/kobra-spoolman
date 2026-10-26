@@ -8,7 +8,17 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.6.1] – 2026-10-26
+
+### Fixed
+- **App through Home Assistant** (see *app 1.23.1*): the add-on is open to HA administrators only (`panel_admin`, the
+  default) — the app said a user without admin rights was enough.
+
 ### Changed
+- Docs brought up to date: Home Assistant guide (installation step 7c: MQTT device, room sensor, sidebar, the app
+  away from home) and every entity in [configuration](docs/configuration.md#home-assistant-mqtt); remote access,
+  direct feed, hotends, another spool and ejecting a slot in the README, *Start here* and *Daily use*; the bridge's
+  data folder and module list; the app and plugin READMEs.
 - Docs: automatic profile selection by `lane_data.filament_id` is in Orca itself since
   [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (2026-10-26); orca-kobra dropped its patch 0001 and is
   only needed for the usage preview (patch 0003, [#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)).
@@ -197,6 +207,13 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.23.1 – 2026-10-26
+
+### Fixed
+- *Remote access → Through Home Assistant*: a user without admin rights got only *HTTP 403* — now the app says that
+  Home Assistant refuses this user the add-on (admin-only), and the hint under the token no longer recommends a
+  non-admin user.
 
 ## app 1.23.0 – 2026-10-26
 

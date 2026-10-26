@@ -82,8 +82,9 @@ does, anyone in the network could send it to the direct port.
 `IngressPath` keeps the add-on's own ingress path (`ingress.json`): as an add-on the bridge asks the Supervisor at start
 (`GET http://supervisor/addons/self/info` with `SUPERVISOR_TOKEN` — open to every add-on), and a middleware remembers
 it from requests through the proxy. Paired apps read it (`GET /api/app/remote`) and use it away from home: they log in to
-HA's WebSocket API with a long-lived token, get an ingress session (`supervisor/api` → `/ingress/session`, also for
-non-admin users) and send it as cookie `ingress_session`; the bridge key travels in `Authorization` as usual (HA's and
+HA's WebSocket API with a long-lived token, get an ingress session (`supervisor/api` → `/ingress/session`; non-admin
+users get one too, but the Supervisor answers them `403` for add-ons with `panel_admin` — the default) and send it as
+cookie `ingress_session`; the bridge key travels in `Authorization` as usual (HA's and
 the Supervisor's proxies pass it on, HA ignores a key it does not know).
 
 ## Languages

@@ -48,19 +48,22 @@ RFID-Tags werden beim Einlegen von selbst zugeordnet – die Tags schreibt die A
 | Funktion | Was du bekommst | Braucht | Einschalten | Last am Drucker | Rinkhals | Klipper |
 |---|---|---|---|---|---|---|
 | Android-App | schreibt die RFID-Tags, öffnet Spulen über ihren Spoolman-QR-Code, Meldungen des Druckers aufs Handy, alles aus der Weboberfläche | Android mit NFC | *Geräte → Gerät hinzufügen*, QR-Code mit der App scannen ([App](../android-app.md)) | keine – die App fragt nur die Bridge | ja | ja |
+| App unterwegs | die App (und ihre Meldungen) arbeitet auch außerhalb des Heimnetzes | ein VPN (NetBird, Tailscale, WireGuard …) oder die Bridge als Home-Assistant-Add-on mit HA von außen erreichbar | App: *Einstellungen → Fernzugriff* ([Fernzugriff](usage.md#unterwegs-fernzugriff)) | keine | ja | ja |
 | Drucker-Display | die Weboberfläche für den Touchscreen des Druckers | der Klipper-Rechner startet den Kiosk | Kiosk installieren ([Display](usage.md#das-display-des-druckers)) | keine | – | ja |
-| Orca-Plugin | Spoolman-Profile in Orca, Verbrauchsvorschau nach dem Slicen, Rückabgleich | OrcaSlicer, für die Vorschau der Build [orca-kobra](https://github.com/xNoVoSx/orca-kobra) | Plugin installieren ([Installation](installation.md#6-orca-plugin-kobra-spoolman)) | keine | ja | ja |
+| Orca-Plugin | Spoolman-Profile in Orca (der Sync-Knopf setzt sie in die Slots), Verbrauchsvorschau nach dem Slicen, Rückabgleich | OrcaSlicer 2.5.0-dev Nightly, für die Vorschau der Build [orca-kobra](https://github.com/xNoVoSx/orca-kobra) | Plugin installieren ([Installation](installation.md#6-orca-plugin-kobra-spoolman)) | keine | ja | ja |
 | Kamera | die Druckerkamera in Web, App und Display | eine Kamera am Drucker | von Anfang an an; *Funktionen* | eine Verbindung zum Drucker, egal wie viele zuschauen | ja | ja |
 | Druckvorschau | 3D-Modell, Restmenge pro Spule, Schichtfortschritt | – | von Anfang an an; *Funktionen* | liest die Druckdatei einmal von Moonraker | ja | ja |
 | Automatisch trocknen | feuchte Spulen werden beim Einlegen getrocknet | ACE mit Trockner | *Funktionen* | keine | ja | ja |
 | Druckaufzeichnungen | Rohdaten jedes Drucks, um die Buchungen später nachzuprüfen | – | *Funktionen* | keine | ja | ja |
-| Home Assistant / MQTT | Drucker, Slots und Spulen als Home-Assistant-Geräte | ein MQTT-Broker | `MQTT_HOST` und Zugangsdaten ([Konfiguration](../configuration.md)) oder das [HA-Add-on](installation.md#variante-b--home-assistant-add-on) | keine | ja | ja |
+| Home Assistant / MQTT | Drucker, ACE und Slots als Home-Assistant-Gerät mit Sensoren; mit dem Add-on auch die Weboberfläche in der HA-Seitenleiste | ein MQTT-Broker (z. B. das Mosquitto-Add-on) | `MQTT_HOST` und Zugangsdaten ([Home-Assistant-Anleitung](installation.md#7c-home-assistant-optional)) | keine | ja | ja |
 | KI-Fehldruck-Erkennung | **experimentell** – warnt oder pausiert bei Spaghetti und Fehldrucken | der Container kobra-vision und die Kamera | `VISION_URL` ([KI-Erkennung](../vision.md)) | keine – die Bridge schaut sich die Kamerabilder an | ja | ja |
 | Auto-PA | Pressure Advance je Geschwindigkeit aus Spoolman, gemessen, wenn es fehlt | Klipper-Weg mit unseren Drucker-Modulen | an, wenn das Modul installiert ist; *Funktionen* | etwa 2 Minuten Messung pro neuem Filament | – | ja |
 | Z-Versatz pro Filament | Z-Versatz der ersten Schicht vom Filament in Spoolman | Klipper-Weg, Makro `KOBRA_START` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Fortsetzen nach Stromausfall | setzt einen unterbrochenen Druck in der richtigen Höhe fort | Klipper-Weg, Modul `kobra_resume` | an, wenn installiert; *Funktionen* | schreibt regelmäßig die Druckposition | – | ja |
 | Verstopfung | vergleicht Extruder und Filament-Encoder, warnt oder pausiert | Klipper-Weg, Modul `kobra_clog` | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Wechsel-Hotends | PID, Düsengröße und Z-Korrektur je Hotend, Auto-PA je Düse, eine Datei für die falsche Düse wird gestoppt | Klipper-Weg, Modul `kobra_nozzle` | an, wenn installiert; *Funktionen* | keine | – | ja |
+| Direkteinzug | Filament von Hand direkt in den Druckkopf (TPU …), gebucht auf die gewählte Spule | Klipper-Weg, Modul `kobra_direct` | an, wenn installiert; *ACE-Seite → Direkteinzug* ([Nutzung](usage.md#direkteinzug-filament-direkt-in-den-druckkopf)) | keine | – | ja |
+| Slot auswerfen | zieht das Filament aus der ACE, damit die Spule herauskann | ACEPRO (Klipper) | immer da: Slot-Karte, Spulenkarte der App, Display *Steuerung → Filament* | keine | – | ja |
 | Endlosspule | wird eine Spule leer, lädt die ACE eine passende andere | ACEPRO (Klipper) oder die Firmware (Rinkhals) | Klipper: *Funktionen*; Rinkhals: die ACE-Karte | keine | ja | ja |
 | Nach anderer Spule fragen | keine passende Spule, wenn eine leer wird → der Druck wartet über dem Abfallkanal und fragt, mit welcher geladenen Spule es weitergeht | Klipper-Weg, Modul `kobra_spare` (mit der Endlosspule) | an, wenn installiert; *Funktionen* | keine | – | ja |
 | Licht und Töne | Licht im Drucker und Piepser bei Ereignissen, nachts leise | Klipper-Weg, App kobra-io auf dem Drucker | an, wenn installiert; *Funktionen* | keine | – | ja |
@@ -73,12 +76,12 @@ Was die Installation festlegt (Umgebungsvariablen des Containers, Optionen des H
 | Ohne … | Was trotzdem geht | Was fehlt |
 |---|---|---|
 | das Orca-Plugin | alles in der Bridge: Buchungen, Slots, Trockner, App, Kamera; Orcas Sync-Knopf liest weiterhin Material und Farbe der Slots | Orca-Profile aus Spoolman (und damit das passende Profil je Slot), Seitenpanel, Rückabgleich |
-| den orca-kobra-Build (offizielles Orca) | das Plugin: Profile, Seitenpanel, Rückabgleich | die Verbrauchsvorschau nach dem Slicen, das automatische Profil beim Sync-Knopf (bis Orca die Patches übernimmt) |
-| die App | die Weboberfläche am Handy kann dasselbe, bis auf NFC | RFID-Tags schreiben, Meldungen im Hintergrund, das Widget |
+| den orca-kobra-Build (offizielles Orca) | das Plugin: Profile, Seitenpanel, Rückabgleich; der Sync-Knopf wählt die Profile (Orca-Nightlies ab 26.10.2026) | die Verbrauchsvorschau nach dem Slicen (bis Orca [#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423) übernimmt) |
+| die App | die Weboberfläche am Handy kann dasselbe, bis auf NFC | RFID-Tags schreiben, Meldungen im Hintergrund, das Widget, den Weg von außen über Home Assistant |
 | NFC-Tags | Spulen von Hand in Web oder App zuordnen (passende Spulen stehen oben) | Spulen, die sich beim Einlegen selbst zuordnen |
 | eine Kamera | alles andere | das Bild in Web, App und Display, die KI-Erkennung |
 | MQTT / Home Assistant | alles andere | die Geräte in Home Assistant |
-| unsere Klipper-Module (Aufbau B) | alles von Aufbau A | Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung |
+| unsere Klipper-Module (Aufbau B) | alles von Aufbau A | Auto-PA, Z-Versatz pro Filament, Fortsetzen nach Stromausfall, Verstopfung, Direkteinzug, Wechsel-Hotends, Frage nach anderer Spule, die ausführliche Druckphase |
 
 ## Schon eine ältere Version im Einsatz?
 

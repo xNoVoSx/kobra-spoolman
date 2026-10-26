@@ -68,13 +68,14 @@ Tabs at the bottom: **Home · Messages · (scan) · Filament · More**.
 - The nozzle alarm only fires when the nozzle had reached its target and then stays more than 15 °C
   below it for 60 s, from layer 1 on — heating up and the 140 °C probing during the preparation are no
   alarm. A printer error must last 10 s (the stock firmware reported `error` for under a second while preparing).
-- The app never crashes on an unexpected bridge answer; it shows "Antwort der Bridge nicht lesbar".
+- The app never crashes on an unexpected bridge answer; it shows *Bridge answer not readable – bring app and bridge
+  to the same version*.
 - **More** — ACE & dryer, print history, **Log** (read-only: commands sent through the bridge
   with their source, the printer's answers, and the bridge log — sending G-code stays in the web UI's
   terminal), devices, settings.
 - **Spool card** — remaining weight, temperatures, template, last prints, **Humidity** (estimate,
   where it is, last drying, *Dried elsewhere …*); *In Slot 1–4*,
-  *To the shelf*, *Write tags*, *Empty · archive*.
+  *To the shelf*, *Write tags*, *Empty · archive*, *Eject from the ACE* for a loaded spool (ACEPRO, app ≥ 1.22.0).
 - **Scan** — hold a spool to the phone: known tag → spool card; an unknown **blank** sticker → write it
   for a new or an existing spool (then the second sticker); an unknown tag **with content** (e.g. an
   original Anycubic tag, write-protected) → new spool or link its UID to an existing one.
@@ -90,7 +91,7 @@ Tabs at the bottom: **Home · Messages · (scan) · Filament · More**.
 - **Write ACE tags** — the bridge reserves a tag number per spool; the app writes pages 4–31 in the
   ACE layout (verified byte for byte against original tags), reads them back and links the UID.
   The ACE 2 Pro reads only the spool side facing its reader, so the app writes **two stickers with the
-  same content**, one per side (*Tag 1 von 2*, *Tag 2 von 2*); both IDs are linked, a scan of either
+  same content**, one per side (*Tag 1 of 2*, *Tag 2 of 2*); both IDs are linked, a scan of either
   finds the spool. *Write 2nd tag* adds a missing second one.
   Tag format: [findings](findings.md#anycubic-rfid-tags).
 - **ACE dryer** — humidity/temperature card; start, stop and the automation rules; the humidity
@@ -99,10 +100,13 @@ Tabs at the bottom: **Home · Messages · (scan) · Filament · More**.
 - **ACE window** (*More → ACE & dryer*) — besides the dryer: endless spool on/off and its mode;
   **Pressure advance** (Auto-PA on/off, measure automatically on/off, the PA of each slot with its state,
   *Measure now*, *Measure again*); **Resume after power loss** on/off; **Detect clogs** on/off
-  with *Warn only* / *Pause print*; **USB tunnel** (app ≥ 1.14.0): the watchdog's state and its three switches
+  with *Log only* / *Warn only* / *Pause*; **Direct feed** (switch on with the inserted spool, off again; app ≥ 1.19.0);
+  **Hotend** (the hotend in use, *Measure PID*, check at print start; app ≥ 1.20.0); **USB tunnel** (app ≥ 1.14.0): the watchdog's state and its three switches
   (reconnect by itself, reload Klipper afterwards, 12 Mbit/s). Every switch is stored in the printer (the USB ones in
   Moonraker's database on the Klipper computer). A switch only shows when the printer has the matching Klipper module
   or service ([usage](usage.md#pressure-advance-auto-pa)).
+- **Another spool?** — when a spool runs out without a matching one, a card on the start screen lists the loaded
+  spools; one tap continues the print with it (app ≥ 1.21.0). The red message comes as an alarm.
 - **Print interrupted** — after a power loss the start screen shows the interrupted print (file, layer,
   live camera picture) and an alarm: *Resume* (asks first; the printer heats, probes the height on
   the part and continues) or *Discard*. A suspected clog is an alarm too (*Clog?* with the
@@ -114,7 +118,8 @@ Tabs at the bottom: **Home · Messages · (scan) · Filament · More**.
 
 UI texts are English or German: the app follows the phone's language, *Settings → Language* overrides it (Android 13+
 also via Android's per-app language). On Rinkhals the ACE sheet shows runout detection and the purge multiplier with a
-preview per colour pair; Klipper-only parts (Auto-PA, resume, clog detection, USB tunnel, Klipper restart) do not show.
+preview per colour pair; Klipper-only parts (Auto-PA, resume, clog detection, direct feed, hotends, eject, USB tunnel,
+Klipper restart) do not show.
 
 ## Install
 
@@ -174,5 +179,6 @@ builds and tests the app on every push and attaches the debug APK.
 
 ## Next
 
-- Spool swap during a print and the ACE's endless spool still to be checked on
-  a real print: consumption has to continue on the spool of the new slot.
+- The ACE's endless spool and *Another spool?* still to be checked on a real print: consumption has to continue on
+  the spool of the new slot.
+- Remote access with a VPN and through Home Assistant still to be checked on a real phone outside the home network.

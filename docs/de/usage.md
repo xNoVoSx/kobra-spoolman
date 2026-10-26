@@ -92,6 +92,11 @@ die Spule nochmal zuordnen. ACEPRO braucht die Werte für die Endlosspule und di
 
 Spule herausnehmen: Meldet die ACE einen Slot eine Weile als leer, kommt die Spule automatisch ins
 Regal (während eines Drucks erst danach). Oder auf der Slot-Karte **Leeren** drücken.
+
+**Slot auswerfen** (Klipper + ACEPRO): zieht das Filament ganz aus der ACE, damit die Spule herauskann – auf der
+Slot-Karte der Weboberfläche, mit *Aus der ACE auswerfen* auf der Spulenkarte der App oder am Display unter
+*Steuerung → Filament*. Es fragt vorher und geht nicht im Druck; Filament im Druckkopf wird vorher über dem
+Abfallkanal erhitzt und abgeschnitten. *Entladen* holt es nur aus dem Druckkopf.
 Sind Drucker oder ACE ausgeschaltet, sehen alle Slots auf einmal leer aus – dann wird nichts verschoben: Die Spulen
 bleiben in ihren Slots, und die Slot-Karten zeigen sie blass mit *Offline – letzter Stand*, bis die ACE wieder meldet.
 
@@ -332,8 +337,8 @@ Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay v
   [Wenn ein Filament leer ist](#wenn-ein-filament-leer-ist).
 - **Auslauferkennung** (Rinkhals) – der Drucker pausiert, wenn das Filament ausgeht.
 - **Trocknen planen** – ein Start zu einer festen Zeit, z.B. heute um 22:00.
-- **Pressure Advance**, **Fortsetzen nach Stromausfall** und **Verstopfung erkennen** (Klipper) – die Schalter der
-  Klipper-Module am Drucker, siehe die Abschnitte oben. Jede Karte erscheint nur, wenn der Drucker das
+- **Pressure Advance**, **Fortsetzen nach Stromausfall**, **Verstopfung erkennen**, **Direkteinzug**, **Hotend** und
+  **USB-Tunnel** (Klipper) – die Schalter und Aktionen der Klipper-Module am Drucker, siehe die Abschnitte oben. Jede Karte erscheint nur, wenn der Drucker das
   Modul hat; jeder Schalter wird im Drucker gespeichert.
 
 **Spülen je Farbwechsel** hängt von der Firmware ab:
@@ -352,9 +357,10 @@ Die Seite **ACE** (App: Trockner-Karte antippen) zeigt, was das Druckerdisplay v
 
 ## Slicen und Drucken
 
-1. In Orca den Filament-**Sync**-Knopf drücken. Mit dem orca-kobra-Build werden die `SM…`-Profile für
-   Slot 1–4 automatisch gewählt; das Panel zeigt pro Slot *Filament N in Orca: passt* und warnt, wenn
-   ein Filament-Feld nicht zum Slot passt.
+1. In Orca den Filament-**Sync**-Knopf drücken. Die `SM…`-Profile werden für Slot 1–4 automatisch gewählt
+   (Orca-Nightlies ab 26.10.2026 und der orca-kobra-Build – ältere Orca-Builds setzen nur Material und Farbe, dann
+   die Profile selbst wählen); das Panel zeigt pro Slot *Filament N in Orca: passt* und warnt, wenn ein
+   Filament-Feld nicht zum Slot passt.
 2. Slicen. Oben im Panel zeigt **Geplanter Verbrauch** eine Zeile pro Slot: *Bedarf / Rest g* und
    ✓ (reicht), ⚠ (*knapp*) oder ✗ (*reicht nicht*). Reicht eine Spule nicht, warnt auch Orca.
    *Details* klappt die Aufschlüsselung auf (unten).
@@ -454,7 +460,7 @@ beendet den Viewer).
   ziehen, damit die Spule raus kann – auch auf der Slot-Karte im Web und der Spulenkarte der App), Lüfter,
   *Bettnetze messen*, Klipper neu laden und Not-Aus (1,5 s gedrückt halten). Bewegen und Laden sind im Druck gesperrt.
 - **Dateien** – die Druckdateien am Drucker mit Vorschau, Zeit und Farben; antippen zeigt die Werkzeuge neben den
-  Slots und startet den Druck. Nach dem Druck: *Erneut drucken*.
+  Slots und startet den Druck. Nach dem Druck: *Erneut drucken …*.
 - **Nachjustieren** (im Druck) – Tempo und Fluss, Höhe der ersten Schicht (±0,01–0,05 mm, *Für … übernehmen* addiert
   sie zum *Z-Versatz* des Filaments in Spoolman) und *Objekte*, um ein misslungenes Teil zu überspringen.
 - **System** – alle Meldungen, IP und Versionen, Zustand des USB-Tunnels mit dem letzten Ereignis, Klipper neu laden,
@@ -488,9 +494,10 @@ Drittel der Drucker-CPU brauchte). Sie fragt nur die Bridge, der Drucker merkt d
   Druck fertig, Alarm, Hinweis.
 - **Alarm** (mit Kamerabild): Druckerfehler, Pause oder Abbruch, die nicht von dir kamen (eine Pause aus
   Weboberfläche oder App ist kein Alarm), hängender Farbwechsel, fallende Düsentemperatur, Drucker oder
-  Bridge weg im Druck, Spule reicht nicht, unterbrochener Druck nach Stromausfall, Verdacht auf Verstopfung.
+  Bridge weg im Druck, Spule reicht nicht, leere Spule wartet auf deine Wahl einer anderen, unterbrochener Druck nach
+  Stromausfall, Verdacht auf Verstopfung.
 - **Hinweis**: nur, was du tun kannst – unbekannter Tag im Slot, Slot ohne Material, Spoolman länger als
-  5 Minuten weg. Drucker-CPU, *fast leer*, offene Buchungen und Feuchte bleiben unter *Meldungen* in der App.
+  5 Minuten weg, Bridge weg, während du unterwegs bist (siehe unten). Drucker-CPU, *fast leer*, offene Buchungen und Feuchte bleiben unter *Meldungen* in der App.
 
 *Einstellungen → Töne* spielt jeden Ton ab und schickt pro Art eine Probe-Benachrichtigung (prüft Lautstärke
 und *Nicht stören*). Abschalten unter *Einstellungen*; jede Art ist ein eigener Kanal in den
@@ -513,8 +520,9 @@ Minute, ob sie wieder zu Hause ist. *Verbunden über* zeigt den Weg, *Test* prü
   anbieten, es zu öffnen.
 - **Über Home Assistant** – nur mit der Bridge als [Home-Assistant-Add-on](installation.md#variante-b--home-assistant-add-on)
   und HA von außen erreichbar (z. B. Home Assistant Cloud). Die App meldet sich mit einem langlebigen Token bei HA an
-  (HA: *Profil → Sicherheit*; am besten für einen eigenen HA-Benutzer ohne Adminrechte – der Token darf, was sein
-  Benutzer darf; er liegt verschlüsselt auf dem Handy) und geht durch den Ingress des Add-ons wie die HA-Seitenleiste.
+  (HA: *Profil → Sicherheit*; der Benutzer braucht Zugriff auf das Add-on – meist ein Administrator, denn Add-ons sind
+  nur für Admins offen, wenn sie nicht `panel_admin: false` setzen; der Token darf, was sein Benutzer darf, er liegt
+  verschlüsselt auf dem Handy) und geht durch den Ingress des Add-ons wie die HA-Seitenleiste.
   Den *Ingress-Pfad* (`/api/hassio_ingress/<langer Code>`) trägt die Bridge ein: Als Add-on fragt sie beim Start den
   Supervisor, und sie merkt ihn sich beim ersten Aufruf über die HA-Seitenleiste. Die Kamera kommt dann als Einzelbilder.
 
@@ -552,15 +560,30 @@ die Bridge das Druckermodell aus der letzten Druckdatei (Orca schreibt es ans En
 
 ## Home Assistant
 
-Mit `MQTT_HOST` schickt die Bridge Drucker, Slots, ACE, Meldungen und KI an deinen MQTT-Broker, und Home
-Assistant legt das Gerät *<Druckername> (ace-lane-bridge)* (z. B. *Kobra S1 (ace-lane-bridge)*) von selbst an – der Drucker bekommt keinen weiteren
-Client. Details in der [Konfiguration](../configuration.md#home-assistant-mqtt).
+Home Assistant kann auf drei Arten mit der Bridge zusammenarbeiten, jede freiwillig (Einrichtung:
+[Installation, Schritt 7c](installation.md#7c-home-assistant-optional)):
+
+- **Gerät über MQTT** – mit `MQTT_HOST` schickt die Bridge Drucker, ACE, Slots, Meldungen und KI an deinen Broker, und
+  Home Assistant legt das Gerät *<Druckername> (ace-lane-bridge)* (z. B. *Kobra S1 (ace-lane-bridge)*) von selbst an:
+  Druckerzustand, Druckphase, Fortschritt, Restzeit und Fertig-Zeit, Datei, Schicht, Düse und Bett, ACE-Feuchte und
+  -Temperatur, Trocknen, je Slot die Spule, ihr Restgewicht und ihre Feuchte-Schätzung, die Zahl der Meldungen und
+  die wichtigste, die KI-Stufe – und als Diagnose die CPU des Druckers und des Klipper-Rechners. Der Drucker bekommt
+  keinen weiteren Client. Alle Entitäten: [Konfiguration](../configuration.md#home-assistant-mqtt).
+- **Weboberfläche in der Seitenleiste** – mit der Bridge als [Home-Assistant-Add-on](installation.md#variante-b--home-assistant-add-on)
+  öffnet sich die ganze Weboberfläche in der HA-Seitenleiste (Ingress).
+- **Die App unterwegs** – mit dem Add-on erreicht die App die Bridge über Home Assistant
+  ([Fernzugriff](#unterwegs-fernzugriff)).
+
+Ein **Raumsensor** im Lager (z. B. ein Zigbee-Feuchtesensor über Zigbee2MQTT) macht die Feuchte-Schätzung der Spulen
+im Regal genau (`ROOM_SENSOR_TOPIC`). Ideen für Automationen: Nachricht, wenn *Meldungen* über 0 steigt, eine
+Steckdose abschalten, wenn *Druckerstatus* auf *complete* geht, oder den Raumentfeuchter starten, wenn die ACE-Feuchte
+steigt.
 
 ## KI-Fehldruck-Erkennung
 
 Läuft [kobra-vision](../vision.md) (englisch), schickt die Bridge im Druck alle 10 s ein Kamerabild an die
 KI und verfolgt den Wert über den Druck. Wird ein Druck zu Spaghetti, kommt die rote Meldung
-**KI: wahrscheinlich Fehldruck** – in der Weboberfläche mit **Fehlalarm** / **Stimmt**, am Handy als Alarm
+**KI: wahrscheinlich Fehldruck (Spaghetti)** – in der Weboberfläche mit **Fehlalarm** / **Stimmt**, am Handy als Alarm
 mit Kamerabild und **Pausieren** / **Stimmt** / **Fehlalarm**. Im Kamerabild stehen die Fundstellen als Rahmen.
 *Fehlalarm* schaltet die KI für den Rest des Drucks still. Die ersten ~5 Minuten eines Drucks melden nie.
 Standardmäßig warnt die KI nur; selbst pausieren kann sie, sobald du ihr traust (`VISION_ACTION=pause`).

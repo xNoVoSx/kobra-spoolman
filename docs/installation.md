@@ -12,9 +12,10 @@ first OrcaSlicer build, which GitHub does for you.
 2. [Spoolman and its extra fields](#2-spoolman-and-its-extra-fields)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
 4. [Pair your first device](#4-pair-your-first-device)
-5. [OrcaSlicer (orca-kobra build)](#5-orcaslicer-orca-kobra-build)
+5. [OrcaSlicer](#5-orcaslicer)
 6. [Orca plugin "Kobra Spoolman"](#6-orca-plugin-kobra-spoolman)
-7. [Android app (optional)](#7-android-app-optional)
+7. [Android app (optional)](#7-android-app-optional) · [AI detection](#7b-ai-print-failure-detection-optional) ·
+   [Home Assistant](#7c-home-assistant-optional)
 8. [Check that everything works](#8-check-that-everything-works)
 
 ---
@@ -182,12 +183,12 @@ device**. The bridge issues the keys itself — you never invent a password.
 
 <p align="center"><img src="images/web-pair.png" width="560" alt="Pairing screen of the web UI"></p>
 
-## 5. OrcaSlicer (orca-kobra build)
+## 5. OrcaSlicer
 
-The plugin needs OrcaSlicer's plugin system (2.5.0-dev nightly). **Automatic profile selection** is in
-Orca itself since [PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (nightlies from 2026-10-26).
-The **usage preview** after slicing additionally needs a small patch that is not merged upstream yet
-([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)). The
+The plugin needs OrcaSlicer's plugin system (2.5.0-dev nightly, any platform). **Automatic profile selection** on
+Orca's sync button is in Orca itself since [PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)
+(nightlies from 2026-10-26). The **usage preview** after slicing additionally needs a small patch that is not merged
+upstream yet ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)). The
 [orca-kobra](https://github.com/xNoVoSx/orca-kobra) repository builds a Linux AppImage with it every
 night and ships a self-updating launcher:
 
@@ -234,8 +235,9 @@ T[next_extruder]
   extra — but in our tests that cost more filament and time, so it is not recommended.
 
 > [!TIP]
-> Without the orca-kobra build everything else still works (profiles, panel, back-sync,
-> consumption) — you just select the `SM…` profiles in the filament boxes yourself.
+> Without the orca-kobra build everything else still works (profiles, panel, back-sync, consumption, the sync button
+> on a current nightly) — only the usage preview after slicing is missing. On an Orca build from before 2026-10-26
+> the sync button only sets material and colour; select the `SM…` profiles in the filament boxes yourself.
 
 ## 6. Orca plugin "Kobra Spoolman"
 
@@ -269,11 +271,52 @@ Then: **Settings → Scan QR code** and scan the QR code from
 per-app language) switches it. Android 17 asks for *Nearby devices* (local network) —
 allow it, otherwise the app cannot reach the bridge. More: [android-app.md](android-app.md).
 
+**Away from home** (optional): *Settings → Remote access* — a second address in your VPN (NetBird, Tailscale,
+WireGuard …), or Home Assistant when the bridge is an add-on (see 7c). Details:
+[remote access](usage.md#away-from-home-remote-access).
+
 ## 7b. AI print-failure detection (optional)
 
 Add the `kobra-vision` service to the same stack and set `VISION_URL: "http://kobra-vision:7917"` on
 the bridge — the [compose example](../bridge/compose.yaml) has both commented out. It runs on the CPU
 (~50 ms per picture); a GPU is optional. Details: [vision.md](vision.md).
+
+## 7c. Home Assistant (optional)
+
+Three independent parts — take what you need.
+
+**a) Printer, ACE and slots as a device (MQTT).** Needs an MQTT broker that Home Assistant uses, e.g. the
+*Mosquitto broker* add-on, and HA's *MQTT* integration (HA: *Settings → Devices & services → Add integration → MQTT*).
+
+1. Create a user for the bridge on the broker (with the Mosquitto add-on: a Home Assistant user under *Settings →
+   People → Users*, or a login in the add-on's configuration).
+2. Add to the bridge (stack environment, or the add-on's options):
+   ```yaml
+   MQTT_HOST: "<broker-ip>"        # with the Mosquitto add-on: the address of Home Assistant
+   MQTT_USER: "kobra"
+   MQTT_PASSWORD: "<password>"
+   ```
+   `MQTT_PORT` (1883), `MQTT_PREFIX` (`kobra-spoolman`) and `MQTT_DISCOVERY` (`homeassistant`) rarely need changing.
+3. Restart the bridge. The overview's *Status* shows *MQTT / HA* green, and Home Assistant shows the device
+   *<printer name> (ace-lane-bridge)* under *Settings → Devices & services → MQTT* — all entities:
+   [configuration](configuration.md#home-assistant-mqtt). The names follow `UI_LANGUAGE`.
+
+**Room sensor (optional):** a humidity sensor in the room where the spools are stored makes their moisture estimate
+exact. With Zigbee2MQTT set `ROOM_SENSOR_TOPIC: "zigbee2mqtt/<sensor name>"`; any topic with a JSON `humidity` or a
+plain number works. Dry boxes get their own value per Spoolman location: `DRY_LOCATIONS: "Dry box=15"`.
+
+**b) Web UI in the HA sidebar.** Install the bridge as the [community add-on](#option-b--home-assistant-add-on)
+(Home Assistant OS or Supervised). `HA_INGRESS_TRUST: true` spares pairing the sidebar.
+
+**c) The app away from home through HA.** Only with the add-on, and HA must be reachable from outside (e.g. Home
+Assistant Cloud or your own reverse proxy). In Home Assistant, as the user the app should use, open *Profile → Security
+→ Long-lived access tokens* and create a token. The user needs access to the add-on: add-ons are open to
+administrators only unless they set `panel_admin: false` (the community add-on does not), otherwise *Test* says
+*refuses this user the add-on*. In the app: *Settings → Remote
+access → Through Home Assistant*, HA address from outside, the token; the *ingress path* is filled in by the bridge.
+*Test* checks it. Details: [remote access](usage.md#away-from-home-remote-access).
+
+If something does not show up: [troubleshooting](troubleshooting.md).
 
 ## 8. Check that everything works
 

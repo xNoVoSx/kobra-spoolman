@@ -12,9 +12,10 @@ davon ist der erste OrcaSlicer-Build, den GitHub für dich erledigt.
 2. [Spoolman und seine Zusatzfelder](#2-spoolman-und-seine-zusatzfelder)
 3. [ace-lane-bridge](#3-ace-lane-bridge)
 4. [Das erste Gerät koppeln](#4-das-erste-gerät-koppeln)
-5. [OrcaSlicer (orca-kobra-Build)](#5-orcaslicer-orca-kobra-build)
+5. [OrcaSlicer](#5-orcaslicer)
 6. [Orca-Plugin „Kobra Spoolman“](#6-orca-plugin-kobra-spoolman)
-7. [Android-App (optional)](#7-android-app-optional)
+7. [Android-App (optional)](#7-android-app-optional) · [KI-Erkennung](#7b-ki-fehldruck-erkennung-optional) ·
+   [Home Assistant](#7c-home-assistant-optional)
 8. [Prüfen, ob alles läuft](#8-prüfen-ob-alles-läuft)
 
 ---
@@ -186,9 +187,10 @@ Schlüssel vergibt die Bridge selbst – du denkst dir kein Passwort aus.
 
 <p align="center"><img src="../images/web-pair.png" width="560" alt="Koppeln in der Weboberfläche"></p>
 
-## 5. OrcaSlicer (orca-kobra-Build)
+## 5. OrcaSlicer
 
-Das Plugin braucht Orcas Plugin-System (Nightly 2.5.0-dev). Die **automatische Profilwahl** ist seit
+Das Plugin braucht Orcas Plugin-System (Nightly 2.5.0-dev, jedes Betriebssystem). Die **automatische Profilwahl** beim
+Sync-Knopf ist seit
 [PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) in Orca selbst (Nightlies ab 26.10.2026).
 Die **Verbrauchsvorschau** nach dem Slicen braucht zusätzlich einen kleinen Patch, der noch nicht in Orca
 übernommen ist ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)). Das Repo
@@ -238,8 +240,9 @@ T[next_extruder]
   kostete das aber mehr Filament und Zeit, deshalb nicht empfohlen.
 
 > [!TIP]
-> Ohne den orca-kobra-Build funktioniert alles andere trotzdem (Profile, Panel, Rücksync,
-> Verbrauch) – die `SM…`-Profile wählst du dann in den Filament-Feldern selbst aus.
+> Ohne den orca-kobra-Build funktioniert alles andere trotzdem (Profile, Panel, Rücksync, Verbrauch, der Sync-Knopf
+> mit einem aktuellen Nightly) – es fehlt nur die Verbrauchsvorschau nach dem Slicen. Mit einem Orca-Build von vor dem
+> 26.10.2026 setzt der Sync-Knopf nur Material und Farbe; die `SM…`-Profile wählst du dann selbst aus.
 
 ## 6. Orca-Plugin „Kobra Spoolman“
 
@@ -273,11 +276,52 @@ und den QR-Code aus *Geräte → Gerät hinzufügen* der Weboberfläche scannen.
 *Geräte in der Nähe* (lokales Netz) – erlauben, sonst erreicht die App die Bridge nicht.
 Mehr: [android-app.md](../android-app.md) (englisch).
 
+**Unterwegs** (optional): *Einstellungen → Fernzugriff* – eine zweite Adresse in deinem VPN (NetBird, Tailscale,
+WireGuard …) oder Home Assistant, wenn die Bridge ein Add-on ist (siehe 7c). Details:
+[Fernzugriff](usage.md#unterwegs-fernzugriff).
+
 ## 7b. KI-Fehldruck-Erkennung (optional)
 
 Den Dienst `kobra-vision` in denselben Stack aufnehmen und bei der Bridge `VISION_URL: "http://kobra-vision:7917"`
 setzen – das [Compose-Beispiel](../../bridge/compose.yaml) enthält beides auskommentiert. Läuft auf der CPU
 (~50 ms pro Bild); eine Grafikkarte ist nicht nötig. Details: [vision.md](../vision.md) (englisch).
+
+## 7c. Home Assistant (optional)
+
+Drei unabhängige Teile – nimm, was du brauchst.
+
+**a) Drucker, ACE und Slots als Gerät (MQTT).** Braucht einen MQTT-Broker, den Home Assistant nutzt, z. B. das Add-on
+*Mosquitto broker*, und HAs Integration *MQTT* (HA: *Einstellungen → Geräte & Dienste → Integration hinzufügen → MQTT*).
+
+1. Einen Benutzer für die Bridge am Broker anlegen (mit dem Mosquitto-Add-on: ein Home-Assistant-Benutzer unter
+   *Einstellungen → Personen → Benutzer* oder ein Login in der Konfiguration des Add-ons).
+2. Bei der Bridge ergänzen (Umgebung im Stack oder Optionen des Add-ons):
+   ```yaml
+   MQTT_HOST: "<broker-ip>"        # mit dem Mosquitto-Add-on: die Adresse von Home Assistant
+   MQTT_USER: "kobra"
+   MQTT_PASSWORD: "<passwort>"
+   ```
+   `MQTT_PORT` (1883), `MQTT_PREFIX` (`kobra-spoolman`) und `MQTT_DISCOVERY` (`homeassistant`) muss man selten ändern.
+3. Bridge neu starten. Unter *Status* in der Übersicht steht *MQTT / HA* grün, und Home Assistant zeigt das Gerät
+   *<Druckername> (ace-lane-bridge)* unter *Einstellungen → Geräte & Dienste → MQTT* – alle Entitäten:
+   [Konfiguration](../configuration.md#home-assistant-mqtt). Die Namen folgen `UI_LANGUAGE` (`de` für deutsche Namen).
+
+**Raumsensor (optional):** Ein Feuchtesensor im Raum, in dem die Spulen lagern, macht ihre Feuchte-Schätzung genau.
+Mit Zigbee2MQTT `ROOM_SENSOR_TOPIC: "zigbee2mqtt/<sensorname>"` setzen; jedes Topic mit JSON-`humidity` oder einer
+reinen Zahl geht. Trockenboxen bekommen je Spoolman-Ort einen eigenen Wert: `DRY_LOCATIONS: "Trockenbox=15"`.
+
+**b) Weboberfläche in der HA-Seitenleiste.** Die Bridge als [Community-Add-on](#variante-b--home-assistant-add-on)
+installieren (Home Assistant OS oder Supervised). `HA_INGRESS_TRUST: true` spart das Koppeln der Seitenleiste.
+
+**c) Die App unterwegs über HA.** Nur mit dem Add-on, und HA muss von außen erreichbar sein (z. B. Home Assistant
+Cloud oder ein eigener Reverse-Proxy). In Home Assistant als der Benutzer, den die App nutzen soll, *Profil →
+Sicherheit → Langlebige Zugangstoken* öffnen und einen Token erstellen. Der Benutzer braucht Zugriff auf das Add-on:
+Add-ons sind nur für Administratoren offen, wenn sie nicht `panel_admin: false` setzen (das Community-Add-on tut es
+nicht), sonst meldet *Probe* *verweigert diesem Benutzer das Add-on*. In der App: *Einstellungen → Fernzugriff → Über
+Home Assistant*, HA-Adresse von außen, den Token; den *Ingress-Pfad* trägt die Bridge ein. *Probe* prüft es. Details:
+[Fernzugriff](usage.md#unterwegs-fernzugriff).
+
+Wenn etwas nicht auftaucht: [Fehlersuche](troubleshooting.md).
 
 ## 8. Prüfen, ob alles läuft
 

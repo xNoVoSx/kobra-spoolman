@@ -30,7 +30,7 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | Bridge does not start, `PermissionError` on `/data` | The image runs as user 1000. Make the data folder writable for it or add `user: "0:0"` to the service. |
 | Orca panel: *Bridge not reachable* | Set the bridge address under Plugins → Kobra Spoolman → Configuration. |
 | Orca panel does not appear | Run *Kobra Spoolman* from the Plugins dialog; check the Orca log. |
-| App away from home: *Bridge not reachable* | *Settings → Remote access → Test* shows each way. VPN: is the VPN on, does it reach the bridge's address? Home Assistant: *refused the token* = new long-lived token; *gave no ingress session* = HA without Supervisor (Container/Core) or the bridge is not an add-on; empty ingress path = open the bridge once in the HA sidebar (bridge ≥ 4.6.0). |
+| App away from home: *Bridge not reachable* | *Settings → Remote access → Test* shows each way. VPN: is the VPN on, does it reach the bridge's address? Home Assistant: *refused the token* = new long-lived token; *gave no ingress session* = HA without Supervisor (Container/Core) or the bridge is not an add-on; *refuses this user the add-on* = the token's user is no administrator (the add-on is admin-only); empty ingress path = open the bridge once in the HA sidebar (bridge ≥ 4.6.0). |
 
 ## Slots and printing
 

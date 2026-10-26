@@ -20,8 +20,10 @@ Makes Spoolman the source for OrcaSlicer filament profiles.
   is not paired, the panel shows *Pair the plugin* — enter a code from the web UI (*Devices → Add
   device*) once; the key is stored in `kobra_device.json` next to the plugin.
 
-Requirements: OrcaSlicer with the Python plugin system (2.5.0-dev). Automatic profile selection with
-Orca's sync button needs the [orca-kobra](https://github.com/xNoVoSx/orca-kobra) build.
+Requirements: OrcaSlicer with the Python plugin system (2.5.0-dev). Orca's sync button picks the `SM…` profiles per
+slot by itself since Orca [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (nightlies from 2026-10-26);
+the usage preview needs the [orca-kobra](https://github.com/xNoVoSx/orca-kobra) build (patch 0003, until Orca
+[#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423) is merged).
 
 ## Install
 
