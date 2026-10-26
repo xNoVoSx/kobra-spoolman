@@ -84,7 +84,7 @@ flowchart LR
     SM[(Spoolman)]
     BR[ace-lane-bridge<br/>Docker · Weboberfläche]
     subgraph PC["OrcaSlicer (orca-kobra-Build)"]
-        AG[Moonraker-Agent<br/>+ Patch 0001]
+        AG[Moonraker-Agent]
         PL[Plugin<br/>Kobra Spoolman]
     end
     Web[Browser<br/>Handy · Desktop]
@@ -111,7 +111,7 @@ App, Orca-Plugin und Home Assistant reden alle mit der Bridge. Welche Firmware l
 | **[Android-App](android/)** | Drucker mit Kamera, 3D-Ansicht und Steuerung, Benachrichtigungen im Hintergrund, Widget, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner mit Feuchte-Verlauf und -Einstellungen, Feuchte der Spulen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), öffnet Spulen über ihren Spoolman-QR-Code, Koppeln per QR-Code, Updates über die Bridge, unterwegs über ein VPN oder Home Assistant. |
 | **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | KI-Fehldruck-Erkennung: Obicos Fehldruck-Modell mit ONNX Runtime (CPU, ~50 ms pro Bild), die Bridge bewertet die Ergebnisse über die Zeit. |
 | **[spoolman_setup.py](spoolman/)** | Legt einmalig die Spoolman-Zusatzfelder (alle Orca-Filamentwerte) und Materialvorlagen an. |
-| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit drei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), Slice-Statistik für Plugins ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)) und eine Mindestgröße für angedockte Plugin-Panels. Die richtigen Temperaturen der ersten Schicht im G-Code-Kopf stehen seit [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422) in Orca selbst. Aktualisiert sich selbst. |
+| **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit zwei kleinen Patches: Slice-Statistik für Plugins ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)) und eine Mindestgröße für angedockte Plugin-Panels. Profilwahl über `lane_data.filament_id` ([#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)) und die richtigen Temperaturen der ersten Schicht im G-Code-Kopf ([#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422)) sind inzwischen in Orca selbst. Aktualisiert sich selbst. |
 
 ## Unterstützte Drucker
 
@@ -142,8 +142,9 @@ Für beide:
 - Ein **Docker**-Host im selben Netz (Portainer, Compose, …) – oder **Home Assistant OS** mit dem Community-Add-on
   [MineTech13/ha-addons](https://github.com/MineTech13/ha-addons) (dasselbe Image, Weboberfläche in der
   HA-Seitenleiste, gepflegt von seinem Autor).
-- **OrcaSlicer** mit Plugin-System (2.5.0-dev nightly). Die automatische Profilwahl braucht den
-  `orca-kobra`-Build (Linux-AppImage), bis PR #14423 in Orca übernommen ist.
+- **OrcaSlicer** mit Plugin-System (2.5.0-dev nightly). Die automatische Profilwahl ist seit PR #14423 in Orca selbst
+  (Nightlies ab 26.10.2026); die Verbrauchsvorschau nach dem Slicen braucht den `orca-kobra`-Build (Linux-AppImage),
+  bis PR #16423 übernommen ist.
 - Optional: ein Android-Handy (ab Android 10) mit NFC für die App.
 
 ### Was auf welchem Aufbau geht

@@ -184,9 +184,10 @@ device**. The bridge issues the keys itself — you never invent a password.
 
 ## 5. OrcaSlicer (orca-kobra build)
 
-The plugin needs OrcaSlicer's plugin system (2.5.0-dev nightly). **Automatic profile selection**
-additionally needs a small patch that is not merged upstream yet
-([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)). The
+The plugin needs OrcaSlicer's plugin system (2.5.0-dev nightly). **Automatic profile selection** is in
+Orca itself since [PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (nightlies from 2026-10-26).
+The **usage preview** after slicing additionally needs a small patch that is not merged upstream yet
+([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)). The
 [orca-kobra](https://github.com/xNoVoSx/orca-kobra) repository builds a Linux AppImage with it every
 night and ships a self-updating launcher:
 

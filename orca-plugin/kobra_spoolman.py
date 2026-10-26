@@ -26,8 +26,8 @@ Tasks
   (then the firmware cancels the print). Needs orca.host.slice_statistics (orca-kobra, patch 0003); without it
   only the forecast is missing.
 
-Printing and the profile choice of the sync button are done by Orca's built-in Moonraker agent (with patch 0001 of
-orca-kobra it picks the profile via lane_data.filament_id).
+Printing and the profile choice of the sync button are done by Orca's built-in Moonraker agent (it picks the profile
+via lane_data.filament_id, in Orca since PR #14423).
 
 Language: English, German as the second language (setting "Language": auto = the bridge's language). The German
 texts are in DE at the end of this file - the plugin is a single file. tests/test_i18n_plugin.py checks them.

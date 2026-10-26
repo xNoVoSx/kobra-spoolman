@@ -291,8 +291,9 @@ The first proof of concept was a Python printer agent that reported the slots it
 that Orca picks custom profiles by `filament_id`, but printing through a Python agent is not
 practical today: Orca's plugin sandbox has no file access to the temporary print file, so every
 print would trigger a permission prompt (on a worker thread). Instead, the built-in Moonraker agent
-does the printing, and a 70-line patch ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423))
-makes it match presets by `lane_data.filament_id` — which the bridge already writes.
+does the printing and matches presets by `lane_data.filament_id` — which the bridge already writes. That started as a
+patch of orca-kobra and is in Orca itself since [PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)
+(2026-10-26): the lane's `filament_id` goes to Orca's AMS matcher and picks the root preset carrying it.
 
 ## Usage preview after slicing
 

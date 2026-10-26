@@ -8,6 +8,11 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+### Changed
+- Docs: automatic profile selection by `lane_data.filament_id` is in Orca itself since
+  [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (2026-10-26); orca-kobra dropped its patch 0001 and is
+  only needed for the usage preview (patch 0003, [#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)).
+
 ## [4.6.0] – 2026-10-26
 
 ### Added

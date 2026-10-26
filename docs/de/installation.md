@@ -188,9 +188,10 @@ Schlüssel vergibt die Bridge selbst – du denkst dir kein Passwort aus.
 
 ## 5. OrcaSlicer (orca-kobra-Build)
 
-Das Plugin braucht Orcas Plugin-System (Nightly 2.5.0-dev). Die **automatische Profilwahl** braucht
-zusätzlich einen kleinen Patch, der noch nicht in Orca übernommen ist
-([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)). Das Repo
+Das Plugin braucht Orcas Plugin-System (Nightly 2.5.0-dev). Die **automatische Profilwahl** ist seit
+[PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) in Orca selbst (Nightlies ab 26.10.2026).
+Die **Verbrauchsvorschau** nach dem Slicen braucht zusätzlich einen kleinen Patch, der noch nicht in Orca
+übernommen ist ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)). Das Repo
 [orca-kobra](https://github.com/xNoVoSx/orca-kobra) baut damit jede Nacht ein Linux-AppImage und
 bringt einen Starter mit, der sich selbst aktualisiert:
 
