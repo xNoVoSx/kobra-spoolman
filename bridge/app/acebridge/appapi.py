@@ -537,6 +537,13 @@ class AppApi:
                 return wrapped
             return deco
 
+        # ------------------------------------------------ remote access of the app (ingress.IngressPath)
+        @r.get("/api/app/remote")
+        @handler(write=True)                    # paired devices only
+        async def app_remote(_):
+            seen = getattr(b, "ingress", None)
+            return json_response(seen.view() if seen is not None else {"ha_ingress": None, "addon": False})
+
         # ------------------------------------------------ app update (APK in the image, see appupdate.py)
         @r.get("/api/app/update")
         @handler(write=False)

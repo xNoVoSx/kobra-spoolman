@@ -833,3 +833,7 @@ object PrinterLabel {
     @Volatile var name: String? = null
     fun get(): String = name?.takeIf { it.isNotBlank() } ?: tr("Printer")
 }
+
+/** GET /api/app/remote: the bridge's HA ingress path (as a HA add-on) for the way from outside. */
+@Serializable
+data class RemoteInfo(@SerialName("ha_ingress") val haIngress: String? = null, val addon: Boolean = false)

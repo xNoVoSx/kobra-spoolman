@@ -30,6 +30,7 @@ für Orca `~/.config/OrcaSlicer/log/python_*.log`.
 | Bridge startet nicht, `PermissionError` bei `/data` | Das Image läuft als Benutzer 1000. Den Datenordner für ihn beschreibbar machen oder `user: "0:0"` im Dienst ergänzen. |
 | Orca-Panel: *Bridge nicht erreichbar* | Bridge-Adresse unter Plugins → Kobra Spoolman → Konfiguration eintragen. |
 | Orca-Panel erscheint nicht | *Kobra Spoolman* im Plugins-Dialog ausführen; Orca-Log prüfen. |
+| App unterwegs: *Bridge nicht erreichbar* | *Einstellungen → Fernzugriff → Test* zeigt jeden Weg. VPN: Ist es an, erreicht es die Adresse der Bridge? Home Assistant: *Token abgelehnt* = neuer langlebiger Token; *keine Ingress-Sitzung* = HA ohne Supervisor (Container/Core) oder die Bridge ist kein Add-on; Ingress-Pfad leer = die Bridge einmal in der HA-Seitenleiste öffnen (Bridge ≥ 4.6.0). |
 
 ## Slots und Drucken
 

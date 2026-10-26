@@ -22,6 +22,7 @@ from .slots import SlotManager
 from .spoolman import Spoolman
 from .telemetry import Recorder
 from .auth import CameraKey, Devices
+from .ingress import IngressPath
 from .console import LOG_BUFFER, Console
 from .phase import ChangeSteps
 from .usb import UsbTunnel
@@ -97,6 +98,7 @@ class Bridge:
         self.moisture.room_rh_measured = self.mqtt.room_rh
         self.devices = Devices(cfg.data_dir, cfg.app_token, trust_ingress=cfg.ha_ingress_trust)
         self.camera_key = CameraKey(cfg.data_dir)
+        self.ingress = IngressPath(cfg.data_dir)                  # HA ingress path for the app from outside
         self.console = Console()
         self.moon.console = self.console
         self.console.listeners.append(self.recorder.on_console)   # console into the print recording
@@ -267,7 +269,8 @@ async def amain() -> None:
         await web.TCPSite(runner, cfg.http_host, cfg.http_port).start()
 
         tasks = [asyncio.create_task(c) for c in (bridge.moon.run(), bridge.spoolman_loop(), bridge.ticker(),
-                                                         bridge.vision.run(), bridge.mqtt.run(), bridge.printer_cpu.run())]
+                                                         bridge.vision.run(), bridge.mqtt.run(), bridge.printer_cpu.run(),
+                                                         bridge.ingress.discover(session))]
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):

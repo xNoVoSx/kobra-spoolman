@@ -8,6 +8,13 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.6.0] – 2026-10-26
+
+### Added
+- **The app away from home** (see *app 1.23.0*): `GET /api/app/remote` tells paired apps the add-on's Home Assistant
+  ingress path. As an add-on the bridge asks the Supervisor for it at start (`/addons/self/info`, `SUPERVISOR_TOKEN`)
+  and remembers it from the first request through the ingress proxy (`ingress.json` in the data folder).
+
 ## [4.5.0] – 2026-10-21
 
 ### Added
@@ -185,6 +192,18 @@ From the second Rinkhals test print (pause, resume, cancel, bridge restart).
 - Switching the ACE off (e.g. to clear a dryer fault) made every slot look empty: the bridge moved all spools to the
   shelf, the tags put them back, and the moisture model took that for spools being inserted and started drying. When
   every slot is empty at once nothing is moved now.
+
+## app 1.23.0 – 2026-10-26
+
+### Added
+- **Remote access** (*Settings → Remote access*): away from home the app reaches the bridge through a second address
+  (VPN such as NetBird, Tailscale, WireGuard) or through Home Assistant when the bridge is a HA add-on (long-lived
+  token, ingress session, camera as single images; the token is stored encrypted with a key in the Android Keystore).
+  Home first, then the second address, then Home Assistant; back on the home address within a minute. *Test* checks
+  each way. The background monitoring uses the same way.
+- **Away from home: hint instead of alarm** (switch, on by default): a bridge gone during a print while the phone is
+  outside the home network is a quiet hint with *Open VPN app* instead of the alarm — no app can switch another
+  app's VPN on. At home it stays an alarm.
 
 ## app 1.22.0 – 2026-10-21
 

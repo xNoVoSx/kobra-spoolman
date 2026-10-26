@@ -124,7 +124,8 @@ Weboberfläche öffnet sich in der HA-Seitenleiste (Ingress), der direkte Port 7
 Daten liegen im Config-Ordner des Add-ons (in HA-Backups enthalten). Seit Bridge 3.13 läuft die Weboberfläche hinter
 Ingress ohne Patch – relative Pfade, Kamera als Einzelbilder, Links auf den direkten Port. Sinnvolle Einstellungen im
 Add-on: `HA_INGRESS_TRUST: true` (die HA-Seitenleiste braucht keine Kopplung) und `BRIDGE_PUBLIC_URL`. Das Add-on pflegt
-sein Autor; welche Bridge-Version es mitbringt, steht in seiner README.
+sein Autor; welche Bridge-Version es mitbringt, steht in seiner README. Als Add-on erreicht die App die Bridge auch
+unterwegs über Home Assistant ([Fernzugriff](usage.md#unterwegs-fernzugriff), Bridge ≥ 4.6.0).
 
 ### Variante C – direkt aus dem Quellcode
 

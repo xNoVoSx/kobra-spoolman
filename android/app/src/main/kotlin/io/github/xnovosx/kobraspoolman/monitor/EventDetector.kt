@@ -7,13 +7,15 @@ import kotlin.math.abs
 /** Kind of notification - one Android channel per kind with its own sound (adjustable separately). */
 enum class EventKind { START, LAYER, DONE, ALARM, HINT }
 
-/** An event for a notification. key: the same message replaces itself instead of stacking. */
+/** An event for a notification. key: the same message replaces itself instead of stacking. vpn: offer to open the
+ *  VPN app (away from home). */
 data class PrintEvent(val kind: EventKind, val title: String, val text: String, val key: String,
-                      val aiEvent: String? = null)
+                      val aiEvent: String? = null, val vpn: Boolean = false)
 
 /**
  * Detects from consecutive bridge queries what should be reported (without Android - testable).
- * state = null means: bridge not reachable.
+ * state = null means: bridge not reachable; away = the phone is outside the home network (HomeNetwork) - then the
+ * bridge being gone is no alarm but a quiet hint: nothing is known about the print from here.
  */
 class EventDetector(
     private val changeStuckMs: Long = 3 * 60_000L,
@@ -46,13 +48,16 @@ class EventDetector(
     /** These bridge messages are already covered by the print state (else duplicate). */
     private val ownKeys = setOf("printer", "klippy", "paused", "error", "done", "camera", "rfid")
 
-    fun update(state: AppState?, now: Long): List<PrintEvent> {
+    fun update(state: AppState?, now: Long, away: Boolean = false): List<PrintEvent> {
         val out = mutableListOf<PrintEvent>()
         if (state == null) {
             val since = bridgeGoneSince ?: now.also { bridgeGoneSince = it }
             if (wasPrinting && !bridgeAlarmed && now - since >= goneMs) {
                 bridgeAlarmed = true
-                out += PrintEvent(EventKind.ALARM, tr("Bridge not reachable"),
+                out += if (away) PrintEvent(EventKind.HINT, tr("Away from home"),
+                    tr("The bridge cannot be reached from here – the print was still running. With the VPN on, the app keeps watching."),
+                    "bridge", vpn = true)
+                else PrintEvent(EventKind.ALARM, tr("Bridge not reachable"),
                     tr("No connection for over a minute – the print was still running."), "bridge")
             }
             return out

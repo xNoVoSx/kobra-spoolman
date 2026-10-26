@@ -184,7 +184,7 @@ fun MoreScreen(
         item { MoreRow(KIcons.Terminal, tr("Log"), tr("Sent commands, replies, what the bridge does"), onProtocol) }
         item { MoreRow(KIcons.Check, tr("Features"), tr("Everything the system can do – on, off, what it needs"), onFeatures) }
         item { MoreRow(KIcons.Phone, tr("Devices"), tr("Paired devices, add a device"), onDevices) }
-        item { MoreRow(KIcons.Settings, tr("Settings"), tr("Pairing, notifications, sounds, language"), onSettings) }
+        item { MoreRow(KIcons.Settings, tr("Settings"), tr("Pairing, remote access, notifications, sounds, language"), onSettings) }
         item {
             Text(tr("App {version} · check for updates", "version" to BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodySmall,
                 color = K.Muted, modifier = Modifier.clickable(onClick = onCheckUpdate).padding(vertical = 8.dp))

@@ -5,7 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import io.github.xnovosx.kobraspoolman.data.BridgeClient
+import io.github.xnovosx.kobraspoolman.data.BridgeAccess
 import io.github.xnovosx.kobraspoolman.data.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +26,7 @@ class VisionActionReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             val msg = runCatching {
                 val c = Settings(context).connection.first()
-                val client = BridgeClient(c.url, c.token)
+                val client = BridgeAccess.Default.client(c)
                 when (intent.action) {
                     ACTION_PAUSE -> {
                         client.printAction("pause")

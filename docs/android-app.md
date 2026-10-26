@@ -51,6 +51,13 @@ Tabs at the bottom: **Home · Messages · (scan) · Filament · More**.
   sound and sends a test notification. The sounds are synthesised by
   [`android/tools/make_sounds.py`](../android/tools/make_sounds.py) (no third-party samples, MIT like
   the rest). It restarts after the phone reboots.
+- **Remote access** (app ≥ 1.23.0, *Settings → Remote access*) — `BridgeAccess` picks the way: home address, then a
+  second address (VPN such as NetBird), then Home Assistant (`HaIngress`: HA WebSocket login with a long-lived token,
+  Supervisor ingress session as cookie `ingress_session`, renewed when HA refuses it; camera as single images there).
+  The HA token is sealed with a key in the Android Keystore (`Secrets`). The ingress path comes from the bridge
+  (`GET /api/app/remote`). Away from home (no route to the bridge's IP in the network in use, `HomeNetwork`) a bridge
+  gone during a print is a quiet hint with *Open VPN app* instead of the alarm (`VpnApps`: launchable apps with a VPN
+  service, via a launcher `<queries>` — no `QUERY_ALL_PACKAGES`). See [usage](usage.md#away-from-home-remote-access).
 - **AI alarm** — when the bridge's [AI](vision.md) sees a failed print, the alarm carries the camera
   picture and three buttons: **Pause print** (pauses through the bridge and labels the picture as a real
   failure), **Correct** (labels it as a real failure) and **False alarm** (silences the AI for this print,

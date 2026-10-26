@@ -107,6 +107,19 @@ class EventDetectorTest {
     }
 
     @Test
+    fun bridgeGoneAwayFromHomeIsAQuietHint() {
+        val d = EventDetector()
+        d.update(st("printing", layer = 3), 0)
+        assertEquals(emptyList<String>(), titles(d, null, 10_000))
+        val e = d.update(null, 71_000, away = true).single()
+        assertEquals(EventKind.HINT, e.kind)
+        assertEquals("Away from home", e.title)
+        assertTrue(e.vpn)
+        assertEquals(emptyList<String>(), titles(d, null, 200_000))                    // once
+        assertEquals(listOf("Bridge reachable again"), titles(d, st("printing", layer = 4), 210_000))
+    }
+
+    @Test
     fun ownPauseAndCancelAreNoAlarm() {
         val d = EventDetector()
         d.update(st("printing", layer = 3), 0)

@@ -6,7 +6,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.os.IBinder
-import io.github.xnovosx.kobraspoolman.data.BridgeClient
+import io.github.xnovosx.kobraspoolman.data.BridgeAccess
 import io.github.xnovosx.kobraspoolman.data.PrinterLabel
 import io.github.xnovosx.kobraspoolman.data.Settings
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +21,8 @@ import kotlinx.coroutines.launch
 /**
  * Print monitoring in the background (replaces the OctoApp companion, which ate 64 % CPU on the printer): only
  * queries the bridge - every 5 s during a print, else every 30 s - and reports events. It costs nothing on the
- * printer. Switch on/off: Settings -> "Monitor the printer in the background".
+ * printer. Switch on/off: Settings -> "Monitor the printer in the background". Away from home it takes the second
+ * address (VPN) or Home Assistant like the app (BridgeAccess).
  */
 class MonitorService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -51,20 +52,23 @@ class MonitorService : Service() {
         while (scope.isActive) {
             val c = settings.connection.first()
             if (!settings.monitor.first() || !c.configured) { stopSelf(); return }
-            val client = BridgeClient(c.url, c.token)
+            val client = BridgeAccess.Default.client(c)
             val state = runCatching { client.state() }.getOrNull()
+            if (state == null) BridgeAccess.Default.failed(c)
             val now = System.currentTimeMillis()
             val p = state?.printer
             if (state != null) PrinterLabel.name = state.printerName
             val running = p != null && (p.state == "printing" || p.state == "paused")
-            val events = detector.update(state, now)
+            val away = state == null && settings.awayHint.first() && HomeNetwork.away(this, c.url)
+            val events = detector.update(state, now, away)
             // alarm with a fresh camera image: you see at once what is going on
             if (events.any { it.kind == EventKind.ALARM } && state?.canWrite == true) {
                 camera = runCatching { client.image("/api/camera/snapshot.jpg") }.getOrNull()
                     ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) } ?: camera
                 lastCamera = now
             }
-            events.forEach { Notifier.event(this, it, if (it.kind == EventKind.ALARM) camera else null) }
+            val vpnApp = if (events.any { it.vpn }) VpnApps.pick(this, settings.vpnApp.first())?.pkg else null
+            events.forEach { Notifier.event(this, it, if (it.kind == EventKind.ALARM) camera else null, vpnApp) }
             // camera image for the status bar: at most once a minute (the bridge fetches it only once anyway)
             if (running && state.canWrite && now - lastCamera > 60_000) {
                 lastCamera = now

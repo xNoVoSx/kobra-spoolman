@@ -20,7 +20,12 @@ import io.github.xnovosx.kobraspoolman.update.Installer
 import io.github.xnovosx.kobraspoolman.data.ConsoleLines
 import io.github.xnovosx.kobraspoolman.data.PrintJob
 import io.github.xnovosx.kobraspoolman.data.LogLines
+import io.github.xnovosx.kobraspoolman.data.BridgeAccess
 import io.github.xnovosx.kobraspoolman.data.BridgeClient
+import io.github.xnovosx.kobraspoolman.data.HaIngress
+import io.github.xnovosx.kobraspoolman.data.HaRemote
+import io.github.xnovosx.kobraspoolman.data.RemoteInfo
+import io.github.xnovosx.kobraspoolman.data.RouteKind
 import io.github.xnovosx.kobraspoolman.data.BridgeException
 import io.github.xnovosx.kobraspoolman.data.Catalog
 import io.github.xnovosx.kobraspoolman.data.Connection
@@ -49,7 +54,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -107,9 +113,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val scans = _scans.receiveAsFlow()
 
     private var polling: Job? = null
+    private val access = BridgeAccess.Default
 
-    private fun client(): BridgeClient? =
-        connection.value?.takeIf { it.configured }?.let { BridgeClient(it.url, it.token) }
+    /** Way to the bridge in use (home, VPN, Home Assistant), null = none reachable. */
+    val routeKind: StateFlow<RouteKind?> = access.kind
+
+    /** Client on the way that reaches the bridge (BridgeAccess: home first, then VPN, then Home Assistant). */
+    private suspend fun client(): BridgeClient? =
+        connection.value?.takeIf { it.configured }?.let { access.client(it) }
+
+    /** A request found the bridge gone: the next one looks for a way again. */
+    private suspend fun unreachable(e: BridgeException) {
+        if (e.status == 0) connection.value?.let { access.failed(it) }
+    }
 
     // ------------------------------------------------------------ loading
     fun startPolling() {
@@ -136,6 +152,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             PrinterLabel.name = _state.value?.printerName
             _error.value = null
         } catch (e: BridgeException) {
+            unreachable(e)
             _error.value = e.message
         }
     }
@@ -390,10 +407,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setRender3d(v: String) = viewModelScope.launch { settings.setRender3d(v) }
 
-    /** Address of the bridge's 3D view (/viewer, in the app language) - null: show the bridge image. */
-    fun viewerUrl(c: Connection?, mode: String): String? =
-        if (c == null || !c.configured || mode == "image") null
-        else BridgeClient.normalizeUrl(c.url) + "/viewer?q=" + mode + "&lang=" + I18n.lang
+    /** Address of the bridge's 3D view (/viewer, in the app language) on the way in use - null: show the bridge image.
+     *  Through Home Assistant the WebView needs the ingress session as a cookie. route: only so it is asked again
+     *  when the way changes. */
+    @Suppress("UNUSED_PARAMETER")
+    fun viewerUrl(c: Connection?, mode: String, route: RouteKind?): String? {
+        if (c == null || !c.configured || mode == "image") return null
+        val (base, cookie) = access.web() ?: (BridgeClient.normalizeUrl(c.url) to null)
+        if (cookie != null) android.webkit.CookieManager.getInstance().setCookie(base, "$cookie; Path=/" + if (base.startsWith("https")) "; Secure" else "")
+        return "$base/viewer?q=$mode&lang=${I18n.lang}"
+    }
 
     // ------------------------------------------------ humidity
     suspend fun humidity(hours: Int): HumidityData? = runCatching { client()?.humidity(hours) }.getOrNull()
@@ -536,8 +559,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun console(after: Long): ConsoleLines? = runCatching { client()?.console(after) }.getOrNull()
     suspend fun logs(after: Long, level: String): LogLines? = runCatching { client()?.logs(after, level) }.getOrNull()
 
-    /** Live camera via the bridge restream; empty without a connection. */
-    fun cameraStream(): Flow<ByteArray> = client()?.cameraStream() ?: emptyFlow()
+    /** Live camera via the bridge restream (through Home Assistant as single images); empty without a connection. */
+    fun cameraStream(): Flow<ByteArray> = flow { client()?.let { emitAll(it.cameraStream()) } }
 
     suspend fun printInfo(): PrintInfo? = runCatching { client()?.printInfo() }.getOrNull()
 
@@ -553,7 +576,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _busy.value = true
         try {
             val res = BridgeClient(url, "").pair(code.trim(), name.trim())
-            settings.save(Connection(url, res.token))
+            settings.savePairing(url, res.token)
             settings.setAppSetup("pending")              // freshly paired: the setup opens next
             _me.value = res.device
             _meChecked.value = true
@@ -568,7 +591,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Forget only here; the bridge keeps the device listed until it is removed there. */
     fun forgetPairing() = viewModelScope.launch {
-        settings.save(Connection(connection.value?.url.orEmpty(), ""))
+        settings.savePairing(connection.value?.url.orEmpty(), "")
         _me.value = null
         _meChecked.value = false
     }
@@ -607,9 +630,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try {
             block(c)
         } catch (e: BridgeException) {
+            unreachable(e)
             _messages.send(e.message ?: tr("Error"))
         } finally {
             if (showBusy) _busy.value = false
         }
     }
+
+    // ------------------------------------------------ remote access (VPN, Home Assistant)
+    val awayHint: StateFlow<Boolean> = settings.awayHint.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val vpnApp: StateFlow<String> = settings.vpnApp.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    private val _remoteInfo = MutableStateFlow<RemoteInfo?>(null)
+    /** What the bridge knows for the way through Home Assistant (its ingress path as an add-on). */
+    val remoteInfo: StateFlow<RemoteInfo?> = _remoteInfo
+    private val _remoteTest = MutableStateFlow<Map<RouteKind, String?>?>(null)
+    /** Result of "Test": per way null = reachable, else why not. */
+    val remoteTest: StateFlow<Map<RouteKind, String?>?> = _remoteTest
+
+    fun loadRemoteInfo() = viewModelScope.launch {
+        _remoteInfo.value = client()?.let { c -> runCatching { c.remote() }.getOrNull() }
+    }
+
+    fun saveRemote(vpnUrl: String, ha: HaRemote) = viewModelScope.launch {
+        if (ha.on && ha.ingress.isNotBlank() && HaIngress.ingressPath(ha.ingress) == null) {
+            _messages.send(tr("That is not an ingress path – it looks like /api/hassio_ingress/<long code>"))
+            return@launch
+        }
+        settings.saveRemote(vpnUrl, ha)
+        _remoteTest.value = null
+        _messages.send(tr("Remote access saved"))
+    }
+
+    fun testRemote() = viewModelScope.launch {
+        val c = settings.connection.first().takeIf { it.configured } ?: return@launch
+        _busy.value = true
+        try {
+            _remoteTest.value = access.test(c)
+        } finally {
+            _busy.value = false
+        }
+    }
+
+    fun setAwayHint(on: Boolean) = viewModelScope.launch { settings.setAwayHint(on) }
+    fun setVpnApp(pkg: String) = viewModelScope.launch { settings.setVpnApp(pkg) }
 }

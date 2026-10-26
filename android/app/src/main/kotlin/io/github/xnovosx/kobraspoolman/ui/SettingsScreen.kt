@@ -58,6 +58,7 @@ fun SettingsScreen(
     onPair: (url: String, code: String, name: String) -> Unit,
     onForget: () -> Unit,
     onDevices: () -> Unit,
+    remote: @Composable () -> Unit = {},
 ) {
     val hasKey = current.token.isNotBlank()
     LaunchedEffect(hasKey) { if (hasKey) onLoadMe() }
@@ -88,6 +89,7 @@ fun SettingsScreen(
             SecondaryButton(tr("Forget the pairing here"), onForget, Modifier.fillMaxWidth())
             Text(tr("“Forget” deletes the key only on this phone. To remove it completely: under “Manage devices”."),
                 style = MaterialTheme.typography.bodySmall, color = K.Muted)
+            remote()
             SectionLabel(tr("Notifications"), Modifier.padding(top = 8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

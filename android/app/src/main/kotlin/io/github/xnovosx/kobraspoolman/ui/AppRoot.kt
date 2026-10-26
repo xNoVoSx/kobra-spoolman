@@ -168,7 +168,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                     fetchImage = { vm.image(it) },
                     printInfo = { vm.printInfo() },
                     camera = { vm.cameraStream() },
-                    viewerUrl = vm.viewerUrl(vm.connection.collectAsState().value, vm.render3d.collectAsState().value),
+                    viewerUrl = vm.viewerUrl(vm.connection.collectAsState().value, vm.render3d.collectAsState().value,
+                        vm.routeKind.collectAsState().value),
                     onPrintAction = { action, done -> vm.printAction(action, done) },
                     onTune = { tuneOpen = true },
                     onDirectOff = { vm.direct(false) })
@@ -280,7 +281,8 @@ fun AppRoot(vm: AppViewModel, scanner: TagScanner) {
                         vm.pair(url, code, name) { nav.navigate("setup") { popUpTo(0); launchSingleTop = true } }
                     },
                     onForget = { vm.forgetPairing() },
-                    onDevices = { nav.navigate("devices") })
+                    onDevices = { nav.navigate("devices") },
+                    remote = { RemoteSection(vm, c, busy) })
             }
             composable("devices") {
                 DevicesScreen(c.url, devices, pairingCode, busy, padding,

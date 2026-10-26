@@ -19,8 +19,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Away from home? (routes of the network in use, HomeNetwork) - a quiet hint instead of the alarm -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- The bridge runs in the home network without TLS (http://<docker-host>:7913) -->
+    <!-- VPN apps for the away hint (VpnApps): launchable apps, then those with a VPN service - no QUERY_ALL_PACKAGES -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <!-- The bridge runs in the home network without TLS (http://<docker-host>:7913), also in a VPN -->
     <application
         android:name=".KobraApp"
         android:allowBackup="false"

@@ -24,12 +24,14 @@ class BridgeException(val status: Int, message: String) : Exception(message)
 
 /**
  * HTTP access to the ace-lane-bridge. Writing calls send the app key; every request carries the app language (X-Lang),
- * so messages of the bridge come in the same language as the app.
+ * so messages of the bridge come in the same language as the app. frames: live camera as single images
+ * (/api/camera/frame.jpg) instead of the MJPEG stream - through Home Assistant's ingress the stream does not get through.
  */
 class BridgeClient(
     private val baseUrl: String,
     private val token: String,
     private val http: OkHttpClient = defaultHttp,
+    private val frames: Boolean = false,
 ) {
     companion object {
         // coerceInputValues: null for a field with a default -> default (a bridge answer must never break the app)
@@ -102,7 +104,7 @@ class BridgeClient(
      * Live camera: restream of the bridge (one connection to the printer for all viewers). Runs while collected;
      * errors end the flow with BridgeException.
      */
-    fun cameraStream(): Flow<ByteArray> = flow {
+    fun cameraStream(): Flow<ByteArray> = if (frames) cameraFrames() else flow {
         val builder = request("$base/api/camera/stream.mjpg")
         val call = http.newCall(builder.build())
         try {
@@ -118,6 +120,28 @@ class BridgeClient(
             throw BridgeException(0, tr("Camera interrupted ({detail})", "detail" to (e.message ?: e.javaClass.simpleName)))
         } finally {
             call.cancel()
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /** Live camera as single images: the bridge answers each request with the next image after the last one. */
+    private fun cameraFrames(): Flow<ByteArray> = flow {
+        var after = -1L
+        while (true) {
+            val call = http.newCall(request("$base/api/camera/frame.jpg?after=$after").build())
+            try {
+                call.execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        val msg = runCatching { json.decodeFromString(ApiError.serializer(), resp.body.string()).error }.getOrNull()
+                        throw BridgeException(resp.code, msg?.takeIf { it.isNotBlank() } ?: "HTTP ${resp.code}")
+                    }
+                    after = resp.header("X-Frame")?.toLongOrNull() ?: after
+                    emit(resp.body.bytes())
+                }
+            } catch (e: IOException) {
+                throw BridgeException(0, tr("Camera interrupted ({detail})", "detail" to (e.message ?: e.javaClass.simpleName)))
+            } finally {
+                call.cancel()
+            }
         }
     }.flowOn(Dispatchers.IO)
 
@@ -158,6 +182,7 @@ class BridgeClient(
     suspend fun printInfo(): PrintInfo = call("GET", "/api/print/info", null, PrintInfo.serializer())
 
     suspend fun health(): Health = call("GET", "/api/health", null, Health.serializer())
+    suspend fun remote(): RemoteInfo = call("GET", "/api/app/remote", null, RemoteInfo.serializer())
     suspend fun state(): AppState = call("GET", "/api/app/state", null, AppState.serializer())
     suspend fun catalog(): Catalog = call("GET", "/api/app/catalog", null, Catalog.serializer())
     suspend fun spool(id: Int): SpoolDetail = call("GET", "/api/app/spool/$id", null, SpoolDetail.serializer())

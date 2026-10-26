@@ -22,6 +22,7 @@ from acebridge.console import Console
 from acebridge.render import PrintPreview
 from acebridge.dryer import Dryer
 from acebridge.slots import SlotManager
+from acebridge.ingress import IngressPath
 from acebridge.web import build_app
 
 FIELDS = [
@@ -248,6 +249,7 @@ class FakeBridge:
         self.ace = AceSettings(self.moon, self.slots)
         self.devices = Devices(cfg.data_dir, cfg.app_token)
         self.camera_key = CameraKey(cfg.data_dir)
+        self.ingress = IngressPath(cfg.data_dir)
         self.console = Console()
         self.camera = Camera(cfg, self.moon, None)       # no fetching without viewers
         self.preview = PrintPreview(cfg, self.moon, None)
@@ -468,3 +470,11 @@ def test_printer_cpu_wherever_known():
     assert printer_state(st, True, True, None, platform="rinkhals", cpu=63.4)["printer_cpu"] == 63
     assert printer_state(st, True, True, None, platform="klipper", cpu=63.4)["printer_cpu"] == 63
     assert printer_state(st, True, True, None, platform="klipper")["printer_cpu"] is None
+
+
+def test_remote_tells_paired_devices_the_ingress_path(api):
+    bridge, call = api
+    assert call("GET", "/api/app/remote", token=None)[0] == 401
+    assert call("GET", "/api/app/remote")[1] == {"ha_ingress": None, "addon": False}
+    bridge.ingress._set("/api/hassio_ingress/tok123", "test")
+    assert call("GET", "/api/app/remote")[1]["ha_ingress"] == "/api/hassio_ingress/tok123"

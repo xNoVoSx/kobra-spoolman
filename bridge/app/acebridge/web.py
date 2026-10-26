@@ -72,7 +72,16 @@ async def cors(request: web.Request, handler):
 
 def build_app(bridge: "Bridge") -> web.Application:
     i18n.bind(lambda: getattr(bridge.cfg, "language", i18n.SOURCE_LANG))
-    app = web.Application(middlewares=[language, cors])
+
+    @web.middleware
+    async def ingress_seen(request: web.Request, handler):
+        """Remember the HA ingress path (the app's way from outside, ingress.IngressPath)."""
+        seen = getattr(bridge, "ingress", None)
+        if seen is not None:
+            seen.seen(request)
+        return await handler(request)
+
+    app = web.Application(middlewares=[language, cors, ingress_seen])
     r = web.RouteTableDef()
 
     ctx = Ctx(bridge)

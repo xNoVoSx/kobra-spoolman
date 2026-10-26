@@ -540,6 +540,7 @@ provisional until the tag test shows what the ACE accepts (`TAG_SKU_PREFIX`, `TA
 |---|---|---|
 | GET | `/api/app/update` | `{"available": true, "version": "1.0.0", "code": 10000, "size": 5380875, "changes": […], "url": "/api/app/update/apk"}` — the app APK built into this image (`{"available": false}` for images without one, e.g. `edge`) |
 | GET | `/api/app/update/apk` | the signed APK |
+| GET | `/api/app/remote` | *(paired)* `{"ha_ingress": "/api/hassio_ingress/<token>" or null, "addon": true}` — the way through Home Assistant for the app away from home: the add-on's ingress path (asked from the Supervisor at start, or remembered from the first request through the ingress proxy) |
 
 ## Telemetry
 

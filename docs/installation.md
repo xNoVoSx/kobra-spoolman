@@ -122,7 +122,8 @@ web UI opens in the HA sidebar (ingress), the direct port 7913 stays available f
 data lives in the add-on's config folder (part of HA backups). Since bridge 3.13 the web UI works under ingress without
 any patch — relative paths, the camera as single images, links that point at the direct port. Useful settings for the
 add-on: `HA_INGRESS_TRUST: true` (the HA sidebar needs no pairing) and `BRIDGE_PUBLIC_URL`. The add-on is maintained by
-its author; check its README for the bridge version it ships.
+its author; check its README for the bridge version it ships. As an add-on the app can also reach the bridge away from
+home through Home Assistant ([remote access](usage.md#away-from-home-remote-access), bridge ≥ 4.6.0).
 
 ### Option C — run from source
 

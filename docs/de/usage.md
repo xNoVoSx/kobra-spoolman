@@ -499,6 +499,30 @@ Android-Einstellungen der App.
 **Widget:** *Einstellungen → Widget auf den Startbildschirm* legt den Druck auf den Startbildschirm –
 Kamerabild, Fortschritt, Rest- und Fertig-Zeit; Antippen öffnet die App.
 
+## Unterwegs (Fernzugriff)
+
+Die Bridge hat keine eigene Anmeldung fürs Internet und sollte nicht dorthin geöffnet werden. Die App erreicht sie
+unterwegs auf zwei Wegen, beide freiwillig, beide unter *Einstellungen → Fernzugriff* (App ≥ 1.23.0). Sie versucht
+immer zuerst die Heimadresse, dann die zweite Adresse, dann Home Assistant; auf einem Weg von außen schaut sie jede
+Minute, ob sie wieder zu Hause ist. *Verbunden über* zeigt den Weg, *Test* prüft jeden einzeln.
+
+- **VPN** (NetBird, Tailscale, WireGuard …): Routet das VPN das ganze Heimnetz, ist nichts nötig – die Heimadresse geht
+  so, wie sie ist. Sonst die Adresse der Bridge im VPN als *zweite Adresse* eintragen. Tipp: das VPN in Android als
+  *Durchgehend aktives VPN* einstellen (*Einstellungen → Netzwerk → VPN → ⚙*); diese VPNs leiten nur ihre eigenen Netze,
+  der übrige Verkehr des Handys geht direkt. Keine App darf das VPN einer anderen einschalten – die App kann nur
+  anbieten, es zu öffnen.
+- **Über Home Assistant** – nur mit der Bridge als [Home-Assistant-Add-on](installation.md#variante-b--home-assistant-add-on)
+  und HA von außen erreichbar (z. B. Home Assistant Cloud). Die App meldet sich mit einem langlebigen Token bei HA an
+  (HA: *Profil → Sicherheit*; am besten für einen eigenen HA-Benutzer ohne Adminrechte – der Token darf, was sein
+  Benutzer darf; er liegt verschlüsselt auf dem Handy) und geht durch den Ingress des Add-ons wie die HA-Seitenleiste.
+  Den *Ingress-Pfad* (`/api/hassio_ingress/<langer Code>`) trägt die Bridge ein: Als Add-on fragt sie beim Start den
+  Supervisor, und sie merkt ihn sich beim ersten Aufruf über die HA-Seitenleiste. Die Kamera kommt dann als Einzelbilder.
+
+**Unterwegs: Hinweis statt Alarm** (standardmäßig an): Ist die Bridge im Druck weg, während das Handy außerhalb des
+Heimnetzes ist (sein Netz hat keine Route zur Adresse der Bridge), schickt die Überwachung statt des Alarms einen leisen
+Hinweis *Nicht zu Hause* – mit einem Knopf, der die VPN-App öffnet (die einzige installierte oder die dort gewählte). Zu
+Hause bleibt es ein Alarm. Gilt für eine Bridge-Adresse als IP.
+
 ## Funktionen
 
 *Funktionen* (Weboberfläche, unten in der Seitenleiste) zeigt alles, was das System kann, gruppiert in *Kern*,

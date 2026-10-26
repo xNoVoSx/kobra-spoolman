@@ -143,8 +143,9 @@ object Notifier {
         EventKind.HINT -> CH_HINT
     }
 
-    /** Report an event; alarms with the latest camera image (you see what is going on without opening the app). */
-    fun event(context: Context, e: PrintEvent, camera: Bitmap? = null) {
+    /** Report an event; alarms with the latest camera image (you see what is going on without opening the app).
+     *  vpnApp: package of the VPN app a hint away from home offers to open. */
+    fun event(context: Context, e: PrintEvent, camera: Bitmap? = null, vpnApp: String? = null) {
         val b = Notification.Builder(context, channelOf(e.kind))
             .setSmallIcon(R.drawable.ic_stat_printer)
             .setContentTitle(e.title)
@@ -159,6 +160,10 @@ object Notifier {
         }
         // the same message (key) replaces the previous one instead of stacking
         val id = 1000 + (e.key.hashCode() and 0xffff)
+        if (e.vpn && vpnApp != null) VpnApps.launch(context, vpnApp)?.let { open ->
+            b.addAction(Notification.Action.Builder(null, tr("Open VPN app"), PendingIntent.getActivity(context, id, open,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build())
+        }
         e.aiEvent?.let { ev ->
             // AI alarm: pause right from the notification or report a false alarm
             fun action(what: String, label: String, req: Int) = Notification.Action.Builder(null, label,

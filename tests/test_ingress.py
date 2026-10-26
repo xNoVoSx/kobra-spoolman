@@ -91,3 +91,37 @@ def test_next_frame_waits_for_a_newer_image(printer):  # noqa: F811
             cam._wanted_until = 0
             await asyncio.wait_for(cam._reader, 2)
     asyncio.run(go())
+
+
+def test_ingress_path_is_learned_from_the_proxy_only_and_kept(tmp_path):
+    seen = ingress.IngressPath(str(tmp_path))
+    assert seen.view()["ha_ingress"] is None
+    seen.seen(req(remote="192.168.1.20", path="/api/hassio_ingress/spoofed"))   # not from the Supervisor's proxy
+    seen.seen(req(path="/api/hassio_ingress/../../etc"))                         # not a token
+    assert seen.path == ""
+    seen.seen(req(path="/api/hassio_ingress/s65bor48v40w3r0m8v-cn945mwdj5icjvwsd43cfnm3/"))
+    assert seen.view()["ha_ingress"] == "/api/hassio_ingress/s65bor48v40w3r0m8v-cn945mwdj5icjvwsd43cfnm3"
+    assert ingress.IngressPath(str(tmp_path)).path == seen.path                  # survives a restart
+
+
+def test_ingress_path_from_the_supervisor(tmp_path):
+    from aiohttp import web
+
+    async def info(request):
+        assert request.headers["Authorization"] == "Bearer sup"
+        return web.json_response({"result": "ok", "data": {"slug": "abc_kobra",
+                                                            "ingress_entry": "/api/hassio_ingress/tok123"}})
+
+    app = web.Application()
+    app.router.add_get("/addons/self/info", info)
+
+    async def go():
+        async with TestServer(app) as srv, aiohttp.ClientSession() as s:
+            seen = ingress.IngressPath(str(tmp_path))
+            await seen.discover(s, token="")                          # not an add-on: nothing
+            assert seen.path == ""
+            await seen.discover(s, token="sup", base=str(srv.make_url("")).rstrip("/"))
+            assert seen.path == "/api/hassio_ingress/tok123"
+            await seen.discover(s, token="sup", base="http://127.0.0.1:9")   # Supervisor gone: keeps what it knows
+            assert seen.path == "/api/hassio_ingress/tok123"
+    asyncio.run(go())

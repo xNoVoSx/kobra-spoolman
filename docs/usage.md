@@ -491,6 +491,29 @@ Android's notification settings.
 **Widget:** *Settings → Widget on the home screen* puts the print on the home screen — camera
 picture, progress, remaining and finish time; tapping it opens the app.
 
+## Away from home (remote access)
+
+The bridge has no login of its own for the internet and should not be opened to it. The app reaches it away from home
+in two ways, both optional, both under *Settings → Remote access* (app ≥ 1.23.0). It always tries the home address
+first, then the second address, then Home Assistant; on a way from outside it looks for home again every minute.
+*Connected via* shows the way in use, *Test* checks each one.
+
+- **VPN** (NetBird, Tailscale, WireGuard …): if the VPN routes the whole home network, nothing is needed — the home
+  address works as it is. Otherwise enter the bridge's address in the VPN as the *second address*. Tip: set the VPN as
+  *Always-on VPN* in Android (*Settings → Network → VPN → ⚙*); these VPNs only route their own networks, the rest of
+  the phone's traffic goes on directly. No app can switch another app's VPN on — the app can only offer to open it.
+- **Through Home Assistant** — only with the bridge as a [Home Assistant add-on](installation.md#option-b--home-assistant-add-on)
+  and HA reachable from outside (e.g. Home Assistant Cloud). The app logs in to HA with a long-lived token (HA:
+  *Profile → Security*; best of a separate HA user without admin rights — the token can do what its user may; it is
+  stored encrypted on the phone) and goes through the add-on's ingress like the HA sidebar does. The *ingress path*
+  (`/api/hassio_ingress/<long code>`) is filled in by the bridge: as an add-on it asks the Supervisor at start, and it
+  remembers it from the first visit through the HA sidebar. The camera then comes as single images.
+
+**Away from home: hint instead of alarm** (on by default): if the bridge is gone during a print while the phone is
+outside the home network (its network has no route to the bridge's address), the monitoring sends a quiet hint
+*Away from home* instead of the alarm — with a button that opens the VPN app (the only one installed, or the one chosen
+there). At home it stays an alarm. Works for a bridge address given as an IP.
+
 ## Features
 
 *Features* (web UI, bottom of the side bar) lists everything the system can do, grouped as *Core*, *Operation*,

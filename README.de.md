@@ -108,7 +108,7 @@ App, Orca-Plugin und Home Assistant reden alle mit der Bridge. Welche Firmware l
 |---|---|
 | **[ace-lane-bridge](bridge/)** (Docker) | Verbindet Moonraker und Spoolman. Weboberfläche, Slot-Zuordnung (automatisch per NFC-Tag), `lane_data` für Orca, Verbrauch messen und pro Spule buchen, offene Posten, Druckhistorie, Trockner-Automatik und ACE-Einstellungen (Endlosspule), Feuchte-Verlauf und Feuchte-Schätzung pro Spule, Prüfung beim Druckstart, Kamera-Restream, 3D-Druckansicht, Drucksteuerung, Terminal und Logs, Meldungen, Einstellungen im Betrieb, Home Assistant über MQTT, Geräte koppeln, Schnittstelle für App und Plugin, liefert das App-Update aus. |
 | **[Kobra Spoolman](orca-plugin/)** (Orca-Plugin) | Ein Orca-Filamentprofil pro Spoolman-Filament (`SM000010` …), Seitenpanel mit Slots und Profilprüfung, Verbrauchsvorschau nach dem Slicen, Rücksync von Profiländerungen nach Spoolman. |
-| **[Android-App](android/)** | Drucker mit Kamera, 3D-Ansicht und Steuerung, Benachrichtigungen im Hintergrund, Widget, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner mit Feuchte-Verlauf und -Einstellungen, Feuchte der Spulen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), öffnet Spulen über ihren Spoolman-QR-Code, Koppeln per QR-Code, Updates über die Bridge. |
+| **[Android-App](android/)** | Drucker mit Kamera, 3D-Ansicht und Steuerung, Benachrichtigungen im Hintergrund, Widget, Slots, Spulenkarte, neue Spulen und Filamente, ACE-Trockner mit Feuchte-Verlauf und -Einstellungen, Feuchte der Spulen, schreibt ACE-taugliche NFC-Tags (zwei pro Spule), öffnet Spulen über ihren Spoolman-QR-Code, Koppeln per QR-Code, Updates über die Bridge, unterwegs über ein VPN oder Home Assistant. |
 | **[kobra-vision](vision/)** (Docker, optional, AGPL-3.0) | KI-Fehldruck-Erkennung: Obicos Fehldruck-Modell mit ONNX Runtime (CPU, ~50 ms pro Bild), die Bridge bewertet die Ergebnisse über die Zeit. |
 | **[spoolman_setup.py](spoolman/)** | Legt einmalig die Spoolman-Zusatzfelder (alle Orca-Filamentwerte) und Materialvorlagen an. |
 | **[orca-kobra](https://github.com/xNoVoSx/orca-kobra)** (eigenes Repo) | Nächtliches OrcaSlicer-AppImage mit drei kleinen Patches: Profilwahl über `lane_data.filament_id` ([PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423)), Slice-Statistik für Plugins ([PR #16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)) und eine Mindestgröße für angedockte Plugin-Panels. Die richtigen Temperaturen der ersten Schicht im G-Code-Kopf stehen seit [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422) in Orca selbst. Aktualisiert sich selbst. |
@@ -292,6 +292,7 @@ Die Bridge gehört ins Heimnetz; sie hat kein TLS.
 | – | Weboberfläche hinter Home-Assistant-Ingress ohne Patches (Community-Add-on) | ✅ fertig (3.13) |
 | – | Kobra 3 mit ACE Pro bestätigt, Drucker- und ACE-Name vom Drucker, Slots behalten ihre Spulen bei ausgeschaltetem Drucker | ✅ fertig (3.18–3.19) |
 | – | Erste stabile Version für alle: unterstützte Drucker, Schnellstart je Aufbau, Doku für Neue | ✅ 4.0.0 |
+| – | App unterwegs: zweite Adresse (VPN wie NetBird) oder über Home Assistant (Add-on), leiser Hinweis statt Alarm | ✅ 4.6.0 |
 
 ## KI-Hinweis
 
