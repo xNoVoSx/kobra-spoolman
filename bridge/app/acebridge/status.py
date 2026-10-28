@@ -244,6 +244,13 @@ def messages(bridge: "Bridge", reach: List[Dict[str, Any]], now: float) -> List[
         # red: the app pushes it - a heater fault needs a look at the ACE
         out.append(_msg("error", tr("ACE dryer fault: {code} – drying stopped, check the ACE", code=dry["error"]),
                         "dryer_error"))
+    refused = dry.get("refused")
+    if refused and not dry.get("drying"):
+        req = dry.get("required") or {}
+        out.append(_msg("warn", tr("ACE driver refused drying at {t} °C (allows at most {max} °C) – raise "
+                                   "max_dryer_temperature in printer.cfg [ace]", t=refused.get("temp"),
+                                   max=req.get("driver_max") if req.get("driver_max") is not None else "?"),
+                        "dryer_refused"))
     lid = bridge.humidity.lid_open() if getattr(bridge, "humidity", None) is not None else None
     if lid and not dry.get("error"):
         out.append(_msg("warn", tr("ACE dryer only at {temp} °C instead of {target} °C – lid open?",

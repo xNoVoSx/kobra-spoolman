@@ -105,6 +105,7 @@ class Bridge:
         self.phase_steps = ChangeSteps()                          # sub-step of a tool change (print phase)
         self.console.listeners.append(self.phase_steps.on_console)
         self.console.listeners.append(self.usage.on_console)      # purge length per colour change (purge log)
+        self.console.listeners.append(self.dryer.on_console)      # driver refused a dryer start
         self._print_state = ""
         # last print action triggered through the bridge - the app does not report its own pauses as an alarm
         self.last_control: Optional[Dict[str, Any]] = None

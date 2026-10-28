@@ -8,6 +8,18 @@ Changes to the Orca patches and build: [orca-kobra CHANGELOG](https://github.com
 
 ## [Unreleased]
 
+## [4.6.2] – 2026-10-28
+
+### Fixed
+- **Dryer never started at 65 °C with ACEPRO**: ACEPRO only allows `max_dryer_temperature` (default 60 °C; its
+  example configs say 55 for the first ACE Pro) and answered `Temp 65°C out of range, skipping`. The bridge took that
+  for "the ACE stopped early", restarted three times and gave up quietly; the automation tried again every hour. Now
+  the bridge reads the limit from Klipper's config and never asks for more; a start the driver still refuses ends the
+  run at once with a clear message (`dryer_refused`) and the automation waits until Klipper restarts. With an
+  **ACE 2 Pro** set `max_dryer_temperature: 65` in the `[ace]` section of `printer.cfg` — it dries up to 65 °C.
+- Dryer start while Klipper is busy printing: the command is queued and runs later — the bridge no longer sends it
+  again every 15 s, and the warning in the log has a text instead of being empty.
+
 ## [4.6.1] – 2026-10-26
 
 ### Fixed

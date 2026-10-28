@@ -143,7 +143,8 @@ no planned start — a red message asks you to look at the ACE; starting by hand
 
 The temperature is **never higher than the most sensitive loaded filament allows** — the field
 *Dry max.* on the filament, else on its template, else a cautious default per material
-(PLA 55 °C, PETG 60 °C, TPU 55 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C).
+(PLA 55 °C, PETG 60 °C, TPU 55 °C, …) — and never higher than the ACE can do (ACE 2 Pro 65 °C, ACE Pro 55 °C)
+or ACEPRO allows (`max_dryer_temperature` in `[ace]`, default 60 °C — set 65 for an ACE 2 Pro).
 If a more sensitive spool is loaded while drying, the bridge lowers the temperature at once and keeps
 the remaining time. The **ACE** page lists the limit of every slot.
 

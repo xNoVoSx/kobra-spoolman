@@ -2,13 +2,16 @@
 
 from .i18n import tr
 
-__version__ = "4.6.1"
+__version__ = "4.6.2"
 __app_name__ = "ace-lane-bridge"
 __description__ = "Kobra S1 with ACE 2 Pro ↔ Spoolman ↔ OrcaSlicer"
 
 # Newest version first, shown in the web UI under "Settings" (the last 10 versions; the full history is in
 # CHANGELOG.md). Texts in English, German in locale/de.json.
 CHANGELOG = [
+    ("4.6.2", "2026-10-28", [
+        tr("Dryer: the bridge reads ACEPRO's highest drying temperature (max_dryer_temperature, default 60 °C) and stays below it – before, ASA/ABS at 65 °C were refused and the bridge retried quietly every hour. If the driver still refuses a start, the dryer card and the messages say why"),
+    ]),
     ("4.6.1", "2026-10-26", [
         tr("App 1.23.1: through Home Assistant the add-on needs an administrator – the app now says so instead of “HTTP 403”; documentation updated, with a Home Assistant guide"),
     ]),

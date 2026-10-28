@@ -146,7 +146,8 @@ von Hand starten geht weiter. Schalter: *Einstellungen → Feuchte der Spulen* (
 
 Die Temperatur liegt **nie über dem, was das empfindlichste eingelegte Filament verträgt** – Feld
 *Trocknen max.* am Filament, sonst an der Vorlage, sonst ein vorsichtiger Wert pro Material
-(PLA 55 °C, PETG 60 °C, TPU 55 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C).
+(PLA 55 °C, PETG 60 °C, TPU 55 °C, …) – und nie über dem, was die ACE kann (ACE 2 Pro 65 °C, ACE Pro 55 °C)
+oder ACEPRO erlaubt (`max_dryer_temperature` in `[ace]`, Standard 60 °C – für eine ACE 2 Pro 65 eintragen).
 Wird beim Trocknen eine empfindlichere Spule eingelegt, senkt die Bridge die Temperatur sofort und
 behält die Restzeit. Die Seite **ACE** listet die Grenze jedes Slots.
 

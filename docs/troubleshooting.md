@@ -47,7 +47,8 @@ Orca, `~/.config/OrcaSlicer/log/python_*.log`.
 | Print stops at once: *nozzle does not fit* / paused: *file sliced for a … mm nozzle* | Swappable hotends: the file is for another nozzle than the hotend chosen on the ACE page. Choose the hotend that is really in, or slice with the printer profile of that nozzle. The check can be switched off (*Features → Check the nozzle at print start*). |
 | Nozzle temperature swings or heats slowly after a hotend swap | The hotend's PID is not measured yet (warning on the ACE page) – *Hotend → Measure PID* once. |
 | A spool ran out and the print only paused, no question which spool to take | The question needs the endless spool switched on and kobra-klipper's `kobra_spare` module (with its ACEPRO patch). It only comes when no loaded spool matches the endless-spool mode – a matching one is taken without asking. Continue by hand: `T<n>` for the slot you want, then *Resume*. |
-| Dryer starts colder than expected | The bridge never exceeds the most sensitive loaded filament (*Dry max.*, template, material default) or the ACE's maximum. The *Dryer* page shows which slot sets the limit. |
+| Dryer starts colder than expected | The bridge never exceeds the most sensitive loaded filament (*Dry max.*, template, material default) or the ACE's maximum. The *Dryer* page shows which slot sets the limit. With ACEPRO also its `max_dryer_temperature` (default 60 °C). |
+| Dryer does not start, message *ACE driver refused drying at … °C* | ACEPRO's `max_dryer_temperature` is lower than asked. An ACE 2 Pro dries up to 65 °C: add `max_dryer_temperature: 65` to the `[ace]` section of `printer.cfg`, then `FIRMWARE_RESTART`. The first ACE Pro stays at 55. |
 
 ## Rinkhals
 

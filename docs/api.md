@@ -134,7 +134,7 @@ Nothing is written to Spoolman; the commands go to the printer, so they need a p
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/dryer` | humidity, ACE temperature, dryer state, `error` (dryer fault the ACE reports, e.g. `PTC_err`, else null — the bridge then never restarts by itself), highest allowed temperature with reasons, automation settings, last event |
+| GET | `/api/dryer` | humidity, ACE temperature, dryer state, `error` (dryer fault the ACE reports, e.g. `PTC_err`, else null — the bridge then never restarts by itself), highest allowed temperature with reasons (`required.ace_max` = what the ACE and its driver allow, `required.driver_max` = ACEPRO's `max_dryer_temperature` or null), `refused` (`{"temp", "at"}` when ACEPRO refused the last start, else null), automation settings, last event |
 | POST | `/api/dryer/start` | *(paired)* `{"temp": <°C or null>, "hours": <h or null>}` — null = automatic / automation's max hours; capped by the loaded filaments |
 | POST | `/api/dryer/stop` | *(paired)* stop drying |
 | POST | `/api/dryer/config` | *(paired)* automation: `enabled`, `start_above`, `stop_below` (%), `max_hours`, `pause_minutes`, `while_printing`, `start_delay_minutes` (humidity must stay above `start_above` this long, default 15) |

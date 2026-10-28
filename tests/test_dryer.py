@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
 from conftest import FakeMoonraker, ace_status
 
 from acebridge.dryer import COMMAND_SETTLE_S, MAX_RESTARTS, Dryer, ace_max_temp, dryer_error, hub_state
+from acebridge.status import messages
 from acebridge.humidity import HumidityLog
 from acebridge.slots import SlotManager
 
@@ -20,6 +22,16 @@ class GMoon(FakeMoonraker):
 
     async def gcode(self, script, source="Bridge"):
         self.sent.append(script)
+        if self.gcode_timeout:
+            raise asyncio.TimeoutError
+
+    gcode_timeout = False
+    ace_settings = None             # Klipper's configfile settings of [ace]; None = query fails
+
+    async def query(self, objects, timeout=5):
+        if self.ace_settings is None:
+            raise ConnectionError("no configfile")
+        return {"configfile": {"settings": {"ace": self.ace_settings}}}
 
 
 class SM:
@@ -302,3 +314,78 @@ def test_closed_lid_heating_is_not_a_lid_warning(cfg):
         clock.t = 1_000_000.0 + minute * 60
         log.tick()
         assert log.lid_open() is None
+
+
+def refusal(clock, t=65):
+    """ACEPRO's console answer when TEMP is above its max_dryer_temperature."""
+    return {"kind": "response", "time": clock.t, "text": f"// ACE[0]: Temp {t}°C out of range, skipping"}
+
+
+def test_driver_limit_caps_the_temperature(make):
+    d, moon, _ = make([spool(1, 1, "ASA"), spool(2, 2, "ASA")], hub(humidity=8))
+    assert d.required_temp()["temp"] == 65                        # ACE 2 Pro, before the limit is known
+    moon.ace_settings = {"max_dryer_temperature": "60"}           # ACEPRO's default when printer.cfg sets none
+    run(d.evaluate())
+    r = d.required_temp()
+    assert d.driver_max == 60 and r["temp"] == 60 and r["ace_max"] == 60 and r["driver_max"] == 60
+    run(d.start(None, 4))
+    assert moon.sent[-1] == "ACE_START_DRYING TEMP=60 DURATION=240"
+    moon.klippy_ready = False                                     # Klipper restarts: printer.cfg may have changed
+    run(d.evaluate())
+    assert d.driver_max is None
+    moon.klippy_ready = True
+    moon.ace_settings = {"max_dryer_temperature": "65"}
+    run(d.evaluate())
+    assert d.required_temp()["temp"] == 65
+
+
+def test_refused_start_ends_the_run_without_restarts(make, cfg):
+    d, moon, clock = make([spool(1, 1, "ASA")], hub(humidity=25))
+    run(d.start(None, 6))                                         # limit unknown: 65 goes out
+    d.on_console({"kind": "response", "time": clock.t - 3600, "text": "// ACE[0]: Temp 65°C out of range, skipping"})
+    assert d.run is not None                                      # old backlog line: not ours
+    d.on_console(refusal(clock))
+    assert d.run is None and d.refused["temp"] == 65 and "refused 65 °C" in d.last_event["text"]
+    keys = [m["key"] for m in messages_of(d)]
+    assert "dryer_refused" in keys
+    d.set_config({"enabled": True, "start_above": 20, "stop_below": 10, "max_hours": 6, "start_delay_minutes": 0})
+    for _ in range(5):                                            # neither restart nor automation, hour after hour
+        clock.t += 3600
+        run(d.evaluate())
+    assert len(moon.sent) == 1
+    moon.klippy_ready = False                                     # after a Klipper restart it may work
+    run(d.evaluate())
+    moon.klippy_ready = True
+    run(d.evaluate())
+    assert d.refused is None and len(moon.sent) == 2
+
+
+def test_hand_start_clears_a_refusal(make):
+    d, moon, clock = make([spool(1, 1, "PETG")], hub())
+    run(d.start(60, 2))
+    d.on_console(refusal(clock, 60))
+    assert d.refused
+    clock.t += 10
+    run(d.start(55, 2))
+    assert d.refused is None and d.run["temp"] == 55
+
+
+def test_busy_klipper_counts_the_start_as_sent(make):
+    d, moon, clock = make([spool(1, 1, "PETG")], hub(humidity=25))
+    moon.gcode_timeout = True                                     # print moves queued: no answer within the timeout
+    d.set_config({"enabled": True, "start_above": 20, "stop_below": 10, "max_hours": 6, "start_delay_minutes": 0})
+    run(d.evaluate())
+    assert d.auto_run and d.run is not None and len(moon.sent) == 1
+    clock.t += 5
+    run(d.evaluate())
+    assert len(moon.sent) == 1                                    # not sent again every few seconds
+
+
+
+def messages_of(d):
+    """Status messages (status.messages) of a bridge around this dryer."""
+    bridge = SimpleNamespace(moon=d.moon, dryer=d, safety_warnings=lambda: [],
+                             slots=SimpleNamespace(warnings=[], slots_view=lambda: [], unknown_tags={}, tag_events=[]),
+                             usage=SimpleNamespace(open=[], history=[]), cfg=SimpleNamespace(),
+                             sm=SimpleNamespace(connected=True), camera=SimpleNamespace(state=lambda: {}))
+    return messages(bridge, [], d.clock())

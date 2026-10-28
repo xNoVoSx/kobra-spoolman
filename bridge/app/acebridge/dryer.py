@@ -13,15 +13,20 @@ Runs:
 
 Temperature: never higher than the most sensitive loaded filament tolerates - value on the filament (extra field
 dry_temp), else on its template, else a cautious start value per material - and never higher than the ACE can do
-(ACE Pro 55 degC, ACE 2 Pro 65 degC).
+(ACE Pro 55 degC, ACE 2 Pro 65 degC) or the driver allows (ACEPRO's max_dryer_temperature, default 60, read from
+Klipper's configfile). If the driver still refuses a start ("Temp 65°C out of range, skipping" on the console), the
+run ends at once with a clear event, nothing restarts and the automation waits until Klipper restarts (2026-10-28:
+ACEPRO refused 65 degC for ASA, the bridge took it for "the ACE stopped early" and retried every hour).
 Run sources (stable API codes): hand, plan, spule (spool inserted), auto.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
@@ -56,6 +61,9 @@ COMMAND_SETTLE_RINKHALS_S = 90     # GoKlipper reports the ACE only about every 
 # run by hand/plan/insert: restart this often when the ACE stops early; remaining time below: done
 MAX_RESTARTS = 3
 MIN_REST_MIN = 5
+# ACEPRO's answer when TEMP is above its max_dryer_temperature (commands.py ACE_START_DRYING)
+REFUSED = re.compile(r"ACE\[\d+\]: Temp (\d+(?:\.\d+)?)°C out of range")
+LIMIT_RETRY_S = 60
 
 
 def ace_max_temp(model: Optional[str]) -> int:
@@ -143,6 +151,12 @@ class Dryer:
         self._busy = False
         self._error_told: Optional[str] = None        # dryer fault already reported
         self._last_cmd_at = -1e12
+        # ACEPRO's max_dryer_temperature (None = unknown / not ACEPRO); read once per Klipper session
+        self.driver_max: Optional[int] = None
+        self._limit_read = False
+        self._limit_tried_at = -1e12
+        # the driver refused the last start: {"temp", "at"} - blocks the automation until Klipper restarts
+        self.refused: Optional[Dict[str, Any]] = None
         self._load()
 
     # ------------------------------------------------------------ state
@@ -210,6 +224,8 @@ class Dryer:
         """Highest temperature all loaded filaments tolerate, with the reason."""
         hub = hub_state(self.moon.status)
         cap = ace_max_temp(hub["model"])
+        if self.driver_max is not None:
+            cap = min(cap, self.driver_max)
         templates = self.slots.sm.templates()
         assigned, _ = self.slots.assignments()
         parts = []
@@ -227,7 +243,8 @@ class Dryer:
                 continue
             parts.append({"slot": gate + 1, "name": name, "temp": t, "source": src})
         limit = min([p["temp"] for p in parts], default=None)
-        return {"temp": None if limit is None else min(limit, cap), "ace_max": cap, "slots": parts,
+        return {"temp": None if limit is None else min(limit, cap), "ace_max": cap, "driver_max": self.driver_max,
+                "slots": parts,
                 "limited_by": [p["slot"] for p in parts if limit is not None and p["temp"] == limit]}
 
     def state(self) -> Dict[str, Any]:
@@ -240,6 +257,7 @@ class Dryer:
                 "run": {**self.run, "until_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.run["until"]))}
                 if self.run else None,
                 "paused_until": self.pause_until if self.pause_until > self.clock() else None,
+                "refused": self.refused,
                 "last_event": self.last_event}
 
     def _event(self, text: str) -> None:
@@ -263,7 +281,15 @@ class Dryer:
         h = float(hours if hours is not None else self.config.max_hours)
         if not 0.5 <= h <= 24:
             raise ValueError(tr("Run time 0.5 to 24 hours"))
-        await self.moon.gcode(acemodel.dryer_start_command(self.moon.status, t, int(round(h * 60))), source=tr("Dryer"))
+        if source == "hand":
+            self.refused = None         # a person tries again: report the driver's answer afresh
+        try:
+            await self.moon.gcode(acemodel.dryer_start_command(self.moon.status, t, int(round(h * 60))),
+                                  source=tr("Dryer"))
+        except asyncio.TimeoutError:
+            # Klipper is busy (print moves queued): the command is queued and runs later - count it as sent, else
+            # the next evaluation sends it again every few seconds (2026-10-28: 6 starts in 90 s while printing)
+            log.info("Dryer start queued - Klipper is busy")
         now = self.clock()
         self._last_cmd_at = now
         self.auto_run = source == "auto"
@@ -298,19 +324,67 @@ class Dryer:
         await self.start(None, max(0.5, min(24.0, hours)), source="spule", reason=reason)
         return True
 
+    def on_console(self, entry: Dict[str, Any]) -> None:
+        """Console listener: the driver refused our start (temperature above its limit)."""
+        if entry.get("kind") != "response" or entry.get("time", 0) < self._last_cmd_at - 1:
+            return              # backlog after a reconnect, or not ours
+        m = REFUSED.search(str(entry.get("text") or ""))
+        if not m:
+            return
+        t = int(float(m.group(1)))
+        if self.refused and self.refused.get("temp") == t and self.run is None:
+            return              # one start, several ACE instances / lines
+        self.refused = {"temp": t, "at": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(self.clock()))}
+        self.run = None
+        self.auto_run = False
+        self._save()
+        self._event(tr("The ACE driver refused {t} °C (ACEPRO allows at most {max}) – not drying. Raise "
+                       "max_dryer_temperature in the [ace] section of printer.cfg (ACE 2 Pro: 65) or start lower",
+                       t=t, max=self.driver_max if self.driver_max is not None else "?"))
+
+    async def _read_limit(self) -> None:
+        """ACEPRO's max_dryer_temperature from Klipper's configfile (includes the default when it is not set)."""
+        if self._limit_read or acemodel.variant(self.moon.status) != acemodel.ACEPRO:
+            return
+        now = self.clock()
+        if now - self._limit_tried_at < LIMIT_RETRY_S:
+            return
+        self._limit_tried_at = now
+        try:
+            res = await self.moon.query({"configfile": ["settings"]})
+        except Exception as e:  # noqa: BLE001
+            log.debug("Dryer limit not readable: %s", str(e) or e.__class__.__name__)
+            return
+        self._limit_read = True
+        v = (((res.get("configfile") or {}).get("settings") or {}).get("ace") or {}).get("max_dryer_temperature")
+        try:
+            self.driver_max = int(float(v)) if v not in (None, "") else None
+        except (TypeError, ValueError):
+            self.driver_max = None
+        if self.driver_max is not None:
+            log.info("ACEPRO allows drying up to %s °C (max_dryer_temperature)", self.driver_max)
+
     # ------------------------------------------------------------ automation
     async def evaluate(self) -> None:
         """On every ACE update and in the ticker. Commands only on state changes."""
-        if self._busy or not self.moon.klippy_ready:
+        if not self.moon.klippy_ready:
+            # Klipper restarts: the config (max_dryer_temperature) may change - read again, forget a refusal
+            self._limit_read = False
+            self._limit_tried_at = -1e12
+            self.driver_max = None
+            self.refused = None
+            return
+        if self._busy:
             return
         hub = hub_state(self.moon.status)
         if not hub["present"]:
             return
         self._busy = True
         try:
+            await self._read_limit()
             await self._evaluate(hub)
         except Exception as e:  # noqa: BLE001
-            log.warning("Dryer automation: %s", e)
+            log.warning("Dryer automation: %s", str(e) or e.__class__.__name__)
         finally:
             self._busy = False
 
@@ -391,6 +465,8 @@ class Dryer:
             self._event(tr("Run finished (time is up)"))
         if not c.enabled or hub["humidity"] is None or now < self.pause_until or req["temp"] is None:
             return
+        if self.refused:
+            return              # the driver refuses - starting again every hour would not help
         if not c.while_printing and self.slots.printing:
             return
         if self._above_since is not None and now - self._above_since >= c.start_delay_minutes * 60:
